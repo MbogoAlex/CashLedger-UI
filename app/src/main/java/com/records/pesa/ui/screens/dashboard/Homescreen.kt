@@ -1,4 +1,4 @@
-package com.records.pesa.ui.screens
+package com.records.pesa.ui.screens.dashboard
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -22,6 +22,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.records.pesa.R
 import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
+import com.records.pesa.ui.screens.DashboardScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -95,14 +97,10 @@ fun HomeScreen(
                 }
             }
             HomeScreenTab.BUDGET -> {
-                Box(
-                    contentAlignment = Alignment.Center,
+                BudgetScreenComposable(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxSize()
-                ) {
-                    Text(text = "Budget")
-                }
+                )
             }
         }
         BottomNavBar(

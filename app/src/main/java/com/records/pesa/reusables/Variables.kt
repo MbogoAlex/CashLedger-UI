@@ -2,8 +2,12 @@ package com.records.pesa.reusables
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.records.pesa.models.BudgetCategory
+import com.records.pesa.models.BudgetDt
+import com.records.pesa.models.BudgetOwner
 import com.records.pesa.models.ItemCategory
 import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.TransactionItem
 import java.time.format.DateTimeFormatter
 
@@ -226,4 +230,132 @@ val sortTypes = listOf(
     "Amount",
     "Times"
 )
+
+val transactionCategory = TransactionCategory(
+    id = 1,
+    name = "Grocery",
+    createdAt = "2024-07-08T19:06:12.563465",
+    transactions = emptyList(),
+    keywords = emptyList(),
+    budgets = emptyList()
+)
+
+val transactionCategories = listOf(
+    TransactionCategory(
+        id = 1,
+        name = "Grocery",
+        createdAt = "2024-07-08T19:06:12.563465",
+        transactions = emptyList(),
+        keywords = emptyList(),
+        budgets = emptyList()
+    ),
+    TransactionCategory(
+        id = 1,
+        name = "Grocery",
+        createdAt = "2024-07-08T19:06:12.563465",
+        transactions = emptyList(),
+        keywords = emptyList(),
+        budgets = emptyList()
+    )
+)
+
+val budgetCategory = BudgetCategory(
+    id = 1,
+    name = "Grocery"
+)
+
+val budgetOwner = BudgetOwner(
+    id = 1,
+    name = "Alex"
+)
+
+val budget = BudgetDt(
+    id = 1,
+    name = "Picnic",
+    active = true,
+    expenditure = 0.0,
+    budgetLimit = 1000.0,
+    createdAt = "2024-07-08T19:06:12.563465",
+    limitDate = "2024-08-10",
+    limitReached = false,
+    limitReachedAt = null,
+    exceededBy = 0.0,
+    category = budgetCategory,
+    user = budgetOwner
+)
+
+val budgets = listOf(
+    BudgetDt(
+        id = 1,
+        name = "Picnic",
+        active = true,
+        expenditure = 0.0,
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-08T19:06:12.563465",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        limitReachedAt = null,
+        exceededBy = 0.0,
+        category = budgetCategory,
+        user = budgetOwner
+    ),
+    BudgetDt(
+        id = 1,
+        name = "Picnic",
+        active = true,
+        expenditure = 0.0,
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-08T19:06:12.563465",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        limitReachedAt = null,
+        exceededBy = 0.0,
+        category = budgetCategory,
+        user = budgetOwner
+    ),
+    BudgetDt(
+        id = 1,
+        name = "Picnic",
+        active = true,
+        expenditure = 0.0,
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-08T19:06:12.563465",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        limitReachedAt = null,
+        exceededBy = 0.0,
+        category = budgetCategory,
+        user = budgetOwner
+    ),
+    BudgetDt(
+        id = 1,
+        name = "Picnic",
+        active = true,
+        expenditure = 0.0,
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-08T19:06:12.563465",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        limitReachedAt = null,
+        exceededBy = 0.0,
+        category = budgetCategory,
+        user = budgetOwner
+    ),
+    BudgetDt(
+        id = 1,
+        name = "Picnic",
+        active = true,
+        expenditure = 0.0,
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-08T19:06:12.563465",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        limitReachedAt = null,
+        exceededBy = 0.0,
+        category = budgetCategory,
+        user = budgetOwner
+    )
+)
+
+
 

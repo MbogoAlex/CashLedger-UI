@@ -2,13 +2,14 @@ package com.records.pesa.functions
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
-fun formatDateTime(dateTime: LocalDateTime): String {
+fun formatIsoDateTime(dateTime: LocalDateTime): String {
     val formatter = DateTimeFormatter.ofPattern("d'th' MMMM, yyyy hh:mm a", Locale.ENGLISH)
     return dateTime.format(formatter)
 }
@@ -38,4 +39,8 @@ fun getDayOfMonthSuffix(n: Int): String {
             else -> "th"
         }
     }
+}
+
+fun formatMoneyValue(amount: Double): String {
+    return  NumberFormat.getCurrencyInstance(Locale("en", "KE")).format(amount)
 }

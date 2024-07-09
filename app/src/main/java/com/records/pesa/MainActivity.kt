@@ -7,16 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.records.pesa.ui.screens.HomeScreenComposable
-import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
+import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 class MainActivity : ComponentActivity() {
