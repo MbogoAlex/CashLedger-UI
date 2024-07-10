@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -119,6 +120,8 @@ fun BudgetItem(
     var expanded by remember {
         mutableStateOf(false)
     }
+    val progress = budgetDt.expenditure / budgetDt.budgetLimit
+    val percentLeft = (1 - progress) * 100
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,7 +160,19 @@ fun BudgetItem(
                 }
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}:",
+                    text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}",
+                    color = MaterialTheme.colorScheme.surfaceTint,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                LinearProgressIndicator(
+                    progress = progress.toFloat(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = "$percentLeft % left",
                     color = MaterialTheme.colorScheme.surfaceTint,
                     fontWeight = FontWeight.Bold
                 )
