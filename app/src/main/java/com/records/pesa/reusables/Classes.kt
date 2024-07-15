@@ -24,3 +24,23 @@ data class HomeScreenTabItem(
     val icon: Int,
     val tab: HomeScreenTab
 )
+
+enum class BudgetHomeScreenTab {
+    INFO,
+    MONEY_IN,
+    MONEY_OUT,
+    CHART
+}
+
+data class BudgetHomeScreenTabItem(
+    val name: String,
+    val icon: Int,
+    val tab: BudgetHomeScreenTab
+)
+
+enum class LoadingStatus {
+    INITIAL,
+    LOADING,
+    SUCCESS,
+    FAIL
+}

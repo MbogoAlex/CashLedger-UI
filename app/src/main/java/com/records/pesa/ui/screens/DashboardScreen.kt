@@ -38,14 +38,21 @@ import com.records.pesa.R
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
 
+object DashboardScreenDestination: AppNavigation {
+    override val title: String = "Dashboard screen"
+    override val route: String = "dashboard-screen"
+
+}
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreenComposable(
+    navigateToTransactionsScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -53,6 +60,7 @@ fun DashboardScreenComposable(
             .safeDrawingPadding()
     ) {
         DashboardScreen(
+            navigateToTransactionsScreen = navigateToTransactionsScreen,
             transactionCategories = transactionCategories
         )
     }
@@ -61,6 +69,7 @@ fun DashboardScreenComposable(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreen(
+    navigateToTransactionsScreen: () -> Unit,
     transactionCategories: List<TransactionCategory>,
     modifier: Modifier = Modifier
 ) {
@@ -80,7 +89,7 @@ fun DashboardScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = { /*TODO*/ }) {
+            TextButton(onClick = navigateToTransactionsScreen) {
                 Text(text = "See all")
             }
         }
@@ -267,6 +276,7 @@ fun DashboardScreenPreview(
 ) {
     CashLedgerTheme {
         DashboardScreen(
+            navigateToTransactionsScreen = {},
             transactionCategories = transactionCategories
         )
     }

@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.records.pesa.R
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionItem
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
@@ -64,6 +65,11 @@ import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+
+object TransactionsScreenDestination: AppNavigation {
+    override val route = "Transactions Screen"
+    override val title = "transactions-screen"
+}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable

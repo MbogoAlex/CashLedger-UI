@@ -5,7 +5,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,16 +21,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -57,20 +54,20 @@ import kotlin.math.absoluteValue
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun BudgetScreenComposable(
+fun BudgetListScreenComposable(
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
-        BudgetScreen()
+        BudgetListScreen()
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun BudgetScreen(
+fun BudgetListScreen(
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -102,17 +99,27 @@ fun BudgetScreen(
                 .fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(10.dp))
-        LazyColumn {
+        LazyColumn(
+            modifier = Modifier.weight(1f)
+        ) {
             items(budgets) {
-                BudgetItem(budgetDt = it)
+                BudgetListItem(budgetDt = it)
             }
+        }
+//        Spacer(modifier = Modifier.weight(1f))
+        OutlinedButton(
+            onClick = { /*TODO*/ },
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Text(text = "Add a budget")
         }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun BudgetItem(
+fun BudgetListItem(
     budgetDt: BudgetDt,
     modifier: Modifier = Modifier
 ) {
@@ -233,10 +240,10 @@ fun BudgetItem(
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun BudgetScreenPreview(
+fun BudgetListScreenPreview(
     modifier: Modifier = Modifier
 ) {
     CashLedgerTheme {
-        BudgetScreen()
+        BudgetListScreen()
     }
 }

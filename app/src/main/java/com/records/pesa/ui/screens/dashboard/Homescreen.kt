@@ -20,15 +20,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.records.pesa.R
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
 import com.records.pesa.ui.screens.DashboardScreenComposable
-import com.records.pesa.ui.screens.dashboard.budget.BudgetScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
+object HomeScreenDestination: AppNavigation {
+    override val title: String = "Home screen"
+    override val route: String = "home-screen"
 
+}
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreenComposable(
+    navigateToTransactionsScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
@@ -62,7 +68,8 @@ fun HomeScreenComposable(
             onTabChange = {
                 currentTab = it
             },
-            tabs = tabs
+            tabs = tabs,
+            navigateToTransactionsScreen = navigateToTransactionsScreen
         )
     }
 }
@@ -73,6 +80,7 @@ fun HomeScreen(
     currentTab: HomeScreenTab,
     onTabChange: (HomeScreenTab) -> Unit,
     tabs: List<HomeScreenTabItem>,
+    navigateToTransactionsScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -82,6 +90,7 @@ fun HomeScreen(
         when(currentTab) {
             HomeScreenTab.DASHBOARD -> {
                 DashboardScreenComposable(
+                    navigateToTransactionsScreen = navigateToTransactionsScreen,
                     modifier = Modifier
                         .weight(1f)
                 )
@@ -97,7 +106,7 @@ fun HomeScreen(
                 }
             }
             HomeScreenTab.BUDGET -> {
-                BudgetScreenComposable(
+                BudgetListScreenComposable(
                     modifier = Modifier
                         .weight(1f)
                 )
@@ -169,7 +178,8 @@ fun HomeScreenPreview() {
             onTabChange = {
                 currentTab = it
             },
-            tabs = tabs
+            tabs = tabs,
+            navigateToTransactionsScreen = {}
         )
     }
 }
