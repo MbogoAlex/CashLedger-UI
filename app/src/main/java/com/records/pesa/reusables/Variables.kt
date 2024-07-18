@@ -5,6 +5,8 @@ import androidx.annotation.RequiresApi
 import com.records.pesa.models.BudgetCategory
 import com.records.pesa.models.BudgetDt
 import com.records.pesa.models.BudgetOwner
+import com.records.pesa.models.CategoryBudget
+import com.records.pesa.models.CategoryKeyword
 import com.records.pesa.models.ItemCategory
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
@@ -231,13 +233,63 @@ val sortTypes = listOf(
     "Times"
 )
 
+val categoryKeyword = CategoryKeyword(
+    id = 1,
+    keyWord = "Josphat  Karoki",
+    nickName = "Josphat  Karoki"
+)
+
+val categoryKeywords = listOf(
+    CategoryKeyword(
+        id = 1,
+        keyWord = "Josphat  Karoki",
+        nickName = "Josphat  Karoki"
+    ),
+    CategoryKeyword(
+        id = 1,
+        keyWord = "Josphat  Karoki",
+        nickName = "Josphat  Karoki"
+    )
+)
+
+val categoryBudget = CategoryBudget(
+    id = 1,
+    name = "Grocery",
+    budgetLimit = 1000.0,
+    createdAt = "2024-07-18T18:45:25.671011928",
+    limitDate = "2024-08-10",
+    limitReached = false,
+    exceededBy = 0.0
+)
+
+val categoryBudgets = listOf(
+    CategoryBudget(
+        id = 1,
+        name = "Grocery",
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-18T18:45:25.671011928",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        exceededBy = 0.0
+    ),
+    CategoryBudget(
+        id = 1,
+        name = "Grocery",
+        budgetLimit = 1000.0,
+        createdAt = "2024-07-18T18:45:25.671011928",
+        limitDate = "2024-08-10",
+        limitReached = false,
+        exceededBy = 0.0
+    )
+)
+
 val transactionCategory = TransactionCategory(
     id = 1,
     name = "Grocery",
     createdAt = "2024-07-08T19:06:12.563465",
-    transactions = emptyList(),
-    keywords = emptyList(),
-    budgets = emptyList()
+    transactions = transactions,
+    keywords = categoryKeywords,
+    budgets = categoryBudgets
 )
 
 val transactionCategories = listOf(

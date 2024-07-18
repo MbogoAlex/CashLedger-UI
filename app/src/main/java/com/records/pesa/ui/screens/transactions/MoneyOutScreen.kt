@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.transactions
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,19 +19,24 @@ import com.records.pesa.ui.theme.CashLedgerTheme
 @Composable
 fun MoneyOutScreenComposable(
     sortedTransactionItems: List<SortedTransactionItem>,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
-        MoneyInScreen(sortedTransactionItems = sortedTransactionItems)
+        MoneyOutScreen(
+            sortedTransactionItems = sortedTransactionItems,
+            navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen
+        )
     }
 }
 
 @Composable
 fun MoneyOutScreen(
     sortedTransactionItems: List<SortedTransactionItem>,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -39,7 +45,13 @@ fun MoneyOutScreen(
     ) {
         LazyColumn {
             items(sortedTransactionItems) {
-                SortedTransactionItemCell(transaction = it)
+                SortedTransactionItemCell(
+                    transaction = it,
+                    modifier = Modifier
+                        .clickable {
+                            navigateToEntityTransactionsScreen(it.transactionType, it.name, it.toString(), false)
+                        }
+                )
                 Divider()
             }
         }
@@ -53,7 +65,8 @@ fun MoneyOutScreen(
 fun MoneyOutScreenPreview() {
     CashLedgerTheme {
         MoneyOutScreen(
-            sortedTransactionItems = moneyOutSortedTransactionItems
+            sortedTransactionItems = moneyOutSortedTransactionItems,
+            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  }
         )
     }
 }

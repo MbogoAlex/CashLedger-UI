@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,7 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.nav.AppNavigation
@@ -74,8 +78,11 @@ object TransactionsScreenDestination: AppNavigation {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionsScreenComposable(
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: TransactionsScreenViewModelScreen = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
     val tabs = listOf(
         TransactionScreenTabItem(
             name = "All",
@@ -99,14 +106,8 @@ fun TransactionsScreenComposable(
         ),
     )
 
-    val transactions = transactions
-
     var currentTab by rememberSaveable {
         mutableStateOf(TransactionScreenTab.ALL_TRANSACTIONS)
-    }
-
-    var selectedType by rememberSaveable {
-        mutableStateOf("All types")
     }
 
     var selectedSortCriteria by rememberSaveable {
@@ -121,26 +122,43 @@ fun TransactionsScreenComposable(
         mutableStateOf(false)
     }
 
+    var transactionsLoaded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     Box(
         modifier = Modifier
             .safeDrawingPadding()
     ) {
         TransactionsScreen(
-            transactions = transactions,
-            moneyInsortedTransactionItems = moneyInSortedTransactionItems,
-            moneyOutsortedTransactionItems = moneyOutSortedTransactionItems,
+            transactions = uiState.transactions,
+            moneyInsortedTransactionItems = uiState.moneyInSorted,
+            moneyOutsortedTransactionItems = uiState.moneyOutSorted,
+            totalMoneyIn = formatMoneyValue(uiState.totalMoneyIn),
+            totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
             bottomTabItems = tabs,
             currentTab = currentTab,
             onTabSelected = {
+                transactionsLoaded = false
                 currentTab = it
+                if(it == TransactionScreenTab.MONEY_IN && !transactionsLoaded) {
+                    transactionsLoaded = true
+                    viewModel.getMoneyInSortedTransactions()
+                } else if(it == TransactionScreenTab.MONEY_OUT && !transactionsLoaded) {
+                    transactionsLoaded = true
+                    viewModel.getMoneyOutSortedTransactions()
+                } else if(it == TransactionScreenTab.ALL_TRANSACTIONS && !transactionsLoaded) {
+                    transactionsLoaded = true
+                    viewModel.getTransactions()
+                }
             },
             typeMenuExpanded = typeMenuExpanded,
             onExpandTypeMenu = {
                 typeMenuExpanded = !typeMenuExpanded
             },
-            selectedType = selectedType,
+            selectedType = uiState.transactionType,
             onSelectType = {
-                selectedType = it
+                viewModel.changeTransactionType(it, currentTab)
                 typeMenuExpanded = !typeMenuExpanded
             },
             sortMenuExpanded = sortMenuExpanded,
@@ -151,6 +169,21 @@ fun TransactionsScreenComposable(
             onSelectSortCriteria = {
                 selectedSortCriteria = it
                 sortMenuExpanded = !sortMenuExpanded
+            },
+            startDate = LocalDate.parse(uiState.startDate),
+            endDate = LocalDate.parse(uiState.endDate),
+            onChangeStartDate = {
+                viewModel.changeStartDate(it, currentTab)
+            },
+            onChangeLastDate = {
+                viewModel.changeEndDate(it, currentTab)
+            },
+            searchText = uiState.entity,
+            onChangeSearchText = {
+                viewModel.changeEntity(it, currentTab)
+            },
+            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->
+                navigateToEntityTransactionsScreen("1", transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
             }
         )
 
@@ -163,6 +196,8 @@ fun TransactionsScreen(
     transactions: List<TransactionItem>,
     moneyInsortedTransactionItems: List<SortedTransactionItem>,
     moneyOutsortedTransactionItems: List<SortedTransactionItem>,
+    totalMoneyIn: String,
+    totalMoneyOut: String,
     bottomTabItems: List<TransactionScreenTabItem>,
     currentTab: TransactionScreenTab,
     onTabSelected: (TransactionScreenTab) -> Unit,
@@ -174,13 +209,25 @@ fun TransactionsScreen(
     sortMenuExpanded: Boolean,
     selectedSortCriteria: String,
     onSelectSortCriteria: (type: String) -> Unit,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    onChangeStartDate: (date: LocalDate) -> Unit,
+    onChangeLastDate: (date: LocalDate) -> Unit,
+    searchText: String,
+    onChangeSearchText: (searchText: String) -> Unit,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        DateRangePicker()
+        DateRangePicker(
+            startDate = startDate,
+            endDate = endDate,
+            onChangeStartDate = onChangeStartDate,
+            onChangeLastDate = onChangeLastDate
+        )
         OutlinedTextField(
             leadingIcon = {
                 Icon(
@@ -188,9 +235,9 @@ fun TransactionsScreen(
                     contentDescription = null
                 )
             },
-            value = "",
+            value = searchText,
             placeholder = {
-                Text(text = "Search entity")
+                Text(text = "Search transaction")
             },
             colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = Color.Transparent,
@@ -199,7 +246,7 @@ fun TransactionsScreen(
             keyboardOptions = KeyboardOptions.Default.copy(
                 imeAction = ImeAction.Done
             ),
-            onValueChange = {},
+            onValueChange = onChangeSearchText,
             trailingIcon = {
                 Icon(imageVector = Icons.Default.Clear, contentDescription = null)
             },
@@ -210,131 +257,137 @@ fun TransactionsScreen(
                 .fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(10.dp))
-        if(currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(
-                        horizontal = 16.dp
-                    )
-            ) {
-                Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                Text(
-                    text = "Ksh 12,900",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Green
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                Text(
-                    text = "Ksh 14,900",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Red
-                )
-            }
-        } else if(currentTab == TransactionScreenTab.MONEY_IN) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(
-                        horizontal = 16.dp
-                    )
-            ) {
-                Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                Text(
-                    text = "Ksh 12,900",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Green
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(
+        when (currentTab) {
+            TransactionScreenTab.ALL_TRANSACTIONS -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clickable {
-                            onExpandSortMenu()
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = selectedSortCriteria)
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Icon(
-                            painter = painterResource(id = R.drawable.sort_2),
-                            contentDescription = "Sort"
+                        .padding(
+                            horizontal = 16.dp
                         )
-                    }
-                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 250.dp)
-                                .padding(
-                                    horizontal = 5.dp
-                                )
-                                .verticalScroll(rememberScrollState())
+                ) {
+                    Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                    Text(
+                        text = totalMoneyIn,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Green
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                    Text(
+                        text = totalMoneyOut,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Red
+                    )
+                }
+            }
+            TransactionScreenTab.MONEY_IN -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp
+                        )
+                ) {
+                    Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                    Text(
+                        text = totalMoneyIn,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Green
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier
+                            .clickable {
+                                onExpandSortMenu()
+                            }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            sortTypes.forEach {
-                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                    Text(text = it)
+                            Text(text = selectedSortCriteria)
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.sort),
+                                contentDescription = "Sort"
+                            )
+                        }
+                        DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 250.dp)
+                                    .padding(
+                                        horizontal = 5.dp
+                                    )
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                sortTypes.forEach {
+                                    DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
+                                        Text(text = it)
+                                    }
+                                    Divider()
                                 }
-                                Divider()
                             }
                         }
+
+                    }
+                }
+            }
+            TransactionScreenTab.MONEY_OUT -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp
+                        )
+                ) {
+                    Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                    Text(
+                        text = totalMoneyOut,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Red
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier
+                            .clickable {
+                                onExpandSortMenu()
+                            }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = selectedSortCriteria)
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.sort),
+                                contentDescription = "Sort"
+                            )
+                        }
+                        DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 250.dp)
+                                    .padding(
+                                        horizontal = 5.dp
+                                    )
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                sortTypes.forEach {
+                                    DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
+                                        Text(text = it)
+                                    }
+                                    Divider()
+                                }
+                            }
+                        }
+
                     }
 
                 }
             }
-        } else if(currentTab == TransactionScreenTab.MONEY_OUT) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(
-                        horizontal = 16.dp
-                    )
-            ) {
-                Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                Text(
-                    text = "Ksh 14,900",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Red
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(
-                    modifier = Modifier
-                        .clickable {
-                            onExpandSortMenu()
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = selectedSortCriteria)
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Icon(
-                            painter = painterResource(id = R.drawable.sort_2),
-                            contentDescription = "Sort"
-                        )
-                    }
-                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 250.dp)
-                                .padding(
-                                    horizontal = 5.dp
-                                )
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            sortTypes.forEach {
-                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                    Text(text = it)
-                                }
-                                Divider()
-                            }
-                        }
-                    }
 
-                }
-
-            }
+            TransactionScreenTab.CHART -> TODO()
         }
 
 //        Spacer(modifier = Modifier.height(5.dp))
@@ -391,6 +444,7 @@ fun TransactionsScreen(
             TransactionScreenTab.MONEY_IN -> {
                 MoneyInScreenComposable(
                     sortedTransactionItems = moneyInsortedTransactionItems,
+                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                     modifier = Modifier
                         .padding(
                             horizontal = 16.dp
@@ -401,6 +455,7 @@ fun TransactionsScreen(
             TransactionScreenTab.MONEY_OUT -> {
                 MoneyOutScreenComposable(
                     sortedTransactionItems = moneyOutsortedTransactionItems,
+                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                     modifier = Modifier
                         .padding(
                             horizontal = 16.dp
@@ -463,7 +518,7 @@ fun TransactionsScreenPreview(
         TransactionScreenTabItem(
             name = "All",
             tab = TransactionScreenTab.ALL_TRANSACTIONS,
-            icon = R.drawable.list
+            icon = R.drawable.transactions
         ),
         TransactionScreenTabItem(
             name = "Money in",
@@ -486,6 +541,8 @@ fun TransactionsScreenPreview(
             transactions = transactions,
             moneyOutsortedTransactionItems = moneyOutSortedTransactionItems,
             moneyInsortedTransactionItems = moneyInSortedTransactionItems,
+            totalMoneyIn = "Ksh 12,900",
+            totalMoneyOut = "Ksh 4500",
             bottomTabItems = tabs,
             onTabSelected = {},
             currentTab = TransactionScreenTab.MONEY_OUT,
@@ -496,18 +553,26 @@ fun TransactionsScreenPreview(
             onExpandSortMenu = {},
             selectedSortCriteria = "Amount",
             onSelectSortCriteria = {},
-            sortMenuExpanded = false
+            sortMenuExpanded = false,
+            startDate = LocalDate.now(),
+            endDate = LocalDate.now(),
+            onChangeStartDate = {},
+            onChangeLastDate = {},
+            searchText = "",
+            onChangeSearchText = {},
+            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  }
         )
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun DateRangePicker() {
-    val currentDate = LocalDate.now()
-    val firstDayOfMonth = currentDate.withDayOfMonth(1)
-    var startDate by remember { mutableStateOf(firstDayOfMonth) }
-    var endDate by remember { mutableStateOf(currentDate) }
+fun DateRangePicker(
+    startDate: LocalDate,
+    endDate: LocalDate,
+    onChangeStartDate: (date: LocalDate) -> Unit,
+    onChangeLastDate: (date: LocalDate) -> Unit
+) {
     val context = LocalContext.current
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -519,14 +584,14 @@ fun DateRangePicker() {
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (isStart) {
                     if (selectedDate.isBefore(endDate) || selectedDate.isEqual(endDate)) {
-                        startDate = selectedDate
+                        onChangeStartDate(selectedDate)
                     } else {
                         // Handle case where start date is after end date
                         Toast.makeText(context, "Start date must be before end date", Toast.LENGTH_LONG).show()
                     }
                 } else {
                     if (selectedDate.isAfter(startDate) || selectedDate.isEqual(startDate)) {
-                        endDate = selectedDate
+                        onChangeLastDate(selectedDate)
                     } else {
                         // Handle case where end date is before start date
                         Toast.makeText(context, "End date must be after start date", Toast.LENGTH_LONG).show()

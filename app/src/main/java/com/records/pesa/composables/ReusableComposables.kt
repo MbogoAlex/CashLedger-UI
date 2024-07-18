@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.records.pesa.functions.formatDate
+import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.reusables.TransactionScreenTab
@@ -61,25 +62,27 @@ fun TransactionItemCell(
             }
             Spacer(modifier = Modifier.width(5.dp))
             Column {
-                Text(
-                    text = transaction.transactionType.uppercase(),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(5.dp))
                 if(transaction.transactionAmount < 0) {
                     Text(
-                        text = if(transaction.recipient.length > 12) "${transaction.recipient.substring(0, 12)}..." else transaction.recipient,
-                        fontSize = 12.sp
-//                    fontWeight = FontWeight.Bold
+                        text = if(transaction.recipient.length > 20) "${transaction.recipient.substring(0, 20).uppercase()}..." else transaction.recipient.uppercase(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 } else if(transaction.transactionAmount > 0) {
                     Text(
-                        text = if(transaction.sender.length > 12) "${transaction.sender.substring(0, 12)}..." else transaction.sender,
-                        fontSize = 12.sp
-//                    fontWeight = FontWeight.Bold
+                        text = if(transaction.sender.length > 20) "${transaction.sender.substring(0, 20).uppercase()}..." else transaction.sender.uppercase(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = transaction.transactionType,
+                    fontSize = 12.sp,
+//                    fontWeight = FontWeight.Bold
+                )
+
+
 
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -88,13 +91,13 @@ fun TransactionItemCell(
             ) {
                 if(transaction.transactionAmount > 0) {
                     Text(
-                        text = "+ ${transaction.transactionAmount}",
+                        text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
                         fontWeight = FontWeight.Bold,
                         color = Color.Green
                     )
                 } else if(transaction.transactionAmount < 0) {
                     Text(
-                        text = "- ${transaction.transactionAmount.absoluteValue}",
+                        text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         color = Color.Red
                     )
@@ -102,7 +105,7 @@ fun TransactionItemCell(
                 Spacer(modifier = Modifier.height(5.dp))
                 if(transaction.transactionAmount < 0) {
                     Text(
-                        text = "Cost: - ${transaction.transactionCost.absoluteValue}",
+                        text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontStyle = FontStyle.Italic,
@@ -130,7 +133,7 @@ fun SortedTransactionItemCell(
 ) {
     Column(
         horizontalAlignment = Alignment.End,
-        modifier = Modifier
+        modifier = modifier
             .padding(
                 top = 10.dp,
                 bottom = 10.dp
@@ -153,16 +156,17 @@ fun SortedTransactionItemCell(
             Spacer(modifier = Modifier.width(5.dp))
             Column {
                 Text(
-                    text = transaction.transactionType.uppercase(),
+                    text = if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = if(transaction.name.length > 12) "${transaction.name.substring(0, 12)}..." else transaction.name,
-                    fontSize = 12.sp
+                    text = transaction.transactionType,
+                    fontSize = 12.sp,
 //                    fontWeight = FontWeight.Bold
                 )
+
 
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -171,13 +175,13 @@ fun SortedTransactionItemCell(
             ) {
                 if(transaction.amount > 0) {
                     Text(
-                        text = "+ ${transaction.amount}",
+                        text = "+ ${formatMoneyValue(transaction.amount)}",
                         fontWeight = FontWeight.Bold,
                         color = Color.Green
                     )
                 } else if(transaction.amount < 0) {
                     Text(
-                        text = " - ${transaction.amount.absoluteValue}",
+                        text = " - ${formatMoneyValue(transaction.amount.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         color = Color.Red
                     )
@@ -185,7 +189,7 @@ fun SortedTransactionItemCell(
                 Spacer(modifier = Modifier.height(5.dp))
                 if(transaction.amount < 0) {
                     Text(
-                        text = "Cost: - ${transaction.transactionCost.absoluteValue}",
+                        text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontStyle = FontStyle.Italic,

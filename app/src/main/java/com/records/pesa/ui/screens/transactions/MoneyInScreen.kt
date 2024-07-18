@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.transactions
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,19 +19,24 @@ import com.records.pesa.ui.theme.CashLedgerTheme
 @Composable
 fun MoneyInScreenComposable(
     sortedTransactionItems: List<SortedTransactionItem>,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
-        MoneyInScreen(sortedTransactionItems = sortedTransactionItems)
+        MoneyInScreen(
+            sortedTransactionItems = sortedTransactionItems,
+            navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen
+        )
     }
 }
 
 @Composable
 fun MoneyInScreen(
     sortedTransactionItems: List<SortedTransactionItem>,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -39,7 +45,13 @@ fun MoneyInScreen(
     ) {
         LazyColumn {
             items(sortedTransactionItems) {
-                SortedTransactionItemCell(transaction = it)
+                SortedTransactionItemCell(
+                    transaction = it,
+                    modifier = Modifier
+                        .clickable {
+                            navigateToEntityTransactionsScreen(it.transactionType, it.name, it.times.toString(), true)
+                        }
+                )
                 Divider()
             }
         }
@@ -53,6 +65,7 @@ fun MoneyInScreen(
 fun MoneyInScreenPreview() {
     CashLedgerTheme {
         MoneyInScreen(
+            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
             sortedTransactionItems = moneyInSortedTransactionItems
         )
     }
