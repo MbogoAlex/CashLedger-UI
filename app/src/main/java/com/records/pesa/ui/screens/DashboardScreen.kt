@@ -25,6 +25,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -34,10 +36,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatIsoDateTime
+import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
@@ -55,13 +61,18 @@ fun DashboardScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
         DashboardScreen(
+            transactions = uiState.transactions,
+            transactionCategories = uiState.categories,
+            currentBalance = formatMoneyValue(uiState.currentBalance),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
-            transactionCategories = transactionCategories
         )
     }
 }
@@ -69,8 +80,10 @@ fun DashboardScreenComposable(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreen(
-    navigateToTransactionsScreen: () -> Unit,
+    transactions: List<TransactionItem>,
     transactionCategories: List<TransactionCategory>,
+    currentBalance: String,
+    navigateToTransactionsScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -79,7 +92,9 @@ fun DashboardScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        HeaderSection()
+        HeaderSection(
+            currentBalance = currentBalance
+        )
         Spacer(modifier = Modifier.height(20.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -186,6 +201,7 @@ fun TransactionCategoryCell(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HeaderSection(
+    currentBalance: String,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
@@ -232,7 +248,7 @@ fun HeaderSection(
 
 //                Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "KES 5,530",
+                        text = currentBalance,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -277,6 +293,8 @@ fun DashboardScreenPreview(
     CashLedgerTheme {
         DashboardScreen(
             navigateToTransactionsScreen = {},
+            transactions = transactions,
+            currentBalance = "Ksh 5,350",
             transactionCategories = transactionCategories
         )
     }

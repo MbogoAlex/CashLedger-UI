@@ -47,11 +47,13 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
     val userId: String = "userId"
     val transactionType: String = "transactionType"
     val entity: String = "entity"
+    val categoryId: String = "categoryId"
+    val budgetId: String = "categoryId"
     val startDate: String = "startDate"
     val endDate: String = "endDate"
     val times: String = "times"
     val moneyIn: String = "moneyIn"
-    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
+    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
 
 }
 @RequiresApi(Build.VERSION_CODES.O)

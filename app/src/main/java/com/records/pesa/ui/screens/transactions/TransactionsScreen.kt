@@ -69,10 +69,18 @@ import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+import java.time.ZoneId
 
 object TransactionsScreenDestination: AppNavigation {
     override val route = "Transactions Screen"
     override val title = "transactions-screen"
+    val categoryId: String = "categoryId"
+    val budgetId: String = "budgetId"
+    val categoryName: String = "categoryName"
+    val budgetName: String = "budgetName"
+    val startDate: String = "startDate"
+    val endDate: String = "endDate"
+    val routeWithArgs: String = "$route/{$categoryId}/{$budgetId}/{$categoryName}/{$budgetName}/{$startDate}/{$endDate}"
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -172,6 +180,8 @@ fun TransactionsScreenComposable(
             },
             startDate = LocalDate.parse(uiState.startDate),
             endDate = LocalDate.parse(uiState.endDate),
+            defaultStartDate = uiState.defaultStartDate,
+            defaultEndDate = uiState.defaultEndDate,
             onChangeStartDate = {
                 viewModel.changeStartDate(it, currentTab)
             },
@@ -184,7 +194,9 @@ fun TransactionsScreenComposable(
             },
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->
                 navigateToEntityTransactionsScreen("1", transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
-            }
+            },
+            categoryName = uiState.categoryName,
+            budgetName = uiState.budgetName
         )
 
     }
@@ -211,9 +223,13 @@ fun TransactionsScreen(
     onSelectSortCriteria: (type: String) -> Unit,
     startDate: LocalDate,
     endDate: LocalDate,
+    defaultStartDate: String?,
+    defaultEndDate: String?,
     onChangeStartDate: (date: LocalDate) -> Unit,
     onChangeLastDate: (date: LocalDate) -> Unit,
     searchText: String,
+    categoryName: String?,
+    budgetName: String?,
     onChangeSearchText: (searchText: String) -> Unit,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -225,6 +241,8 @@ fun TransactionsScreen(
         DateRangePicker(
             startDate = startDate,
             endDate = endDate,
+            defaultStartDate = defaultStartDate,
+            defaultEndDate = defaultEndDate,
             onChangeStartDate = onChangeStartDate,
             onChangeLastDate = onChangeLastDate
         )
@@ -556,10 +574,14 @@ fun TransactionsScreenPreview(
             sortMenuExpanded = false,
             startDate = LocalDate.now(),
             endDate = LocalDate.now(),
+            defaultStartDate = null,
+            defaultEndDate = null,
             onChangeStartDate = {},
             onChangeLastDate = {},
             searchText = "",
             onChangeSearchText = {},
+            categoryName = null,
+            budgetName = null,
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  }
         )
     }
@@ -570,10 +592,20 @@ fun TransactionsScreenPreview(
 fun DateRangePicker(
     startDate: LocalDate,
     endDate: LocalDate,
+    defaultStartDate: String?,
+    defaultEndDate: String?,
     onChangeStartDate: (date: LocalDate) -> Unit,
     onChangeLastDate: (date: LocalDate) -> Unit
 ) {
     val context = LocalContext.current
+
+    // Parse the default start and end dates
+    val defaultStartLocalDate = defaultStartDate?.let { LocalDate.parse(it) }
+    val defaultEndLocalDate = defaultEndDate?.let { LocalDate.parse(it) }
+
+    // Convert LocalDate to milliseconds since epoch
+    val defaultStartMillis = defaultStartLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+    val defaultEndMillis = defaultEndLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePicker(isStart: Boolean) {
@@ -602,6 +634,11 @@ fun DateRangePicker(
             initialDate.monthValue - 1,
             initialDate.dayOfMonth
         )
+
+        // Set minimum and maximum dates
+        defaultStartMillis?.let { datePicker.datePicker.minDate = it }
+        defaultEndMillis?.let { datePicker.datePicker.maxDate = it }
+
         datePicker.show()
     }
 
@@ -620,7 +657,7 @@ fun DateRangePicker(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            IconButton(onClick = { showDatePicker(true)  }) {
+            IconButton(onClick = { showDatePicker(true) }) {
                 Icon(
                     tint = Color(0xFF405189),
                     painter = painterResource(id = R.drawable.calendar),
@@ -631,7 +668,7 @@ fun DateRangePicker(
             Text(text = "to")
 
             Text(text = dateFormatter.format(endDate))
-            IconButton(onClick = { showDatePicker(false)  }) {
+            IconButton(onClick = { showDatePicker(false) }) {
                 Icon(
                     tint = Color(0xFF405189),
                     painter = painterResource(id = R.drawable.calendar),

@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.transactions
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.models.SortedTransactionItem
@@ -29,14 +30,21 @@ data class TransactionsScreenUiState(
     val totalMoneyOut: Double = 0.0,
     val currentDate: String = "2024-06-15",
     val firstDayOfMonth: String = "2024-06-15",
+    val defaultStartDate: String? = null,
+    val defaultEndDate: String? = null,
     val startDate: String = "2024-06-15",
     val endDate: String = "2024-06-15",
     val datesSet: Boolean = false,
+    val categoryId: Int? = null,
+    val budgetId: Int? = null,
+    val categoryName: String? = null,
+    val budgetName: String? = null,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 @RequiresApi(Build.VERSION_CODES.O)
 class TransactionsScreenViewModelScreen(
-    private val apiRepository: ApiRepository
+    private val apiRepository: ApiRepository,
+    private val savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(TransactionsScreenUiState())
@@ -53,7 +61,13 @@ class TransactionsScreenViewModelScreen(
                 currentDate = currentDate.toString(),
                 firstDayOfMonth = firstDayOfMonth.toString(),
                 startDate = startDate.toString(),
-                endDate = endDate.toString()
+                endDate = endDate.toString(),
+                categoryId = savedStateHandle[TransactionsScreenDestination.categoryId],
+                budgetId = savedStateHandle[TransactionsScreenDestination.budgetId],
+                categoryName = savedStateHandle[TransactionsScreenDestination.categoryName],
+                budgetName = savedStateHandle[TransactionsScreenDestination.budgetName],
+                defaultStartDate = savedStateHandle[TransactionsScreenDestination.startDate],
+                defaultEndDate = savedStateHandle[TransactionsScreenDestination.endDate]
             )
         }
     }
@@ -128,11 +142,12 @@ class TransactionsScreenViewModelScreen(
                 val response = apiRepository.getTransactions(
                     userId = 1,
                     entity = uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     latest = true,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
+                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate,
+                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate
                 )
                 if(response.isSuccessful) {
                     _uiState.update {
@@ -176,12 +191,13 @@ class TransactionsScreenViewModelScreen(
                 val response = apiRepository.getMoneyIn(
                     userId = 1,
                     entity = uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     moneyIn = true,
                     latest = true,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
+                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
+                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
                 if(response.isSuccessful) {
                     _uiState.update {
@@ -223,12 +239,13 @@ class TransactionsScreenViewModelScreen(
                 val response = apiRepository.getMoneyIn(
                     userId = 1,
                     entity = uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     moneyIn = true,
                     latest = true,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
+                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
+                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
                 if(response.isSuccessful) {
                     _uiState.update {
@@ -271,13 +288,14 @@ class TransactionsScreenViewModelScreen(
                 val response = apiRepository.getMoneyInSortedTransactions(
                     userId = 1,
                     entity = uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     moneyIn = true,
                     orderByAmount = true,
                     ascendingOrder = false,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
+                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
+                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
                 if(response.isSuccessful) {
                     _uiState.update {
@@ -319,13 +337,14 @@ class TransactionsScreenViewModelScreen(
                 val response = apiRepository.getMoneyOutSortedTransactions(
                     userId = 1,
                     entity = uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     moneyIn = false,
                     orderByAmount = true,
                     ascendingOrder = false,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
+                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
+                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
                 if(response.isSuccessful) {
                     _uiState.update {

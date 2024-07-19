@@ -3,6 +3,13 @@ package com.records.pesa.models
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class CategoriesResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: CategoriesDt
+)
+
+@Serializable
 data class CategoryResponseBody(
     val statusCode: Int,
     val message: String,
@@ -11,6 +18,11 @@ data class CategoryResponseBody(
 
 @Serializable
 data class CategoryDt(
+    val category: TransactionCategory
+)
+
+@Serializable
+data class CategoriesDt(
     val category: List<TransactionCategory>
 )
 

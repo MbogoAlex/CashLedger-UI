@@ -47,6 +47,7 @@ fun CategoryDetailsScreenComposable(
 @Composable
 fun CategoryDetailsScreen(
     category: TransactionCategory,
+    navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -92,6 +93,25 @@ fun CategoryDetailsScreen(
         Spacer(modifier = Modifier.height(10.dp))
         Text(text = "Created on ${formatIsoDateTime(LocalDateTime.parse(transactionCategory.createdAt))}")
         Spacer(modifier = Modifier.height(20.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Budgets (${if (category.budgets.isNotEmpty()) category.budgets.size else 0})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                enabled = category.budgets.isNotEmpty(),
+                onClick = {
+                    navigateToCategoryBudgetListScreen(category.id.toString())
+                }
+            ) {
+                Text(text = "Explore")
+            }
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -165,6 +185,7 @@ fun CategoryDetailsScreenPreview() {
     CashLedgerTheme {
         CategoryDetailsScreen(
             category = transactionCategory,
+            navigateToCategoryBudgetListScreen = {}
         )
     }
 }

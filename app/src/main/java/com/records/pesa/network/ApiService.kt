@@ -1,5 +1,8 @@
 package com.records.pesa.network
 
+import com.records.pesa.models.CategoriesResponseBody
+import com.records.pesa.models.CategoryResponseBody
+import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
@@ -13,6 +16,7 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("latest") latest: Boolean,
         @Query("startDate") startDate: String?,
@@ -24,6 +28,7 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("moneyIn") moneyIn: Boolean,
         @Query("latest") latest: Boolean,
@@ -36,6 +41,7 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("moneyIn") moneyIn: Boolean,
         @Query("latest") latest: Boolean,
@@ -48,6 +54,7 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("moneyIn") moneyIn: Boolean,
         @Query("orderByAmount") orderByAmount: Boolean,
@@ -61,6 +68,7 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("moneyIn") moneyIn: Boolean,
         @Query("orderByAmount") orderByAmount: Boolean,
@@ -68,4 +76,21 @@ interface ApiService {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<SortedTransactionsResponseBody>
+
+    @GET("transaction/balance/{userId}")
+    suspend fun getCurrentBalance(
+        @Path("userId") userId: Int
+    ): Response<CurrentBalanceResponseBody>
+
+    @GET("category/{userId}")
+    suspend fun getUserCategories(
+        @Path("userId") userId: Int,
+        @Query("name") name: String?,
+        @Query("orderBy") orderBy: String?
+    ): Response<CategoriesResponseBody>
+
+    @GET("category/details/{categoryId}")
+    suspend fun getCategoryDetails(
+        @Path("categoryId") categoryId: Int
+    ): Response<CategoryResponseBody>
 }

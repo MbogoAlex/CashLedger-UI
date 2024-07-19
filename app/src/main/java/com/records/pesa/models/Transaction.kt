@@ -68,3 +68,15 @@ data class SortedTransactionItem(
     val transactionCost: Double,
     val name: String
 )
+
+@Serializable
+data class CurrentBalanceResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: BalanceDt
+)
+
+@Serializable
+data class BalanceDt(
+    val balance: Double
+)

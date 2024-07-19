@@ -23,6 +23,8 @@ data class SingleEntityTransactionsScreenUiState(
     val moneyIn: Boolean = true,
     val totalMoneyIn: Double = 0.0,
     val totalMoneyOut: Double = 0.0,
+    val categoryId: Int? = null,
+    val budgetId: Int? = null,
     val transactions: List<TransactionItem> = emptyList(),
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
@@ -61,7 +63,8 @@ class SingleEntityTransactionsScreenViewModel(
                 val response = if (uiState.value.moneyIn) apiRepository.getMoneyIn(
                     userId = 1,
                     entity = _uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = _uiState.value.transactionType,
                     moneyIn = uiState.value.moneyIn,
                     latest = true,
@@ -70,7 +73,8 @@ class SingleEntityTransactionsScreenViewModel(
                 ) else apiRepository.getMoneyOut(
                     userId = 1,
                     entity = _uiState.value.entity,
-                    categoryId = null,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
                     transactionType = _uiState.value.transactionType,
                     moneyIn = uiState.value.moneyIn,
                     latest = true,
