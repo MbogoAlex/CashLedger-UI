@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.dashboard.category
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -25,41 +27,70 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
+object CategoryDetailsScreenDestination: AppNavigation {
+    override val title: String = "Category details screen"
+    override val route: String = "category-details-screen"
+    val categoryId: String = "categoryId"
+    val routeWithArgs: String = "$route/{$categoryId}"
 
+}
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoryDetailsScreenComposable(
+    navigateToPreviousScreen: () -> Unit,
+    navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: CategoryDetailsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
 
+    Box(
+        modifier = Modifier
+            .safeDrawingPadding()
+    ) {
+        CategoryDetailsScreen(
+            category = uiState.category,
+            navigateToCategoryBudgetListScreen = {},
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            navigateToMembersAdditionScreen = navigateToMembersAdditionScreen
+        )
+    }
 }
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoryDetailsScreen(
     category: TransactionCategory,
     navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
+    navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = Modifier
-            .padding(10.dp)
+            .padding(16.dp)
             .fillMaxSize()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { /*TODO*/ }
+                onClick = navigateToPreviousScreen
             ) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
             }
@@ -81,7 +112,7 @@ fun CategoryDetailsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = transactionCategory.name,
+                text = category.name,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
             )
@@ -91,7 +122,7 @@ fun CategoryDetailsScreen(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Created on ${formatIsoDateTime(LocalDateTime.parse(transactionCategory.createdAt))}")
+        Text(text = "Created on ${formatIsoDateTime(LocalDateTime.parse(category.createdAt))}")
         Spacer(modifier = Modifier.height(20.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -121,7 +152,7 @@ fun CategoryDetailsScreen(
                 fontSize = 18.sp
             )
             Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = { /*TODO*/ }) {
+            TextButton(onClick = { navigateToMembersAdditionScreen(category.id.toString()) }) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -185,7 +216,9 @@ fun CategoryDetailsScreenPreview() {
     CashLedgerTheme {
         CategoryDetailsScreen(
             category = transactionCategory,
-            navigateToCategoryBudgetListScreen = {}
+            navigateToPreviousScreen = {},
+            navigateToCategoryBudgetListScreen = {},
+            navigateToMembersAdditionScreen = {}
         )
     }
 }

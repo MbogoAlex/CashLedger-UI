@@ -13,6 +13,10 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenDestination
+import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenDestination
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenDestination
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
@@ -32,6 +36,9 @@ fun NavigationGraph(
             HomeScreenComposable(
                 navigateToTransactionsScreen = {
                     navController.navigate(TransactionsScreenDestination.route)
+                },
+                navigateToCategoryDetailsScreen = {
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
                 }
             )
         }
@@ -69,6 +76,37 @@ fun NavigationGraph(
             )
         ) {
             SingleEntityTransactionsScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(
+            CategoryDetailsScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(CategoryDetailsScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            CategoryDetailsScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToMembersAdditionScreen = {
+                    navController.navigate("${MembersAdditionScreenDestination.route}/${it}")
+                }
+            )
+        }
+        composable(
+            MembersAdditionScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(MembersAdditionScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            MembersAdditionScreenComposable(
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }

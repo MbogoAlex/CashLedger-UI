@@ -116,6 +116,7 @@ class DashboardScreenViewModel(
     init {
         setInitialDates()
         getTransactions()
+        getCurrentBalance()
         getCategories()
     }
 }

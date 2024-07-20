@@ -35,6 +35,7 @@ object HomeScreenDestination: AppNavigation {
 @Composable
 fun HomeScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
@@ -69,7 +70,8 @@ fun HomeScreenComposable(
                 currentTab = it
             },
             tabs = tabs,
-            navigateToTransactionsScreen = navigateToTransactionsScreen
+            navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
         )
     }
 }
@@ -81,6 +83,7 @@ fun HomeScreen(
     onTabChange: (HomeScreenTab) -> Unit,
     tabs: List<HomeScreenTabItem>,
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -91,6 +94,7 @@ fun HomeScreen(
             HomeScreenTab.DASHBOARD -> {
                 DashboardScreenComposable(
                     navigateToTransactionsScreen = navigateToTransactionsScreen,
+                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                     modifier = Modifier
                         .weight(1f)
                 )
@@ -179,7 +183,8 @@ fun HomeScreenPreview() {
                 currentTab = it
             },
             tabs = tabs,
-            navigateToTransactionsScreen = {}
+            navigateToTransactionsScreen = {},
+            navigateToCategoryDetailsScreen = {}
         )
     }
 }

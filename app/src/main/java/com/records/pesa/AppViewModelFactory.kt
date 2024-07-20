@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.ui.screens.DashboardScreenViewModel
+import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
 
@@ -37,6 +38,15 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             DashboardScreenViewModel(
+                apiRepository = apiRepository,
+                savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            CategoryDetailsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle
             )

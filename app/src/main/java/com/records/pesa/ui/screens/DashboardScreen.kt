@@ -59,6 +59,7 @@ object DashboardScreenDestination: AppNavigation {
 @Composable
 fun DashboardScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -73,6 +74,7 @@ fun DashboardScreenComposable(
             transactionCategories = uiState.categories,
             currentBalance = formatMoneyValue(uiState.currentBalance),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
         )
     }
 }
@@ -84,6 +86,7 @@ fun DashboardScreen(
     transactionCategories: List<TransactionCategory>,
     currentBalance: String,
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -142,7 +145,10 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(10.dp))
         if(transactionCategories.isNotEmpty()) {
             transactionCategories.take(2).forEach {
-                TransactionCategoryCell(transactionCategory = it)
+                TransactionCategoryCell(
+                    transactionCategory = it,
+                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
+                )
             }
         } else {
             Text(
@@ -163,6 +169,7 @@ fun DashboardScreen(
 @Composable
 fun TransactionCategoryCell(
     transactionCategory: TransactionCategory,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -188,7 +195,7 @@ fun TransactionCategoryCell(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
                     contentDescription = transactionCategory.name
@@ -295,7 +302,8 @@ fun DashboardScreenPreview(
             navigateToTransactionsScreen = {},
             transactions = transactions,
             currentBalance = "Ksh 5,350",
-            transactionCategories = transactionCategories
+            transactionCategories = transactionCategories,
+            navigateToCategoryDetailsScreen = {}
         )
     }
 }
