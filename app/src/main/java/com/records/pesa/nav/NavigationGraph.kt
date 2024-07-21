@@ -46,6 +46,9 @@ fun NavigationGraph(
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
                 }
             )
         }
@@ -95,6 +98,12 @@ fun NavigationGraph(
                 },
                 navigateToMembersAdditionScreen = {
                     navController.navigate("${MembersAdditionScreenDestination.route}/${it}")
+                },
+                navigateToTransactionsScreen = {
+                    navController.navigate("${TransactionsScreenDestination.route}/${it}")
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
                 }
             )
         }
@@ -107,6 +116,23 @@ fun NavigationGraph(
             )
         ) {
             MembersAdditionScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(
+            TransactionsScreenDestination.routeWithCategoryId,
+            arguments = listOf(
+                navArgument(TransactionsScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            TransactionsScreenComposable(
+                navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
+                    navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }

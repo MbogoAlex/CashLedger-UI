@@ -53,8 +53,7 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
     val endDate: String = "endDate"
     val times: String = "times"
     val moneyIn: String = "moneyIn"
-    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
-
+    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
 }
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable

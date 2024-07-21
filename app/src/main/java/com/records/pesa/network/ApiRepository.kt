@@ -1,11 +1,22 @@
 package com.records.pesa.network
 
 import com.records.pesa.models.CategoriesResponseBody
+import com.records.pesa.models.CategoryDeleteResponseBody
+import com.records.pesa.models.CategoryEditPayload
+import com.records.pesa.models.CategoryKeywordDeletePayload
+import com.records.pesa.models.CategoryKeywordDeleteResponseBody
+import com.records.pesa.models.CategoryKeywordEditPayload
+import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 
 interface ApiRepository {
     suspend fun getTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
@@ -20,6 +31,17 @@ interface ApiRepository {
     suspend fun getUserCategories(userId: Int, name: String?, orderBy: String?): Response<CategoriesResponseBody>
 
     suspend fun getCategoryDetails(categoryId: Int): Response<CategoryResponseBody>
+    suspend fun createCategory(userId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+
+    suspend fun updateCategoryName(categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+
+    suspend fun addCategoryMembers(categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+
+    suspend fun updateCategoryKeyword(keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody>
+
+    suspend fun deleteCategoryKeyword(categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody>
+
+    suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -143,5 +165,43 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
     override suspend fun getCategoryDetails(categoryId: Int): Response<CategoryResponseBody> = apiService.getCategoryDetails(
         categoryId = categoryId
     )
+
+    override suspend fun createCategory(
+        userId: Int,
+        category: CategoryEditPayload
+    ): Response<CategoryResponseBody> = apiService.createCategory(
+        userId = userId,
+        category = category
+    )
+
+    override suspend fun updateCategoryName(
+        categoryId: Int,
+        category: CategoryEditPayload
+    ): Response<CategoryResponseBody> = apiService.updateCategoryName(
+        categoryId = categoryId,
+        category = category
+    )
+
+    override suspend fun addCategoryMembers(
+        categoryId: Int,
+        category: CategoryEditPayload
+    ): Response<CategoryResponseBody> = apiService.addCategoryMembers(
+        categoryId = categoryId,
+        category = category
+    )
+
+    override suspend fun updateCategoryKeyword(keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody> = apiService.updateCategoryKeyword(
+        keyword = keyword
+    )
+
+    override suspend fun deleteCategoryKeyword(categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody> = apiService.deleteCategoryKeyword(
+        categoryId = categoryId,
+        keywordId = keywordId
+    )
+
+    override suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody> = apiService.deleteCategory(
+        categoryId = categoryId
+    )
+
 
 }

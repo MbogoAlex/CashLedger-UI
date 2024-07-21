@@ -101,6 +101,7 @@ object TransactionsScreenDestination: AppNavigation {
     val budgetName: String = "budgetName"
     val startDate: String = "startDate"
     val endDate: String = "endDate"
+    val routeWithCategoryId: String = "$route/{$categoryId}"
     val routeWithArgs: String = "$route/{$categoryId}/{$budgetId}/{$categoryName}/{$budgetName}/{$startDate}/{$endDate}"
 }
 
@@ -108,6 +109,7 @@ object TransactionsScreenDestination: AppNavigation {
 @Composable
 fun TransactionsScreenComposable(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: TransactionsScreenViewModelScreen = viewModel(factory = AppViewModelFactory.Factory)
@@ -240,7 +242,8 @@ fun TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen("1", transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
             },
             categoryName = uiState.categoryName,
-            budgetName = uiState.budgetName
+            budgetName = uiState.budgetName,
+            navigateToPreviousScreen = navigateToPreviousScreen
         )
 
     }
@@ -274,6 +277,7 @@ fun TransactionsScreen(
     onClearSearch: () -> Unit,
     onSelectDateRange: () -> Unit,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -308,7 +312,7 @@ fun TransactionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                     ) {
-                        IconButton(onClick = { /*TODO*/ }) {
+                        IconButton(onClick = navigateToPreviousScreen) {
                             Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
                         }
                         OutlinedTextField(
@@ -711,7 +715,8 @@ fun TransactionsScreenPreview(
             onClearSearch = {},
             categoryName = null,
             budgetName = null,
-            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  }
+            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
+            navigateToPreviousScreen = {}
         )
     }
 }

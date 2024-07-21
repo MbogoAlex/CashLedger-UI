@@ -1,12 +1,22 @@
 package com.records.pesa.network
 
 import com.records.pesa.models.CategoriesResponseBody
+import com.records.pesa.models.CategoryDeleteResponseBody
+import com.records.pesa.models.CategoryEditPayload
+import com.records.pesa.models.CategoryKeywordDeletePayload
+import com.records.pesa.models.CategoryKeywordDeleteResponseBody
+import com.records.pesa.models.CategoryKeywordEditPayload
+import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -93,4 +103,38 @@ interface ApiService {
     suspend fun getCategoryDetails(
         @Path("categoryId") categoryId: Int
     ): Response<CategoryResponseBody>
+
+    @POST("category/{userId}")
+    suspend fun createCategory(
+        @Path("userId") userId: Int,
+        @Body category: CategoryEditPayload
+    ): Response<CategoryResponseBody>
+
+    @PUT("category/name/{categoryId}")
+    suspend fun updateCategoryName(
+        @Path("categoryId") categoryId: Int,
+        @Body category: CategoryEditPayload
+    ): Response<CategoryResponseBody>
+
+    @PUT("category/{categoryId}")
+    suspend fun addCategoryMembers(
+        @Path("categoryId") categoryId: Int,
+        @Body category: CategoryEditPayload
+    ): Response<CategoryResponseBody>
+
+    @PUT("category/keyword")
+    suspend fun updateCategoryKeyword(
+        @Body keyword: CategoryKeywordEditPayload
+    ): Response<CategoryKeywordEditResponseBody>
+
+    @DELETE("category/keyword/{categoryId}/{keywordId}")
+    suspend fun deleteCategoryKeyword(
+        @Path("categoryId") categoryId: Int,
+        @Path("keywordId") keywordId: Int
+    ): Response<CategoryKeywordDeleteResponseBody>
+
+    @DELETE("category/{categoryId}")
+    suspend fun deleteCategory(
+        @Path("categoryId") categoryId: Int
+    ): Response<CategoryDeleteResponseBody>
 }

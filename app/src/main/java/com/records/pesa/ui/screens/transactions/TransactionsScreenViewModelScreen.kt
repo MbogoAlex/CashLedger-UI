@@ -50,6 +50,9 @@ class TransactionsScreenViewModelScreen(
     private val _uiState = MutableStateFlow(TransactionsScreenUiState())
     val uiState: StateFlow<TransactionsScreenUiState> = _uiState.asStateFlow()
 
+    private val categoryId: String? = savedStateHandle[TransactionsScreenDestination.categoryId]
+    private val budgetId: String? = savedStateHandle[TransactionsScreenDestination.budgetId]
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun setInitialDates() {
         val currentDate = LocalDate.now()
@@ -62,8 +65,8 @@ class TransactionsScreenViewModelScreen(
                 firstDayOfMonth = firstDayOfMonth.toString(),
                 startDate = startDate.toString(),
                 endDate = endDate.toString(),
-                categoryId = savedStateHandle[TransactionsScreenDestination.categoryId],
-                budgetId = savedStateHandle[TransactionsScreenDestination.budgetId],
+                categoryId = categoryId?.toInt(),
+                budgetId = budgetId?.toInt(),
                 categoryName = savedStateHandle[TransactionsScreenDestination.categoryName],
                 budgetName = savedStateHandle[TransactionsScreenDestination.budgetName],
                 defaultStartDate = savedStateHandle[TransactionsScreenDestination.startDate],
