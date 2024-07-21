@@ -4,37 +4,50 @@ import android.app.DatePickerDialog
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,13 +58,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -134,6 +155,31 @@ fun TransactionsScreenComposable(
         mutableStateOf(false)
     }
 
+    var showDateRangePicker by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showDateRangePicker) {
+        DateRangePickerDialog(
+            startDate = LocalDate.parse(uiState.startDate),
+            endDate = LocalDate.parse((uiState.endDate)),
+            defaultStartDate = uiState.defaultStartDate,
+            defaultEndDate = uiState.defaultEndDate,
+            onChangeStartDate = {
+                viewModel.changeStartDate(it, currentTab)
+            },
+            onChangeLastDate = {
+                viewModel.changeEndDate(it, currentTab)
+            },
+            onDismiss = {
+                showDateRangePicker = !showDateRangePicker
+            },
+            onConfirm = {
+                showDateRangePicker = !showDateRangePicker
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .safeDrawingPadding()
@@ -180,17 +226,15 @@ fun TransactionsScreenComposable(
             },
             startDate = LocalDate.parse(uiState.startDate),
             endDate = LocalDate.parse(uiState.endDate),
-            defaultStartDate = uiState.defaultStartDate,
-            defaultEndDate = uiState.defaultEndDate,
-            onChangeStartDate = {
-                viewModel.changeStartDate(it, currentTab)
-            },
-            onChangeLastDate = {
-                viewModel.changeEndDate(it, currentTab)
-            },
             searchText = uiState.entity,
             onChangeSearchText = {
                 viewModel.changeEntity(it, currentTab)
+            },
+            onClearSearch = {
+                viewModel.clearSearch(currentTab)
+            },
+            onSelectDateRange = {
+                showDateRangePicker = !showDateRangePicker
             },
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->
                 navigateToEntityTransactionsScreen("1", transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
@@ -223,14 +267,12 @@ fun TransactionsScreen(
     onSelectSortCriteria: (type: String) -> Unit,
     startDate: LocalDate,
     endDate: LocalDate,
-    defaultStartDate: String?,
-    defaultEndDate: String?,
-    onChangeStartDate: (date: LocalDate) -> Unit,
-    onChangeLastDate: (date: LocalDate) -> Unit,
     searchText: String,
     categoryName: String?,
     budgetName: String?,
     onChangeSearchText: (searchText: String) -> Unit,
+    onClearSearch: () -> Unit,
+    onSelectDateRange: () -> Unit,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -238,257 +280,346 @@ fun TransactionsScreen(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        DateRangePicker(
-            startDate = startDate,
-            endDate = endDate,
-            defaultStartDate = defaultStartDate,
-            defaultEndDate = defaultEndDate,
-            onChangeStartDate = onChangeStartDate,
-            onChangeLastDate = onChangeLastDate
-        )
-        OutlinedTextField(
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null
-                )
-            },
-            value = searchText,
-            placeholder = {
-                Text(text = "Search transaction")
-            },
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done
-            ),
-            onValueChange = onChangeSearchText,
-            trailingIcon = {
-                Icon(imageVector = Icons.Default.Clear, contentDescription = null)
+        Scaffold(
+            floatingActionButton = {
+                Button(
+                    onClick = { /*TODO*/ },
+                    modifier = Modifier
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Statement")
+                        Icon(painter = painterResource(id = R.drawable.download), contentDescription = null)
+                    }
+
+                }
             },
             modifier = Modifier
-                .padding(
-                    horizontal = 16.dp
-                )
-                .fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        when (currentTab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                ) {
-                    Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                    Text(
-                        text = totalMoneyIn,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Green
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                    Text(
-                        text = totalMoneyOut,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Red
-                    )
-                }
-            }
-            TransactionScreenTab.MONEY_IN -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                ) {
-                    Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                    Text(
-                        text = totalMoneyIn,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Green
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(
+                .weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(it)
+            ) {
+                Column() {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clickable {
-                                onExpandSortMenu()
-                            }
+                            .fillMaxWidth()
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = selectedSortCriteria)
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Icon(
-                                painter = painterResource(id = R.drawable.sort),
-                                contentDescription = "Sort"
-                            )
+                        IconButton(onClick = { /*TODO*/ }) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
                         }
-                        DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                            Column(
-                                modifier = Modifier
-                                    .heightIn(max = 250.dp)
-                                    .padding(
-                                        horizontal = 5.dp
+                        OutlinedTextField(
+                            shape = RoundedCornerShape(10.dp),
+                            value = searchText,
+                            placeholder = {
+                                Text(text = "Search transaction")
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                imeAction = ImeAction.Done
+                            ),
+                            onValueChange = onChangeSearchText,
+                            trailingIcon = {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(Color.LightGray)
+                                        .padding(5.dp)
+                                        .clickable {
+                                            onClearSearch()
+                                        }
+
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search",
+                                        modifier = Modifier
+                                            .size(16.dp)
                                     )
-                                    .verticalScroll(rememberScrollState())
+                                }
+
+                            },
+                            modifier = Modifier
+                                .padding(
+                                    vertical = 10.dp,
+                                    horizontal = 16.dp
+                                )
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = { /*TODO*/ }) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                sortTypes.forEach {
-                                    DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                        Text(text = it)
+                                Icon(
+                                    painter = painterResource(id = R.drawable.calendar),
+                                    contentDescription = "Apply filtering",
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Icon(
+                                    painter = painterResource(id = R.drawable.search),
+                                    contentDescription = "Apply filtering",
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = 16.dp,
+                            )
+                    ) {
+                        Text(
+                            text = "${dateFormatter.format(startDate)} to ${dateFormatter.format(endDate)}",
+                            fontWeight = FontWeight.Bold,
+//                        textAlign = TextAlign.Center,
+                            modifier = Modifier
+
+//                            .align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            painter = painterResource(id = R.drawable.calendar),
+                            contentDescription = "Select date range",
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable {
+                                    onSelectDateRange()
+                                }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    when (currentTab) {
+                        TransactionScreenTab.ALL_TRANSACTIONS -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = 16.dp
+                                    )
+                            ) {
+                                Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                                Text(
+                                    text = totalMoneyIn,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Green
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                                Text(
+                                    text = totalMoneyOut,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red
+                                )
+                            }
+                        }
+                        TransactionScreenTab.MONEY_IN -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = 16.dp
+                                    )
+                            ) {
+                                Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                                Text(
+                                    text = totalMoneyIn,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Green
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .clickable {
+                                            onExpandSortMenu()
+                                        }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = selectedSortCriteria)
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.sort),
+                                            contentDescription = "Sort"
+                                        )
                                     }
-                                    Divider()
+                                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
+                                        Column(
+                                            modifier = Modifier
+                                                .heightIn(max = 250.dp)
+                                                .padding(
+                                                    horizontal = 5.dp
+                                                )
+                                                .verticalScroll(rememberScrollState())
+                                        ) {
+                                            sortTypes.forEach {
+                                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
+                                                    Text(text = it)
+                                                }
+                                                Divider()
+                                            }
+                                        }
+                                    }
+
                                 }
                             }
                         }
-
-                    }
-                }
-            }
-            TransactionScreenTab.MONEY_OUT -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                ) {
-                    Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                    Text(
-                        text = totalMoneyOut,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Red
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(
-                        modifier = Modifier
-                            .clickable {
-                                onExpandSortMenu()
-                            }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = selectedSortCriteria)
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Icon(
-                                painter = painterResource(id = R.drawable.sort),
-                                contentDescription = "Sort"
-                            )
-                        }
-                        DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                            Column(
+                        TransactionScreenTab.MONEY_OUT -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .heightIn(max = 250.dp)
                                     .padding(
-                                        horizontal = 5.dp
+                                        horizontal = 16.dp
                                     )
-                                    .verticalScroll(rememberScrollState())
                             ) {
-                                sortTypes.forEach {
-                                    DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                        Text(text = it)
+                                Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                                Text(
+                                    text = totalMoneyOut,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .clickable {
+                                            onExpandSortMenu()
+                                        }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = selectedSortCriteria)
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.sort),
+                                            contentDescription = "Sort"
+                                        )
                                     }
-                                    Divider()
+                                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
+                                        Column(
+                                            modifier = Modifier
+                                                .heightIn(max = 250.dp)
+                                                .padding(
+                                                    horizontal = 5.dp
+                                                )
+                                                .verticalScroll(rememberScrollState())
+                                        ) {
+                                            sortTypes.forEach {
+                                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
+                                                    Text(text = it)
+                                                }
+                                                Divider()
+                                            }
+                                        }
+                                    }
+
                                 }
+
                             }
                         }
 
+                        TransactionScreenTab.CHART -> TODO()
                     }
-
-                }
-            }
-
-            TransactionScreenTab.CHART -> TODO()
-        }
 
 //        Spacer(modifier = Modifier.height(5.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(
-                    horizontal = 16.dp
-                )
-//                .align(Alignment.End)
-        ) {
-            Text(text = selectedType)
-            Spacer(modifier = Modifier.weight(1f))
-//            Spacer(modifier = Modifier.width(5.dp))
-            Column {
-                IconButton(onClick = onExpandTypeMenu) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.filter),
-                        contentDescription = "Filter types"
-                    )
-                }
-                DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = onExpandTypeMenu) {
-                    Column(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .heightIn(max = 250.dp)
                             .padding(
-                                horizontal = 5.dp
+                                horizontal = 16.dp
                             )
-                            .verticalScroll(rememberScrollState())
+//                .align(Alignment.End)
                     ) {
-                        transactionTypes.forEach {
-                            DropdownMenuItem(onClick = { onSelectType(it) }) {
-                                Text(text = it)
+
+                        Column {
+                            TextButton(onClick = onExpandTypeMenu) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = selectedType)
+                                    Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                }
                             }
-                            Divider()
+                            DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = onExpandTypeMenu) {
+                                Column(
+                                    modifier = Modifier
+                                        .heightIn(max = 250.dp)
+                                        .padding(
+                                            horizontal = 5.dp
+                                        )
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    transactionTypes.forEach {
+                                        DropdownMenuItem(onClick = { onSelectType(it) }) {
+                                            Text(text = it)
+                                        }
+                                        Divider()
+                                    }
+                                }
+                            }
+                        }
+
+
+                    }
+                    when(currentTab) {
+                        TransactionScreenTab.ALL_TRANSACTIONS -> {
+                            AllTransactionsScreenComposable(
+                                transactions = transactions,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = 16.dp
+                                    )
+                                    .weight(1f)
+                            )
+                        }
+                        TransactionScreenTab.MONEY_IN -> {
+                            MoneyInScreenComposable(
+                                sortedTransactionItems = moneyInsortedTransactionItems,
+                                navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = 16.dp
+                                    )
+                                    .weight(1f)
+                            )
+                        }
+                        TransactionScreenTab.MONEY_OUT -> {
+                            MoneyOutScreenComposable(
+                                sortedTransactionItems = moneyOutsortedTransactionItems,
+                                navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = 16.dp
+                                    )
+                                    .weight(1f)
+                            )
+                        }
+                        TransactionScreenTab.CHART -> {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxSize()
+                            ) {
+                                Text(text = "Chart")
+                            }
                         }
                     }
-                }
-            }
-
-
-        }
-        when(currentTab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> {
-                AllTransactionsScreenComposable(
-                    transactions = transactions,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                        .weight(1f)
-                )
-            }
-            TransactionScreenTab.MONEY_IN -> {
-                MoneyInScreenComposable(
-                    sortedTransactionItems = moneyInsortedTransactionItems,
-                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                        .weight(1f)
-                )
-            }
-            TransactionScreenTab.MONEY_OUT -> {
-                MoneyOutScreenComposable(
-                    sortedTransactionItems = moneyOutsortedTransactionItems,
-                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                        .weight(1f)
-                )
-            }
-            TransactionScreenTab.CHART -> {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                ) {
-                    Text(text = "Chart")
                 }
             }
         }
@@ -574,17 +705,79 @@ fun TransactionsScreenPreview(
             sortMenuExpanded = false,
             startDate = LocalDate.now(),
             endDate = LocalDate.now(),
-            defaultStartDate = null,
-            defaultEndDate = null,
-            onChangeStartDate = {},
-            onChangeLastDate = {},
+            onSelectDateRange = {},
             searchText = "",
             onChangeSearchText = {},
+            onClearSearch = {},
             categoryName = null,
             budgetName = null,
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  }
         )
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun DateRangePickerDialog(
+    startDate: LocalDate,
+    endDate: LocalDate,
+    defaultStartDate: String?,
+    defaultEndDate: String?,
+    onChangeStartDate: (date: LocalDate) -> Unit,
+    onChangeLastDate: (date: LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Popup(
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(
+            excludeFromSystemGesture = true
+        ),
+        content = {
+            Card(
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Select date range",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier
+                            .padding(
+                                start = 16.dp
+                            )
+                    )
+                    DateRangePicker(
+                        startDate = startDate,
+                        endDate = endDate,
+                        defaultStartDate = defaultStartDate,
+                        defaultEndDate = defaultEndDate,
+                        onChangeStartDate = onChangeStartDate,
+                        onChangeLastDate = onChangeLastDate,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = 16.dp
+                            )
+                            .align(Alignment.End)
+                    ) {
+                        Text(text = "Dismiss")
+                    }
+                }
+            }
+        },
+    )
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -595,7 +788,8 @@ fun DateRangePicker(
     defaultStartDate: String?,
     defaultEndDate: String?,
     onChangeStartDate: (date: LocalDate) -> Unit,
-    onChangeLastDate: (date: LocalDate) -> Unit
+    onChangeLastDate: (date: LocalDate) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
@@ -647,7 +841,7 @@ fun DateRangePicker(
             containerColor = MaterialTheme.colorScheme.onPrimary
         ),
         elevation = CardDefaults.elevatedCardElevation(10.dp),
-        modifier = Modifier
+        modifier = modifier
             .padding(16.dp)
             .fillMaxWidth()
     ) {

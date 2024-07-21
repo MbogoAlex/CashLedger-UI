@@ -13,25 +13,35 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,12 +70,62 @@ fun CategoryDetailsScreenComposable(
     val viewModel: CategoryDetailsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
+    var showEditCategoryNameDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showEditMemberNameDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var categoryName by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var memberName by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    if(showEditCategoryNameDialog) {
+        EditNameDialog(
+            title = "Category name",
+            label = "Category",
+            name = categoryName,
+            onNameChange = {
+                categoryName = it
+            },
+            onConfirm = { /*TODO*/ },
+            onDismiss = {showEditCategoryNameDialog = !showEditCategoryNameDialog}
+        )
+    }
+
+    if(showEditMemberNameDialog) {
+        EditNameDialog(
+            title = "Member name",
+            label = "Member",
+            name = memberName,
+            onNameChange = {
+                memberName = it
+            },
+            onConfirm = { /*TODO*/ },
+            onDismiss = {showEditMemberNameDialog = !showEditMemberNameDialog}
+        )
+    }
+
     Box(
         modifier = Modifier
             .safeDrawingPadding()
     ) {
         CategoryDetailsScreen(
             category = uiState.category,
+            onEditCategoryName = {
+                categoryName = it
+                showEditCategoryNameDialog = !showEditCategoryNameDialog
+            },
+            onEditMemberName = {
+                memberName = it
+                showEditMemberNameDialog = !showEditMemberNameDialog
+            },
             navigateToCategoryBudgetListScreen = {},
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen
@@ -77,6 +137,8 @@ fun CategoryDetailsScreenComposable(
 fun CategoryDetailsScreen(
     category: TransactionCategory,
     navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
+    onEditCategoryName: (name: String) -> Unit,
+    onEditMemberName: (name: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
@@ -117,8 +179,10 @@ fun CategoryDetailsScreen(
                 fontSize = 18.sp
             )
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = { /*TODO*/ }) {
-                Icon(imageVector = Icons.Default.Edit, contentDescription = "Previous screen")
+            IconButton(onClick = {
+                onEditCategoryName(category.name)
+            }) {
+                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit category name")
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -143,6 +207,7 @@ fun CategoryDetailsScreen(
                 Text(text = "Explore")
             }
         }
+        Divider()
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -175,7 +240,9 @@ fun CategoryDetailsScreen(
                         fontSize = 18.sp
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { /*TODO*/ }) {
+                    IconButton(onClick = {
+                        onEditMemberName(it.nickName)
+                    }) {
                         Icon(
                             tint = MaterialTheme.colorScheme.surfaceTint,
                             imageVector = Icons.Default.Edit,
@@ -209,6 +276,49 @@ fun CategoryDetailsScreen(
     }
 }
 
+@Composable
+fun EditNameDialog(
+    label: String,
+    title: String,
+    name: String,
+    onNameChange: (name: String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(text = "Edit $title")
+        },
+        text = {
+            OutlinedTextField(
+                value = name,
+                label = {
+                    Text(text = label)
+                },
+                onValueChange = onNameChange,
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Done,
+                    keyboardType = KeyboardType.Text
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = "Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancel")
+            }
+        },
+        onDismissRequest = onDismiss,
+    )
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -216,6 +326,8 @@ fun CategoryDetailsScreenPreview() {
     CashLedgerTheme {
         CategoryDetailsScreen(
             category = transactionCategory,
+            onEditCategoryName = {},
+            onEditMemberName = {},
             navigateToPreviousScreen = {},
             navigateToCategoryBudgetListScreen = {},
             navigateToMembersAdditionScreen = {}

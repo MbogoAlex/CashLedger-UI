@@ -115,6 +115,20 @@ class TransactionsScreenViewModelScreen(
         }
     }
 
+    fun clearSearch(tab: TransactionScreenTab) {
+        _uiState.update {
+            it.copy(
+                entity = ""
+            )
+        }
+        when(tab) {
+            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
+            TransactionScreenTab.CHART -> {}
+        }
+    }
+
     fun changeTransactionType(transactionType: String, tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
@@ -131,7 +145,7 @@ class TransactionsScreenViewModelScreen(
     }
 
     fun getTransactions() {
-        Log.i("LOADING_TRANSACTIONS", "LOADING TRANSACTIONS")
+        Log.i("CALLED", "SEARCHING FOR ${uiState.value.entity}")
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
