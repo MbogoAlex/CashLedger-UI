@@ -288,6 +288,7 @@ fun TransactionsScreen(
             .fillMaxSize()
     ) {
         Scaffold(
+            backgroundColor = MaterialTheme.colorScheme.background,
             floatingActionButton = {
                 Button(
                     onClick = { /*TODO*/ },
@@ -337,7 +338,7 @@ fun TransactionsScreen(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .clip(CircleShape)
-                                        .background(Color.LightGray)
+                                        .background(MaterialTheme.colorScheme.inverseOnSurface)
                                         .padding(5.dp)
                                         .clickable {
                                             onClearSearch()

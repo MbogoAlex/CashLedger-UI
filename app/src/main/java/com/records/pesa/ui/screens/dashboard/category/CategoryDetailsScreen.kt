@@ -75,6 +75,7 @@ fun CategoryDetailsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
+    navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -225,7 +226,7 @@ fun CategoryDetailsScreenComposable(
                 categoryName = cateName
                 showRemoveCategoryDialog = !showRemoveCategoryDialog
             },
-            navigateToCategoryBudgetListScreen = {},
+            navigateToCategoryBudgetListScreen = navigateToCategoryBudgetListScreen,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen,
             navigateToTransactionsScreen = navigateToTransactionsScreen

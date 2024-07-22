@@ -41,6 +41,7 @@ fun HomeScreenComposable(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
@@ -80,7 +81,8 @@ fun HomeScreenComposable(
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToCategoriesScreen = navigateToCategoriesScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
+            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+            navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
 }
@@ -95,6 +97,7 @@ fun HomeScreen(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -124,6 +127,7 @@ fun HomeScreen(
             }
             HomeScreenTab.BUDGET -> {
                 BudgetListScreenComposable(
+                    navigateToPreviousScreen = navigateToPreviousScreen,
                     modifier = Modifier
                         .weight(1f)
                 )
@@ -199,7 +203,8 @@ fun HomeScreenPreview() {
             navigateToTransactionsScreen = {},
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},
-            navigateToCategoryDetailsScreen = {}
+            navigateToCategoryDetailsScreen = {},
+            navigateToPreviousScreen = {}
         )
     }
 }

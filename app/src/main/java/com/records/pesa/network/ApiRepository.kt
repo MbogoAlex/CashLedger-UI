@@ -1,5 +1,6 @@
 package com.records.pesa.network
 
+import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
 import com.records.pesa.models.CategoryEditPayload
@@ -9,6 +10,7 @@ import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
+import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
@@ -16,9 +18,11 @@ import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiRepository {
     suspend fun getTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
@@ -46,6 +50,12 @@ interface ApiRepository {
     suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody>
 
     suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody>
+
+    suspend fun getUserBudgets(userId: Int, name: String?): Response<BudgetResponseBody>
+
+    suspend fun getCategoryBudgets(categoryId: Int, name: String?): Response<BudgetResponseBody>
+
+    suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -209,6 +219,23 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
 
     override suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody> = apiService.updateTransaction(
         transactionEditPayload = transactionEditPayload
+    )
+
+    override suspend fun getUserBudgets(userId: Int, name: String?): Response<BudgetResponseBody> = apiService.getUserBudgets(
+        userId = userId,
+        name = name
+    )
+
+    override suspend fun getCategoryBudgets(
+        categoryId: Int,
+        name: String?
+    ): Response<BudgetResponseBody> = apiService.getCategoryBudgets(
+        categoryId = categoryId,
+        name = name
+    )
+
+    override suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody> = apiService.getBudget(
+        budgetId = budgetId
     )
 
 

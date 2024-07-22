@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +56,7 @@ fun BudgetInfoScreenComposable(
 @Composable
 fun BudgetInfoScreen(
     budgetDt: BudgetDt,
+    navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val difference = budgetDt.expenditure - budgetDt.budgetLimit
@@ -89,10 +93,22 @@ fun BudgetInfoScreen(
                 )
             }
         }
-        Text(
-            text = budgetDt.name!!,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = budgetDt.name!!,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = { /*TODO*/ }) {
+                Icon(
+                    tint = MaterialTheme.colorScheme.surfaceTint,
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit budget"
+                )
+            }
+        }
         if(budgetDt.active) {
             Text(
                 text = "ACTIVE",
@@ -151,8 +167,25 @@ fun BudgetInfoScreen(
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(5.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Budget period ends on ${budgetDt.limitDate}",
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = { /*TODO*/ }) {
+                Icon(
+                    tint = MaterialTheme.colorScheme.surfaceTint,
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit budget"
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
-            text = "Budget period ends on ${budgetDt.limitDate} - ${days.absoluteValue} days",
+            text = "Period: ${days.absoluteValue} days",
             fontWeight = FontWeight.Bold
         )
         if(budgetDt.limitReached) {
@@ -166,12 +199,19 @@ fun BudgetInfoScreen(
         Spacer(modifier = Modifier.height(5.dp))
         Text(text = "Category: ${budgetDt.category.name}")
         Spacer(modifier = Modifier.weight(1f))
-        Button(
+        OutlinedButton(
+            onClick = {
+                navigateToTransactionsScreen(budgetDt.category.id, budgetDt.id, LocalDate.parse(budgetDt.createdAt).toString(), budgetDt.limitDate)
+            },
             modifier = Modifier
-                .fillMaxWidth(),
-            onClick = { /*TODO*/ }
+                .fillMaxWidth()
         ) {
-            Text(text = "Edit budget")
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Transactions")
+                Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
+            }
         }
     }
 
@@ -183,7 +223,8 @@ fun BudgetInfoScreen(
 fun BudgetInfoScreenPreview() {
     CashLedgerTheme {
         BudgetInfoScreen(
-            budgetDt = budget
+            budgetDt = budget,
+            navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->}
         )
     }
 }

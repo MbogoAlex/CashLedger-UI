@@ -94,7 +94,8 @@ fun CategoriesScreen(
     Column(
         modifier = Modifier
             .padding(
-                horizontal = 16.dp
+                horizontal = 16.dp,
+                vertical = 8.dp
             )
             .fillMaxSize()
     ) {

@@ -1,5 +1,6 @@
 package com.records.pesa.network
 
+import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
 import com.records.pesa.models.CategoryEditPayload
@@ -9,6 +10,7 @@ import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
+import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
@@ -144,4 +146,21 @@ interface ApiService {
     suspend fun updateTransaction(
         @Body transactionEditPayload: TransactionEditPayload
     ): Response<TransactionEditResponseBody>
+
+    @GET("budget/{userId}")
+    suspend fun getUserBudgets(
+        @Path("userId") userId: Int,
+        @Query("name") name: String?,
+    ): Response<BudgetResponseBody>
+
+    @GET("budget/category/{categoryId}")
+    suspend fun getCategoryBudgets(
+        @Path("categoryId") categoryId: Int,
+        @Query("name") name: String?
+    ): Response<BudgetResponseBody>
+
+    @GET("budget/single/{budgetId}")
+    suspend fun getBudget(
+        @Path("budgetId") budgetId: Int
+    ): Response<SingleBudgetResponseBody>
 }

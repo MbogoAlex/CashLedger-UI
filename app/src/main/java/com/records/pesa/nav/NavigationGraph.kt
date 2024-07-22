@@ -13,6 +13,8 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenDestination
@@ -48,6 +50,9 @@ fun NavigationGraph(
                 },
                 navigateToCategoriesScreen = {
                     navController.navigate(CategoryDetailsScreenDestination.route)
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
                 }
             )
         }
@@ -113,6 +118,9 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToCategoryBudgetListScreen = {
+                    navController.navigate("${BudgetListScreenDestination.route}/${it}")
                 }
             )
         }
@@ -166,6 +174,20 @@ fun NavigationGraph(
                     navController.popBackStack(CategoryAdditionScreenDestination.route, true)
                     navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
                 },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(
+            BudgetListScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetListScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetListScreenComposable(
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }

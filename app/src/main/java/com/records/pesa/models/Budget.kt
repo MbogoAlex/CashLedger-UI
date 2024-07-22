@@ -3,10 +3,20 @@ package com.records.pesa.models
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class SingleBudgetResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: SingleBudgetData
+)
+@Serializable
 data class BudgetResponseBody(
     val statusCode: Int,
     val message: String,
     val data: BudgetData
+)
+@Serializable
+data class SingleBudgetData(
+    val budget: BudgetDt
 )
 
 @Serializable

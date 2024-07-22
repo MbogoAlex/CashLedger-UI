@@ -5,6 +5,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,16 +17,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,42 +38,75 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.BudgetDt
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.budgets
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
 import kotlin.math.absoluteValue
 
+object BudgetListScreenDestination: AppNavigation {
+    override val title: String = "Budget list screen"
+    override val route: String = "budget-list-screen"
+    val categoryId: String = "categoryId"
+    val routeWithArgs = "$route/{$categoryId}"
+
+}
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListScreenComposable(
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: BudgetListScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
-        BudgetListScreen()
+        BudgetListScreen(
+            budgets = uiState.budgetList,
+            searchQuery = uiState.searchQuery,
+            categoryId = uiState.categoryId,
+            onChangeSearchQuery = {
+                viewModel.updateSearchQuery(it)
+            },
+            onClearSearch = {
+                viewModel.clearSearch()
+            },
+            navigateToPreviousScreen = {}
+        )
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListScreen(
+    budgets: List<BudgetDt>,
+    searchQuery: String,
+    categoryId: String?,
+    onChangeSearchQuery: (value: String) -> Unit,
+    onClearSearch: () -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -75,29 +114,58 @@ fun BudgetListScreen(
             .padding(16.dp)
             .fillMaxSize()
     ) {
-        TextField(
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Search, contentDescription = null)
-            },
-            value = "",
-            placeholder = {
-                          Text(text = "Budget / Category")
-            },
-            trailingIcon = {
-                Icon(imageVector = Icons.Default.Clear, contentDescription = null)
-            },
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done,
-                keyboardType = KeyboardType.Text
-            ),
-            onValueChange = {},
-            modifier = Modifier
-                .fillMaxWidth()
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if(categoryId != null) {
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            TextField(
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                },
+                value = searchQuery,
+                placeholder = {
+                    Text(text = "Budget / Category")
+                },
+                trailingIcon = {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.inverseOnSurface)
+                            .padding(5.dp)
+                            .clickable {
+                                onClearSearch()
+                            }
+
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Clear search",
+                            modifier = Modifier
+                                .size(16.dp)
+                        )
+                    }
+
+                },
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Done,
+                    keyboardType = KeyboardType.Text
+                ),
+                onValueChange = onChangeSearchQuery,
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
         LazyColumn(
             modifier = Modifier.weight(1f)
@@ -244,6 +312,13 @@ fun BudgetListScreenPreview(
     modifier: Modifier = Modifier
 ) {
     CashLedgerTheme {
-        BudgetListScreen()
+        BudgetListScreen(
+            budgets = budgets,
+            searchQuery = "",
+            categoryId = null,
+            onChangeSearchQuery = {},
+            onClearSearch = { /*TODO*/ },
+            navigateToPreviousScreen = {}
+        )
     }
 }
