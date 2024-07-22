@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
@@ -24,6 +25,7 @@ data class TransactionsScreenUiState(
     val moneyOutTransactions: List<TransactionItem> = emptyList(),
     val moneyInSorted: List<SortedTransactionItem> = emptyList(),
     val moneyOutSorted: List<SortedTransactionItem> = emptyList(),
+    val nickName: String = "",
     val entity: String = "",
     val transactionType: String = "All types",
     val totalMoneyIn: Double = 0.0,
@@ -145,6 +147,14 @@ class TransactionsScreenViewModelScreen(
             TransactionScreenTab.CHART -> {}
         }
 
+    }
+
+    fun updateNickname(name: String) {
+        _uiState.update {
+            it.copy(
+                nickName = name
+            )
+        }
     }
 
     fun getTransactions() {
@@ -387,6 +397,31 @@ class TransactionsScreenViewModelScreen(
                     )
                 }
                 Log.e("GetTransactionsException", e.toString())
+            }
+        }
+    }
+
+    fun updateTransaction(transactionItem: TransactionItem) {
+        var entity = ""
+        if(transactionItem.transactionAmount < 0) {
+            entity = transactionItem.recipient
+        } else if(transactionItem.transactionAmount > 0) {
+            entity = transactionItem.sender
+        }
+        val transactionEditPayload = TransactionEditPayload(
+            transactionId = transactionItem.transactionId,
+            userId = 1,
+            entity = entity,
+            nickName = uiState.value.nickName
+        )
+        viewModelScope.launch {
+            try {
+                val response = apiRepository.updateTransaction(transactionEditPayload)
+                if(response.isSuccessful) {
+
+                } else {}
+            } catch (e: Exception) {
+
             }
         }
     }

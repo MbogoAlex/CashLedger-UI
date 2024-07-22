@@ -23,6 +23,7 @@ data class TransactionDt(
 
 @Serializable
 data class TransactionItem(
+    val transactionId: Int,
     val transactionCode: String,
     val transactionType: String,
     val transactionAmount: Double,
@@ -30,6 +31,7 @@ data class TransactionItem(
     val date: String,
     val time: String,
     val sender: String,
+    val nickName: String?,
     val recipient: String,
     val balance: Double,
     val categories: List<ItemCategory>
@@ -66,7 +68,8 @@ data class SortedTransactionItem(
     val times: Int,
     val amount: Double,
     val transactionCost: Double,
-    val name: String
+    val name: String,
+    val nickName: String?
 )
 
 @Serializable
@@ -79,4 +82,24 @@ data class CurrentBalanceResponseBody(
 @Serializable
 data class BalanceDt(
     val balance: Double
+)
+
+@Serializable
+data class TransactionEditPayload(
+    val transactionId: Int,
+    val userId: Int,
+    val entity: String,
+    val nickName: String
+)
+
+@Serializable
+data class TransactionEditResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: TransactionEditDt
+)
+
+@Serializable
+data class TransactionEditDt(
+    val transaction: String
 )

@@ -1,14 +1,20 @@
 package com.records.pesa.composables
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -25,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.records.pesa.functions.formatDate
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
@@ -64,13 +71,13 @@ fun TransactionItemCell(
             Column {
                 if(transaction.transactionAmount < 0) {
                     Text(
-                        text = if(transaction.recipient.length > 20) "${transaction.recipient.substring(0, 20).uppercase()}..." else transaction.recipient.uppercase(),
+                        text = transaction.nickName ?: if(transaction.recipient.length > 20) "${transaction.recipient.substring(0, 20).uppercase()}..." else transaction.recipient.uppercase(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 } else if(transaction.transactionAmount > 0) {
                     Text(
-                        text = if(transaction.sender.length > 20) "${transaction.sender.substring(0, 20).uppercase()}..." else transaction.sender.uppercase(),
+                        text = transaction.nickName ?: if(transaction.sender.length > 20) "${transaction.sender.substring(0, 20).uppercase()}..." else transaction.sender.uppercase(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -156,7 +163,7 @@ fun SortedTransactionItemCell(
             Spacer(modifier = Modifier.width(5.dp))
             Column {
                 Text(
-                    text = if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
+                    text = transaction.nickName ?: if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -218,6 +225,46 @@ fun SortedTransactionItemCell(
                     fontStyle = FontStyle.Italic
                 )
             )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun TransactionCategoryCell(
+    transactionCategory: TransactionCategory,
+    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = Modifier
+            .padding(
+                bottom = 10.dp
+            )
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(10.dp)
+        ) {
+            Column {
+                Text(
+                    text = transactionCategory.name,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text =  if(transactionCategory.transactions.size > 1) "${transactionCategory.transactions.size} transactions" else "${transactionCategory.transactions.size} transaction",
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Light
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = transactionCategory.name
+                )
+            }
         }
     }
 }

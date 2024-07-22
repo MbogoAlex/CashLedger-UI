@@ -28,6 +28,8 @@ val itemCategories = listOf(
 )
 
 val transaction = TransactionItem(
+    transactionId = 1,
+    nickName = "Josphat  Karoki",
     transactionCode = "SFP2KN50C2",
     transactionType = "Send Money",
     transactionAmount = 1000.0,
@@ -37,11 +39,13 @@ val transaction = TransactionItem(
     sender = "JOSPHAT  KAROKI 0720929489",
     recipient = "You",
     balance = 1000.0,
-    categories = itemCategories
+    categories = itemCategories,
 )
 
 val transactions = listOf(
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -54,6 +58,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -66,6 +72,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -78,6 +86,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Pay Bill",
         transactionAmount = -1550.0,
@@ -90,6 +100,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -102,6 +114,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -114,6 +128,8 @@ val transactions = listOf(
         categories = itemCategories
     ),
     TransactionItem(
+        transactionId = 1,
+        nickName = "Josphat  Karoki",
         transactionCode = "SFP2KN50C2",
         transactionType = "Send Money",
         transactionAmount = 1000.0,
@@ -132,7 +148,8 @@ val moneyInSortedTransactionItem = SortedTransactionItem(
     times = 103,
     amount = 11070.0,
     transactionCost = 310.0,
-    name = "PesaPal for account 0772364458"
+    name = "PesaPal for account 0772364458",
+    nickName = "Pesapal",
 )
 
 val moneyInSortedTransactionItems = listOf(
@@ -141,35 +158,40 @@ val moneyInSortedTransactionItems = listOf(
         times = 103,
         amount = 11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = 11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = 11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = 11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = 11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     )
 
 )
@@ -180,35 +202,40 @@ val moneyOutSortedTransactionItems = listOf(
         times = 103,
         amount = -11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = -11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = -11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = -11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
         amount = -11070.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458"
+        name = "PesaPal for account 0772364458",
+        nickName = "Pesapal",
     )
 
 )

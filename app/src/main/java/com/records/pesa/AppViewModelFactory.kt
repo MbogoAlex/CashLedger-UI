@@ -10,7 +10,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.ui.screens.DashboardScreenViewModel
+import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenViewModel
+import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewModel
+import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
 
@@ -49,6 +52,31 @@ object AppViewModelFactory {
             CategoryDetailsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            MembersAdditionScreenViewModel(
+                apiRepository = apiRepository,
+                savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            CategoriesScreenViewModel(
+                apiRepository = apiRepository
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            CategoryAdditionScreenViewModel(
+                apiRepository = apiRepository
             )
         }
     }

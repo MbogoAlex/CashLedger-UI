@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
@@ -59,7 +60,9 @@ object DashboardScreenDestination: AppNavigation {
 @Composable
 fun DashboardScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    navigateToCategoryAdditionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -74,6 +77,8 @@ fun DashboardScreenComposable(
             transactionCategories = uiState.categories,
             currentBalance = formatMoneyValue(uiState.currentBalance),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToCategoriesScreen = navigateToCategoriesScreen,
+            navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
         )
     }
@@ -86,6 +91,8 @@ fun DashboardScreen(
     transactionCategories: List<TransactionCategory>,
     currentBalance: String,
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoriesScreen: () -> Unit,
+    navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -126,8 +133,8 @@ fun DashboardScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = { /*TODO*/ }) {
-                if(transactionCategories.isEmpty()) {
+            if(transactionCategories.isEmpty()) {
+                TextButton(onClick = navigateToCategoryAdditionScreen) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -136,11 +143,13 @@ fun DashboardScreen(
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
                     }
 
-                } else {
+                }
+            } else {
+                TextButton(onClick = navigateToCategoriesScreen) {
                     Text(text = "See all")
                 }
-
             }
+
         }
         Spacer(modifier = Modifier.height(10.dp))
         if(transactionCategories.isNotEmpty()) {
@@ -165,45 +174,7 @@ fun DashboardScreen(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-fun TransactionCategoryCell(
-    transactionCategory: TransactionCategory,
-    navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = Modifier
-            .padding(
-                bottom = 10.dp
-            )
-            .fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(10.dp)
-        ) {
-            Column {
-                Text(
-                    text = transactionCategory.name,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text =  if(transactionCategory.createdAt.isNullOrEmpty()) "N/A" else formatIsoDateTime(LocalDateTime.parse(transactionCategory.createdAt)),
-                    fontStyle = FontStyle.Italic,
-                    fontWeight = FontWeight.Light
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = transactionCategory.name
-                )
-            }
-        }
-    }
-}
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -303,6 +274,8 @@ fun DashboardScreenPreview(
             transactions = transactions,
             currentBalance = "Ksh 5,350",
             transactionCategories = transactionCategories,
+            navigateToCategoriesScreen = {},
+            navigateToCategoryAdditionScreen = {},
             navigateToCategoryDetailsScreen = {}
         )
     }

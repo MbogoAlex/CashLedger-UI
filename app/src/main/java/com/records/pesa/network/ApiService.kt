@@ -10,6 +10,8 @@ import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
+import com.records.pesa.models.TransactionEditPayload
+import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -137,4 +139,9 @@ interface ApiService {
     suspend fun deleteCategory(
         @Path("categoryId") categoryId: Int
     ): Response<CategoryDeleteResponseBody>
+
+    @PUT("transaction/update")
+    suspend fun updateTransaction(
+        @Body transactionEditPayload: TransactionEditPayload
+    ): Response<TransactionEditResponseBody>
 }

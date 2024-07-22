@@ -38,6 +38,8 @@ object HomeScreenDestination: AppNavigation {
 @Composable
 fun HomeScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoriesScreen: () -> Unit,
+    navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -76,6 +78,8 @@ fun HomeScreenComposable(
             },
             tabs = tabs,
             navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToCategoriesScreen = navigateToCategoriesScreen,
+            navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
         )
     }
@@ -88,6 +92,8 @@ fun HomeScreen(
     onTabChange: (HomeScreenTab) -> Unit,
     tabs: List<HomeScreenTabItem>,
     navigateToTransactionsScreen: () -> Unit,
+    navigateToCategoriesScreen: () -> Unit,
+    navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -99,6 +105,8 @@ fun HomeScreen(
             HomeScreenTab.DASHBOARD -> {
                 DashboardScreenComposable(
                     navigateToTransactionsScreen = navigateToTransactionsScreen,
+                    navigateToCategoriesScreen = navigateToCategoriesScreen,
+                    navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
                     navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                     modifier = Modifier
                         .weight(1f)
@@ -189,6 +197,8 @@ fun HomeScreenPreview() {
             },
             tabs = tabs,
             navigateToTransactionsScreen = {},
+            navigateToCategoriesScreen = {},
+            navigateToCategoryAdditionScreen = {},
             navigateToCategoryDetailsScreen = {}
         )
     }

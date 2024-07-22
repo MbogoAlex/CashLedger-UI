@@ -13,6 +13,9 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenComposable
@@ -39,6 +42,12 @@ fun NavigationGraph(
                 },
                 navigateToCategoryDetailsScreen = {
                     navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
+                },
+                navigateToCategoryAdditionScreen = {
+                    navController.navigate(CategoryAdditionScreenDestination.route)
+                },
+                navigateToCategoriesScreen = {
+                    navController.navigate(CategoryDetailsScreenDestination.route)
                 }
             )
         }
@@ -132,6 +141,30 @@ fun NavigationGraph(
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(CategoryDetailsScreenDestination.route) {
+            CategoriesScreenComposable(
+                navigateToCategoryDetailsScreen = {
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
+                },
+                navigateToCategoryAdditionScreen = {
+                    navController.navigate(CategoryAdditionScreenDestination.route)
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                }
+            )
+        }
+        composable(CategoryAdditionScreenDestination.route) {
+            CategoryAdditionScreenComposable(
+                navigateToCategoryDetailsScreen = {
+                    navController.popBackStack(CategoryAdditionScreenDestination.route, true)
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()

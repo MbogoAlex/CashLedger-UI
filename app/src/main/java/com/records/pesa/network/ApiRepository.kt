@@ -10,6 +10,8 @@ import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.SortedTransactionsResponseBody
+import com.records.pesa.models.TransactionEditPayload
+import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -42,6 +44,8 @@ interface ApiRepository {
     suspend fun deleteCategoryKeyword(categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody>
 
     suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody>
+
+    suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -201,6 +205,10 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
 
     override suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody> = apiService.deleteCategory(
         categoryId = categoryId
+    )
+
+    override suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody> = apiService.updateTransaction(
+        transactionEditPayload = transactionEditPayload
     )
 
 

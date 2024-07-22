@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,7 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,6 +81,16 @@ fun CategoryDetailsScreenComposable(
     val context = LocalContext.current
     val viewModel: CategoryDetailsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+
+    LaunchedEffect(lifecycleState) {
+        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
+        if(lifecycleState.name.lowercase() == "started") {
+            viewModel.getCategory()
+        }
+    }
 
     var showEditCategoryNameDialog by rememberSaveable {
         mutableStateOf(false)
@@ -210,6 +223,7 @@ fun CategoryDetailsScreenComposable(
             onRemoveCategory = { catId, cateName ->
                 categoryId = catId
                 categoryName = cateName
+                showRemoveCategoryDialog = !showRemoveCategoryDialog
             },
             navigateToCategoryBudgetListScreen = {},
             navigateToPreviousScreen = navigateToPreviousScreen,
@@ -324,9 +338,9 @@ fun CategoryDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = it.nickName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        text = if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName,
+//                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = {
@@ -350,7 +364,6 @@ fun CategoryDetailsScreen(
                 }
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(
             onClick = {
                 navigateToTransactionsScreen(category.id.toString())

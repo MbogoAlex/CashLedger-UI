@@ -1,6 +1,9 @@
 package com.records.pesa.ui.screens.dashboard.category
 
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -26,20 +30,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 
@@ -49,26 +60,23 @@ object MembersAdditionScreenDestination: AppNavigation {
     val categoryId: String = "categoryId"
     val routeWithArgs: String = "$route/{$categoryId}"
 }
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MembersAdditionScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val viewModel: MembersAdditionScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
 
-    val existingMembers by rememberSaveable {
-        mutableStateOf(mutableListOf<TransactionItem>())
-    }
-
-    val newMembers by rememberSaveable {
-        mutableStateOf(mutableListOf<TransactionItem>())
-    }
-    val selectableMembers by rememberSaveable {
-        mutableStateOf(mutableListOf<TransactionItem>())
-    }
-    for(transaction in transactions) {
-        if(!existingMembers.contains(transaction) && !newMembers.contains(transaction)) {
-            selectableMembers.add(transaction)
-        }
+    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+        Toast.makeText(context, "Members added", Toast.LENGTH_SHORT).show()
+        navigateToPreviousScreen()
+        viewModel.resetLoadingStatus()
+    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+        Toast.makeText(context, "Failed. Check your connection or try later", Toast.LENGTH_SHORT).show()
+        viewModel.resetLoadingStatus()
     }
 
     var showReviewScreen by rememberSaveable {
@@ -81,13 +89,15 @@ fun MembersAdditionScreenComposable(
                 .safeDrawingPadding()
         ) {
             MembersReviewScreen(
-                newMembers = newMembers,
+                newMembers = uiState.membersToAdd,
+                loadingStatus = uiState.loadingStatus,
                 onRemoveMember = {
-                    selectableMembers.add(newMembers[it])
-                    newMembers.removeAt(it)
+                    viewModel.removeMember(it)
                 },
-                onConfirm = { /*TODO*/ },
-                navigateToPreviousScreen = {
+                onConfirm = {
+                    viewModel.addMembersToCategory()
+                },
+                navigateToMembersAdditionScreen = {
                     showReviewScreen = !showReviewScreen
                 }
             )
@@ -98,10 +108,13 @@ fun MembersAdditionScreenComposable(
                 .safeDrawingPadding()
         ) {
             MembersAdditionScreen(
-                selectableMembers = selectableMembers,
+                selectableMembers = uiState.membersToDisplay,
+                searchText = uiState.entity,
+                onChangeSearchText = {
+                    viewModel.updateSearchText(it)
+                },
                 onAddMember = {
-                    newMembers.add(it)
-                    selectableMembers.remove((it))
+                    viewModel.addMember(it)
                 },
                 navigateToReviewScreen = {
                     showReviewScreen = !showReviewScreen
@@ -115,6 +128,8 @@ fun MembersAdditionScreenComposable(
 @Composable
 fun MembersAdditionScreen(
     selectableMembers: List<TransactionItem>,
+    searchText: String = "",
+    onChangeSearchText: (value: String) -> Unit,
     onAddMember: (member: TransactionItem) -> Unit,
     navigateToReviewScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
@@ -143,8 +158,12 @@ fun MembersAdditionScreen(
                 Icon(imageVector = Icons.Default.Search, contentDescription = null)
             },
             label = { Text(text = "name / phone number") },
-            value = "",
-            onValueChange = {},
+            value = searchText,
+            onValueChange = onChangeSearchText,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Done,
+                keyboardType = KeyboardType.Text
+            ),
             modifier = Modifier
                 .fillMaxWidth()
         )
@@ -157,7 +176,7 @@ fun MembersAdditionScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = if(it.transactionAmount > 0) it.sender else it.recipient)
+                    Text(text = it.nickName ?: if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient)
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = { onAddMember(it) }) {
                         Icon(
@@ -181,12 +200,13 @@ fun MembersAdditionScreen(
 @Composable
 fun MembersReviewScreen(
     newMembers: List<TransactionItem>,
-    onRemoveMember: (index: Int) -> Unit,
+    onRemoveMember: (transaction: TransactionItem) -> Unit,
     onConfirm: () -> Unit,
-    navigateToPreviousScreen: () -> Unit,
+    navigateToMembersAdditionScreen: () -> Unit,
+    loadingStatus: LoadingStatus,
     modifier: Modifier = Modifier
 ) {
-    BackHandler(onBack = navigateToPreviousScreen)
+    BackHandler(onBack = navigateToMembersAdditionScreen)
     Column(
         modifier = Modifier
             .padding(
@@ -198,7 +218,7 @@ fun MembersReviewScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = navigateToPreviousScreen) {
+            IconButton(onClick = navigateToMembersAdditionScreen) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
 
             }
@@ -219,9 +239,9 @@ fun MembersReviewScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = if(it.transactionAmount > 0) it.sender else it.recipient)
+                    Text(text = if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient)
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { onRemoveMember(newMembers.indexOf(it)) }) {
+                    IconButton(onClick = { onRemoveMember(it) }) {
                         Icon(
                             tint = MaterialTheme.colorScheme.error,
                             painter = painterResource(id = R.drawable.remove), contentDescription = "Remove ${if(it.transactionAmount > 0) it.sender else it.recipient}"
@@ -231,11 +251,17 @@ fun MembersReviewScreen(
             }
         }
         Button(
+            enabled = newMembers.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
             onClick = onConfirm,
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            Text(text = "Confirm")
+            if(loadingStatus == LoadingStatus.LOADING) {
+                Text(text = "Loading...")
+            } else {
+                Text(text = "Confirm")
+            }
+
         }
     }
 }
@@ -246,9 +272,10 @@ fun MembersReviewScreenPreview() {
     CashLedgerTheme {
         MembersReviewScreen(
             newMembers = transactions,
+            loadingStatus = LoadingStatus.INITIAL,
             onRemoveMember = {},
             onConfirm = {},
-            navigateToPreviousScreen = {}
+            navigateToMembersAdditionScreen = {}
         )
     }
 }
@@ -259,6 +286,8 @@ fun MembersAdditionScreenPreview() {
     CashLedgerTheme {
         MembersAdditionScreen(
             selectableMembers = transactions,
+            searchText = "",
+            onChangeSearchText = {},
             onAddMember = {},
             navigateToReviewScreen = {},
             navigateToPreviousScreen = {},

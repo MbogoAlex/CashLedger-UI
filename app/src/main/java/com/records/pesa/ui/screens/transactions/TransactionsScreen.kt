@@ -161,26 +161,7 @@ fun TransactionsScreenComposable(
         mutableStateOf(false)
     }
 
-    if(showDateRangePicker) {
-        DateRangePickerDialog(
-            startDate = LocalDate.parse(uiState.startDate),
-            endDate = LocalDate.parse((uiState.endDate)),
-            defaultStartDate = uiState.defaultStartDate,
-            defaultEndDate = uiState.defaultEndDate,
-            onChangeStartDate = {
-                viewModel.changeStartDate(it, currentTab)
-            },
-            onChangeLastDate = {
-                viewModel.changeEndDate(it, currentTab)
-            },
-            onDismiss = {
-                showDateRangePicker = !showDateRangePicker
-            },
-            onConfirm = {
-                showDateRangePicker = !showDateRangePicker
-            }
-        )
-    }
+
 
     Box(
         modifier = Modifier
@@ -209,6 +190,7 @@ fun TransactionsScreenComposable(
                 }
             },
             typeMenuExpanded = typeMenuExpanded,
+            showDateRangePicker = showDateRangePicker,
             onExpandTypeMenu = {
                 typeMenuExpanded = !typeMenuExpanded
             },
@@ -228,6 +210,20 @@ fun TransactionsScreenComposable(
             },
             startDate = LocalDate.parse(uiState.startDate),
             endDate = LocalDate.parse(uiState.endDate),
+            defaultStartDate = uiState.defaultStartDate,
+            defaultEndDate = uiState.defaultEndDate,
+            onChangeStartDate = {
+                viewModel.changeStartDate(it, currentTab)
+            },
+            onChangeLastDate = {
+                viewModel.changeEndDate(it, currentTab)
+            },
+            onDismiss = {
+                showDateRangePicker = !showDateRangePicker
+            },
+            onConfirm = {
+                showDateRangePicker = !showDateRangePicker
+            },
             searchText = uiState.entity,
             onChangeSearchText = {
                 viewModel.changeEntity(it, currentTab)
@@ -268,11 +264,18 @@ fun TransactionsScreen(
     sortMenuExpanded: Boolean,
     selectedSortCriteria: String,
     onSelectSortCriteria: (type: String) -> Unit,
-    startDate: LocalDate,
-    endDate: LocalDate,
     searchText: String,
     categoryName: String?,
     budgetName: String?,
+    showDateRangePicker: Boolean,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    defaultStartDate: String?,
+    defaultEndDate: String?,
+    onChangeStartDate: (date: LocalDate) -> Unit,
+    onChangeLastDate: (date: LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
     onChangeSearchText: (searchText: String) -> Unit,
     onClearSearch: () -> Unit,
     onSelectDateRange: () -> Unit,
@@ -407,6 +410,20 @@ fun TransactionsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
+                    if(showDateRangePicker) {
+                        DateRangePickerDialog(
+                            startDate = startDate,
+                            endDate = endDate,
+                            defaultStartDate = defaultStartDate,
+                            defaultEndDate = defaultEndDate,
+                            onChangeStartDate = onChangeStartDate,
+                            onChangeLastDate = onChangeLastDate,
+                            onDismiss = onDismiss,
+                            onConfirm = onConfirm,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
+                    }
                     when (currentTab) {
                         TransactionScreenTab.ALL_TRANSACTIONS -> {
                             Row(
@@ -707,8 +724,15 @@ fun TransactionsScreenPreview(
             selectedSortCriteria = "Amount",
             onSelectSortCriteria = {},
             sortMenuExpanded = false,
+            showDateRangePicker = false,
             startDate = LocalDate.now(),
             endDate = LocalDate.now(),
+            defaultStartDate = "2024-06-01",
+            defaultEndDate = "2024-06-25",
+            onChangeStartDate ={},
+            onChangeLastDate = {},
+            onDismiss = {},
+            onConfirm = {},
             onSelectDateRange = {},
             searchText = "",
             onChangeSearchText = {},
@@ -734,16 +758,23 @@ fun DateRangePickerDialog(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Popup(
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(
-            excludeFromSystemGesture = true
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Red
         ),
-        content = {
+        shape = RoundedCornerShape(0.dp),
+        modifier = modifier
+
+    ) {
+        Popup(
+            alignment = Alignment.TopEnd,
+            properties = PopupProperties(
+                excludeFromSystemGesture = true
+            ),
+            onDismissRequest = onDismiss,
+        ) {
             Card(
                 shape = RoundedCornerShape(0.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
@@ -781,8 +812,8 @@ fun DateRangePickerDialog(
                     }
                 }
             }
-        },
-    )
+        }
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
