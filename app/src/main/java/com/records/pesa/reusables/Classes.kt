@@ -44,3 +44,10 @@ enum class LoadingStatus {
     SUCCESS,
     FAIL
 }
+
+enum class ExecutionStatus {
+    INITIAL,
+    LOADING,
+    SUCCESS,
+    FAIL
+}

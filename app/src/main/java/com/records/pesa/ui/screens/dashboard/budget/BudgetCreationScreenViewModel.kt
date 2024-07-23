@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.records.pesa.models.BudgetCreationPayLoad
+import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
@@ -88,7 +88,12 @@ class BudgetCreationScreenViewModel(
     }
 
     fun createBudget() {
-        val budget = BudgetCreationPayLoad(
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.LOADING
+            )
+        }
+        val budget = BudgetEditPayLoad(
             name = uiState.value.budgetName,
             budgetLimit = uiState.value.budgetLimit.toDouble(),
             limitDate = uiState.value.limitDate.toString(),

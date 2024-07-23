@@ -290,6 +290,7 @@ fun NavigationGraph(
                     navController.navigateUp()
                 },
                 navigateToBudgetInfoScreen = {
+                    navController.popBackStack(BudgetCreationScreenDestination.routeWithArgs, true)
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
                 }
             )

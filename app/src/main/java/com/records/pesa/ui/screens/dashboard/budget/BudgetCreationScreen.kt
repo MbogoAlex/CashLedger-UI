@@ -57,6 +57,8 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+import java.time.ZoneId
+
 object BudgetCreationScreenDestination: AppNavigation {
     override val title: String = "Budget creation screen"
     override val route: String = "budget-creation-screen"
@@ -145,25 +147,21 @@ fun BudgetCreationScreen(
     var dropDownMenuExpanded by rememberSaveable {
         mutableStateOf(false)
     }
+    val defaultStartMillis = startDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
     @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePicker() {
         val datePicker = DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                if (selectedDate.isAfter(startDate)) {
-                    onBudgetEndDateChange(selectedDate)
-                } else {
-                    // Handle case where end date is before start date
-                    Toast.makeText(context, "Start date must be after the current date", Toast.LENGTH_LONG)
-                        .show()
-                }
+                onBudgetEndDateChange(selectedDate)
             },
 
             startDate.year,
             startDate.monthValue - 1,
-            startDate.dayOfMonth + 1
+            startDate.dayOfMonth
         )
+        defaultStartMillis?.let { datePicker.datePicker.minDate = it }
 
         datePicker.show()
     }

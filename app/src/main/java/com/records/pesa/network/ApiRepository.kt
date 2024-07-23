@@ -1,6 +1,7 @@
 package com.records.pesa.network
 
-import com.records.pesa.models.BudgetCreationPayLoad
+import com.records.pesa.models.BudgetDeleteResponseBody
+import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
@@ -50,7 +51,10 @@ interface ApiRepository {
 
     suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody>
 
-    suspend fun createBudget(userId: Int, categoryId: Int, budget: BudgetCreationPayLoad): Response<SingleBudgetResponseBody>
+    suspend fun createBudget(userId: Int, categoryId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
+
+    suspend fun updateBudget(budgetId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
+    suspend fun deleteBudget(budgetId: Int): Response<BudgetDeleteResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -238,11 +242,23 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
     override suspend fun createBudget(
         userId: Int,
         categoryId: Int,
-        budget: BudgetCreationPayLoad
+        budget: BudgetEditPayLoad
     ): Response<SingleBudgetResponseBody> = apiService.createBudget(
         userId = userId,
         categoryId = categoryId,
         budget = budget
+    )
+
+    override suspend fun updateBudget(
+        budgetId: Int,
+        budget: BudgetEditPayLoad
+    ): Response<SingleBudgetResponseBody> = apiService.updateBudget(
+        budgetId = budgetId,
+        budget = budget
+    )
+
+    override suspend fun deleteBudget(budgetId: Int): Response<BudgetDeleteResponseBody> = apiService.deleteBudget(
+        budgetId = budgetId
     )
 
 

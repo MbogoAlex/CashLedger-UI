@@ -452,7 +452,7 @@ fun DeleteDialog(
             Text(text = if(categoryDeletion) "Remove category" else "Remove member")
         },
         text = {
-            Text(text = "Remove $name ? This action cannot be undone")
+            Text(text = "Remove $name? This action cannot be undone")
         },
         onDismissRequest = onDismiss,
         confirmButton = {

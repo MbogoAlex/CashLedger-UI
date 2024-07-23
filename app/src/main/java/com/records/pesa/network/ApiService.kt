@@ -1,11 +1,11 @@
 package com.records.pesa.network
 
-import com.records.pesa.models.BudgetCreationPayLoad
+import com.records.pesa.models.BudgetDeleteResponseBody
+import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
 import com.records.pesa.models.CategoryEditPayload
-import com.records.pesa.models.CategoryKeywordDeletePayload
 import com.records.pesa.models.CategoryKeywordDeleteResponseBody
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
@@ -170,6 +170,16 @@ interface ApiService {
     suspend fun createBudget(
         @Path("userId") userId: Int,
         @Path("categoryId") categoryId: Int,
-        @Body budget: BudgetCreationPayLoad
+        @Body budget: BudgetEditPayLoad
     ): Response<SingleBudgetResponseBody>
+
+    @PUT("budget/{budgetId}")
+    suspend fun updateBudget(
+        @Path("budgetId") budgetId: Int,
+        @Body budget: BudgetEditPayLoad
+    ): Response<SingleBudgetResponseBody>
+    @DELETE("budget/{budgetId}")
+    suspend fun deleteBudget(
+        @Path("budgetId") budgetId: Int
+    ): Response<BudgetDeleteResponseBody>
 }

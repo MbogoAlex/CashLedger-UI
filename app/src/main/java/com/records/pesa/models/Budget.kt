@@ -3,7 +3,7 @@ package com.records.pesa.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class BudgetCreationPayLoad(
+data class BudgetEditPayLoad(
     val name: String,
     val budgetLimit: Double,
     val limitDate: String,
@@ -57,4 +57,16 @@ data class BudgetCategory(
 data class BudgetOwner(
     val id: Int,
     val name: String
+)
+
+@Serializable
+data class BudgetDeleteResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: BudgetDlt
+)
+
+@Serializable
+data class BudgetDlt(
+    val budget: String
 )

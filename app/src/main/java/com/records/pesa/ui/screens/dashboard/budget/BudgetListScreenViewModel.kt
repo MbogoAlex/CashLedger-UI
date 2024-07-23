@@ -45,6 +45,7 @@ class BudgetListScreenViewModel(
                 searchQuery = ""
             )
         }
+        getBudgets()
     }
 
     fun getBudgets() {
