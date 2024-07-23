@@ -1,6 +1,7 @@
 package com.records.pesa.nav
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -13,6 +14,8 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
@@ -55,6 +58,12 @@ fun NavigationGraph(
                 },
                 navigateToBudgetInfoScreen = {
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                },
+                navigateToBudgetCreationScreen = {
+                    navController.navigate(BudgetCreationScreenDestination.route)
+                },
+                navigateToBudgetCreationScreenWithCategoryId = {
+                    navController.navigate("${BudgetCreationScreenDestination.route}/${it}")
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
@@ -124,6 +133,9 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToBudgetCreationScreen = {
+                    navController.navigate("${BudgetCreationScreenDestination.route}/${it}")
                 },
                 navigateToCategoryBudgetListScreen = {categoryId, categoryName ->
                     navController.navigate("${BudgetListScreenDestination.route}/${categoryId}/${categoryName}")
@@ -200,6 +212,12 @@ fun NavigationGraph(
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 },
+                navigateToBudgetCreationScreen = {
+                    navController.navigate(BudgetCreationScreenDestination.route)
+                },
+                navigateToBudgetCreationScreenWithCategoryId = {
+                    navController.navigate("${BudgetCreationScreenDestination.route}/${it}")
+                },
                 navigateToBudgetInfoScreen = {
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
                 }
@@ -245,6 +263,34 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
+                }
+            )
+        }
+        composable(BudgetCreationScreenDestination.route) {
+            Log.i("NAV_WITH_ARGS", "FALSE")
+            BudgetCreationScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToBudgetInfoScreen = {
+                    navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                }
+            )
+        }
+        composable(
+            BudgetCreationScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetCreationScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetCreationScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToBudgetInfoScreen = {
+                    navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
                 }
             )
         }

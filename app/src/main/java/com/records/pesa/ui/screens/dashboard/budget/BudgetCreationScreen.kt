@@ -3,8 +3,11 @@ package com.records.pesa.ui.screens.dashboard.budget
 import android.app.DatePickerDialog
 import android.content.Context
 import android.os.Build
+import android.widget.Space
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,17 +15,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,27 +47,103 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatLocalDate
+import com.records.pesa.models.TransactionCategory
+import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+object BudgetCreationScreenDestination: AppNavigation {
+    override val title: String = "Budget creation screen"
+    override val route: String = "budget-creation-screen"
+    val categoryId: String = "category-id"
+    val routeWithArgs = "$route/{$categoryId}"
 
+}
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetCreationScreenComposable(
+    navigateToPreviousScreen: () -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val viewModel: BudgetCreationScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
 
+    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+        Toast.makeText(context, "Budget created", Toast.LENGTH_SHORT).show()
+        navigateToBudgetInfoScreen(uiState.budgetId)
+        viewModel.resetLoadingStatus()
+    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+        Toast.makeText(context, "Failed. Check your connection or try later", Toast.LENGTH_SHORT).show()
+        viewModel.resetLoadingStatus()
+    }
+
+    Box(
+        modifier = Modifier
+            .safeDrawingPadding()
+    ) {
+        BudgetCreationScreen(
+            categories = uiState.categories,
+            selectedCategory = uiState.selectedCategory,
+            onSelectCategory = {
+                viewModel.updateCategory(it)
+                viewModel.checkIfFieldsAreFilled()
+            },
+            budgetName = uiState.budgetName,
+            onBudgetNameChange = {
+                viewModel.updateBudgetName(it)
+                viewModel.checkIfFieldsAreFilled()
+            },
+            budgetLimit = uiState.budgetLimit,
+            onBudgetLimitChange = { value ->
+                val filteredValue = value.filter { it.isDigit() }
+                viewModel.updateBudgetLimit(filteredValue)
+                viewModel.checkIfFieldsAreFilled()
+            },
+            budgetEndDate = uiState.limitDate,
+            onBudgetEndDateChange = {
+                viewModel.updateLimitDate(it)
+                viewModel.checkIfFieldsAreFilled()
+            },
+            saveButtonEnabled = uiState.saveButtonEnabled,
+            loadingStatus = uiState.loadingStatus,
+            onCreateBudget = {
+                viewModel.createBudget()
+            },
+            navigateToPreviousScreen = navigateToPreviousScreen
+        )
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetCreationScreen(
+    categories: List<TransactionCategory>,
+    selectedCategory: TransactionCategory,
+    onSelectCategory: (category: TransactionCategory) -> Unit,
+    budgetName: String,
+    onBudgetNameChange: (name: String) -> Unit,
+    budgetLimit: String,
+    onBudgetLimitChange: (limit: String) -> Unit,
+    budgetEndDate: LocalDate?,
+    onBudgetEndDateChange: (date: LocalDate) -> Unit,
+    saveButtonEnabled: Boolean,
+    loadingStatus: LoadingStatus,
+    onCreateBudget: () -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val startDate = LocalDate.now()
-    var selectedEndDate by rememberSaveable {
-        mutableStateOf<LocalDate?>(null)
+
+    var dropDownMenuExpanded by rememberSaveable {
+        mutableStateOf(false)
     }
     @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePicker() {
@@ -66,7 +152,7 @@ fun BudgetCreationScreen(
             { _, year, month, dayOfMonth ->
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (selectedDate.isAfter(startDate)) {
-                    selectedEndDate = selectedDate
+                    onBudgetEndDateChange(selectedDate)
                 } else {
                     // Handle case where end date is before start date
                     Toast.makeText(context, "Start date must be after the current date", Toast.LENGTH_LONG)
@@ -93,7 +179,7 @@ fun BudgetCreationScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = navigateToPreviousScreen) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -103,16 +189,62 @@ fun BudgetCreationScreen(
                 fontSize = 18.sp
             )
         }
+        Text(
+            text = "Select category",
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .clickable {
+                            dropDownMenuExpanded = !dropDownMenuExpanded
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(10.dp)
+                    ) {
+                        Text(text = if(selectedCategory.name.length > 20) "${selectedCategory.name.substring(0, 20)}..." else selectedCategory.name.ifEmpty { "Select category" })
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(
+                            imageVector = if(dropDownMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription =
+                            "Select category"
+                        )
+                    }
+                }
+                DropdownMenu(expanded = dropDownMenuExpanded, onDismissRequest = {
+                    dropDownMenuExpanded = !dropDownMenuExpanded
+                }
+                ) {
+                    for(category in categories) {
+                        DropdownMenuItem(onClick = {
+                            onSelectCategory(category)
+                            dropDownMenuExpanded = !dropDownMenuExpanded
+                        }
+                        ) {
+                            Text(text = if(category.name.length > 20) "${category.name.substring(0, 20)}..." else category.name)
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
         OutlinedTextField(
             label = {
-                Text(text = "name")
+                Text(text = "Budget name")
             },
-            value = "",
+            value = budgetName,
             keyboardOptions = KeyboardOptions.Default.copy(
                 imeAction = ImeAction.Next,
                 keyboardType = KeyboardType.Text
             ),
-            onValueChange = {},
+            onValueChange = onBudgetNameChange,
             modifier = Modifier
                 .fillMaxWidth()
         )
@@ -126,12 +258,12 @@ fun BudgetCreationScreen(
                 label = {
                     Text(text = "Budget limit")
                 },
-                value = "",
+                value = budgetLimit,
                 keyboardOptions = KeyboardOptions.Default.copy(
                     imeAction = ImeAction.Done,
                     keyboardType = KeyboardType.Decimal
                 ),
-                onValueChange = {},
+                onValueChange = onBudgetLimitChange,
                 modifier = Modifier
                     .weight(2f)
             )
@@ -144,7 +276,7 @@ fun BudgetCreationScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = if(selectedEndDate == null) "Limit date" else selectedEndDate.toString())
+                    Text(text = budgetEndDate?.toString() ?: "Limit date")
                     Spacer(modifier = Modifier.width(5.dp))
                     Icon(painter = painterResource(id = R.drawable.calendar), contentDescription = "Select limit date")
                 }
@@ -152,11 +284,16 @@ fun BudgetCreationScreen(
         }
         Spacer(modifier = Modifier.weight(1f))
         Button(
-            onClick = { /*TODO*/ },
+            enabled = saveButtonEnabled && loadingStatus != LoadingStatus.LOADING,
+            onClick = onCreateBudget,
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            Text(text = "Create budget")
+            if(loadingStatus == LoadingStatus.LOADING) {
+                Text(text = "Loading...")
+            } else {
+                Text(text = "Create budget")
+            }
         }
     }
 }
@@ -168,7 +305,21 @@ fun BudgetCreationScreenPreview(
     modifier: Modifier = Modifier
 ) {
     CashLedgerTheme {
-        BudgetCreationScreen()
+        BudgetCreationScreen(
+            categories = emptyList(),
+            selectedCategory = transactionCategory,
+            onSelectCategory = {},
+            budgetName = "",
+            onBudgetNameChange = {},
+            budgetLimit = "",
+            onBudgetLimitChange = {},
+            budgetEndDate = null,
+            onBudgetEndDateChange = {},
+            saveButtonEnabled = false,
+            loadingStatus = LoadingStatus.INITIAL,
+            navigateToPreviousScreen = {},
+            onCreateBudget = {}
+        )
     }
 
 }

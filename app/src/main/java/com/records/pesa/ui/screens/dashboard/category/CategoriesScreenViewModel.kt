@@ -36,7 +36,7 @@ class CategoriesScreenViewModel(
     fun getUserCategories() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getUserCategories(1, null, uiState.value.orderBy)
+                val response = apiRepository.getUserCategories(1, null, null, uiState.value.orderBy)
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(

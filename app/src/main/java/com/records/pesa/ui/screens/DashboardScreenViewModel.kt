@@ -97,7 +97,7 @@ class DashboardScreenViewModel(
     fun  getCategories() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getUserCategories(1, null, "latest")
+                val response = apiRepository.getUserCategories(1, null, null, "latest")
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(

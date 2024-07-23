@@ -1,5 +1,6 @@
 package com.records.pesa.network
 
+import com.records.pesa.models.BudgetCreationPayLoad
 import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
@@ -99,6 +100,7 @@ interface ApiService {
     @GET("category/{userId}")
     suspend fun getUserCategories(
         @Path("userId") userId: Int,
+        @Query("categoryId") categoryId: Int?,
         @Query("name") name: String?,
         @Query("orderBy") orderBy: String?
     ): Response<CategoriesResponseBody>
@@ -162,5 +164,12 @@ interface ApiService {
     @GET("budget/single/{budgetId}")
     suspend fun getBudget(
         @Path("budgetId") budgetId: Int
+    ): Response<SingleBudgetResponseBody>
+
+    @POST("budget/{userId}/{categoryId}")
+    suspend fun createBudget(
+        @Path("userId") userId: Int,
+        @Path("categoryId") categoryId: Int,
+        @Body budget: BudgetCreationPayLoad
     ): Response<SingleBudgetResponseBody>
 }

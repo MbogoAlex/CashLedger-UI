@@ -42,6 +42,8 @@ fun HomeScreenComposable(
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
+    navigateToBudgetCreationScreen: () -> Unit,
+    navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -84,6 +86,8 @@ fun HomeScreenComposable(
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+            navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
+            navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
@@ -100,6 +104,8 @@ fun HomeScreen(
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
+    navigateToBudgetCreationScreen: () -> Unit,
+    navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -131,6 +137,8 @@ fun HomeScreen(
             HomeScreenTab.BUDGET -> {
                 BudgetListScreenComposable(
                     navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+                    navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
+                    navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
                     navigateToPreviousScreen = navigateToPreviousScreen,
                     modifier = Modifier
                         .weight(1f)
@@ -209,6 +217,8 @@ fun HomeScreenPreview() {
             navigateToCategoryAdditionScreen = {},
             navigateToCategoryDetailsScreen = {},
             navigateToBudgetInfoScreen = {},
+            navigateToBudgetCreationScreen = {},
+            navigateToBudgetCreationScreenWithCategoryId = {},
             navigateToPreviousScreen = {}
         )
     }

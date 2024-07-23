@@ -1,10 +1,10 @@
 package com.records.pesa.network
 
+import com.records.pesa.models.BudgetCreationPayLoad
 import com.records.pesa.models.BudgetResponseBody
 import com.records.pesa.models.CategoriesResponseBody
 import com.records.pesa.models.CategoryDeleteResponseBody
 import com.records.pesa.models.CategoryEditPayload
-import com.records.pesa.models.CategoryKeywordDeletePayload
 import com.records.pesa.models.CategoryKeywordDeleteResponseBody
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
@@ -16,13 +16,6 @@ import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.PUT
-import retrofit2.http.Path
-import retrofit2.http.Query
 
 interface ApiRepository {
     suspend fun getTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
@@ -34,7 +27,7 @@ interface ApiRepository {
 
     suspend fun getCurrentBalance(userId: Int): Response<CurrentBalanceResponseBody>
 
-    suspend fun getUserCategories(userId: Int, name: String?, orderBy: String?): Response<CategoriesResponseBody>
+    suspend fun getUserCategories(userId: Int, categoryId: Int?, name: String?, orderBy: String?): Response<CategoriesResponseBody>
 
     suspend fun getCategoryDetails(categoryId: Int): Response<CategoryResponseBody>
     suspend fun createCategory(userId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
@@ -56,6 +49,8 @@ interface ApiRepository {
     suspend fun getCategoryBudgets(categoryId: Int, name: String?): Response<BudgetResponseBody>
 
     suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody>
+
+    suspend fun createBudget(userId: Int, categoryId: Int, budget: BudgetCreationPayLoad): Response<SingleBudgetResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -168,10 +163,12 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
 
     override suspend fun getUserCategories(
         userId: Int,
+        categoryId: Int?,
         name: String?,
         orderBy: String?
     ): Response<CategoriesResponseBody> = apiService.getUserCategories(
         userId = userId,
+        categoryId = categoryId,
         name = name,
         orderBy = orderBy
     )
@@ -236,6 +233,16 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
 
     override suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody> = apiService.getBudget(
         budgetId = budgetId
+    )
+
+    override suspend fun createBudget(
+        userId: Int,
+        categoryId: Int,
+        budget: BudgetCreationPayLoad
+    ): Response<SingleBudgetResponseBody> = apiService.createBudget(
+        userId = userId,
+        categoryId = categoryId,
+        budget = budget
     )
 
 

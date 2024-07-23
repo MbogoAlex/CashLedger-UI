@@ -76,6 +76,7 @@ fun CategoryDetailsScreenComposable(
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
+    navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -229,7 +230,8 @@ fun CategoryDetailsScreenComposable(
             navigateToCategoryBudgetListScreen = navigateToCategoryBudgetListScreen,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen,
-            navigateToTransactionsScreen = navigateToTransactionsScreen
+            navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToBudgetCreationScreen = navigateToBudgetCreationScreen
         )
     }
 }
@@ -245,6 +247,7 @@ fun CategoryDetailsScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
+    navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -313,7 +316,7 @@ fun CategoryDetailsScreen(
             } else {
                 TextButton(
                     onClick = {
-
+                        navigateToBudgetCreationScreen(category.id.toString())
                     }
                 ) {
                     Text(text = "Create")
@@ -479,7 +482,8 @@ fun CategoryDetailsScreenPreview() {
             navigateToPreviousScreen = {},
             navigateToCategoryBudgetListScreen = {categoryId, categoryName ->  },
             navigateToMembersAdditionScreen = {},
-            navigateToTransactionsScreen = {}
+            navigateToTransactionsScreen = {},
+            navigateToBudgetCreationScreen = {}
         )
     }
 }
