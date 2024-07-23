@@ -52,6 +52,9 @@ class TransactionsScreenViewModelScreen(
     private val _uiState = MutableStateFlow(TransactionsScreenUiState())
     val uiState: StateFlow<TransactionsScreenUiState> = _uiState.asStateFlow()
 
+    private val defaultStartDate: String? = savedStateHandle[TransactionsScreenDestination.startDate]
+    private val defaultEndDate: String? = savedStateHandle[TransactionsScreenDestination.endDate]
+
     private val categoryId: String? = savedStateHandle[TransactionsScreenDestination.categoryId]
     private val budgetId: String? = savedStateHandle[TransactionsScreenDestination.budgetId]
 
@@ -65,14 +68,14 @@ class TransactionsScreenViewModelScreen(
             it.copy(
                 currentDate = currentDate.toString(),
                 firstDayOfMonth = firstDayOfMonth.toString(),
-                startDate = startDate.toString(),
-                endDate = endDate.toString(),
+                startDate = defaultStartDate ?: startDate.toString(),
+                endDate = defaultEndDate ?: endDate.toString(),
                 categoryId = categoryId?.toInt(),
                 budgetId = budgetId?.toInt(),
                 categoryName = savedStateHandle[TransactionsScreenDestination.categoryName],
                 budgetName = savedStateHandle[TransactionsScreenDestination.budgetName],
-                defaultStartDate = savedStateHandle[TransactionsScreenDestination.startDate],
-                defaultEndDate = savedStateHandle[TransactionsScreenDestination.endDate]
+                defaultStartDate = defaultStartDate,
+                defaultEndDate = defaultEndDate
             )
         }
     }

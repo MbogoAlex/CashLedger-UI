@@ -102,7 +102,7 @@ object TransactionsScreenDestination: AppNavigation {
     val startDate: String = "startDate"
     val endDate: String = "endDate"
     val routeWithCategoryId: String = "$route/{$categoryId}"
-    val routeWithArgs: String = "$route/{$categoryId}/{$budgetId}/{$categoryName}/{$budgetName}/{$startDate}/{$endDate}"
+    val routeWithBudgetId: String = "$route/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}"
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -861,6 +861,7 @@ fun DateRangePicker(
                     }
                 }
             },
+
             initialDate.year,
             initialDate.monthValue - 1,
             initialDate.dayOfMonth

@@ -13,6 +13,8 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
@@ -51,6 +53,9 @@ fun NavigationGraph(
                 navigateToCategoriesScreen = {
                     navController.navigate(CategoryDetailsScreenDestination.route)
                 },
+                navigateToBudgetInfoScreen = {
+                    navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }
@@ -66,6 +71,7 @@ fun NavigationGraph(
                 }
             )
         }
+
         composable(
             SingleEntityTransactionsScreenDestination.routeWithArgs,
             arguments = listOf(
@@ -103,7 +109,7 @@ fun NavigationGraph(
             arguments = listOf(
                 navArgument(CategoryDetailsScreenDestination.categoryId) {
                     type = NavType.StringType
-                }
+                },
             )
         ) {
             CategoryDetailsScreenComposable(
@@ -119,8 +125,8 @@ fun NavigationGraph(
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
                 },
-                navigateToCategoryBudgetListScreen = {
-                    navController.navigate("${BudgetListScreenDestination.route}/${it}")
+                navigateToCategoryBudgetListScreen = {categoryId, categoryName ->
+                    navController.navigate("${BudgetListScreenDestination.route}/${categoryId}/${categoryName}")
                 }
             )
         }
@@ -184,10 +190,59 @@ fun NavigationGraph(
             arguments = listOf(
                 navArgument(BudgetListScreenDestination.categoryId) {
                     type = NavType.StringType
-                }
+                },
+                navArgument(BudgetListScreenDestination.categoryName) {
+                    type = NavType.StringType
+                },
             )
         ) {
             BudgetListScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToBudgetInfoScreen = {
+                    navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                }
+            )
+        }
+        composable(
+            BudgetInfoScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetInfoScreenDestination.budgetId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetInfoScreenComposable(
+                navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->
+                    navController.navigate("${TransactionsScreenDestination.route}/${categoryId}/${budgetId}/${startDate}/${endDate}")
+                },
+                navigateToPreviousScreen = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(
+            TransactionsScreenDestination.routeWithBudgetId,
+            arguments = listOf(
+                navArgument(TransactionsScreenDestination.categoryId) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.budgetId) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.startDate) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.endDate) {
+                    type = NavType.StringType
+                },
+            )
+        ) {
+            TransactionsScreenComposable(
+                navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
+                    navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }

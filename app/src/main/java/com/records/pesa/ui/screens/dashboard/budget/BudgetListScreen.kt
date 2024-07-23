@@ -67,12 +67,14 @@ object BudgetListScreenDestination: AppNavigation {
     override val title: String = "Budget list screen"
     override val route: String = "budget-list-screen"
     val categoryId: String = "categoryId"
-    val routeWithArgs = "$route/{$categoryId}"
+    val categoryName: String = "categoryName"
+    val routeWithArgs = "$route/{$categoryId}/{$categoryName}"
 
 }
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListScreenComposable(
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -87,13 +89,15 @@ fun BudgetListScreenComposable(
             budgets = uiState.budgetList,
             searchQuery = uiState.searchQuery,
             categoryId = uiState.categoryId,
+            categoryName = uiState.categoryName,
             onChangeSearchQuery = {
                 viewModel.updateSearchQuery(it)
             },
             onClearSearch = {
                 viewModel.clearSearch()
             },
-            navigateToPreviousScreen = {}
+            navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+            navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
 }
@@ -104,8 +108,10 @@ fun BudgetListScreen(
     budgets: List<BudgetDt>,
     searchQuery: String,
     categoryId: String?,
+    categoryName: String?,
     onChangeSearchQuery: (value: String) -> Unit,
     onClearSearch: () -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -165,13 +171,27 @@ fun BudgetListScreen(
                     .fillMaxWidth()
             )
         }
-
+        Spacer(modifier = Modifier.height(10.dp))
+        if(categoryName != null) {
+            Text(
+                text = "$categoryName budgets",
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Text(
+                text = "User budgets",
+                fontWeight = FontWeight.Bold
+            )
+        }
         Spacer(modifier = Modifier.height(10.dp))
         LazyColumn(
             modifier = Modifier.weight(1f)
         ) {
             items(budgets) {
-                BudgetListItem(budgetDt = it)
+                BudgetListItem(
+                    budgetDt = it,
+                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
+                )
             }
         }
 //        Spacer(modifier = Modifier.weight(1f))
@@ -189,6 +209,7 @@ fun BudgetListScreen(
 @Composable
 fun BudgetListItem(
     budgetDt: BudgetDt,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val difference = budgetDt.expenditure - budgetDt.budgetLimit
@@ -292,7 +313,9 @@ fun BudgetListItem(
 
                 Spacer(modifier = Modifier.height(5.dp))
                 Button(
-                    onClick = { /*TODO*/ },
+                    onClick = {
+                        navigateToBudgetInfoScreen(budgetDt.id.toString())
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
@@ -316,8 +339,10 @@ fun BudgetListScreenPreview(
             budgets = budgets,
             searchQuery = "",
             categoryId = null,
+            categoryName = null,
             onChangeSearchQuery = {},
             onClearSearch = { /*TODO*/ },
+            navigateToBudgetInfoScreen = {},
             navigateToPreviousScreen = {}
         )
     }

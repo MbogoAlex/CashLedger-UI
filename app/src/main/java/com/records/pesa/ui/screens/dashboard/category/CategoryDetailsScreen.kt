@@ -75,7 +75,7 @@ fun CategoryDetailsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
-    navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
+    navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -237,7 +237,7 @@ fun CategoryDetailsScreenComposable(
 @Composable
 fun CategoryDetailsScreen(
     category: TransactionCategory,
-    navigateToCategoryBudgetListScreen: (categoryId: String) -> Unit,
+    navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     onEditCategoryName: (name: String) -> Unit,
     onEditMemberName: (categoryKeyword: CategoryKeyword) -> Unit,
     onRemoveMember: (memberName: String, categoryId: Int, keywordId: Int) -> Unit,
@@ -302,14 +302,24 @@ fun CategoryDetailsScreen(
             )
 
             Spacer(modifier = Modifier.weight(1f))
-            TextButton(
-                enabled = category.budgets.isNotEmpty(),
-                onClick = {
-                    navigateToCategoryBudgetListScreen(category.id.toString())
+            if(category.budgets.isNotEmpty()) {
+                TextButton(
+                    onClick = {
+                        navigateToCategoryBudgetListScreen(category.id.toString(), category.name)
+                    }
+                ) {
+                    Text(text = "Explore")
                 }
-            ) {
-                Text(text = "Explore")
+            } else {
+                TextButton(
+                    onClick = {
+
+                    }
+                ) {
+                    Text(text = "Create")
+                }
             }
+
         }
         Divider()
         Row(
@@ -467,7 +477,7 @@ fun CategoryDetailsScreenPreview() {
             onRemoveMember = {memName, categoryId, keywordId ->  },
             onRemoveCategory = {categoryId, categoryName ->  },
             navigateToPreviousScreen = {},
-            navigateToCategoryBudgetListScreen = {},
+            navigateToCategoryBudgetListScreen = {categoryId, categoryName ->  },
             navigateToMembersAdditionScreen = {},
             navigateToTransactionsScreen = {}
         )

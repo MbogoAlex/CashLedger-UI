@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.dashboard.budget
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -24,7 +26,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,9 +39,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.BudgetDt
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.budget
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
@@ -45,10 +52,33 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.math.absoluteValue
 
+object BudgetInfoScreenDestination: AppNavigation {
+    override val title: String = "Budget info screen"
+    override val route: String = "budget-info-screen"
+    val budgetId: String = "budgetId"
+    val routeWithArgs: String = "$route/{$budgetId}"
+
+}
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetInfoScreenComposable(
+    navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: BudgetInfoScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
+    Box(
+        modifier = Modifier
+            .safeDrawingPadding()
+    ) {
+        BudgetInfoScreen(
+            budgetDt = uiState.budget,
+            navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToPreviousScreen = navigateToPreviousScreen
+        )
+    }
 
 }
 
@@ -57,6 +87,7 @@ fun BudgetInfoScreenComposable(
 fun BudgetInfoScreen(
     budgetDt: BudgetDt,
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val difference = budgetDt.expenditure - budgetDt.budgetLimit
@@ -70,13 +101,16 @@ fun BudgetInfoScreen(
 
     Column(
         modifier = Modifier
-            .padding(10.dp)
+            .padding(
+                horizontal = 16.dp,
+                vertical = 8.dp
+            )
             .fillMaxSize()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = navigateToPreviousScreen) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -133,11 +167,30 @@ fun BudgetInfoScreen(
                 .fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(5.dp))
-        Text(
-            text = "$percentLeft % left",
-            color = MaterialTheme.colorScheme.surfaceTint,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$percentLeft % left",
+                color = MaterialTheme.colorScheme.surfaceTint,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = { /*TODO*/ }) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Edit limit")
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit budget"
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
         Row(
             horizontalArrangement = Arrangement.Start,
@@ -201,7 +254,7 @@ fun BudgetInfoScreen(
         Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(
             onClick = {
-                navigateToTransactionsScreen(budgetDt.category.id, budgetDt.id, LocalDate.parse(budgetDt.createdAt).toString(), budgetDt.limitDate)
+                navigateToTransactionsScreen(budgetDt.category.id, budgetDt.id, budgetDt.createdAt.substring(0, 10), budgetDt.limitDate)
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -224,7 +277,8 @@ fun BudgetInfoScreenPreview() {
     CashLedgerTheme {
         BudgetInfoScreen(
             budgetDt = budget,
-            navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->}
+            navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->},
+            navigateToPreviousScreen = {}
         )
     }
 }

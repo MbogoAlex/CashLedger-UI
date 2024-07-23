@@ -7,60 +7,39 @@ import androidx.lifecycle.viewModelScope
 import com.records.pesa.models.BudgetDt
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.reusables.budgets
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class BudgetListScreenUiState(
-    val categoryId: String? = null,
-    val categoryName: String? = null,
-    val searchQuery: String = "",
-    val budgetList: List<BudgetDt> = emptyList(),
+data class BudgetInfoScreenUiState(
+    val budgetId: String? = null,
+    val budget: BudgetDt = budgets[0],
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
-class BudgetListScreenViewModel(
+class BudgetInfoScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle
 ): ViewModel() {
-    private val _uiState = MutableStateFlow(BudgetListScreenUiState())
-    val uiState: StateFlow<BudgetListScreenUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(BudgetInfoScreenUiState())
+    val uiState: StateFlow<BudgetInfoScreenUiState> = _uiState.asStateFlow()
 
-    private val categoryId: String? = savedStateHandle[BudgetListScreenDestination.categoryId]
-    private val categoryName: String? = savedStateHandle[BudgetListScreenDestination.categoryName]
-
-    fun updateSearchQuery(query: String) {
+    private val budgetId: String? = savedStateHandle[BudgetInfoScreenDestination.budgetId]
+    fun getBudget() {
         _uiState.update {
             it.copy(
-                searchQuery = query
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-        getBudgets()
-    }
-
-    fun clearSearch() {
-        _uiState.update {
-            it.copy(
-                searchQuery = ""
-            )
-        }
-    }
-
-    fun getBudgets() {
         viewModelScope.launch {
             try {
-                val response = if(uiState.value.categoryId != null) apiRepository.getCategoryBudgets(
-                    categoryId = uiState.value.categoryId!!.toInt(),
-                    name = uiState.value.searchQuery
-                ) else apiRepository.getUserBudgets(
-                    userId = 1,
-                    name = uiState.value.searchQuery
-                )
+                val response = apiRepository.getBudget(uiState.value.budgetId!!.toInt())
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
-                            budgetList = response.body()?.data?.budget!!,
+                            budget = response.body()?.data?.budget!!,
                             loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
@@ -70,7 +49,7 @@ class BudgetListScreenViewModel(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("getBudgetsErrorResponse", response.toString())
+                    Log.e("getBudgetErrorResponse", response.toString())
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -78,7 +57,7 @@ class BudgetListScreenViewModel(
                         loadingStatus = LoadingStatus.FAIL
                     )
                 }
-                Log.e("getBudgetsException", e.toString())
+                Log.e("getBudgetException", e.toString())
             }
         }
     }
@@ -86,10 +65,9 @@ class BudgetListScreenViewModel(
     init {
         _uiState.update {
             it.copy(
-                categoryId = categoryId,
-                categoryName = categoryName
+                budgetId = budgetId
             )
         }
-        getBudgets()
+        getBudget()
     }
 }

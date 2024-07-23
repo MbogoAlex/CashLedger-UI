@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -11,6 +12,12 @@ import java.util.Locale
 @RequiresApi(Build.VERSION_CODES.O)
 fun formatIsoDateTime(dateTime: LocalDateTime): String {
     val formatter = DateTimeFormatter.ofPattern("d'th' MMMM, yyyy hh:mm a", Locale.ENGLISH)
+    return dateTime.format(formatter)
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun formatLocalDate(dateTime: LocalDate): String {
+    val formatter = DateTimeFormatter.ofPattern("d'th' MMMM, yyyy", Locale.ENGLISH)
     return dateTime.format(formatter)
 }
 

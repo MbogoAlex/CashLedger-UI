@@ -41,6 +41,7 @@ fun HomeScreenComposable(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -82,6 +83,7 @@ fun HomeScreenComposable(
             navigateToCategoriesScreen = navigateToCategoriesScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+            navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
@@ -97,6 +99,7 @@ fun HomeScreen(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -127,6 +130,7 @@ fun HomeScreen(
             }
             HomeScreenTab.BUDGET -> {
                 BudgetListScreenComposable(
+                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
                     navigateToPreviousScreen = navigateToPreviousScreen,
                     modifier = Modifier
                         .weight(1f)
@@ -204,6 +208,7 @@ fun HomeScreenPreview() {
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},
             navigateToCategoryDetailsScreen = {},
+            navigateToBudgetInfoScreen = {},
             navigateToPreviousScreen = {}
         )
     }
