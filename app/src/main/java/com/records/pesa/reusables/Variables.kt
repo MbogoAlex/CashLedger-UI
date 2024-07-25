@@ -7,6 +7,7 @@ import com.records.pesa.models.BudgetDt
 import com.records.pesa.models.BudgetOwner
 import com.records.pesa.models.CategoryBudget
 import com.records.pesa.models.CategoryKeyword
+import com.records.pesa.models.GroupedTransactionData
 import com.records.pesa.models.ItemCategory
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
@@ -436,5 +437,20 @@ val budgets = listOf(
     )
 )
 
+val groupedTransactions = listOf(
+    GroupedTransactionData("2024-06-25", 9, 5.0f, 5.0f, 0.0f),
+    GroupedTransactionData("2024-06-24", 8, 200.0f, 545.0f,  3.0f),
+    GroupedTransactionData("2024-06-23", 7, 0.0f, 229.0f,  0.0f),
+    GroupedTransactionData("2024-06-22", 8, 800.0f, 338.0f, 0.0f),
+    GroupedTransactionData("2024-06-21", 28, 1191.0f, 944.37f,  5.0f),
+    GroupedTransactionData("2024-06-20", 6, 0.0f, 152.0f, 2.0f),
+    GroupedTransactionData("2024-06-19", 5, 0.0f, 349.0f,  3.0f),
+    GroupedTransactionData("2024-06-18", 4, 800.0f, 542.55f,  0.0f),
+    GroupedTransactionData("2024-06-17", 4, 0.0f, 555.0f,  10.0f),
+    GroupedTransactionData("2024-06-16", 4, 0.0f, 1410.0f,  16.0f),
+    GroupedTransactionData("2024-06-15", 7, 1500.0f, 830.0f,  7.0f),
+    GroupedTransactionData("2024-06-14", 11, 0.0f, 595.0f,  5.0f),
+    GroupedTransactionData("2024-06-13", 7, 50.0f, 401.0f,  6.0f),
+)
 
 

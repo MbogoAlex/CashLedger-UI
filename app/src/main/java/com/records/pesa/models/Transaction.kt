@@ -103,3 +103,11 @@ data class TransactionEditResponseBody(
 data class TransactionEditDt(
     val transaction: String
 )
+@Serializable
+data class GroupedTransactionData(
+    val date: String,
+    val times: Int,
+    val moneyIn: Float,
+    val moneyOut: Float,
+    val transactionCost: Float
+)

@@ -51,3 +51,14 @@ enum class ExecutionStatus {
     SUCCESS,
     FAIL
 }
+
+enum class ChartScreenTab {
+    COMBINED_CHART,
+    SEPARATE_CHART
+}
+
+data class ChartScreenTabItem(
+    val name: String,
+    val icon: Int,
+    val tab: ChartScreenTab
+)

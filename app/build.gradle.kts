@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.records.pesa"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -53,6 +53,9 @@ android {
 
 dependencies {
 
+    //yChart
+    implementation ("co.yml:ycharts:2.1.0")
+
     // horizontal pager
     implementation("com.google.accompanist:accompanist-pager:0.28.0")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.28.0")
@@ -91,6 +94,19 @@ dependencies {
 
     //Compose lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+
+    // For Jetpack Compose.
+    implementation("com.patrykandpatrick.vico:compose:2.0.0-alpha.25")
+
+    // For `compose`. Creates a `ChartStyle` based on an M2 Material Theme.
+    implementation("com.patrykandpatrick.vico:compose-m2:2.0.0-alpha.25")
+
+    // For `compose`. Creates a `ChartStyle` based on an M3 Material Theme.
+    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-alpha.25")
+
+    // Houses the core logic for charts and other elements. Included in all other modules.
+    implementation("com.patrykandpatrick.vico:core:2.0.0-alpha.25")
+    
 
 
 
