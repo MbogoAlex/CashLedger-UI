@@ -95,14 +95,10 @@ fun ChartHomeScreen(
                 )
             }
             ChartScreenTab.SEPARATE_CHART -> {
-                Box(
-                    contentAlignment = Alignment.Center,
+                ComparisonChartScreenComposable(
                     modifier = Modifier
-                        .fillMaxSize()
                         .weight(1f)
-                ) {
-                    Text(text = "Separate chart")
-                }
+                )
             }
         }
         BottomNavBar(

@@ -68,8 +68,11 @@ import co.yml.charts.ui.barchart.models.BarPlotData
 import co.yml.charts.ui.barchart.models.BarStyle
 import co.yml.charts.ui.combinedchart.CombinedChart
 import co.yml.charts.ui.combinedchart.model.CombinedChartData
+import co.yml.charts.ui.linechart.LineChart
+import co.yml.charts.ui.linechart.model.GridLines
 import co.yml.charts.ui.linechart.model.IntersectionPoint
 import co.yml.charts.ui.linechart.model.Line
+import co.yml.charts.ui.linechart.model.LineChartData
 import co.yml.charts.ui.linechart.model.LinePlotData
 import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
@@ -97,7 +100,7 @@ fun BarWithLineChart(
     // Calculate the maximum value for moneyIn and moneyOut dynamically
     val maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) }
     Log.i("MAX_VALUE", maxAmount.toString())
-    val steps = 10
+    val steps = 5
 
     // Prepare data points for moneyIn and moneyOut
     val moneyInPointsData: List<Point> = groupedTransactions.mapIndexed { index, transaction ->
@@ -119,11 +122,11 @@ fun BarWithLineChart(
 
     // Define x-axis data
     val xAxisData = AxisData.Builder()
-        .steps(groupedTransactions.size)
+        .steps(groupedTransactions.size - 1)
         .backgroundColor(Color.Transparent)
         .axisLineColor(MaterialTheme.colorScheme.tertiary)
         .axisLabelColor(MaterialTheme.colorScheme.tertiary)
-        .axisStepSize(30.dp)
+        .axisStepSize(100.dp)
         .bottomPadding(5.dp)
         .labelData { i -> groupedTransactions.getOrNull(i)?.date ?: "" }
         .build()
@@ -142,98 +145,78 @@ fun BarWithLineChart(
         }
         .build()
 
-    // Define line plot data
-    val linePlotData = LinePlotData(
-        lines = listOf(
-            Line(
-                dataPoints = moneyInPointsData,
-                LineStyle(
-                    color = MaterialTheme.colorScheme.inversePrimary,
-                    width = 3f
-                ),
-                IntersectionPoint(
-                    color = MaterialTheme.colorScheme.inversePrimary,
-                ),
-                SelectionHighlightPoint(
-                    color = Color.Red,
-                ),
-                ShadowUnderLine(
-                    alpha = 0.5f,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.inversePrimary,
-                            Color.Transparent
+    val lineChartData = LineChartData(
+        linePlotData = LinePlotData(
+            lines = listOf(
+                Line(
+                    dataPoints = moneyInPointsData,
+                    LineStyle(
+                        color = MaterialTheme.colorScheme.inversePrimary,
+                        width = 3f
+                    ),
+                    IntersectionPoint(
+                        color = MaterialTheme.colorScheme.inversePrimary,
+                    ),
+                    SelectionHighlightPoint(
+                        color = Color.Red,
+                    ),
+                    ShadowUnderLine(
+                        alpha = 0.5f,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.inversePrimary,
+                                Color.Transparent
+                            )
                         )
+                    ),
+                    SelectionHighlightPopUp(
+                        popUpLabel = {x, y ->
+                            Log.i("POINTS", "X: $x, Y: $y")
+                            "X: $x, Y: $y"
+                        }
                     )
                 ),
-                SelectionHighlightPopUp(
-                    popUpLabel = {x, y ->
-                        Log.i("POINTS", "X: $x, Y: $y")
-                        "X: Santa, Y: $y"
-                    }
+                Line(
+                    dataPoints = moneyOutPointsData,
+                    LineStyle(
+                        color = MaterialTheme.colorScheme.error,
+                        width = 3f
+                    ),
+                    IntersectionPoint(
+                        color = MaterialTheme.colorScheme.error
+                    ),
+                    SelectionHighlightPoint(
+                        color = MaterialTheme.colorScheme.primary
+                    ),
+                    ShadowUnderLine(
+                        alpha = 0.5f,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.error,
+                                Color.Transparent
+                            )
+                        )
+                    ),
+                    SelectionHighlightPopUp()
                 )
-            ),
-            Line(
-                dataPoints = moneyOutPointsData,
-                LineStyle(
-                    color = MaterialTheme.colorScheme.error,
-                    width = 3f
-                ),
-                IntersectionPoint(
-                    color = MaterialTheme.colorScheme.error
-                ),
-                SelectionHighlightPoint(
-                    color = MaterialTheme.colorScheme.primary
-                ),
-                ShadowUnderLine(
-                    alpha = 0.5f,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.error,
-                            Color.Transparent
-                        )
-                    )
-                ),
-                SelectionHighlightPopUp()
             )
-        )
-    )
-
-    // Define color palette and legends configuration
-    val colorPaletteList = getColorPaletteList(2)
-    val legendsConfig = LegendsConfig(
-        legendLabelList = getLegendsLabelData(colorPaletteList),
-        gridColumnCount = 2
-    )
-
-    // Define bar plot data
-    val barPlotData = BarPlotData(
-        groupBarList = groupBarData,
-        barStyle = BarStyle(
-            barWidth = 35.dp,
-            paddingBetweenBars = 50.dp,
         ),
-        barColorPaletteList = colorPaletteList
+        xAxisData = xAxisData,
+        yAxisData = yAxisData,
+        gridLines = GridLines(
+            enableVerticalLines = false
+        ),
+        backgroundColor = MaterialTheme.colorScheme.background
     )
 
-    // Combine chart data
-    val combinedChartData = CombinedChartData(
-        backgroundColor = MaterialTheme.colorScheme.background,
-        isZoomAllowed = true,
-        combinedPlotDataList = listOf(barPlotData, linePlotData),
-        xAxisData = xAxisData,
-        yAxisData = yAxisData
-    )
 
     // Layout the combined chart and legends
-    CombinedChart(
+    LineChart(
         modifier = Modifier
             .fillMaxHeight(),
-        combinedChartData = combinedChartData
+        lineChartData = lineChartData
     )
-    Legends(
-        legendsConfig = legendsConfig
-    )
+
 }
 @Composable
 fun CombinedChartScreenComposable(
@@ -263,37 +246,22 @@ fun CombinedChartScreen(
             )
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
         ) {
-            Column {
-                Text(
-                    text = "Total Money in",
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = formatMoneyValue(3200.0),
-                    fontWeight = FontWeight.Light
-                )
-            }
+            Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+            Text(
+                text = "Ksh3,200",
+                fontWeight = FontWeight.Bold,
+                color = Color.Green
+            )
             Spacer(modifier = Modifier.weight(1f))
-            Text(text = formatLocalDate(LocalDate.parse("2024-07-08")))
-        }
-        Spacer(modifier = Modifier.height(20.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Total Money Out",
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "-${formatMoneyValue(3200.0)}",
-                    fontWeight = FontWeight.Light
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Text(text = formatLocalDate(LocalDate.parse("2024-07-08")))
+            Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+           Text(
+                text = "Ksh3,200",
+                fontWeight = FontWeight.Bold,
+                color = Color.Red
+            )
         }
         Spacer(modifier = Modifier.height(20.dp))
         Text(

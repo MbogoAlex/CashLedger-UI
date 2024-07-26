@@ -103,6 +103,25 @@ data class TransactionEditResponseBody(
 data class TransactionEditDt(
     val transaction: String
 )
+
+@Serializable
+data class GroupedTransactionsResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: GroupedTransactionsDt
+)
+
+@Serializable
+data class GroupedTransactionsDt(
+    val transaction: GroupedTransactionsOverview
+)
+
+@Serializable
+data class GroupedTransactionsOverview(
+    val totalMoneyIn: Double,
+    val totalMoneyOut: Double,
+    val transactions: List<GroupedTransactionData>
+)
 @Serializable
 data class GroupedTransactionData(
     val date: String,
