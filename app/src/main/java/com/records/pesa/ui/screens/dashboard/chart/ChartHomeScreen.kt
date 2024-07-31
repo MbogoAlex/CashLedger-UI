@@ -13,6 +13,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,18 +22,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ChartScreenTab
 import com.records.pesa.reusables.ChartScreenTabItem
 import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
 import com.records.pesa.ui.theme.CashLedgerTheme
-
+object ChartHomeScreenDestination: AppNavigation {
+    override val title: String = "Chart home screen"
+    override val route: String = "chart-home-screen"
+    val categoryId: String = "categoryId"
+    val budgetId: String = "budgetId"
+    val startDate: String = "startDate"
+    val endDate: String = "endDate"
+    val routeWithArgs: String = "$route/{$categoryId}/{$budgetId}"
+}
 @Composable
 fun ChartHomeScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: ChartHomeScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
     val tabs = listOf(
         ChartScreenTabItem(
             name = "Combined",
@@ -56,6 +71,10 @@ fun ChartHomeScreenComposable(
             .safeDrawingPadding()
     ) {
         ChartHomeScreen(
+            categoryId = uiState.categoryId,
+            budgetId = uiState.budgetId,
+            startDate = uiState.startDate,
+            endDate = uiState.endDate,
             tabs = tabs,
             currentTab = currentTab,
             onChangeTab = {
@@ -69,6 +88,10 @@ fun ChartHomeScreenComposable(
 
 @Composable
 fun ChartHomeScreen(
+    categoryId: String?,
+    budgetId: String?,
+    startDate: String?,
+    endDate: String?,
     tabs: List<ChartScreenTabItem>,
     currentTab: ChartScreenTab,
     onChangeTab: (tab: ChartScreenTab) -> Unit,
@@ -90,12 +113,20 @@ fun ChartHomeScreen(
         when(currentTab) {
             ChartScreenTab.COMBINED_CHART -> {
                 CombinedChartScreenComposable(
+                    categoryId = categoryId,
+                    budgetId = budgetId,
+                    startDate = startDate,
+                    endDate = endDate,
                     modifier = Modifier
                         .weight(1f)
                 )
             }
             ChartScreenTab.SEPARATE_CHART -> {
                 ComparisonChartScreenComposable(
+                    categoryId = categoryId,
+                    budgetId = budgetId,
+                    startDate = startDate,
+                    endDate = endDate,
                     modifier = Modifier
                         .weight(1f)
                 )
@@ -159,6 +190,10 @@ fun ChartHomeScreenPreview(
     }
     CashLedgerTheme {
         ChartHomeScreen(
+            categoryId = null,
+            budgetId = null,
+            startDate = null,
+            endDate = null,
             tabs = tabs,
             currentTab = currentTab,
             onChangeTab = {

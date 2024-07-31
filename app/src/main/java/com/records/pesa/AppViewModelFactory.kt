@@ -17,6 +17,8 @@ import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewModel
+import com.records.pesa.ui.screens.dashboard.chart.ChartHomeScreenViewModel
+import com.records.pesa.ui.screens.dashboard.chart.CombinedChartScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
 
@@ -105,6 +107,23 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             BudgetCreationScreenViewModel(
+                apiRepository = apiRepository,
+                savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            ChartHomeScreenViewModel(
+                savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            CombinedChartScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle
             )

@@ -49,7 +49,7 @@ fun MoneyOutScreen(
                     transaction = it,
                     modifier = Modifier
                         .clickable {
-                            navigateToEntityTransactionsScreen(it.transactionType, it.name, it.toString(), false)
+                            navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.toString(), false)
                         }
                 )
                 Divider()

@@ -40,6 +40,7 @@ val transaction = TransactionItem(
     sender = "JOSPHAT  KAROKI 0720929489",
     recipient = "You",
     balance = 1000.0,
+    entity = "JOSPHAT  KAROKI 0720929489",
     categories = itemCategories,
 )
 
@@ -56,6 +57,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -70,6 +72,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -84,6 +87,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -98,6 +102,7 @@ val transactions = listOf(
         sender = "You",
         recipient = "PesaPal for account 0772364458",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -112,6 +117,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -126,6 +132,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     ),
     TransactionItem(
@@ -140,6 +147,7 @@ val transactions = listOf(
         sender = "JOSPHAT  KAROKI 0720929489",
         recipient = "You",
         balance = 1000.0,
+        entity = "JOSPHAT  KAROKI 0720929489",
         categories = itemCategories
     )
 )
@@ -147,9 +155,12 @@ val transactions = listOf(
 val moneyInSortedTransactionItem = SortedTransactionItem(
     transactionType = "Pay Bill",
     times = 103,
-    amount = 11070.0,
+    timesOut = 51,
+    timesIn = 52,
+    totalOut = 500.0,
+    totalIn = 1240.0,
     transactionCost = 310.0,
-    name = "PesaPal for account 0772364458",
+    entity = "PesaPal for account 0772364458",
     nickName = "Pesapal",
 )
 
@@ -157,41 +168,56 @@ val moneyInSortedTransactionItems = listOf(
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = 11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = 11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = 11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = 11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = 11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     )
 
@@ -201,41 +227,56 @@ val moneyOutSortedTransactionItems = listOf(
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = -11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = -11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = -11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = -11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     ),
     SortedTransactionItem(
         transactionType = "Pay Bill",
         times = 103,
-        amount = -11070.0,
+        timesOut = 51,
+        timesIn = 52,
+        totalOut = 500.0,
+        totalIn = 1240.0,
         transactionCost = 310.0,
-        name = "PesaPal for account 0772364458",
+        entity = "PesaPal for account 0772364458",
         nickName = "Pesapal",
     )
 

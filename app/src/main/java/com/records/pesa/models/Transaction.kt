@@ -33,6 +33,7 @@ data class TransactionItem(
     val sender: String,
     val nickName: String?,
     val recipient: String,
+    val entity: String,
     val balance: Double,
     val categories: List<ItemCategory>
 )
@@ -66,9 +67,12 @@ data class SortedTransactionsDt(
 data class SortedTransactionItem(
     val transactionType: String,
     val times: Int,
-    val amount: Double,
+    val timesOut: Int,
+    val timesIn: Int,
+    val totalOut: Double,
+    val totalIn: Double,
     val transactionCost: Double,
-    val name: String,
+    val entity: String,
     val nickName: String?
 )
 

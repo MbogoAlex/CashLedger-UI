@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">CashLedger</string>
+    <string name="y_axis">y-axis</string>
+    <string name="x_axis">x-axis</string>
 </resources>

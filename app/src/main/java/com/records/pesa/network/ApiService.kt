@@ -193,4 +193,15 @@ interface ApiService {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<GroupedTransactionsResponseBody>
+
+    @GET("transaction/grouped/entity/{userId}")
+    suspend fun getGroupedByEntityTransactions(
+        @Path("userId") userId: Int,
+        @Query("entity") entity: String?,
+        @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
+        @Query("transactionType") transactionType: String?,
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String
+    ): Response<SortedTransactionsResponseBody>
 }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.records.pesa.R
 import com.records.pesa.functions.formatDate
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.SortedTransactionItem
@@ -60,28 +62,16 @@ fun TransactionItemCell(
 //                    .background(Color.Red)
                         .padding(16.dp)
                 ) {
-                    if(transaction.transactionAmount < 0) {
-                        Text(text = transaction.recipient.substring(0, 2).uppercase())
-                    } else {
-                        Text(text = transaction.sender.substring(0, 2).uppercase())
-                    }
+                    Text(text = transaction.entity.substring(0, 2).uppercase())
                 }
             }
             Spacer(modifier = Modifier.width(5.dp))
             Column {
-                if(transaction.transactionAmount < 0) {
-                    Text(
-                        text = transaction.nickName ?: if(transaction.recipient.length > 20) "${transaction.recipient.substring(0, 20).uppercase()}..." else transaction.recipient.uppercase(),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else if(transaction.transactionAmount > 0) {
-                    Text(
-                        text = transaction.nickName ?: if(transaction.sender.length > 20) "${transaction.sender.substring(0, 20).uppercase()}..." else transaction.sender.uppercase(),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() }  ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
                     text = transaction.transactionType,
@@ -100,13 +90,13 @@ fun TransactionItemCell(
                     Text(
                         text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
                         fontWeight = FontWeight.Bold,
-                        color = Color.Green
+                        color = MaterialTheme.colorScheme.surfaceTint
                     )
                 } else if(transaction.transactionAmount < 0) {
                     Text(
                         text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
-                        color = Color.Red
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
                 Spacer(modifier = Modifier.height(5.dp))
@@ -116,7 +106,7 @@ fun TransactionItemCell(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontStyle = FontStyle.Italic,
-                        color = Color.Red
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -146,10 +136,7 @@ fun SortedTransactionItemCell(
                 bottom = 10.dp
             )
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-
-        ) {
+        Row {
             Card {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -157,13 +144,13 @@ fun SortedTransactionItemCell(
 //                    .background(Color.Red)
                         .padding(16.dp)
                 ) {
-                    Text(text = transaction.name.substring(0, 2).uppercase())
+                    Text(text = transaction.nickName?.let { it.substring(0, 2).uppercase() } ?: transaction.entity.substring(0, 2).uppercase())
                 }
             }
             Spacer(modifier = Modifier.width(5.dp))
             Column {
                 Text(
-                    text = transaction.nickName ?: if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
+                    text = transaction.nickName ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -180,56 +167,65 @@ fun SortedTransactionItemCell(
             Column(
                 horizontalAlignment = Alignment.End
             ) {
-                if(transaction.amount > 0) {
-                    Text(
-                        text = "+ ${formatMoneyValue(transaction.amount)}",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Green
-                    )
-                } else if(transaction.amount < 0) {
-                    Text(
-                        text = " - ${formatMoneyValue(transaction.amount.absoluteValue)}",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Red
-                    )
-                }
-                Spacer(modifier = Modifier.height(5.dp))
-                if(transaction.amount < 0) {
+                Text(
+                    text = "+ ${formatMoneyValue(transaction.totalIn)}",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.surfaceTint
+                )
+                Text(
+                    text = " - ${formatMoneyValue(transaction.totalOut.absoluteValue)}",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+                if(transaction.totalOut != 0.0) {
+                    Spacer(modifier = Modifier.height(5.dp))
                     Text(
                         text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontStyle = FontStyle.Italic,
-                        color = Color.Red
+                        color = MaterialTheme.colorScheme.error
                     )
-                } else {
+                }
+                Spacer(modifier = Modifier.height(5.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow_downward),
+                        contentDescription = null
+                    )
                     Text(
-                        text = "${transaction.times} times",
+                        text = "${transaction.timesIn} times",
                         fontWeight = FontWeight.Light,
                         fontSize = 12.sp,
                         style = TextStyle(
                             fontStyle = FontStyle.Italic
                         )
                     )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow_upward),
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "${transaction.timesOut} times",
+                        fontWeight = FontWeight.Light,
+                        fontSize = 12.sp,
+                        style = TextStyle(
+                            fontStyle = FontStyle.Italic
+                        )
+                    )
+
                 }
+
 
             }
 
         }
-        if(transaction.amount < 0) {
-            Text(
-                text = "${transaction.times} times",
-                fontWeight = FontWeight.Light,
-                fontSize = 12.sp,
-                style = TextStyle(
-                    fontStyle = FontStyle.Italic
-                )
-            )
-        }
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionCategoryCell(
     transactionCategory: TransactionCategory,

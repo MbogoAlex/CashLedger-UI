@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,17 +38,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import co.yml.charts.common.model.Point
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
+import com.records.pesa.models.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.TransactionItem
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
+import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
 
@@ -73,6 +78,10 @@ fun DashboardScreenComposable(
             .safeDrawingPadding()
     ) {
         DashboardScreen(
+            moneyInPointsData = uiState.moneyInPointsData,
+            moneyOutPointsData = uiState.moneyOutPointsData,
+            maxAmount = uiState.maxAmount,
+            groupedTransactions = uiState.groupedTransactions,
             transactions = uiState.transactions,
             transactionCategories = uiState.categories,
             currentBalance = formatMoneyValue(uiState.currentBalance),
@@ -87,6 +96,10 @@ fun DashboardScreenComposable(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreen(
+    moneyInPointsData: List<Point>,
+    moneyOutPointsData: List<Point>,
+    maxAmount: Float = 0.0f,
+    groupedTransactions: List<GroupedTransactionData>,
     transactions: List<TransactionItem>,
     transactionCategories: List<TransactionCategory>,
     currentBalance: String,
@@ -170,6 +183,41 @@ fun DashboardScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "This week",
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = navigateToCategoriesScreen) {
+                Text(text = "Customize chart")
+            }
+
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        if(groupedTransactions.isNotEmpty()) {
+            BarWithLineChart(
+                transactions = groupedTransactions,
+                maxAmount = maxAmount,
+                moneyInPointsData = moneyInPointsData,
+                moneyOutPointsData = moneyOutPointsData,
+                modifier = Modifier
+                    .height(450.dp)
+            )
+        } else {
+            Text(
+                text = "No transactions for this week",
+                textAlign = TextAlign.Center,
+                fontStyle = FontStyle.Italic,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+            )
+        }
 
     }
 }
@@ -273,6 +321,13 @@ fun DashboardScreenPreview(
             navigateToTransactionsScreen = {},
             transactions = transactions,
             currentBalance = "Ksh 5,350",
+            maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) },
+            groupedTransactions = groupedTransactions,
+            moneyInPointsData = groupedTransactions.mapIndexed { index, transaction ->
+                Point(index.toFloat(), transaction.moneyIn)},
+            moneyOutPointsData = groupedTransactions.mapIndexed { index, transaction ->
+                Point(index.toFloat(), transaction.moneyOut)
+            },
             transactionCategories = transactionCategories,
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},

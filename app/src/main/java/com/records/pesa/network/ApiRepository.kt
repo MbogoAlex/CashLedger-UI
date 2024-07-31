@@ -58,6 +58,9 @@ interface ApiRepository {
     suspend fun deleteBudget(budgetId: Int): Response<BudgetDeleteResponseBody>
 
     suspend fun getGroupedTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<GroupedTransactionsResponseBody>
+
+    suspend fun getGroupedByEntityTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
@@ -273,6 +276,24 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
         startDate: String,
         endDate: String
     ): Response<GroupedTransactionsResponseBody> = apiService.getGroupedTransactions(
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        startDate = startDate,
+        endDate = endDate
+    )
+
+    override suspend fun getGroupedByEntityTransactions(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        startDate: String,
+        endDate: String
+    ): Response<SortedTransactionsResponseBody> = apiService.getGroupedByEntityTransactions(
         userId = userId,
         entity = entity,
         categoryId = categoryId,

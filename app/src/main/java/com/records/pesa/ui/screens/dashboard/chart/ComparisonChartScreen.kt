@@ -45,15 +45,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import co.yml.charts.common.model.Point
 import com.records.pesa.R
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.reusables.dateFormatter
+import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 
 @Composable
 fun ComparisonChartScreenComposable(
+    categoryId: String?,
+    budgetId: String?,
+    startDate: String?,
+    endDate: String?,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -247,7 +253,16 @@ fun ChartOne(
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
-            BarWithLineChart()
+            BarWithLineChart(
+                transactions = groupedTransactions,
+                moneyInPointsData = groupedTransactions.mapIndexed { index, transaction ->
+                    Point(index.toFloat(), transaction.moneyIn)
+                },
+                moneyOutPointsData = groupedTransactions.mapIndexed { index, transaction ->
+                    Point(index.toFloat(), transaction.moneyOut)
+                },
+                maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) },
+            )
         }
     }
 }

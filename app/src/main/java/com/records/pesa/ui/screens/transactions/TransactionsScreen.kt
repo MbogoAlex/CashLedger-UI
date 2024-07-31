@@ -438,14 +438,14 @@ fun TransactionsScreen(
                                 Text(
                                     text = totalMoneyIn,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Green
+                                    color = MaterialTheme.colorScheme.surfaceTint
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
                                 Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
                                 Text(
                                     text = totalMoneyOut,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Red
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -461,7 +461,7 @@ fun TransactionsScreen(
                                 Text(
                                     text = totalMoneyIn,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Green
+                                    color = MaterialTheme.colorScheme.surfaceTint
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(
@@ -513,7 +513,7 @@ fun TransactionsScreen(
                                 Text(
                                     text = totalMoneyOut,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Red
+                                    color = MaterialTheme.colorScheme.error
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(

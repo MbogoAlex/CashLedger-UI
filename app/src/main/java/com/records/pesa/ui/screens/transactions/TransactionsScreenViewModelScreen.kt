@@ -315,15 +315,12 @@ class TransactionsScreenViewModelScreen(
         }
         viewModelScope.launch {
             try {
-                val response = apiRepository.getMoneyInSortedTransactions(
+                val response = apiRepository.getGroupedByEntityTransactions(
                     userId = 1,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyIn = true,
-                    orderByAmount = true,
-                    ascendingOrder = false,
                     startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
                     endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
