@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
+import com.records.pesa.ui.screens.SplashScreenComposable
+import com.records.pesa.ui.screens.SplashScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
@@ -27,6 +29,8 @@ import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenCompo
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenDestination
+import com.records.pesa.ui.screens.dashboard.sms.SMSFetchScreenDestination
+import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenDestination
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
@@ -40,8 +44,18 @@ fun NavigationGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = HomeScreenDestination.route,
+        startDestination = SplashScreenDestination.route,
     ) {
+        composable(SplashScreenDestination.route) {
+            SplashScreenComposable(
+                navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) }
+            )
+        }
+        composable(SMSFetchScreenDestination.route) {
+            SmsFetchScreenComposable(
+                navigateToHomeScreen = { navController.navigate(HomeScreenDestination.route) }
+            )
+        }
         composable(HomeScreenDestination.route) {
             HomeScreenComposable(
                 navigateToTransactionsScreen = {

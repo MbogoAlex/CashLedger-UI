@@ -12,8 +12,11 @@ import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.GroupedTransactionsResponseBody
+import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
+import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.SortedTransactionsResponseBody
+import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
@@ -27,6 +30,12 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    @POST("message/{id}")
+    suspend fun postMessages(
+        @Path("id") id: Int,
+        @Body messages: List<SmsMessage>
+    ): Response<MessagesResponseBody>
+
     @GET("transaction/{userId}")
     suspend fun getTransactions(
         @Path("userId") userId: Int,
@@ -204,4 +213,9 @@ interface ApiService {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<SortedTransactionsResponseBody>
+
+    @GET("transaction/codes/{userId}")
+    suspend fun getLatestTransactionCodes(
+        @Path("userId") userId: Int
+    ): Response<TransactionCodesResponseBody>
 }

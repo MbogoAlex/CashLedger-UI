@@ -52,6 +52,9 @@ android {
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/com.google.accompanist/accompanist-permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+
 
     val vicoVersion = "2.0.0-alpha.25"
 

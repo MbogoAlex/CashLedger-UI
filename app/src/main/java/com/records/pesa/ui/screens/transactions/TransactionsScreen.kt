@@ -180,7 +180,7 @@ fun TransactionsScreenComposable(
                 currentTab = it
                 if(it == TransactionScreenTab.MONEY_IN && !transactionsLoaded) {
                     transactionsLoaded = true
-                    viewModel.getMoneyInSortedTransactions()
+                    viewModel.getGroupedByEntityTransactions()
                 } else if(it == TransactionScreenTab.MONEY_OUT && !transactionsLoaded) {
                     transactionsLoaded = true
                     viewModel.getMoneyOutSortedTransactions()

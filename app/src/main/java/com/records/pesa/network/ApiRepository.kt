@@ -12,14 +12,18 @@ import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
 import com.records.pesa.models.CurrentBalanceResponseBody
 import com.records.pesa.models.GroupedTransactionsResponseBody
+import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
+import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.SortedTransactionsResponseBody
+import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
 import retrofit2.Response
 
 interface ApiRepository {
+    suspend fun postMessages(id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
     suspend fun getTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
     suspend fun getMoneyIn(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
     suspend fun getMoneyOut(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
@@ -61,9 +65,19 @@ interface ApiRepository {
 
     suspend fun getGroupedByEntityTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
+    suspend fun getLatestTransactionCodes(userId: Int): Response<TransactionCodesResponseBody>
+
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
+    override suspend fun postMessages(
+        id: Int,
+        messages: List<SmsMessage>
+    ): Response<MessagesResponseBody> = apiService.postMessages(
+        id = id,
+        messages = messages
+    )
+
     override suspend fun getTransactions(
         userId: Int,
         entity: String?,
@@ -302,6 +316,8 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
         startDate = startDate,
         endDate = endDate
     )
+
+    override suspend fun getLatestTransactionCodes(userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCodes(userId = userId)
 
 
 }

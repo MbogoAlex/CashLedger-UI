@@ -19,6 +19,7 @@ import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewM
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.chart.ChartHomeScreenViewModel
 import com.records.pesa.ui.screens.dashboard.chart.CombinedChartScreenViewModel
+import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
 
@@ -126,6 +127,13 @@ object AppViewModelFactory {
             CombinedChartScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            SmsFetchScreenViewModel(
+                apiRepository = apiRepository
             )
         }
     }

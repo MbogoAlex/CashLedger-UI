@@ -89,7 +89,7 @@ class TransactionsScreenViewModelScreen(
 
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
             TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
             TransactionScreenTab.CHART -> {}
         }
@@ -103,7 +103,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
             TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
             TransactionScreenTab.CHART -> {}
         }
@@ -117,7 +117,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
             TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
             TransactionScreenTab.CHART -> {}
         }
@@ -131,7 +131,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
             TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
             TransactionScreenTab.CHART -> {}
         }
@@ -145,7 +145,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getMoneyInSortedTransactions()
+            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
             TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
             TransactionScreenTab.CHART -> {}
         }
@@ -306,7 +306,7 @@ class TransactionsScreenViewModelScreen(
         }
     }
 
-    fun getMoneyInSortedTransactions() {
+    fun getGroupedByEntityTransactions() {
         Log.i("LOADING_TRANSACTIONS", "LOADING TRANSACTIONS")
         _uiState.update {
             it.copy(

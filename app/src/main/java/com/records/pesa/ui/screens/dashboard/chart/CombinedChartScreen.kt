@@ -721,7 +721,7 @@ fun BarWithLineChart(
 //    )
 
     Chart3(
-        transactions = transactions.subList(0, 30),
+        transactions = transactions,
         modifier = modifier
             .fillMaxHeight()
             .background(MaterialTheme.colorScheme.background)

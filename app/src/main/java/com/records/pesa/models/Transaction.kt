@@ -134,3 +134,16 @@ data class GroupedTransactionData(
     val moneyOut: Float,
     val transactionCost: Float
 )
+
+@Serializable
+data class TransactionCodesResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: TransactionCodesDt
+
+)
+
+@Serializable
+data class TransactionCodesDt(
+    val transaction: List<String>
+)
