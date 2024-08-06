@@ -65,7 +65,7 @@ interface ApiRepository {
 
     suspend fun getGroupedByEntityTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
-    suspend fun getLatestTransactionCodes(userId: Int): Response<TransactionCodesResponseBody>
+    suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody>
 
 }
 
@@ -317,7 +317,7 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
         endDate = endDate
     )
 
-    override suspend fun getLatestTransactionCodes(userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCodes(userId = userId)
+    override suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCode(userId = userId)
 
 
 }

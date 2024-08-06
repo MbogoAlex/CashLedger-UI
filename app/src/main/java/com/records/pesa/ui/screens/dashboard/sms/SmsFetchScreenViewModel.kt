@@ -98,6 +98,7 @@ class SmsFetchScreenViewModel(
             messagesToSend.addAll(newTransactionCodes.map { it["message"] as SmsMessage })
         }
         Log.d("ADDING", "$i messages")
+        Log.d("MESSAGES_TO_SEND", "$i messages")
         return messagesToSend;
     }
 
@@ -186,7 +187,7 @@ class SmsFetchScreenViewModel(
         }
         viewModelScope.launch {
             try {
-                val response = apiRepository.getLatestTransactionCodes(userId = 1)
+                val response = apiRepository.getLatestTransactionCode(userId = 1)
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(

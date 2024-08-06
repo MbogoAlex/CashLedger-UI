@@ -52,6 +52,19 @@ android {
 }
 
 dependencies {
+
+    // https://mvnrepository.com/artifact/androidx.work/work-runtime-ktx
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // https://mvnrepository.com/artifact/com.squareup.retrofit2/retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+
+    // https://mvnrepository.com/artifact/androidx.lifecycle/lifecycle-viewmodel-compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+
+    // https://mvnrepository.com/artifact/androidx.compose.runtime/runtime-livedata
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
+
     // https://mvnrepository.com/artifact/com.google.accompanist/accompanist-permissions
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 

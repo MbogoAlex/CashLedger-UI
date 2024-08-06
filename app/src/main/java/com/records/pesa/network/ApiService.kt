@@ -1,5 +1,6 @@
 package com.records.pesa.network
 
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.records.pesa.models.BudgetDeleteResponseBody
 import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.BudgetResponseBody
@@ -20,7 +21,10 @@ import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
+import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -30,6 +34,20 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    companion object {
+        val json = Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+        }
+        val baseUrl = "http://192.168.0.106:8080/api/"
+        val instance by lazy {
+            Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+                .build()
+                .create(ApiService::class.java)
+        }
+    }
     @POST("message/{id}")
     suspend fun postMessages(
         @Path("id") id: Int,
@@ -214,8 +232,8 @@ interface ApiService {
         @Query("endDate") endDate: String
     ): Response<SortedTransactionsResponseBody>
 
-    @GET("transaction/codes/{userId}")
-    suspend fun getLatestTransactionCodes(
+    @GET("transaction/latest-code/{userId}")
+    suspend fun getLatestTransactionCode(
         @Path("userId") userId: Int
     ): Response<TransactionCodesResponseBody>
 }
