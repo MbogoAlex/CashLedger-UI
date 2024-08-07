@@ -21,6 +21,10 @@ import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.user.UserLoginPayload
+import com.records.pesa.models.user.UserLoginResponseBody
+import com.records.pesa.models.user.UserRegistrationPayload
+import com.records.pesa.models.user.UserRegistrationResponseBody
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Response
@@ -236,4 +240,14 @@ interface ApiService {
     suspend fun getLatestTransactionCode(
         @Path("userId") userId: Int
     ): Response<TransactionCodesResponseBody>
+
+    @POST("auth/register")
+    suspend fun registerUser(
+        @Body user: UserRegistrationPayload
+    ): Response<UserRegistrationResponseBody>
+
+    @POST("auth/login")
+    suspend fun loginUser(
+        @Body user: UserLoginPayload
+    ): Response<UserLoginResponseBody>
 }

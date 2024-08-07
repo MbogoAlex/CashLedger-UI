@@ -14,13 +14,17 @@ class PostMessagesWorker(
     private val workerParameters: WorkerParameters
 ): CoroutineWorker(context, workerParameters) {
     override suspend fun doWork(): Result {
+        val userId = inputData.getInt("userId", -1)
+        if(userId == -1) {
+            return Result.failure()
+        }
         val messagesJson = workerParameters.inputData.getString(WorkerKeys.MESSAGES)
         val messagesToSend: List<SmsMessage> = Gson().fromJson(
             messagesJson,
             object : TypeToken<List<SmsMessage>>() {}.type
         )
         if(messagesToSend.isNotEmpty()) {
-            val allMessagesSent = postMessagesInBatches(messagesToSend)
+            val allMessagesSent = postMessagesInBatches(userId, messagesToSend)
             if(allMessagesSent) {
                 return Result.success()
             }
@@ -31,7 +35,7 @@ class PostMessagesWorker(
 
 }
 
-suspend fun postMessagesInBatches(messages: List<SmsMessage>): Boolean {
+suspend fun postMessagesInBatches(userId: Int, messages: List<SmsMessage>): Boolean {
 
     val batchSize = 1000
     val totalBatches = (messages.size + batchSize - 1) / batchSize
@@ -43,17 +47,17 @@ suspend fun postMessagesInBatches(messages: List<SmsMessage>): Boolean {
         val toIndex = minOf(fromIndex + batchSize, messages.size)
         val batch = messages.subList(fromIndex, toIndex)
         messagesSent += batch.size
-        allMessagesSent = postMessages(batch, messagesSent == messages.size)
+        allMessagesSent = postMessages(userId, batch, messagesSent == messages.size)
     }
     return allMessagesSent
 }
 
-suspend fun postMessages(messages: List<SmsMessage>, allMessagesSent: Boolean): Boolean {
+suspend fun postMessages(userId: Int, messages: List<SmsMessage>, allMessagesSent: Boolean): Boolean {
     Log.i("SENDING", " ${messages.size} messages")
     try {
         val response = ApiService.instance.postMessages(
             messages = messages,
-            id = 1
+            id = userId
         )
 
         if (response.isSuccessful) {

@@ -20,7 +20,13 @@ import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.user.UserLoginPayload
+import com.records.pesa.models.user.UserLoginResponseBody
+import com.records.pesa.models.user.UserRegistrationPayload
+import com.records.pesa.models.user.UserRegistrationResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
 
 interface ApiRepository {
     suspend fun postMessages(id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
@@ -66,6 +72,10 @@ interface ApiRepository {
     suspend fun getGroupedByEntityTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
     suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody>
+
+    suspend fun registerUser(user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
+
+    suspend fun loginUser(user: UserLoginPayload): Response<UserLoginResponseBody>
 
 }
 
@@ -318,6 +328,13 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
     )
 
     override suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCode(userId = userId)
+    override suspend fun registerUser(user: UserRegistrationPayload): Response<UserRegistrationResponseBody> = apiService.registerUser(
+        user = user
+    )
+
+    override suspend fun loginUser(user: UserLoginPayload): Response<UserLoginResponseBody> = apiService.loginUser(
+        user = user
+    )
 
 
 }

@@ -4,7 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
 import android.util.Log
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.google.gson.Gson
@@ -21,22 +25,30 @@ class FetchMessagesWorker(
     private val params: WorkerParameters,
 ): CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val latestTransactionCode = getLatestTransactionCode()
+        val userId = inputData.getInt("userId", -1)
+        if(userId == -1) {
+            return Result.failure()
+        }
+        val latestTransactionCode = getLatestTransactionCode(userId)
         val messagesToSend = fetchSmsMessages(context, latestTransactionCode)
 
-        val messagesJson = Gson().toJson(messagesToSend)  //
-
-        return withContext(Dispatchers.IO) {
-            Result.success(
-                workDataOf(
-                    WorkerKeys.MESSAGES to messagesJson,
-                )
+        // Once fetching is done, enqueue the posting work
+        val postMessagesRequest = OneTimeWorkRequestBuilder<PostMessagesWorker>()
+            .setInputData(workDataOf(WorkerKeys.MESSAGES to Gson().toJson(messagesToSend), "userId" to userId))
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
             )
-        }
+            .build()
+
+        WorkManager.getInstance(context).enqueue(postMessagesRequest)
+
+        return Result.success()
     }
 }
 
-suspend fun getLatestTransactionCode(): String? {
+suspend fun getLatestTransactionCode(userId: Int): String? {
     val response = ApiService.instance.getLatestTransactionCode(
         userId = 1
     )
