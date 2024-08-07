@@ -74,7 +74,6 @@ object BudgetListScreenDestination: AppNavigation {
     val routeWithArgs = "$route/{$categoryId}/{$categoryName}"
 
 }
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListScreenComposable(
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,

@@ -7,20 +7,25 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.CategoryEditPayload
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class MembersAdditionScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val newMembers: List<TransactionItem> = emptyList(),
     val currentMembers: List<TransactionItem> = emptyList(),
     val membersToAdd: List<TransactionItem> = emptyList(),
@@ -34,7 +39,8 @@ data class MembersAdditionScreenUiState(
 @RequiresApi(Build.VERSION_CODES.O)
 class MembersAdditionScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(MembersAdditionScreenUiState())
@@ -107,7 +113,7 @@ class MembersAdditionScreenViewModel(
         }
 
         val category = CategoryEditPayload(
-            userId = 1,
+            userId = uiState.value.userDetails.userId,
             categoryName = uiState.value.category.name,
             keywords = newMembers
         )
@@ -115,6 +121,7 @@ class MembersAdditionScreenViewModel(
         viewModelScope.launch {
             try {
                val response = apiRepository.addCategoryMembers(
+                   token = uiState.value.userDetails.token,
                    categoryId = uiState.value.categoryId.toInt(),
                    category = category
                )
@@ -149,7 +156,8 @@ class MembersAdditionScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = null,
                     budgetId = null,
@@ -204,7 +212,10 @@ class MembersAdditionScreenViewModel(
     fun getCategory() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getCategoryDetails(categoryId = uiState.value.categoryId.toInt())
+                val response = apiRepository.getCategoryDetails(
+                    token = uiState.value.userDetails.token,
+                    categoryId = uiState.value.categoryId.toInt()
+                )
                 if(response.isSuccessful) {
                     categoryKeywords.clear()
                     categoryKeywords.addAll(response.body()?.data?.category!!.keywords.map { it.keyWord })
@@ -234,14 +245,28 @@ class MembersAdditionScreenViewModel(
         }
     }
 
+    fun getUserDetails() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+            while(uiState.value.userDetails.userId == 0) {
+                delay(1000)
+            }
+            getCategory()
+            getTransactions()
+        }
+    }
+
     init {
         _uiState.update {
             it.copy(
                 categoryId = categoryId!!
             )
         }
-        getCategory()
-        getTransactions()
+        getUserDetails()
     }
 
 }

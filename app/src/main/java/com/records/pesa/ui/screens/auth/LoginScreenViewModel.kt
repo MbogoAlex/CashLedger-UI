@@ -20,6 +20,7 @@ data class LoginScreenUiState(
     val password: String = "",
     val loginButtonEnabled: Boolean = false,
     val loginMessage: String = "",
+    val exception: String = "",
     val loginStatus: LoginStatus = LoginStatus.INITIAL
 )
 
@@ -95,6 +96,7 @@ class LoginScreenViewModel(
                 _uiState.update {
                     it.copy(
                         loginStatus = LoginStatus.FAIL,
+                        exception = e.toString(),
                         loginMessage = "Login failed. Check your internet or try later"
                     )
                 }

@@ -32,6 +32,6 @@ interface AppDao {
     @Update
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
 
-    @Query("select * from appLaunchStatus where id = :id")
+    @Query("select * from app_launch_state where id = :id")
     fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
 }

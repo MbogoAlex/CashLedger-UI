@@ -5,18 +5,23 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.GroupedTransactionData
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.groupedTransactions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class CombinedChartScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val moneyInPointsData: List<Point> = emptyList(),
     val moneyOutPointsData: List<Point> = emptyList(),
     val totalMoneyIn: Double = 0.0,
@@ -36,7 +41,8 @@ data class CombinedChartScreenUiState(
 
 class CombinedChartScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository,
 ): ViewModel() {
     private val _uiState = MutableStateFlow(CombinedChartScreenUiState())
     val uiState: StateFlow<CombinedChartScreenUiState> = _uiState.asStateFlow()
@@ -92,13 +98,20 @@ class CombinedChartScreenViewModel(
                 defaultEndDate = defaultEndDate
             )
         }
-        getGroupedTransactions()
+        viewModelScope.launch {
+            while (uiState.value.userDetails.userId == 0) {
+                delay(1000)
+            }
+            getGroupedTransactions()
+        }
+
     }
     fun getGroupedTransactions() {
         viewModelScope.launch {
             try {
                 val response = apiRepository.getGroupedTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.searchText,
                     categoryId = uiState.value.categoryId?.toInt(),
                     budgetId = uiState.value.budgetId?.toInt(),
@@ -146,5 +159,19 @@ class CombinedChartScreenViewModel(
                 Log.e("dataFetchFailException", e.toString())
             }
         }
+    }
+    fun getUserDetails() {
+        viewModelScope.launch {
+            Log.d("USERS", dbRepository.getUsers().first()[0].toString())
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+        }
+    }
+
+    init {
+        getUserDetails()
     }
 }

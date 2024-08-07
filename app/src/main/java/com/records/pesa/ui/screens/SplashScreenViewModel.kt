@@ -28,10 +28,12 @@ class SplashScreenViewModel(
     val uiState: StateFlow<SplashScreenUiState> = _uiState.asStateFlow()
 
     fun getAppLaunchState() {
+
         viewModelScope.launch {
+            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
             _uiState.update {
                 it.copy(
-                    appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+                    appLaunchStatus = appLaunchStatus
                 )
             }
             if(uiState.value.appLaunchStatus.launched == 0) {
@@ -41,7 +43,7 @@ class SplashScreenViewModel(
                     )
                 )
             }
-            if(uiState.value.appLaunchStatus.userId != null) {
+            if(uiState.value.appLaunchStatus.user_id != null) {
                 getSubscriptionStatus()
             }
         }
@@ -50,7 +52,7 @@ class SplashScreenViewModel(
     fun getSubscriptionStatus() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
+                val response = apiRepository.getSubscriptionStatus(uiState.value.appLaunchStatus.user_id!!)
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(

@@ -6,20 +6,25 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.SortedTransactionItem
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class TransactionsScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val transactions: List<TransactionItem> = emptyList(),
     val moneyInTransactions: List<TransactionItem> = emptyList(),
     val moneyOutTransactions: List<TransactionItem> = emptyList(),
@@ -41,12 +46,13 @@ data class TransactionsScreenUiState(
     val budgetId: Int? = null,
     val categoryName: String? = null,
     val budgetName: String? = null,
+    val errorCode: Int = 0,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
-@RequiresApi(Build.VERSION_CODES.O)
 class TransactionsScreenViewModelScreen(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(TransactionsScreenUiState())
@@ -58,7 +64,6 @@ class TransactionsScreenViewModelScreen(
     private val categoryId: String? = savedStateHandle[TransactionsScreenDestination.categoryId]
     private val budgetId: String? = savedStateHandle[TransactionsScreenDestination.budgetId]
 
-    @RequiresApi(Build.VERSION_CODES.O)
     fun setInitialDates() {
         val currentDate = LocalDate.now()
         val firstDayOfMonth = currentDate.withDayOfMonth(1)
@@ -170,7 +175,8 @@ class TransactionsScreenViewModelScreen(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
@@ -219,7 +225,8 @@ class TransactionsScreenViewModelScreen(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getMoneyIn(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
@@ -241,7 +248,8 @@ class TransactionsScreenViewModelScreen(
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            loadingStatus = LoadingStatus.FAIL,
+                            errorCode = response.code()
                         )
                     }
                     Log.e("GetTransactionsResponseError", response.toString())
@@ -267,7 +275,8 @@ class TransactionsScreenViewModelScreen(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getMoneyIn(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
@@ -307,7 +316,7 @@ class TransactionsScreenViewModelScreen(
     }
 
     fun getGroupedByEntityTransactions() {
-        Log.i("LOADING_TRANSACTIONS", "LOADING TRANSACTIONS")
+        Log.i("LOADING_TRANSACTIONS", "ID: ${uiState.value.userDetails.userId}")
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
@@ -316,7 +325,8 @@ class TransactionsScreenViewModelScreen(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getGroupedByEntityTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
@@ -362,7 +372,8 @@ class TransactionsScreenViewModelScreen(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getMoneyOutSortedTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
@@ -409,14 +420,17 @@ class TransactionsScreenViewModelScreen(
             entity = transactionItem.sender
         }
         val transactionEditPayload = TransactionEditPayload(
-            transactionId = transactionItem.transactionId,
-            userId = 1,
+            transactionId = transactionItem.transactionId!!,
+            userId = uiState.value.userDetails.userId,
             entity = entity,
             nickName = uiState.value.nickName
         )
         viewModelScope.launch {
             try {
-                val response = apiRepository.updateTransaction(transactionEditPayload)
+                val response = apiRepository.updateTransaction(
+                    token = uiState.value.userDetails.token,
+                    transactionEditPayload = transactionEditPayload
+                )
                 if(response.isSuccessful) {
 
                 } else {}
@@ -426,8 +440,22 @@ class TransactionsScreenViewModelScreen(
         }
     }
 
+    fun getUserDetails() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+            while(uiState.value.userDetails.userId == 0) {
+                delay(1000)
+            }
+            getTransactions()
+        }
+    }
+
     init {
         setInitialDates()
-        getTransactions()
+        getUserDetails()
     }
 }

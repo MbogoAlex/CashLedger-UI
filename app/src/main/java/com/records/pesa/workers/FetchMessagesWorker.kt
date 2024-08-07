@@ -26,15 +26,16 @@ class FetchMessagesWorker(
 ): CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val userId = inputData.getInt("userId", -1)
+        val token = inputData.getString("token")
         if(userId == -1) {
             return Result.failure()
         }
-        val latestTransactionCode = getLatestTransactionCode(userId)
+        val latestTransactionCode = getLatestTransactionCode(token!!, userId)
         val messagesToSend = fetchSmsMessages(context, latestTransactionCode)
 
         // Once fetching is done, enqueue the posting work
         val postMessagesRequest = OneTimeWorkRequestBuilder<PostMessagesWorker>()
-            .setInputData(workDataOf(WorkerKeys.MESSAGES to Gson().toJson(messagesToSend), "userId" to userId))
+            .setInputData(workDataOf(WorkerKeys.MESSAGES to Gson().toJson(messagesToSend), "userId" to userId, "token" to token))
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -48,9 +49,10 @@ class FetchMessagesWorker(
     }
 }
 
-suspend fun getLatestTransactionCode(userId: Int): String? {
+suspend fun getLatestTransactionCode(token: String, userId: Int): String? {
     val response = ApiService.instance.getLatestTransactionCode(
-        userId = 1
+        "Bearer $token",
+        userId = userId
     )
     return if(response.isSuccessful && response.body()?.data?.transaction!!.isNotEmpty()) {
         response.body()?.data?.transaction?.get(0)
@@ -83,7 +85,7 @@ fun fetchSmsMessages(context: Context, latestTransactionCode: String?): List<Sms
     }
 
 
-    val messagesToSend = filterMessagesToSend(messages, latestTransactionCode?.strip()?.lowercase())
+    val messagesToSend = filterMessagesToSend(messages, latestTransactionCode?.trim()?.lowercase())
     return messagesToSend;
 }
 
@@ -117,7 +119,7 @@ private fun getNewTransactionCodes(messages: List<SmsMessage>): List<Map<String,
             val transactionCodeMatcher = Regex("\\b\\w{10}\\b").find(message.body)
             if (transactionCodeMatcher != null) {
                 val transactionCode = transactionCodeMatcher.value
-                transactionCodes.add(mapOf("code" to transactionCode.strip().lowercase(), "message" to message))
+                transactionCodes.add(mapOf("code" to transactionCode.trim().lowercase(), "message" to message))
             }
         } catch (e: Exception) {
             Log.e("Exception:", e.toString())

@@ -56,12 +56,14 @@ interface ApiService {
     }
     @POST("message/{id}")
     suspend fun postMessages(
+        @Header("Authorization") token: String,
         @Path("id") id: Int,
         @Body messages: List<SmsMessage>
     ): Response<MessagesResponseBody>
 
     @GET("transaction/{userId}")
     suspend fun getTransactions(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -74,6 +76,7 @@ interface ApiService {
 
     @GET("transaction/outandin/{userId}")
     suspend fun getMoneyIn(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -87,6 +90,7 @@ interface ApiService {
 
     @GET("transaction/outandin/{userId}")
     suspend fun getMoneyOut(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -100,6 +104,7 @@ interface ApiService {
 
     @GET("transaction/sorted/{userId}")
     suspend fun getMoneyInSortedTransactions(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -114,6 +119,7 @@ interface ApiService {
 
     @GET("transaction/sorted/{userId}")
     suspend fun getMoneyOutSortedTransactions(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -128,11 +134,13 @@ interface ApiService {
 
     @GET("transaction/balance/{userId}")
     suspend fun getCurrentBalance(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int
     ): Response<CurrentBalanceResponseBody>
 
     @GET("category/{userId}")
     suspend fun getUserCategories(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("categoryId") categoryId: Int?,
         @Query("name") name: String?,
@@ -141,67 +149,79 @@ interface ApiService {
 
     @GET("category/details/{categoryId}")
     suspend fun getCategoryDetails(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int
     ): Response<CategoryResponseBody>
 
     @POST("category/{userId}")
     suspend fun createCategory(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Body category: CategoryEditPayload
     ): Response<CategoryResponseBody>
 
     @PUT("category/name/{categoryId}")
     suspend fun updateCategoryName(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int,
         @Body category: CategoryEditPayload
     ): Response<CategoryResponseBody>
 
     @PUT("category/{categoryId}")
     suspend fun addCategoryMembers(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int,
         @Body category: CategoryEditPayload
     ): Response<CategoryResponseBody>
 
     @PUT("category/keyword")
     suspend fun updateCategoryKeyword(
+        @Header("Authorization") token: String,
         @Body keyword: CategoryKeywordEditPayload
     ): Response<CategoryKeywordEditResponseBody>
 
     @DELETE("category/keyword/{categoryId}/{keywordId}")
     suspend fun deleteCategoryKeyword(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int,
         @Path("keywordId") keywordId: Int
     ): Response<CategoryKeywordDeleteResponseBody>
 
     @DELETE("category/{categoryId}")
     suspend fun deleteCategory(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int
     ): Response<CategoryDeleteResponseBody>
 
     @PUT("transaction/update")
     suspend fun updateTransaction(
+        @Header("Authorization") token: String,
         @Body transactionEditPayload: TransactionEditPayload
     ): Response<TransactionEditResponseBody>
 
     @GET("budget/{userId}")
     suspend fun getUserBudgets(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("name") name: String?,
     ): Response<BudgetResponseBody>
 
     @GET("budget/category/{categoryId}")
     suspend fun getCategoryBudgets(
+        @Header("Authorization") token: String,
         @Path("categoryId") categoryId: Int,
         @Query("name") name: String?
     ): Response<BudgetResponseBody>
 
     @GET("budget/single/{budgetId}")
     suspend fun getBudget(
+        @Header("Authorization") token: String,
         @Path("budgetId") budgetId: Int
     ): Response<SingleBudgetResponseBody>
 
     @POST("budget/{userId}/{categoryId}")
     suspend fun createBudget(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Path("categoryId") categoryId: Int,
         @Body budget: BudgetEditPayLoad
@@ -209,15 +229,18 @@ interface ApiService {
 
     @PUT("budget/{budgetId}")
     suspend fun updateBudget(
+        @Header("Authorization") token: String,
         @Path("budgetId") budgetId: Int,
         @Body budget: BudgetEditPayLoad
     ): Response<SingleBudgetResponseBody>
     @DELETE("budget/{budgetId}")
     suspend fun deleteBudget(
+        @Header("Authorization") token: String,
         @Path("budgetId") budgetId: Int
     ): Response<BudgetDeleteResponseBody>
     @GET("transaction/grouped/{userId}")
     suspend fun getGroupedTransactions(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -229,6 +252,7 @@ interface ApiService {
 
     @GET("transaction/grouped/entity/{userId}")
     suspend fun getGroupedByEntityTransactions(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Query("entity") entity: String?,
         @Query("categoryId") categoryId: Int?,
@@ -240,6 +264,7 @@ interface ApiService {
 
     @GET("transaction/latest-code/{userId}")
     suspend fun getLatestTransactionCode(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Int
     ): Response<TransactionCodesResponseBody>
 

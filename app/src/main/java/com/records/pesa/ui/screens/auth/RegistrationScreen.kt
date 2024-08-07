@@ -69,6 +69,7 @@ fun RegistrationScreenComposable(
         viewModel.resetRegistrationStatus()
     } else if(uiState.registrationStatus == RegistrationStatus.FAIL) {
         Toast.makeText(context, uiState.registrationMessage, Toast.LENGTH_SHORT).show()
+        viewModel.resetRegistrationStatus()
     }
 
     Box(

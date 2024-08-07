@@ -36,7 +36,7 @@ fun SplashScreenComposable(
 
     LaunchedEffect(Unit) {
         delay(2000L)
-        if(uiState.appLaunchStatus.userId != null) {
+        if(uiState.appLaunchStatus.user_id != null) {
             navigateToSmsFetchScreen()
         } else {
             navigateToRegistrationScreen()

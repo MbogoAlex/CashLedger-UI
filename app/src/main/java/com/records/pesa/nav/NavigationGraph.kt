@@ -14,6 +14,10 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.SplashScreenComposable
 import com.records.pesa.ui.screens.SplashScreenDestination
+import com.records.pesa.ui.screens.auth.LoginScreenComposable
+import com.records.pesa.ui.screens.auth.LoginScreenDestination
+import com.records.pesa.ui.screens.auth.RegistrationScreenComposable
+import com.records.pesa.ui.screens.auth.RegistrationScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
@@ -48,12 +52,59 @@ fun NavigationGraph(
     ) {
         composable(SplashScreenDestination.route) {
             SplashScreenComposable(
-                navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) }
+                navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) },
+                navigateToRegistrationScreen = {
+                    navController.navigate(RegistrationScreenDestination.route)
+                }
+            )
+        }
+        composable(RegistrationScreenDestination.route) {
+            RegistrationScreenComposable(
+                navigateToLoginScreenWithArgs = {phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToLoginScreen = {
+                    navController.navigate(LoginScreenDestination.route)
+                }
+            )
+        }
+        composable(LoginScreenDestination.route) {
+            LoginScreenComposable(
+                navigateToRegistrationScreen = {
+                    navController.navigate(RegistrationScreenDestination.route)
+                },
+                navigateToSmsFetchScreen = {
+                    navController.navigate(SMSFetchScreenDestination.route)
+                }
+            )
+        }
+        composable(
+            LoginScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(LoginScreenDestination.phoneNumber) {
+                    type = NavType.StringType
+                },
+                navArgument(LoginScreenDestination.password) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            LoginScreenComposable(
+                navigateToRegistrationScreen = {
+                    navController.navigate(RegistrationScreenDestination.route)
+                },
+                navigateToSmsFetchScreen = {
+                    navController.navigate(SMSFetchScreenDestination.route)
+                }
             )
         }
         composable(SMSFetchScreenDestination.route) {
             SmsFetchScreenComposable(
-                navigateToHomeScreen = { navController.navigate(HomeScreenDestination.route) }
+                navigateToHomeScreen = { navController.navigate(HomeScreenDestination.route) },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.popBackStack(SMSFetchScreenDestination.route, true)
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                }
             )
         }
         composable(HomeScreenDestination.route) {

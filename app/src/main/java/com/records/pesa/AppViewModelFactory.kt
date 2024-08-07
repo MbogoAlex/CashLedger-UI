@@ -28,13 +28,13 @@ import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenVi
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
 
 object AppViewModelFactory {
-    @RequiresApi(Build.VERSION_CODES.O)
     val Factory = viewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             TransactionsScreenViewModelScreen(
                 apiRepository = apiRepository,
-                savedStateHandle = this.createSavedStateHandle()
+                savedStateHandle = this.createSavedStateHandle(),
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -43,7 +43,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             SingleEntityTransactionsScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -52,7 +53,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             DashboardScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -61,7 +63,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             CategoryDetailsScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -70,7 +73,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             MembersAdditionScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -78,7 +82,8 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             CategoriesScreenViewModel(
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -86,7 +91,8 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             CategoryAdditionScreenViewModel(
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -95,7 +101,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             BudgetListScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -104,7 +111,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             BudgetInfoScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -113,7 +121,8 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             BudgetCreationScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
@@ -130,14 +139,17 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             CombinedChartScreenViewModel(
                 apiRepository = apiRepository,
-                savedStateHandle = savedStateHandle
+                savedStateHandle = savedStateHandle,
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             SmsFetchScreenViewModel(
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                dbRepository = dbRepository
             )
         }
 

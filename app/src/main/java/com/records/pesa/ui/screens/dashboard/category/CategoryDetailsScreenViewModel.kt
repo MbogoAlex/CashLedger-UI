@@ -4,21 +4,26 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.CategoryEditPayload
 import com.records.pesa.models.CategoryKeyword
 import com.records.pesa.models.CategoryKeywordDeletePayload
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CategoryDetailsScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val categoryId: String = "",
     val newCategoryName: String = "",
     val newMemberName: String = "",
@@ -28,7 +33,8 @@ data class CategoryDetailsScreenUiState(
 )
 class CategoryDetailsScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(CategoryDetailsScreenUiState())
     val uiState: StateFlow<CategoryDetailsScreenUiState> = _uiState.asStateFlow()
@@ -70,13 +76,14 @@ class CategoryDetailsScreenViewModel(
             keywords.add(keyword.keyWord)
         }
         val category = CategoryEditPayload(
-            userId = 1,
+            userId = uiState.value.userDetails.userId,
             categoryName = uiState.value.newCategoryName,
             keywords = keywords,
         )
         viewModelScope.launch {
             try {
                 val response = apiRepository.updateCategoryName(
+                    token = uiState.value.userDetails.token,
                     categoryId = uiState.value.category.id,
                     category = category
                 )
@@ -122,6 +129,7 @@ class CategoryDetailsScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.updateCategoryKeyword(
+                    token = uiState.value.userDetails.token,
                     keyword = keyword,
                 )
                 if(response.isSuccessful) {
@@ -160,6 +168,7 @@ class CategoryDetailsScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.deleteCategoryKeyword(
+                    token = uiState.value.userDetails.token,
                     categoryId = categoryId,
                     keywordId = keywordId
                 )
@@ -199,6 +208,7 @@ class CategoryDetailsScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.deleteCategory(
+                    token = uiState.value.userDetails.token,
                     categoryId = categoryId,
                 )
                 if(response.isSuccessful) {
@@ -229,7 +239,10 @@ class CategoryDetailsScreenViewModel(
     fun getCategory() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getCategoryDetails(categoryId = uiState.value.categoryId.toInt())
+                val response = apiRepository.getCategoryDetails(
+                    token = uiState.value.userDetails.token,
+                    categoryId = uiState.value.categoryId.toInt()
+                )
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
@@ -253,14 +266,21 @@ class CategoryDetailsScreenViewModel(
         }
     }
 
-    init {
-        if(categoryId != null) {
+    fun getUserDetails() {
+        viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    categoryId = categoryId
+                    userDetails = dbRepository.getUsers().first()[0]
                 )
+            }
+            while(uiState.value.userDetails.userId == 0) {
+                delay(1000)
             }
             getCategory()
         }
+    }
+
+    init {
+        getUserDetails()
     }
 }

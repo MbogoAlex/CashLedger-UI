@@ -16,17 +16,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.Text
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -36,6 +45,8 @@ import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.theme.CashLedgerTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 object SMSFetchScreenDestination: AppNavigation {
     override val title: String = "SMS fetch Screen"
@@ -47,6 +58,7 @@ object SMSFetchScreenDestination: AppNavigation {
 @Composable
 fun SmsFetchScreenComposable(
     navigateToHomeScreen: () -> Unit,
+    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
@@ -61,13 +73,21 @@ fun SmsFetchScreenComposable(
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
         navigateToHomeScreen()
         viewModel.resetLoadingStatus()
+    } else if(uiState.errorCode == 401) {
+        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
+        viewModel.resetLoadingStatus()
     }
+
+    val scope = rememberCoroutineScope()
 
     val smsReadRequestPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
         if(isGranted) {
-            viewModel.getLatestTransactionCodes(context)
-        } else {
-
+            scope.launch {
+                while (uiState.userDetails.userId == 0) {
+                    delay(1000)
+                }
+                viewModel.getLatestTransactionCodes(context)
+            }
         }
     }
 
@@ -80,14 +100,14 @@ fun SmsFetchScreenComposable(
     }
 
     LaunchedEffect(smsReadPermissionState, smsReceivePermissionState) {
-//        if(!smsReceivePermissionState.status.isGranted) {
-//            smsReceivePermissionHandler.launch(Manifest.permission.RECEIVE_SMS)
-//        }
 
         if(!smsReadPermissionState.status.isGranted) {
 //            Todo: Show rationale if needed
             smsReadRequestPermissionHandler.launch(Manifest.permission.READ_SMS)
         } else {
+            while (uiState.userDetails.userId == 0) {
+                delay(1000)
+            }
             viewModel.getLatestTransactionCodes(context)
         }
 
@@ -111,7 +131,15 @@ fun SmsFetchScreen(
     messagesSent: Float,
     modifier: Modifier = Modifier
 ) {
+    var text by rememberSaveable {
+        mutableStateOf("Fetching transactions...")
+    }
+    LaunchedEffect(Unit) {
+        delay(2000)
+        text = "Wait a minute..."
+    }
     Column(
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(
@@ -121,18 +149,29 @@ fun SmsFetchScreen(
             .fillMaxSize()
     ) {
         Image(
-            painter = painterResource(id = R.drawable.cashledger_logo),
+            painter = painterResource(id = R.drawable.undraw_person),
             contentDescription = null,
             modifier = Modifier
-                .weight(1f)
+                .size(450.dp)
         )
-//        Spacer(modifier = Modifier.weight(1f))
+
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = text,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+        )
+        Spacer(modifier = Modifier.weight(1f))
         LinearProgressIndicator(
             progress = { (messagesSent / messagesSize).toFloat() },
             modifier = Modifier
                 .height(20.dp)
                 .fillMaxWidth(),
         )
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 

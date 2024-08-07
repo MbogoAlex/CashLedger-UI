@@ -8,15 +8,15 @@ import androidx.work.workDataOf
 import java.time.Duration
 
 interface WorkersRepository {
-    suspend fun fetchAndPostMessages(userId: Int)
+    suspend fun fetchAndPostMessages(token: String, userId: Int)
 }
 
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
-    override suspend fun fetchAndPostMessages(userId: Int) {
+    override suspend fun fetchAndPostMessages(token: String, userId: Int) {
         // Periodic work request for fetching messages
         val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(12))
-            .setInputData(workDataOf("userId" to userId))
+            .setInputData(workDataOf("userId" to userId, "token" to token))
             .setInitialDelay(Duration.ofHours(12))
             .build()
 

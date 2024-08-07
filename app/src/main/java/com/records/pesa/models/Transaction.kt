@@ -23,7 +23,7 @@ data class TransactionDt(
 
 @Serializable
 data class TransactionItem(
-    val transactionId: Int,
+    val transactionId: Int?,
     val transactionCode: String,
     val transactionType: String,
     val transactionAmount: Double,
@@ -35,7 +35,7 @@ data class TransactionItem(
     val recipient: String,
     val entity: String,
     val balance: Double,
-    val categories: List<ItemCategory>
+    val categories: List<ItemCategory>?
 )
 
 @Serializable

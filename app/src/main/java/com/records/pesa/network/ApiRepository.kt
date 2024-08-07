@@ -35,49 +35,49 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface ApiRepository {
-    suspend fun postMessages(id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
-    suspend fun getTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
-    suspend fun getMoneyIn(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
-    suspend fun getMoneyOut(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
+    suspend fun postMessages(token: String, id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
+    suspend fun getTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
+    suspend fun getMoneyIn(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
+    suspend fun getMoneyOut(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
 
-    suspend fun getMoneyInSortedTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
-    suspend fun getMoneyOutSortedTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+    suspend fun getMoneyInSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+    suspend fun getMoneyOutSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
-    suspend fun getCurrentBalance(userId: Int): Response<CurrentBalanceResponseBody>
+    suspend fun getCurrentBalance(token: String, userId: Int): Response<CurrentBalanceResponseBody>
 
-    suspend fun getUserCategories(userId: Int, categoryId: Int?, name: String?, orderBy: String?): Response<CategoriesResponseBody>
+    suspend fun getUserCategories(token: String, userId: Int, categoryId: Int?, name: String?, orderBy: String?): Response<CategoriesResponseBody>
 
-    suspend fun getCategoryDetails(categoryId: Int): Response<CategoryResponseBody>
-    suspend fun createCategory(userId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+    suspend fun getCategoryDetails(token: String, categoryId: Int): Response<CategoryResponseBody>
+    suspend fun createCategory(token: String, userId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
 
-    suspend fun updateCategoryName(categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+    suspend fun updateCategoryName(token: String, categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
 
-    suspend fun addCategoryMembers(categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
+    suspend fun addCategoryMembers(token: String, categoryId: Int, category: CategoryEditPayload): Response<CategoryResponseBody>
 
-    suspend fun updateCategoryKeyword(keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody>
+    suspend fun updateCategoryKeyword(token: String, keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody>
 
-    suspend fun deleteCategoryKeyword(categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody>
+    suspend fun deleteCategoryKeyword(token: String, categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody>
 
-    suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody>
+    suspend fun deleteCategory(token: String, categoryId: Int): Response<CategoryDeleteResponseBody>
 
-    suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody>
+    suspend fun updateTransaction(token: String, transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody>
 
-    suspend fun getUserBudgets(userId: Int, name: String?): Response<BudgetResponseBody>
+    suspend fun getUserBudgets(token: String, userId: Int, name: String?): Response<BudgetResponseBody>
 
-    suspend fun getCategoryBudgets(categoryId: Int, name: String?): Response<BudgetResponseBody>
+    suspend fun getCategoryBudgets(token: String, categoryId: Int, name: String?): Response<BudgetResponseBody>
 
-    suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody>
+    suspend fun getBudget(token: String, budgetId: Int): Response<SingleBudgetResponseBody>
 
-    suspend fun createBudget(userId: Int, categoryId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
+    suspend fun createBudget(token: String, userId: Int, categoryId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
 
-    suspend fun updateBudget(budgetId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
-    suspend fun deleteBudget(budgetId: Int): Response<BudgetDeleteResponseBody>
+    suspend fun updateBudget(token: String, budgetId: Int, budget: BudgetEditPayLoad): Response<SingleBudgetResponseBody>
+    suspend fun deleteBudget(token: String, budgetId: Int): Response<BudgetDeleteResponseBody>
 
-    suspend fun getGroupedTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<GroupedTransactionsResponseBody>
+    suspend fun getGroupedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<GroupedTransactionsResponseBody>
 
-    suspend fun getGroupedByEntityTransactions(userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+    suspend fun getGroupedByEntityTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
-    suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody>
+    suspend fun getLatestTransactionCode(token: String, userId: Int): Response<TransactionCodesResponseBody>
 
     suspend fun registerUser(user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
 
@@ -89,14 +89,17 @@ interface ApiRepository {
 
 class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
     override suspend fun postMessages(
+        token: String,
         id: Int,
         messages: List<SmsMessage>
     ): Response<MessagesResponseBody> = apiService.postMessages(
+        token = "Bearer $token",
         id = id,
         messages = messages
     )
 
     override suspend fun getTransactions(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -105,9 +108,20 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         latest: Boolean,
         startDate: String?,
         endDate: String?
-    ): Response<TransactionResponseBody> = apiService.getTransactions(userId, entity, categoryId, budgetId, transactionType, latest, startDate, endDate)
+    ): Response<TransactionResponseBody> = apiService.getTransactions(
+        token = "Bearer $token",
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        latest = latest,
+        startDate = startDate,
+        endDate = endDate
+    )
 
     override suspend fun getMoneyIn(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -118,6 +132,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<TransactionResponseBody> = apiService.getMoneyIn(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -130,6 +145,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     )
 
     override suspend fun getMoneyOut(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -140,6 +156,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<TransactionResponseBody> = apiService.getMoneyOut(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -152,6 +169,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     )
 
     override suspend fun getMoneyInSortedTransactions(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -163,6 +181,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<SortedTransactionsResponseBody> = apiService.getMoneyInSortedTransactions(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -176,6 +195,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     )
 
     override suspend fun getMoneyOutSortedTransactions(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -187,6 +207,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<SortedTransactionsResponseBody> = apiService.getMoneyOutSortedTransactions(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -199,107 +220,131 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         endDate = endDate
     )
 
-    override suspend fun getCurrentBalance(userId: Int): Response<CurrentBalanceResponseBody> = apiService.getCurrentBalance(
+    override suspend fun getCurrentBalance(token: String, userId: Int): Response<CurrentBalanceResponseBody> = apiService.getCurrentBalance(
+        token = "Bearer $token",
         userId = userId
     )
 
     override suspend fun getUserCategories(
+        token: String,
         userId: Int,
         categoryId: Int?,
         name: String?,
         orderBy: String?
     ): Response<CategoriesResponseBody> = apiService.getUserCategories(
+        token = "Bearer $token",
         userId = userId,
         categoryId = categoryId,
         name = name,
         orderBy = orderBy
     )
 
-    override suspend fun getCategoryDetails(categoryId: Int): Response<CategoryResponseBody> = apiService.getCategoryDetails(
+    override suspend fun getCategoryDetails(token: String, categoryId: Int): Response<CategoryResponseBody> = apiService.getCategoryDetails(
+        token = "Bearer $token",
         categoryId = categoryId
     )
 
     override suspend fun createCategory(
+        token: String,
         userId: Int,
         category: CategoryEditPayload
     ): Response<CategoryResponseBody> = apiService.createCategory(
+        token = "Bearer $token",
         userId = userId,
         category = category
     )
 
     override suspend fun updateCategoryName(
+        token: String,
         categoryId: Int,
         category: CategoryEditPayload
     ): Response<CategoryResponseBody> = apiService.updateCategoryName(
+        token = "Bearer $token",
         categoryId = categoryId,
         category = category
     )
 
     override suspend fun addCategoryMembers(
+        token: String,
         categoryId: Int,
         category: CategoryEditPayload
     ): Response<CategoryResponseBody> = apiService.addCategoryMembers(
+        token = "Bearer $token",
         categoryId = categoryId,
         category = category
     )
 
-    override suspend fun updateCategoryKeyword(keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody> = apiService.updateCategoryKeyword(
+    override suspend fun updateCategoryKeyword(token: String, keyword: CategoryKeywordEditPayload): Response<CategoryKeywordEditResponseBody> = apiService.updateCategoryKeyword(
+        token = "Bearer $token",
         keyword = keyword
     )
 
-    override suspend fun deleteCategoryKeyword(categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody> = apiService.deleteCategoryKeyword(
+    override suspend fun deleteCategoryKeyword(token: String, categoryId: Int, keywordId: Int): Response<CategoryKeywordDeleteResponseBody> = apiService.deleteCategoryKeyword(
+        token = "Bearer $token",
         categoryId = categoryId,
         keywordId = keywordId
     )
 
-    override suspend fun deleteCategory(categoryId: Int): Response<CategoryDeleteResponseBody> = apiService.deleteCategory(
+    override suspend fun deleteCategory(token: String, categoryId: Int): Response<CategoryDeleteResponseBody> = apiService.deleteCategory(
+        token = "Bearer $token",
         categoryId = categoryId
     )
 
-    override suspend fun updateTransaction(transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody> = apiService.updateTransaction(
+    override suspend fun updateTransaction(token: String, transactionEditPayload: TransactionEditPayload): Response<TransactionEditResponseBody> = apiService.updateTransaction(
+        token = "Bearer $token",
         transactionEditPayload = transactionEditPayload
     )
 
-    override suspend fun getUserBudgets(userId: Int, name: String?): Response<BudgetResponseBody> = apiService.getUserBudgets(
+    override suspend fun getUserBudgets(token: String, userId: Int, name: String?): Response<BudgetResponseBody> = apiService.getUserBudgets(
+        token = "Bearer $token",
         userId = userId,
         name = name
     )
 
     override suspend fun getCategoryBudgets(
+        token: String,
         categoryId: Int,
         name: String?
     ): Response<BudgetResponseBody> = apiService.getCategoryBudgets(
+        token = "Bearer $token",
         categoryId = categoryId,
         name = name
     )
 
-    override suspend fun getBudget(budgetId: Int): Response<SingleBudgetResponseBody> = apiService.getBudget(
+    override suspend fun getBudget(token: String, budgetId: Int): Response<SingleBudgetResponseBody> = apiService.getBudget(
+        token = "Bearer $token",
         budgetId = budgetId
     )
 
     override suspend fun createBudget(
+        token: String,
         userId: Int,
         categoryId: Int,
         budget: BudgetEditPayLoad
     ): Response<SingleBudgetResponseBody> = apiService.createBudget(
+        token = "Bearer $token",
         userId = userId,
         categoryId = categoryId,
         budget = budget
     )
 
     override suspend fun updateBudget(
+        token: String,
         budgetId: Int,
         budget: BudgetEditPayLoad
     ): Response<SingleBudgetResponseBody> = apiService.updateBudget(
+        token = "Bearer $token",
         budgetId = budgetId,
         budget = budget
     )
 
-    override suspend fun deleteBudget(budgetId: Int): Response<BudgetDeleteResponseBody> = apiService.deleteBudget(
+    override suspend fun deleteBudget(token: String, budgetId: Int): Response<BudgetDeleteResponseBody> = apiService.deleteBudget(
+        token = "Bearer $token",
         budgetId = budgetId
     )
 
     override suspend fun getGroupedTransactions(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -308,6 +353,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<GroupedTransactionsResponseBody> = apiService.getGroupedTransactions(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -318,6 +364,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     )
 
     override suspend fun getGroupedByEntityTransactions(
+        token: String,
         userId: Int,
         entity: String?,
         categoryId: Int?,
@@ -326,6 +373,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         startDate: String,
         endDate: String
     ): Response<SortedTransactionsResponseBody> = apiService.getGroupedByEntityTransactions(
+        token = "Bearer $token",
         userId = userId,
         entity = entity,
         categoryId = categoryId,
@@ -335,7 +383,10 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         endDate = endDate
     )
 
-    override suspend fun getLatestTransactionCode(userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCode(userId = userId)
+    override suspend fun getLatestTransactionCode(token: String, userId: Int): Response<TransactionCodesResponseBody> = apiService.getLatestTransactionCode(
+        token = "Bearer $token",
+        userId = userId
+    )
     override suspend fun registerUser(user: UserRegistrationPayload): Response<UserRegistrationResponseBody> = apiService.registerUser(
         user = user
     )
@@ -372,13 +423,13 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
                 email = response.body()?.data?.user?.userInfo?.email,
                 phoneNumber = response.body()?.data?.user?.userInfo?.phoneNumber!!,
                 password = password,
-                token = response.body()?.data?.token!!,
+                token = response.body()?.data?.user?.token!!,
                 paymentStatus = false
             )
             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
             dbRepository.updateAppLaunchStatus(
                 appLaunchStatus.copy(
-                    userId = response.body()?.data?.user?.userInfo?.id!!
+                    user_id = response.body()?.data?.user?.userInfo?.id!!
                 )
             )
             dbRepository.insertUser(userDetails)

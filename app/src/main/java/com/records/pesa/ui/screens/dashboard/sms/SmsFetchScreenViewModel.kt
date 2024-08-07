@@ -7,12 +7,15 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.SmsMessage
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -23,16 +26,30 @@ data class SmsFetchScreenUiState(
     val messagesSize: Float = 0.0f,
     val messagesSent: Float = 0.0f,
     val existingTransactionCodes: List<String> = emptyList(),
+    val userDetails: UserDetails = UserDetails(),
+    val errorCode: Int = 0,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
 class SmsFetchScreenViewModel(
-    private val apiRepository: ApiRepository
+    private val apiRepository: ApiRepository,
+    private val dbRepository: DBRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(value = SmsFetchScreenUiState())
     val uiState: StateFlow<SmsFetchScreenUiState> = _uiState.asStateFlow()
 
     private var allMessagesSent = mutableStateOf(false)
+
+    fun getUserDetails() {
+        viewModelScope.launch {
+            Log.d("USERS", dbRepository.getUsers().first()[0].toString())
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+        }
+    }
 
 
     fun fetchSmsMessages(context: Context) {
@@ -79,7 +96,7 @@ class SmsFetchScreenViewModel(
     }
 
     private fun filterMessagesToSend(messages: List<SmsMessage>): List<SmsMessage> {
-        val existingTransactionCodes = uiState.value.existingTransactionCodes.map { it.strip().lowercase() }
+        val existingTransactionCodes = uiState.value.existingTransactionCodes.map { it.trim().lowercase() }
         Log.d("EXISTING", existingTransactionCodes.toString())
         var i = 0
         val messagesToSend = mutableListOf<SmsMessage>()
@@ -109,7 +126,7 @@ class SmsFetchScreenViewModel(
                 val transactionCodeMatcher = Regex("\\b\\w{10}\\b").find(message.body)
                 if (transactionCodeMatcher != null) {
                     val transactionCode = transactionCodeMatcher.value
-                    transactionCodes.add(mapOf("code" to transactionCode.strip().lowercase(), "message" to message))
+                    transactionCodes.add(mapOf("code" to transactionCode.trim().lowercase(), "message" to message))
                 }
             } catch (e: Exception) {
                 Log.e("Exception:", e.toString())
@@ -145,8 +162,9 @@ class SmsFetchScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.postMessages(
+                    token = uiState.value.userDetails.token,
                     messages = messages,
-                    id = 1
+                    id = uiState.value.userDetails.userId
                 )
 
                 if (response.isSuccessful) {
@@ -180,6 +198,7 @@ class SmsFetchScreenViewModel(
     }
 
     fun getLatestTransactionCodes(context: Context) {
+        Log.d("USERS_WHEN_GETTING_LATEST_CODE", uiState.value.userDetails.toString())
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
@@ -187,7 +206,7 @@ class SmsFetchScreenViewModel(
         }
         viewModelScope.launch {
             try {
-                val response = apiRepository.getLatestTransactionCode(userId = 1)
+                val response = apiRepository.getLatestTransactionCode(token = uiState.value.userDetails.token, userId = uiState.value.userDetails.userId)
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
@@ -195,9 +214,16 @@ class SmsFetchScreenViewModel(
                         )
                     }
                     fetchSmsMessages(context)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            errorCode = response.code()
+                        )
+                    }
+                    Log.e("GetLatestTransactionCodeErrorResponse", response.toString())
                 }
             } catch (e: Exception) {
-
+                Log.e("GetLatestTransactionCodeErrorException", e.toString())
             }
         }
     }
@@ -205,9 +231,14 @@ class SmsFetchScreenViewModel(
     fun resetLoadingStatus() {
         _uiState.update {
             it.copy(
-                loadingStatus = LoadingStatus.INITIAL
+                loadingStatus = LoadingStatus.INITIAL,
+                errorCode = 0
             )
         }
+    }
+
+    init {
+        getUserDetails()
     }
 
 }

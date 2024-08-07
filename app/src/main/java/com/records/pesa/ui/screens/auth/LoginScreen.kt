@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -70,13 +71,29 @@ fun LoginScreenComposable(
     LaunchedEffect(Unit) {
         viewModel.buttonEnabled()
     }
-
+    
+    var showAlert by rememberSaveable {
+        mutableStateOf(false)
+    }
+    
     if(uiState.loginStatus == LoginStatus.SUCCESS) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
         navigateToSmsFetchScreen()
         viewModel.resetLoginStatus()
     } else if(uiState.loginStatus == LoginStatus.FAIL) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
+//        showAlert = true
+        viewModel.resetLoginStatus()
+    }
+
+    if(showAlert) {
+        AlertDialog(
+            text = {
+                Text(text = uiState.exception)
+            },
+            onDismissRequest = {showAlert = !showAlert },
+            confirmButton = { showAlert = !showAlert }
+        )
     }
 
     Box(
@@ -172,7 +189,7 @@ fun LoginScreen(
             trailingIcon = R.drawable.visibility_on,
             onValueChange = onChangePassword,
             keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Next,
+                imeAction = ImeAction.Done,
                 keyboardType = KeyboardType.Password
             ),
             visibility = passwordVisibility,

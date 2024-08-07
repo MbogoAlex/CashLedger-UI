@@ -7,19 +7,24 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class DashboardScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val currentBalance: Double = 0.0,
     val startDate: String = "2024-06-15",
     val endDate: String = "2024-06-15",
@@ -35,7 +40,8 @@ data class DashboardScreenUiState(
 @RequiresApi(Build.VERSION_CODES.O)
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(DashboardScreenUiState())
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
@@ -56,7 +62,10 @@ class DashboardScreenViewModel(
     fun getCurrentBalance() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getCurrentBalance(1)
+                val response = apiRepository.getCurrentBalance(
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId
+                )
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
@@ -78,7 +87,8 @@ class DashboardScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = null,
                     categoryId = null,
                     budgetId = null,
@@ -106,7 +116,13 @@ class DashboardScreenViewModel(
     fun  getCategories() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getUserCategories(1, null, null, "latest")
+                val response = apiRepository.getUserCategories(
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
+                    categoryId = null,
+                    name = null,
+                    orderBy = "latest"
+                )
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
@@ -130,7 +146,8 @@ class DashboardScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.getGroupedTransactions(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     entity = null,
                     categoryId = null,
                     budgetId = null,
@@ -172,11 +189,26 @@ class DashboardScreenViewModel(
         }
     }
 
+    fun getUserDetails() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+            while (uiState.value.userDetails.userId == 0) {
+                delay(1000)
+            }
+            getTransactions()
+            getCurrentBalance()
+            getCategories()
+            getGroupedTransactions()
+
+        }
+    }
+
     init {
         setInitialDates()
-        getTransactions()
-        getCurrentBalance()
-        getCategories()
-        getGroupedTransactions()
+        getUserDetails()
     }
 }

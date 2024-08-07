@@ -4,19 +4,24 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class BudgetCreationScreenUiState(
+    val userDetails: UserDetails = UserDetails(),
     val budgetName: String = "",
     val budgetLimit: String = "",
     val limitDate: LocalDate? = null,
@@ -29,7 +34,8 @@ data class BudgetCreationScreenUiState(
 )
 class BudgetCreationScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(BudgetCreationScreenUiState())
     val uiState: StateFlow<BudgetCreationScreenUiState> = _uiState.asStateFlow()
@@ -71,7 +77,13 @@ class BudgetCreationScreenViewModel(
         Log.i("CATEGORY_ID:", uiState.value.categoryId.toString())
         viewModelScope.launch {
             try {
-                val response = apiRepository.getUserCategories(1, uiState.value.categoryId?.toInt(), null, "latest")
+                val response = apiRepository.getUserCategories(
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
+                    categoryId = uiState.value.categoryId?.toInt(),
+                    name = null,
+                    orderBy = "latest"
+                )
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
@@ -102,7 +114,8 @@ class BudgetCreationScreenViewModel(
         viewModelScope.launch {
             try {
                 val response = apiRepository.createBudget(
-                    userId = 1,
+                    token = uiState.value.userDetails.token,
+                    userId = uiState.value.userDetails.userId,
                     categoryId = uiState.value.selectedCategory.id,
                     budget = budget
                 )
@@ -152,12 +165,26 @@ class BudgetCreationScreenViewModel(
         }
     }
 
+    private fun getUserDetails() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    userDetails = dbRepository.getUsers().first()[0]
+                )
+            }
+            while (uiState.value.userDetails.userId == 0) {
+                delay(1000)
+            }
+            getCategories()
+        }
+    }
+
     init {
         _uiState.update {
             it.copy(
                 categoryId = categoryId
             )
         }
-        getCategories()
+        getUserDetails()
     }
 }

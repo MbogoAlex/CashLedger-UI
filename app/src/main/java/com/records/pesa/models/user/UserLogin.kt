@@ -18,10 +18,10 @@ data class UserLoginResponseBody(
 @Serializable
 data class UserLoginDt(
     val user: UserInfoDt,
-    val token: String
 )
 
 @Serializable
 data class UserInfoDt(
-    val userInfo: UserDetailsData
+    val userInfo: UserDetailsData,
+    val token: String
 )
