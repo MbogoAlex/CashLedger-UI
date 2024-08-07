@@ -1,5 +1,6 @@
 package com.records.pesa.network
 
+import com.records.pesa.db.DBRepository
 import com.records.pesa.models.BudgetDeleteResponseBody
 import com.records.pesa.models.BudgetEditPayLoad
 import com.records.pesa.models.BudgetResponseBody
@@ -20,13 +21,18 @@ import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
+import kotlinx.coroutines.flow.first
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface ApiRepository {
     suspend fun postMessages(id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
@@ -75,11 +81,13 @@ interface ApiRepository {
 
     suspend fun registerUser(user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
 
-    suspend fun loginUser(user: UserLoginPayload): Response<UserLoginResponseBody>
+    suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody>
+
+    suspend fun getSubscriptionStatus(userId: Int): Response<SubscriptionStatusResponseBody>
 
 }
 
-class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
+class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
     override suspend fun postMessages(
         id: Int,
         messages: List<SmsMessage>
@@ -332,9 +340,51 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
         user = user
     )
 
-    override suspend fun loginUser(user: UserLoginPayload): Response<UserLoginResponseBody> = apiService.loginUser(
-        user = user
-    )
+    override  suspend fun getSubscriptionStatus(userId: Int): Response<SubscriptionStatusResponseBody> {
+        val response = apiService.getSubscriptionStatus(userId = userId)
+        if(response.isSuccessful) {
+            val userDetails = dbRepository.getUser(userId).first()
+            if(response.body()?.data?.payment!!) {
+                dbRepository.updateUser(
+                    userDetails.copy(
+                        paymentStatus = true
+                    )
+                )
+            } else {
+                dbRepository.updateUser(
+                    userDetails.copy(
+                        paymentStatus = false
+                    )
+                )
+            }
+        }
+        return response;
+    }
+
+    override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
+        val response = apiService.loginUser(user = user)
+
+        if(response.isSuccessful) {
+            val userDetails = UserDetails(
+                userId = response.body()?.data?.user?.userInfo?.id!!,
+                firstName = response.body()?.data?.user?.userInfo?.fname,
+                lastName = response.body()?.data?.user?.userInfo?.lname,
+                email = response.body()?.data?.user?.userInfo?.email,
+                phoneNumber = response.body()?.data?.user?.userInfo?.phoneNumber!!,
+                password = password,
+                token = response.body()?.data?.token!!,
+                paymentStatus = false
+            )
+            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            dbRepository.updateAppLaunchStatus(
+                appLaunchStatus.copy(
+                    userId = response.body()?.data?.user?.userInfo?.id!!
+                )
+            )
+            dbRepository.insertUser(userDetails)
+        }
+        return response
+    }
 
 
 }

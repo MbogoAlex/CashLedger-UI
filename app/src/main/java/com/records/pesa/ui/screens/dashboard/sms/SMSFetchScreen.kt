@@ -1,7 +1,9 @@
 package com.records.pesa.ui.screens.dashboard.sms
 
 import android.Manifest
+import android.app.Activity
 import android.widget.Space
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -47,7 +49,9 @@ fun SmsFetchScreenComposable(
     navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
+    BackHandler(onBack = {activity?.finish()})
     val viewModel: SmsFetchScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
@@ -111,7 +115,8 @@ fun SmsFetchScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(
-                horizontal = 16.dp
+                horizontal = 16.dp,
+                vertical = 8.dp
             )
             .fillMaxSize()
     ) {

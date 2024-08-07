@@ -21,6 +21,7 @@ import com.records.pesa.models.TransactionCodesResponseBody
 import com.records.pesa.models.TransactionEditPayload
 import com.records.pesa.models.TransactionEditResponseBody
 import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
@@ -32,6 +33,7 @@ import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -250,4 +252,9 @@ interface ApiService {
     suspend fun loginUser(
         @Body user: UserLoginPayload
     ): Response<UserLoginResponseBody>
+
+    @GET("subscription/status/{userId}")
+    suspend fun getSubscriptionStatus(
+        @Path("userId") userId: Int
+    ): Response<SubscriptionStatusResponseBody>
 }

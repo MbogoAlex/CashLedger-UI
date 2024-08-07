@@ -8,6 +8,7 @@ interface DBRepository {
     suspend fun insertUser(user: UserDetails)
     suspend fun updateUser(user: UserDetails)
     fun getUser(userId: Int): Flow<UserDetails>
+    suspend fun deleteUser(userId: Int)
     fun getUsers(): Flow<List<UserDetails>>
     suspend fun insertAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
@@ -20,6 +21,7 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
     override suspend fun updateUser(user: UserDetails) = appDao.updateUser(user)
 
     override fun getUser(userId: Int): Flow<UserDetails> = appDao.getUser(userId)
+    override suspend fun deleteUser(userId: Int) = appDao.deleteUser(userId)
 
     override fun getUsers(): Flow<List<UserDetails>> = appDao.getUsers()
 

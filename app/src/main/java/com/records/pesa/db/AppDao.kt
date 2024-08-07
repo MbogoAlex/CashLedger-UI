@@ -17,6 +17,9 @@ interface AppDao {
     @Update
     suspend fun updateUser(user: UserDetails)
 
+    @Query("delete from user where userId = :userId")
+    suspend fun deleteUser(userId: Int)
+
     @Query("select * from user where userId = :userId")
     fun getUser(userId: Int): Flow<UserDetails>
 

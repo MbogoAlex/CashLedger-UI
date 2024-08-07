@@ -8,11 +8,12 @@ import androidx.room.PrimaryKey
 data class UserDetails(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val userId: Int,
-    val firstName: String?,
-    val lastName: String?,
-    val email: String?,
-    val phoneNumber: String,
-    val password: String,
-    val paymentStatus: Boolean
+    val userId: Int = 0,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val email: String? = null,
+    val phoneNumber: String = "",
+    val password: String = "",
+    val token: String = "",
+    val paymentStatus: Boolean = false
 )

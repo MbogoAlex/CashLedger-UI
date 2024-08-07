@@ -8,8 +8,11 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.records.pesa.db.DBRepository
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.ui.screens.DashboardScreenViewModel
+import com.records.pesa.ui.screens.SplashScreenViewModel
+import com.records.pesa.ui.screens.auth.RegistrationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenViewModel
@@ -134,6 +137,24 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             SmsFetchScreenViewModel(
                 apiRepository = apiRepository
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            SplashScreenViewModel(
+                apiRepository = apiRepository,
+                dbRepository = dbRepository
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            RegistrationScreenViewModel(
+                apiRepository = apiRepository,
+                dbRepository = dbRepository
             )
         }
     }

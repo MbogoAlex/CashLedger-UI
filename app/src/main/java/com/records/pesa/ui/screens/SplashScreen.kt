@@ -6,10 +6,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -23,11 +27,21 @@ object SplashScreenDestination: AppNavigation {
 @Composable
 fun SplashScreenComposable(
     navigateToSmsFetchScreen: () -> Unit,
+    navigateToRegistrationScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    val viewModel: SplashScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
     LaunchedEffect(Unit) {
         delay(2000L)
-        navigateToSmsFetchScreen()
+        if(uiState.appLaunchStatus.userId != null) {
+            navigateToSmsFetchScreen()
+        } else {
+            navigateToRegistrationScreen()
+        }
+
     }
 
     Box(

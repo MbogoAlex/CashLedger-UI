@@ -37,12 +37,14 @@ class AppContainerImpl(context: Context): AppContainer {
         retrofit.create(ApiService::class.java)
     }
 
-    override val apiRepository: ApiRepository by lazy {
-        ApiRepositoryImpl(retrofitService)
-    }
-    override val workersRepository: WorkersRepository = WorkersRepositoryImpl(context)
-
     override val dbRepository: DBRepository by lazy {
         DBRepositoryImpl(AppDatabase.getDatabase(context).appDao())
     }
+
+    override val apiRepository: ApiRepository by lazy {
+        ApiRepositoryImpl(retrofitService, dbRepository)
+    }
+    override val workersRepository: WorkersRepository = WorkersRepositoryImpl(context)
+
+
 }
