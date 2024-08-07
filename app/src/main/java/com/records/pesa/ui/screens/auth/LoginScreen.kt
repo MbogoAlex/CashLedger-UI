@@ -1,7 +1,11 @@
 package com.records.pesa.ui.screens.auth
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -17,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,24 +31,88 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.ui.theme.CashLedgerTheme
+
+object LoginScreenDestination: AppNavigation {
+    override val title: String = "Login screen"
+    override val route: String = "login-screen"
+    val phoneNumber: String = "phoneNumber"
+    val password: String = "password"
+    val routeWithArgs: String = "$route/{$phoneNumber}/{$password}"
+
+}
 
 @Composable
 fun LoginScreenComposable(
+    navigateToRegistrationScreen: () -> Unit,
+    navigateToSmsFetchScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val activity = (LocalContext.current as? Activity)
+    val context = LocalContext.current
+
+    BackHandler(onBack = navigateToRegistrationScreen)
+
+    val viewModel: LoginScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.buttonEnabled()
+    }
+
+    if(uiState.loginStatus == LoginStatus.SUCCESS) {
+        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
+        navigateToSmsFetchScreen()
+        viewModel.resetLoginStatus()
+    } else if(uiState.loginStatus == LoginStatus.FAIL) {
+        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
+    }
+
+    Box(
+        modifier = Modifier
+            .safeDrawingPadding()
+    ) {
+       LoginScreen(
+           phoneNumber = uiState.phoneNumber,
+           onChangePhoneNumber = {
+               viewModel.updatePhoneNumber(it)
+               viewModel.buttonEnabled()
+           },
+           password = uiState.password,
+           onChangePassword = {
+               viewModel.updatePassword(it)
+               viewModel.buttonEnabled()
+           },
+           buttonEnabled = uiState.loginButtonEnabled,
+           onLogin = { viewModel.loginUser() },
+           navigateToRegistrationScreen = navigateToRegistrationScreen,
+           loginStatus = uiState.loginStatus
+       )
+    }
 
 }
 
 @Composable
 fun LoginScreen(
+    phoneNumber: String,
+    onChangePhoneNumber: (value: String) -> Unit,
+    password: String,
+    onChangePassword: (value: String) -> Unit,
+    buttonEnabled: Boolean,
+    onLogin: () -> Unit,
+    navigateToRegistrationScreen: () -> Unit,
+    loginStatus: LoginStatus,
     modifier: Modifier = Modifier
 ) {
     var passwordVisibility by rememberSaveable {
@@ -75,7 +146,7 @@ fun LoginScreen(
                     color = MaterialTheme.colorScheme.scrim,
                 )
             },
-            value = "",
+            value = phoneNumber,
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.phone),
@@ -86,7 +157,7 @@ fun LoginScreen(
                 imeAction = ImeAction.Next,
                 keyboardType = KeyboardType.Phone
             ),
-            onValueChange = {},
+            onValueChange = onChangePhoneNumber,
             colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
@@ -97,9 +168,9 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(20.dp))
         PasswordInputField(
             heading = "Password",
-            value = "",
+            value = password,
             trailingIcon = R.drawable.visibility_on,
-            onValueChange = {},
+            onValueChange = onChangePassword,
             keyboardOptions = KeyboardOptions.Default.copy(
                 imeAction = ImeAction.Next,
                 keyboardType = KeyboardType.Password
@@ -114,16 +185,21 @@ fun LoginScreen(
                 text = "Register",
                 color = MaterialTheme.colorScheme.surfaceTint,
                 modifier = Modifier
-                    .clickable {  }
+                    .clickable { navigateToRegistrationScreen() }
             )
         }
         Spacer(modifier = Modifier.weight(1f))
         Button(
-            onClick = { /*TODO*/ },
+            enabled = buttonEnabled && loginStatus != LoginStatus.LOADING,
+            onClick = onLogin,
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            Text(text = "Login")
+            if(loginStatus == LoginStatus.LOADING) {
+                Text(text = "Loading...")
+            } else {
+                Text(text = "Login")
+            }
         }
     }
 }
@@ -132,6 +208,15 @@ fun LoginScreen(
 @Composable
 fun LoginScreenPreview() {
     CashLedgerTheme {
-        LoginScreen()
+        LoginScreen(
+            phoneNumber = "",
+            onChangePhoneNumber = {},
+            password = "",
+            onChangePassword = {},
+            buttonEnabled = false,
+            onLogin = { /*TODO*/ },
+            navigateToRegistrationScreen = { /*TODO*/ },
+            loginStatus = LoginStatus.INITIAL
+        )
     }
 }
