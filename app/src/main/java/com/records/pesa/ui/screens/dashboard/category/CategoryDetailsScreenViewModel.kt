@@ -237,6 +237,7 @@ class CategoryDetailsScreenViewModel(
         }
     }
     fun getCategory() {
+        Log.d("getCategoryWithDetails", "${uiState.value.userDetails.token}, ${uiState.value.categoryId}")
         viewModelScope.launch {
             try {
                 val response = apiRepository.getCategoryDetails(
@@ -250,10 +251,10 @@ class CategoryDetailsScreenViewModel(
                         )
                     }
                 } else {
-                    Log.e("CategoryDetailsScreenViewModel", "getCategory: $response")
+                    Log.e("CategoryDetailsResponseError", "getCategory: $response")
                 }
             } catch (e: Exception) {
-                Log.e("CategoryDetailsScreenViewModel", "getCategory: $e")
+                Log.e("CategoryDetailsException", "getCategory: $e")
             }
         }
     }
@@ -281,6 +282,11 @@ class CategoryDetailsScreenViewModel(
     }
 
     init {
+        _uiState.update {
+            it.copy(
+                categoryId = categoryId!!
+            )
+        }
         getUserDetails()
     }
 }

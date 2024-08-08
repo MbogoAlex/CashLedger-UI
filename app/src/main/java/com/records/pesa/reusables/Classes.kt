@@ -2,9 +2,7 @@ package com.records.pesa.reusables
 
 enum class TransactionScreenTab {
     ALL_TRANSACTIONS,
-    MONEY_IN,
-    MONEY_OUT,
-    CHART
+    GROUPED,
 }
 
 data class TransactionScreenTabItem(
@@ -14,9 +12,11 @@ data class TransactionScreenTabItem(
 )
 
 enum class HomeScreenTab {
-    DASHBOARD,
-    CHART,
-    BUDGET
+    HOME,
+    ALL_TRANSACTIONS,
+    CATEGORIES,
+    BUDGETS,
+    ACCOUNT_INFO
 }
 
 data class HomeScreenTabItem(

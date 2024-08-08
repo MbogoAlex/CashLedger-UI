@@ -132,6 +132,9 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
+                },
+                navigateToLoginScreenWithArgs = {phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }

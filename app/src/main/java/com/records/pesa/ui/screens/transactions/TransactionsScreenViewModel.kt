@@ -1,15 +1,13 @@
 package com.records.pesa.ui.screens.transactions
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.SortedTransactionItem
-import com.records.pesa.models.TransactionEditPayload
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.SortedTransactionItem
+import com.records.pesa.models.transaction.TransactionEditPayload
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
@@ -49,7 +47,7 @@ data class TransactionsScreenUiState(
     val errorCode: Int = 0,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
-class TransactionsScreenViewModelScreen(
+class TransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository
@@ -94,9 +92,7 @@ class TransactionsScreenViewModelScreen(
 
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
-            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
-            TransactionScreenTab.CHART -> {}
+            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
         }
     }
 
@@ -108,9 +104,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
-            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
-            TransactionScreenTab.CHART -> {}
+            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
         }
     }
 
@@ -122,9 +116,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
-            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
-            TransactionScreenTab.CHART -> {}
+            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
         }
     }
 
@@ -136,9 +128,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
-            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
-            TransactionScreenTab.CHART -> {}
+            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
         }
     }
 
@@ -150,9 +140,7 @@ class TransactionsScreenViewModelScreen(
         }
         when(tab) {
             TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.MONEY_IN -> getGroupedByEntityTransactions()
-            TransactionScreenTab.MONEY_OUT -> getMoneyOutSortedTransactions()
-            TransactionScreenTab.CHART -> {}
+            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
         }
 
     }

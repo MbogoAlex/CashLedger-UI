@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.records.pesa.composables.SortedTransactionItemCell
-import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.reusables.moneyOutSortedTransactionItems
 import com.records.pesa.ui.theme.CashLedgerTheme
 

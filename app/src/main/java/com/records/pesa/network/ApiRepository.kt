@@ -11,28 +11,29 @@ import com.records.pesa.models.CategoryKeywordDeleteResponseBody
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
-import com.records.pesa.models.CurrentBalanceResponseBody
-import com.records.pesa.models.GroupedTransactionsResponseBody
+import com.records.pesa.models.transaction.CurrentBalanceResponseBody
+import com.records.pesa.models.transaction.GroupedTransactionsResponseBody
 import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
-import com.records.pesa.models.SortedTransactionsResponseBody
-import com.records.pesa.models.TransactionCodesResponseBody
-import com.records.pesa.models.TransactionEditPayload
-import com.records.pesa.models.TransactionEditResponseBody
-import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.transaction.SortedTransactionsResponseBody
+import com.records.pesa.models.transaction.TransactionCodesResponseBody
+import com.records.pesa.models.transaction.TransactionEditPayload
+import com.records.pesa.models.transaction.TransactionEditResponseBody
+import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import kotlinx.coroutines.flow.first
 import retrofit2.Response
-import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.POST
+import retrofit2.http.Header
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiRepository {
     suspend fun postMessages(token: String, id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
@@ -84,6 +85,9 @@ interface ApiRepository {
     suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody>
 
     suspend fun getSubscriptionStatus(userId: Int): Response<SubscriptionStatusResponseBody>
+
+    suspend fun getGroupedByMonthTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, month: String, year: String): Response<MonthlyTransactionsResponseBody>
+    suspend fun updateUserDetails(token: String, userId: Int, user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
 
 }
 
@@ -408,6 +412,49 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
                     )
                 )
             }
+        }
+        return response;
+    }
+
+    override suspend fun getGroupedByMonthTransactions(
+        token: String,
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        month: String,
+        year: String
+    ): Response<MonthlyTransactionsResponseBody> = apiService.getGroupedByMonthTransactions(
+        token = "Bearer $token",
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        month = month,
+        year = year
+    )
+
+    override suspend fun updateUserDetails(
+        token: String,
+        userId: Int,
+        user: UserRegistrationPayload
+    ): Response<UserRegistrationResponseBody> {
+        val response = apiService.updateUserDetails(
+            token = "Bearer $token",
+            userId = userId,
+            user = user
+        )
+        if(response.isSuccessful) {
+            val userDetails = dbRepository.getUser(userId).first()
+            dbRepository.updateUser(
+                userDetails.copy(
+                    firstName = response.body()?.data?.user?.fname,
+                    lastName = response.body()?.data?.user?.lname,
+                    email = response.body()?.data?.user?.email,
+                )
+            )
         }
         return response;
     }

@@ -34,7 +34,7 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.transactions

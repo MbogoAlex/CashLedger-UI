@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.dashboard.chart
 
+//import com.records.pesa.ui.screens.dashboard.chart.setup.LineChart
 import android.app.DatePickerDialog
 import android.graphics.Paint
 import android.os.Build
@@ -12,9 +13,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +57,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -101,10 +99,6 @@ import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
 import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLineComponent
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisTickComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
 import com.patrykandpatrick.vico.compose.cartesian.fullWidth
@@ -123,25 +117,20 @@ import com.patrykandpatrick.vico.core.cartesian.axis.BaseAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.AxisValueOverrider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.LineCartesianLayerModel
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.core.common.Dimensions
-import com.patrykandpatrick.vico.core.common.component.TextComponent
 import com.patrykandpatrick.vico.core.common.shader.DynamicShader
 import com.patrykandpatrick.vico.core.common.shape.Shape
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.GroupedTransactionData
-import com.records.pesa.nav.AppNavigation
+import com.records.pesa.models.transaction.GroupedTransactionData
+import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionTypes
-import com.records.pesa.ui.screens.dashboard.chart.setup.LineChart
-import com.records.pesa.ui.screens.dashboard.chart.setup.debounce
-//import com.records.pesa.ui.screens.dashboard.chart.setup.LineChart
 import com.records.pesa.ui.screens.dashboard.chart.setup.getGroupBarChartData
 import com.records.pesa.ui.screens.dashboard.chart.vico.rememberMarker
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -150,7 +139,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
@@ -184,7 +172,7 @@ fun CombinedChartScreenComposable(
             .safeDrawingPadding()
     ) {
         CombinedChartScreen(
-            transactions = uiState.transactions,
+            transactions = uiState.monthlyTransactions,
             totalMoneyIn = formatMoneyValue(uiState.totalMoneyIn),
             totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
             maxAmount = uiState.maxAmount,
@@ -217,7 +205,7 @@ fun CombinedChartScreenComposable(
 
 @Composable
 fun CombinedChartScreen(
-    transactions: List<GroupedTransactionData>,
+    transactions: List<MonthlyTransaction>,
     totalMoneyIn: String,
     totalMoneyOut: String,
     maxAmount: Float,
@@ -402,7 +390,6 @@ fun CombinedChartScreen(
 }
 
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DateRangePickerDialog(
     startDate: LocalDate,
@@ -473,7 +460,6 @@ fun DateRangePickerDialog(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DateRangePicker(
     startDate: LocalDate,
@@ -568,7 +554,7 @@ fun DateRangePicker(
 
 @Composable
 fun BarWithLineChart(
-    transactions: List<GroupedTransactionData>,
+    transactions: List<MonthlyTransaction>,
     maxAmount: Float,
     moneyInPointsData: List<Point>,
     moneyOutPointsData: List<Point>,
@@ -646,29 +632,6 @@ fun BarWithLineChart(
                         }
                     )
                 ),
-//                Line(
-//                    dataPoints = moneyOutPointsData,
-//                    LineStyle(
-//                        color = MaterialTheme.colorScheme.error,
-//                        width = 3f
-//                    ),
-//                    IntersectionPoint(
-//                        color = MaterialTheme.colorScheme.error
-//                    ),
-//                    SelectionHighlightPoint(
-//                        color = MaterialTheme.colorScheme.primary
-//                    ),
-//                    ShadowUnderLine(
-//                        alpha = 0.5f,
-//                        brush = Brush.verticalGradient(
-//                            colors = listOf(
-//                                MaterialTheme.colorScheme.error,
-//                                Color.Transparent
-//                            )
-//                        )
-//                    ),
-//                    SelectionHighlightPopUp()
-//                )
             )
         ),
         xAxisData = xAxisData,
@@ -690,35 +653,6 @@ fun BarWithLineChart(
         label = "Animated Max Amount"
     ) { it }
 
-    val debouncedTriggerRebuild = debounce(300L, scope) { range: Pair<Int, Int> ->
-        maxAmount = transactions.subList(range.first, range.second).maxOf { maxOf(it.moneyIn, it.moneyOut) }
-        maxAmount
-    }
-
-
-//    LineChart(
-//        modifier = modifier
-//            .fillMaxHeight(),
-//        lineChartData = lineChartData,
-//        triggerRebuild = {xStart, xEnd ->
-//            scrollJob?.cancel()
-//            scrollJob = scope.launch {
-//                delay(0) // Throttle updates to every 50ms
-//                val newMaxAmount = transactions.subList(xStart, xEnd).maxOf { maxOf(it.moneyIn, it.moneyOut) }
-//                targetMaxAmount = newMaxAmount
-//                maxAmount = newMaxAmount
-//
-//            }
-//            maxAmount
-//        }
-//    )
-
-//    CanvasChart(
-//        transactions = transactions,
-//        modifier = modifier
-//            .fillMaxHeight()
-//            .fillMaxWidth()
-//    )
 
     Chart3(
         transactions = transactions,
@@ -736,9 +670,9 @@ fun BarWithLineChart(
 
 
 @Composable
-internal fun Chart3(transactions: List<GroupedTransactionData>, modifier: Modifier) {
+internal fun Chart3(transactions: List<MonthlyTransaction>, modifier: Modifier) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(transactions) {
         withContext(Dispatchers.Default) {
             while (isActive) {
                 modelProducer.runTransaction {
@@ -758,7 +692,7 @@ internal fun Chart3(transactions: List<GroupedTransactionData>, modifier: Modifi
 }
 val pointerXDeltas = MutableSharedFlow<Float>(extraBufferCapacity = 1)
 @Composable
-private fun ComposeChart3(transactions: List<GroupedTransactionData>, modelProducer: CartesianChartModelProducer, modifier: Modifier) {
+private fun ComposeChart3(transactions: List<MonthlyTransaction>, modelProducer: CartesianChartModelProducer, modifier: Modifier) {
     val axisValueOverrider = AxisValueOverrider.adaptiveYValues(yFraction = 1.2f, round = true)
     val lineColor = Color(0xffffbb00)
     val bottomAxisLabelBackgroundColor = Color(0xff9db591)
@@ -1014,7 +948,7 @@ fun CombinedChartScreenPreview(
                 .safeDrawingPadding()
         ) {
             CombinedChartScreen(
-                transactions = groupedTransactions,
+                transactions = emptyList(),
                 totalMoneyIn = "Ksh3,200",
                 totalMoneyOut = "Ksh2,500",
                 maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) },

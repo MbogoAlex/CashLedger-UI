@@ -1,7 +1,5 @@
 package com.records.pesa
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
@@ -24,14 +22,15 @@ import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewM
 import com.records.pesa.ui.screens.dashboard.chart.ChartHomeScreenViewModel
 import com.records.pesa.ui.screens.dashboard.chart.CombinedChartScreenViewModel
 import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenViewModel
+import com.records.pesa.ui.screens.profile.AccountInformationScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
-import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModelScreen
+import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModel
 
 object AppViewModelFactory {
     val Factory = viewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
-            TransactionsScreenViewModelScreen(
+            TransactionsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository
@@ -178,6 +177,15 @@ object AppViewModelFactory {
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
                 savedStateHandle = this.createSavedStateHandle()
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            AccountInformationScreenViewModel(
+                apiRepository = apiRepository,
+                dbRepository = dbRepository
             )
         }
     }

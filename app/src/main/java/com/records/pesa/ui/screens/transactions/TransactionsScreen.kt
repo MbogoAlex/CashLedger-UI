@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,8 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,11 +37,9 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,34 +53,29 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.SortedTransactionItem
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.SortedTransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.moneyInSortedTransactionItems
 import com.records.pesa.reusables.moneyOutSortedTransactionItems
-import com.records.pesa.reusables.sortTypes
 import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -112,7 +102,7 @@ fun TransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: TransactionsScreenViewModelScreen = viewModel(factory = AppViewModelFactory.Factory)
+    val viewModel: TransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
     val tabs = listOf(
         TransactionScreenTabItem(
@@ -121,19 +111,9 @@ fun TransactionsScreenComposable(
             icon = R.drawable.list
         ),
         TransactionScreenTabItem(
-            name = "Money in",
-            tab = TransactionScreenTab.MONEY_IN,
-            icon = R.drawable.arrow_downward
-        ),
-        TransactionScreenTabItem(
-            name = "Money out",
-            tab = TransactionScreenTab.MONEY_OUT,
-            icon = R.drawable.arrow_upward
-        ),
-        TransactionScreenTabItem(
-            name = "Chart",
-            tab = TransactionScreenTab.CHART,
-            icon = R.drawable.chart
+            name = "Grouped",
+            tab = TransactionScreenTab.GROUPED,
+            icon = R.drawable.grouped
         ),
     )
 
@@ -178,12 +158,9 @@ fun TransactionsScreenComposable(
             onTabSelected = {
                 transactionsLoaded = false
                 currentTab = it
-                if(it == TransactionScreenTab.MONEY_IN && !transactionsLoaded) {
+                if(it == TransactionScreenTab.GROUPED && !transactionsLoaded) {
                     transactionsLoaded = true
                     viewModel.getGroupedByEntityTransactions()
-                } else if(it == TransactionScreenTab.MONEY_OUT && !transactionsLoaded) {
-                    transactionsLoaded = true
-                    viewModel.getMoneyOutSortedTransactions()
                 } else if(it == TransactionScreenTab.ALL_TRANSACTIONS && !transactionsLoaded) {
                     transactionsLoaded = true
                     viewModel.getTransactions()
@@ -245,7 +222,6 @@ fun TransactionsScreenComposable(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionsScreen(
     transactions: List<TransactionItem>,
@@ -289,20 +265,20 @@ fun TransactionsScreen(
     ) {
         Scaffold(
             backgroundColor = MaterialTheme.colorScheme.background,
-            floatingActionButton = {
-                Button(
-                    onClick = { /*TODO*/ },
-                    modifier = Modifier
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Statement")
-                        Icon(painter = painterResource(id = R.drawable.download), contentDescription = null)
-                    }
-
-                }
-            },
+//            floatingActionButton = {
+//                Button(
+//                    onClick = { /*TODO*/ },
+//                    modifier = Modifier
+//                ) {
+//                    Row(
+//                        verticalAlignment = Alignment.CenterVertically
+//                    ) {
+//                        Text(text = "Statement")
+//                        Icon(painter = painterResource(id = R.drawable.download), contentDescription = null)
+//                    }
+//
+//                }
+//            },
             modifier = Modifier
                 .weight(1f)
         ) {
@@ -449,7 +425,7 @@ fun TransactionsScreen(
                                 )
                             }
                         }
-                        TransactionScreenTab.MONEY_IN -> {
+                        TransactionScreenTab.GROUPED -> {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
@@ -463,99 +439,15 @@ fun TransactionsScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.surfaceTint
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(
-                                    modifier = Modifier
-                                        .clickable {
-                                            onExpandSortMenu()
-                                        }
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(text = selectedSortCriteria)
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.sort),
-                                            contentDescription = "Sort"
-                                        )
-                                    }
-                                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                                        Column(
-                                            modifier = Modifier
-                                                .heightIn(max = 250.dp)
-                                                .padding(
-                                                    horizontal = 5.dp
-                                                )
-                                                .verticalScroll(rememberScrollState())
-                                        ) {
-                                            sortTypes.forEach {
-                                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                                    Text(text = it)
-                                                }
-                                                Divider()
-                                            }
-                                        }
-                                    }
-
-                                }
-                            }
-                        }
-                        TransactionScreenTab.MONEY_OUT -> {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .padding(
-                                        horizontal = 16.dp
-                                    )
-                            ) {
+                                Spacer(modifier = Modifier.weight(1f))
                                 Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
                                 Text(
                                     text = totalMoneyOut,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.error
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(
-                                    modifier = Modifier
-                                        .clickable {
-                                            onExpandSortMenu()
-                                        }
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(text = selectedSortCriteria)
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.sort),
-                                            contentDescription = "Sort"
-                                        )
-                                    }
-                                    DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = onExpandSortMenu) {
-                                        Column(
-                                            modifier = Modifier
-                                                .heightIn(max = 250.dp)
-                                                .padding(
-                                                    horizontal = 5.dp
-                                                )
-                                                .verticalScroll(rememberScrollState())
-                                        ) {
-                                            sortTypes.forEach {
-                                                DropdownMenuItem(onClick = { onSelectSortCriteria(it) }) {
-                                                    Text(text = it)
-                                                }
-                                                Divider()
-                                            }
-                                        }
-                                    }
-
-                                }
-
                             }
                         }
-
-                        TransactionScreenTab.CHART -> TODO()
                     }
 
 //        Spacer(modifier = Modifier.height(5.dp))
@@ -595,7 +487,20 @@ fun TransactionsScreen(
                                 }
                             }
                         }
-
+                        if(currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(onClick = { /*TODO*/ }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Statement")
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.download),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        }
 
                     }
                     when(currentTab) {
@@ -609,8 +514,8 @@ fun TransactionsScreen(
                                     .weight(1f)
                             )
                         }
-                        TransactionScreenTab.MONEY_IN -> {
-                            MoneyInScreenComposable(
+                        TransactionScreenTab.GROUPED -> {
+                            GroupedTransactionsScreenComposable(
                                 sortedTransactionItems = moneyInsortedTransactionItems,
                                 navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                                 modifier = Modifier
@@ -619,27 +524,6 @@ fun TransactionsScreen(
                                     )
                                     .weight(1f)
                             )
-                        }
-                        TransactionScreenTab.MONEY_OUT -> {
-                            MoneyOutScreenComposable(
-                                sortedTransactionItems = moneyOutsortedTransactionItems,
-                                navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                                modifier = Modifier
-                                    .padding(
-                                        horizontal = 16.dp
-                                    )
-                                    .weight(1f)
-                            )
-                        }
-                        TransactionScreenTab.CHART -> {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxSize()
-                            ) {
-                                Text(text = "Chart")
-                            }
                         }
                     }
                 }
@@ -692,19 +576,9 @@ fun TransactionsScreenPreview(
             icon = R.drawable.transactions
         ),
         TransactionScreenTabItem(
-            name = "Money in",
-            tab = TransactionScreenTab.MONEY_IN,
+            name = "Grouped",
+            tab = TransactionScreenTab.GROUPED,
             icon = R.drawable.arrow_downward
-        ),
-        TransactionScreenTabItem(
-            name = "Money out",
-            tab = TransactionScreenTab.MONEY_OUT,
-            icon = R.drawable.arrow_downward
-        ),
-        TransactionScreenTabItem(
-            name = "Chart",
-            tab = TransactionScreenTab.CHART,
-            icon = R.drawable.chart
         ),
     )
     CashLedgerTheme {
@@ -716,7 +590,7 @@ fun TransactionsScreenPreview(
             totalMoneyOut = "Ksh 4500",
             bottomTabItems = tabs,
             onTabSelected = {},
-            currentTab = TransactionScreenTab.MONEY_OUT,
+            currentTab = TransactionScreenTab.ALL_TRANSACTIONS,
             onExpandTypeMenu = {},
             selectedType = "All types",
             typeMenuExpanded = false,

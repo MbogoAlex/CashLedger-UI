@@ -36,19 +36,17 @@ import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.common.Dimensions
 import com.patrykandpatrick.vico.core.common.shape.Shape
 import com.records.pesa.composables.SortedTransactionItemCell
-import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.reusables.moneyInSortedTransactionItems
-import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.dashboard.chart.vico.rememberMarker
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlin.random.Random
 
 @Composable
-fun MoneyInScreenComposable(
+fun GroupedTransactionsScreenComposable(
     sortedTransactionItems: List<SortedTransactionItem>,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -57,7 +55,7 @@ fun MoneyInScreenComposable(
         modifier = modifier
             .safeDrawingPadding()
     ) {
-        MoneyInScreen(
+        GroupedTransactionsScreen(
             sortedTransactionItems = sortedTransactionItems,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen
         )
@@ -65,7 +63,7 @@ fun MoneyInScreenComposable(
 }
 
 @Composable
-fun MoneyInScreen(
+fun GroupedTransactionsScreen(
     sortedTransactionItems: List<SortedTransactionItem>,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -77,7 +75,7 @@ fun MoneyInScreen(
         LazyColumn {
             if(sortedTransactionItems.isNotEmpty()) {
                 item {
-                    Chart6(sortedTransactionItems, Modifier.height(450.dp))
+                    Chart6(sortedTransactionItems, Modifier.height(350.dp))
                 }
             }
 
@@ -183,9 +181,9 @@ private fun rememberComposeHorizontalBox(): HorizontalBox {
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun MoneyInScreenPreview() {
+fun GroupedTransactionsScreenPreview() {
     CashLedgerTheme {
-        MoneyInScreen(
+        GroupedTransactionsScreen(
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
             sortedTransactionItems = moneyInSortedTransactionItems
         )

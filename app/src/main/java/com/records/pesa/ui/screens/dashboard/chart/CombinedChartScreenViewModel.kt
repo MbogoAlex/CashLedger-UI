@@ -6,11 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.GroupedTransactionData
+import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.groupedTransactions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.Month
 
 data class CombinedChartScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -28,6 +29,7 @@ data class CombinedChartScreenUiState(
     val totalMoneyOut: Double = 0.0,
     val maxAmount: Float = 0.0f,
     val transactions: List<GroupedTransactionData> = emptyList(),
+    val monthlyTransactions: List<MonthlyTransaction> = emptyList(),
     val searchText: String = "",
     val transactionType: String = "All types",
     val categoryId: String? = null,

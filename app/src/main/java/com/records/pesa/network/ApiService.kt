@@ -11,17 +11,18 @@ import com.records.pesa.models.CategoryKeywordDeleteResponseBody
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.CategoryKeywordEditResponseBody
 import com.records.pesa.models.CategoryResponseBody
-import com.records.pesa.models.CurrentBalanceResponseBody
-import com.records.pesa.models.GroupedTransactionsResponseBody
+import com.records.pesa.models.transaction.CurrentBalanceResponseBody
+import com.records.pesa.models.transaction.GroupedTransactionsResponseBody
 import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
-import com.records.pesa.models.SortedTransactionsResponseBody
-import com.records.pesa.models.TransactionCodesResponseBody
-import com.records.pesa.models.TransactionEditPayload
-import com.records.pesa.models.TransactionEditResponseBody
-import com.records.pesa.models.TransactionResponseBody
+import com.records.pesa.models.transaction.SortedTransactionsResponseBody
+import com.records.pesa.models.transaction.TransactionCodesResponseBody
+import com.records.pesa.models.transaction.TransactionEditPayload
+import com.records.pesa.models.transaction.TransactionEditResponseBody
+import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
@@ -38,6 +39,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import java.time.Year
 
 interface ApiService {
     companion object {
@@ -282,4 +284,23 @@ interface ApiService {
     suspend fun getSubscriptionStatus(
         @Path("userId") userId: Int
     ): Response<SubscriptionStatusResponseBody>
+
+    @GET("transaction/grouped/month/year/{userId}")
+    suspend fun getGroupedByMonthTransactions(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int,
+        @Query("entity") entity: String?,
+        @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
+        @Query("transactionType") transactionType: String?,
+        @Query("month") month: String,
+        @Query("year") year: String
+    ): Response<MonthlyTransactionsResponseBody>
+
+    @PUT("user/{userId}")
+    suspend fun updateUserDetails(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int,
+        @Body user: UserRegistrationPayload
+    ): Response<UserRegistrationResponseBody>
 }

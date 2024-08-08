@@ -7,11 +7,11 @@ import com.records.pesa.models.BudgetDt
 import com.records.pesa.models.BudgetOwner
 import com.records.pesa.models.CategoryBudget
 import com.records.pesa.models.CategoryKeyword
-import com.records.pesa.models.GroupedTransactionData
-import com.records.pesa.models.ItemCategory
-import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.transaction.GroupedTransactionData
+import com.records.pesa.models.transaction.ItemCategory
+import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)

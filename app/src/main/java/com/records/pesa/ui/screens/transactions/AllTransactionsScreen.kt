@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.records.pesa.composables.TransactionItemCell
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 

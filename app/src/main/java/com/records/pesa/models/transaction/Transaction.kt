@@ -1,4 +1,4 @@
-package com.records.pesa.models
+package com.records.pesa.models.transaction
 
 import kotlinx.serialization.Serializable
 

@@ -1,6 +1,6 @@
 package com.records.pesa.models
 
-import androidx.compose.ui.layout.IntrinsicMeasurable
+import com.records.pesa.models.transaction.TransactionItem
 import kotlinx.serialization.Serializable
 
 @Serializable

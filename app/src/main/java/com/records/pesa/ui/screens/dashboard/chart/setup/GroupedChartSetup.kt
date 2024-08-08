@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,7 +66,7 @@ import co.yml.charts.ui.linechart.getMaxScrollDistance
 import co.yml.charts.ui.linechart.getYAxisScale
 import co.yml.charts.ui.linechart.isTapped
 import co.yml.charts.ui.linechart.model.LineChartData
-import com.records.pesa.models.GroupedTransactionData
+import com.records.pesa.models.transaction.GroupedTransactionData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

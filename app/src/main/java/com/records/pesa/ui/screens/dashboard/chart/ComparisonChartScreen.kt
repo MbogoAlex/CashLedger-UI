@@ -254,7 +254,7 @@ fun ChartOne(
             }
             Spacer(modifier = Modifier.height(10.dp))
             BarWithLineChart(
-                transactions = groupedTransactions,
+                transactions = emptyList(),
                 moneyInPointsData = groupedTransactions.mapIndexed { index, transaction ->
                     Point(index.toFloat(), transaction.moneyIn)
                 },

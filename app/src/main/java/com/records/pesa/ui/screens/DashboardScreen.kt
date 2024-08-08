@@ -1,38 +1,38 @@
 package com.records.pesa.ui.screens
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
+import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -44,34 +44,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.yml.charts.common.model.Point
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.accompanist.permissions.shouldShowRationale
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.composables.TransactionItemCell
-import com.records.pesa.functions.formatIsoDateTime
+import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.GroupedTransactionData
+import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.MonthlyTransaction
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
 import com.records.pesa.ui.theme.CashLedgerTheme
-import java.time.LocalDateTime
+import java.time.LocalDate
 
 object DashboardScreenDestination: AppNavigation {
     override val title: String = "Dashboard screen"
     override val route: String = "dashboard-screen"
 
 }
-@OptIn(ExperimentalPermissionsApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
@@ -83,9 +78,6 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-
-
-
     Box(
         modifier = modifier
             .safeDrawingPadding()
@@ -95,7 +87,18 @@ fun DashboardScreenComposable(
             moneyOutPointsData = uiState.moneyOutPointsData,
             maxAmount = uiState.maxAmount,
             groupedTransactions = uiState.groupedTransactions,
+            monthlyTransactions = uiState.monthlyTransactions,
             transactions = uiState.transactions,
+            selectableYears = uiState.selectableYears,
+            selectableMonths = uiState.selectableMonths,
+            selectedYear = uiState.year,
+            selectedMonth = uiState.month,
+            onSelectYear = {
+                viewModel.updateYear(it)
+            },
+            onSelectMonth = {
+                viewModel.updateMonth(it)
+            },
             transactionCategories = uiState.categories,
             currentBalance = formatMoneyValue(uiState.currentBalance),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
@@ -106,32 +109,51 @@ fun DashboardScreenComposable(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreen(
     moneyInPointsData: List<Point>,
     moneyOutPointsData: List<Point>,
     maxAmount: Float = 0.0f,
     groupedTransactions: List<GroupedTransactionData>,
+    monthlyTransactions: List<MonthlyTransaction>,
     transactions: List<TransactionItem>,
     transactionCategories: List<TransactionCategory>,
     currentBalance: String,
+    selectedYear: String,
+    selectedMonth: String,
+    selectableMonths: List<String>,
+    selectableYears: List<String>,
+    onSelectMonth: (month: String) -> Unit,
+    onSelectYear: (month: String) -> Unit,
     navigateToTransactionsScreen: () -> Unit,
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    var selectYearExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var selectMonthExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     Column(
         modifier = Modifier
-            .padding(16.dp)
+            .padding(
+                top = 8.dp,
+                start = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp
+            )
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
         HeaderSection(
             currentBalance = currentBalance
         )
-        Spacer(modifier = Modifier.height(20.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -201,25 +223,94 @@ fun DashboardScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "This week",
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = navigateToCategoriesScreen) {
-                Text(text = "Customize chart")
+            Column {
+                TextButton(onClick = { selectMonthExpanded = !selectMonthExpanded }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = selectedMonth)
+                        if(selectMonthExpanded) {
+                            Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                        } else {
+                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                        }
+                    }
+                }
+                DropdownMenu(
+                    expanded = selectMonthExpanded,
+                    onDismissRequest = { selectMonthExpanded = !selectMonthExpanded }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .height(200.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        selectableMonths.forEach {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(text = it)
+                                },
+                                onClick = {
+                                    onSelectMonth(it)
+                                    selectMonthExpanded = !selectMonthExpanded
+                                }
+                            )
+                        }
+                    }
+                }
+
             }
+            Spacer(modifier = Modifier.width(5.dp))
+            Column {
+                TextButton(onClick = { selectYearExpanded = !selectYearExpanded }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = selectedYear)
+                        if(selectYearExpanded) {
+                            Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                        } else {
+                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                        }
+                    }
+                }
+                DropdownMenu(
+                    expanded = selectYearExpanded,
+                    onDismissRequest = { selectYearExpanded = !selectYearExpanded }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .height(200.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        selectableYears.forEach {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(text = it)
+                                },
+                                onClick = {
+                                    onSelectYear(it)
+                                    selectYearExpanded = !selectYearExpanded
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
 
         }
         Spacer(modifier = Modifier.height(10.dp))
-        if(groupedTransactions.isNotEmpty()) {
+        if(monthlyTransactions.isNotEmpty()) {
             BarWithLineChart(
-                transactions = groupedTransactions,
+                transactions = monthlyTransactions,
                 maxAmount = maxAmount,
                 moneyInPointsData = moneyInPointsData,
                 moneyOutPointsData = moneyOutPointsData,
                 modifier = Modifier
-                    .height(450.dp)
+                    .height(350.dp)
             )
         } else {
             Text(
@@ -237,93 +328,94 @@ fun DashboardScreen(
 
 
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HeaderSection(
     currentBalance: String,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
     ) {
-        Column(
+        ElevatedCard(
             modifier = Modifier
-                .padding(10.dp)
         ) {
-            Text(text = "Hello,")
-//                Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Alex Mbogo",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Card(
-                modifier = Modifier
-                    .padding(
-                        top = 10.dp,
-                        start = 10.dp,
-                        end = 10.dp
-                    )
-            ) {
-                Column(
+            Column {
+                Text(
+                    text = "M-PESA transactions since ${formatLocalDate(LocalDate.now())}",
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier
-                        .padding(20.dp)
-                ) {
-                    Text(text = formatIsoDateTime(LocalDateTime.now()))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Current balance")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        IconButton(onClick = { /*TODO*/ }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.visibility_off),
-                                contentDescription = "Hide balance"
-                            )
-                        }
-                    }
-
-//                Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = currentBalance,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row() {
-                        Column {
-                            Row {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_downward),
-                                    contentDescription = null
-                                )
-                                Text(text = "Income")
-                            }
-                            Text(text = "KES 1,200")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column {
-                            Row {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_upward),
-                                    contentDescription = null
-                                )
-                                Text(text = "Expenses")
-                            }
-                            Text(text = "KES 4,330")
-                        }
-                    }
-                }
+                        .padding(10.dp)
+                )
             }
 
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Account balance"
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = currentBalance,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = { /*TODO*/ }
+            ) {
+                Icon(painter = painterResource(id = R.drawable.visibility_on), contentDescription = null)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "${formatLocalDate(LocalDate.now())} (today)")
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(
+                    horizontal = 16.dp
+                )
+        ) {
+            Card {
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                        Text(
+                            text = "Ksh1,200",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.surfaceTint
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Card {
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                        Text(
+                            text = "Ksh3,400",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
     }
+
 }
 
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun DashboardScreenPreview(
@@ -336,11 +428,18 @@ fun DashboardScreenPreview(
             currentBalance = "Ksh 5,350",
             maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) },
             groupedTransactions = groupedTransactions,
+            monthlyTransactions = emptyList(),
             moneyInPointsData = groupedTransactions.mapIndexed { index, transaction ->
                 Point(index.toFloat(), transaction.moneyIn)},
             moneyOutPointsData = groupedTransactions.mapIndexed { index, transaction ->
                 Point(index.toFloat(), transaction.moneyOut)
             },
+            selectableMonths = emptyList(),
+            selectedYear = "2024",
+            selectableYears = emptyList(),
+            selectedMonth = "AUGUST",
+            onSelectMonth = {},
+            onSelectYear = {},
             transactionCategories = transactionCategories,
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},

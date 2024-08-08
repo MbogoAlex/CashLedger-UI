@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.CategoryEditPayload
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus

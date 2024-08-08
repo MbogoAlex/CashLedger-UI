@@ -1,7 +1,5 @@
 package com.records.pesa.composables
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,13 +14,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -32,11 +27,9 @@ import androidx.compose.ui.unit.sp
 import com.records.pesa.R
 import com.records.pesa.functions.formatDate
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.SortedTransactionItem
+import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.TransactionItem
-import com.records.pesa.reusables.TransactionScreenTab
-import com.records.pesa.reusables.TransactionScreenTabItem
+import com.records.pesa.models.transaction.TransactionItem
 import kotlin.math.absoluteValue
 
 @Composable

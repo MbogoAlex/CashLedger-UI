@@ -1,7 +1,7 @@
 package com.records.pesa.models.user
 
 import com.records.pesa.models.SmsMessage
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.payment.SubscriptionDetails
 import kotlinx.serialization.Serializable
 

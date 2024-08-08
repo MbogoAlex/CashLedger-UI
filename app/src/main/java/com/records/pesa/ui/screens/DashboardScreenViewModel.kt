@@ -1,19 +1,17 @@
 package com.records.pesa.ui.screens
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.GroupedTransactionData
+import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.TransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.reusables.LoadingStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +24,12 @@ import java.time.LocalDate
 data class DashboardScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val currentBalance: Double = 0.0,
+    val month: String = "June",
+    val year: String = "2024",
+    val selectableMonths: List<String> = listOf("JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"),
+    val selectableYears: List<String> = emptyList(),
+    val monthlyInTotal: Double = 0.0,
+    val monthlyOutTotal: Double = 0.0,
     val startDate: String = "2024-06-15",
     val endDate: String = "2024-06-15",
     val moneyInPointsData: List<Point> = emptyList(),
@@ -35,9 +39,9 @@ data class DashboardScreenUiState(
     val maxAmount: Float = 0.0f,
     val transactions: List<TransactionItem> = emptyList(),
     val groupedTransactions: List<GroupedTransactionData> = emptyList(),
+    val monthlyTransactions: List<MonthlyTransaction> = emptyList(),
     val categories: List<TransactionCategory> = emptyList()
 )
-@RequiresApi(Build.VERSION_CODES.O)
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
@@ -46,19 +50,26 @@ class DashboardScreenViewModel(
     private val _uiState = MutableStateFlow(DashboardScreenUiState())
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
 
-    @RequiresApi(Build.VERSION_CODES.O)
     fun setInitialDates() {
         val currentDate = LocalDate.now()
         val firstDayOfMonth = currentDate.withDayOfMonth(1)
-        var startDate = firstDayOfMonth
-        var endDate = currentDate
+        val currentYear = currentDate.year
+        val lastYear = 2016
+        val years = mutableListOf<String>()
+        for (year in currentYear downTo lastYear) {
+            years.add(year.toString())
+        }
         _uiState.update {
             it.copy(
-                startDate = startDate.toString(),
-                endDate = endDate.toString(),
+                startDate = firstDayOfMonth.toString(),
+                endDate = currentDate.toString(),
+                month = currentDate.month.toString(),
+                year = currentDate.year.toString(),
+                selectableYears = years
             )
         }
     }
+
     fun getCurrentBalance() {
         viewModelScope.launch {
             try {
@@ -189,6 +200,53 @@ class DashboardScreenViewModel(
         }
     }
 
+    fun updateMonth(month: String) {
+        _uiState.update {
+            it.copy(
+                month = month
+            )
+        }
+        getGroupedByMonthTransactions()
+    }
+
+    fun updateYear(year: String) {
+        _uiState.update {
+            it.copy(
+                year = year
+            )
+        }
+        getGroupedByMonthTransactions()
+    }
+
+    private fun getGroupedByMonthTransactions() {
+        viewModelScope.launch {
+            try {
+               val response = apiRepository.getGroupedByMonthTransactions(
+                   token = uiState.value.userDetails.token,
+                   userId = uiState.value.userDetails.userId,
+                   entity = null,
+                   categoryId = null,
+                   budgetId = null,
+                   transactionType = null,
+                   month = uiState.value.month,
+                   year = uiState.value.year
+               )
+                if(response.isSuccessful) {
+                    _uiState.update {
+                        it.copy(
+                            monthlyTransactions = response.body()?.data?.transaction?.transactions!!
+                        )
+                    }
+                    Log.d("groupedByMonthFetched", response.toString())
+                } else {
+                    Log.e("fetchGroupedByMonthTransactionsErrorResponse", response.toString())
+                }
+            } catch (e: Exception) {
+                Log.e("fetchGroupedByMonthTransactionsException", e.toString())
+            }
+        }
+    }
+
     fun getUserDetails() {
         viewModelScope.launch {
             _uiState.update {
@@ -202,7 +260,8 @@ class DashboardScreenViewModel(
             getTransactions()
             getCurrentBalance()
             getCategories()
-            getGroupedTransactions()
+//            getGroupedTransactions()
+            getGroupedByMonthTransactions()
 
         }
     }
