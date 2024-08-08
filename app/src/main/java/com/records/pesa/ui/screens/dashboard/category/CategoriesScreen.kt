@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.dashboard.category
 
 import android.os.Build
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,14 +48,22 @@ object CategoriesScreenDestination: AppNavigation {
     override val route: String = "categories-screen"
 
 }
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoriesScreenComposable(
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit,
+    showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
+    BackHandler(onBack = {
+        if(showBackArrow) {
+            navigateToPreviousScreen()
+        } else {
+            navigateToHomeScreen()
+        }
+    })
 
     val viewModel: CategoriesScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
@@ -82,13 +91,13 @@ fun CategoriesScreenComposable(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoriesScreen(
     categories: List<TransactionCategory>,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    showBackArrow: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -102,8 +111,10 @@ fun CategoriesScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = navigateToPreviousScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+            if(showBackArrow) {
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                }
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = { /*TODO*/ }) {
@@ -148,7 +159,6 @@ fun CategoriesScreen(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CategoryScreenPreview() {

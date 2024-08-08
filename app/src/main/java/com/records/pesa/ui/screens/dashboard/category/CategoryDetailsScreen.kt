@@ -235,7 +235,6 @@ fun CategoryDetailsScreenComposable(
         )
     }
 }
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoryDetailsScreen(
     category: TransactionCategory,

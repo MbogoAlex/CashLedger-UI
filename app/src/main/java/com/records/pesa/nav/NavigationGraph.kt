@@ -18,6 +18,8 @@ import com.records.pesa.ui.screens.auth.LoginScreenComposable
 import com.records.pesa.ui.screens.auth.LoginScreenDestination
 import com.records.pesa.ui.screens.auth.RegistrationScreenComposable
 import com.records.pesa.ui.screens.auth.RegistrationScreenDestination
+import com.records.pesa.ui.screens.auth.UpdatePasswordScreenComposable
+import com.records.pesa.ui.screens.auth.UpdatePasswordScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
@@ -27,6 +29,7 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenComposable
@@ -75,6 +78,9 @@ fun NavigationGraph(
                 },
                 navigateToSmsFetchScreen = {
                     navController.navigate(SMSFetchScreenDestination.route)
+                },
+                navigateToUpdatePasswordScreen = {
+                    navController.navigate(UpdatePasswordScreenDestination.route)
                 }
             )
         }
@@ -95,6 +101,22 @@ fun NavigationGraph(
                 },
                 navigateToSmsFetchScreen = {
                     navController.navigate(SMSFetchScreenDestination.route)
+                },
+                navigateToUpdatePasswordScreen = {
+                    navController.navigate(UpdatePasswordScreenDestination.route)
+                }
+            )
+        }
+        composable(UpdatePasswordScreenDestination.route) {
+            UpdatePasswordScreenComposable(
+                navigateToLoginScreenWithArgs = {phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToLoginScreen = {
+                    navController.navigate(LoginScreenDestination.route)
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
                 }
             )
         }
@@ -119,7 +141,7 @@ fun NavigationGraph(
                     navController.navigate(CategoryAdditionScreenDestination.route)
                 },
                 navigateToCategoriesScreen = {
-                    navController.navigate(CategoryDetailsScreenDestination.route)
+                    navController.navigate(CategoriesScreenDestination.route)
                 },
                 navigateToBudgetInfoScreen = {
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
@@ -135,7 +157,10 @@ fun NavigationGraph(
                 },
                 navigateToLoginScreenWithArgs = {phoneNumber, password ->
                     navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
-                }
+                },
+                navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
+                    navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
             )
         }
         composable(TransactionsScreenDestination.route) {
@@ -145,7 +170,11 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
-                }
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                showBackArrow = true
             )
         }
 
@@ -238,10 +267,14 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
-                }
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                showBackArrow = true
             )
         }
-        composable(CategoryDetailsScreenDestination.route) {
+        composable(CategoriesScreenDestination.route) {
             CategoriesScreenComposable(
                 navigateToCategoryDetailsScreen = {
                     navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
@@ -251,7 +284,11 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
-                }
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                showBackArrow = true,
             )
         }
         composable(CategoryAdditionScreenDestination.route) {
@@ -288,7 +325,8 @@ fun NavigationGraph(
                 },
                 navigateToBudgetInfoScreen = {
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
-                }
+                },
+                showBackArrow = false,
             )
         }
         composable(
@@ -331,7 +369,11 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
-                }
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                showBackArrow = true
             )
         }
         composable(BudgetCreationScreenDestination.route) {

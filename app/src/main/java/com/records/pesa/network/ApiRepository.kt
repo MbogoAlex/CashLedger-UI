@@ -24,12 +24,14 @@ import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
+import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import kotlinx.coroutines.flow.first
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
@@ -88,6 +90,7 @@ interface ApiRepository {
 
     suspend fun getGroupedByMonthTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, month: String, year: String): Response<MonthlyTransactionsResponseBody>
     suspend fun updateUserDetails(token: String, userId: Int, user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
+    suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody>
 
 }
 
@@ -458,6 +461,10 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         }
         return response;
     }
+
+    override suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody> = apiService.updateUserPassword(
+        password = password
+    )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
         val response = apiService.loginUser(user = user)

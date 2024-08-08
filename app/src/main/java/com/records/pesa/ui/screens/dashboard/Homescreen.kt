@@ -46,7 +46,9 @@ import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
 import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
+import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.launch
 
@@ -66,6 +68,7 @@ fun HomeScreenComposable(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
@@ -123,7 +126,8 @@ fun HomeScreenComposable(
             navigateToHomeScreen = {
                 currentTab = HomeScreenTab.HOME
             },
-            navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+            navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
+            navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
         )
     }
 }
@@ -143,6 +147,8 @@ fun HomeScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -239,25 +245,33 @@ fun HomeScreen(
                     )
                 }
                 HomeScreenTab.ALL_TRANSACTIONS -> {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                    ) {
-                        Text(text = "Chart")
-                    }
+                    TransactionsScreenComposable(
+                        navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        showBackArrow = false
+                    )
                 }
                 HomeScreenTab.CATEGORIES -> {
+                    CategoriesScreenComposable(
+                        navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+                        navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        showBackArrow = false
+                    )
+                }
+                HomeScreenTab.BUDGETS -> {
                     BudgetListScreenComposable(
                         navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
                         navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
                         navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
                         navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        showBackArrow = false,
                         modifier = Modifier
                     )
                 }
-                HomeScreenTab.BUDGETS -> {}
                 HomeScreenTab.ACCOUNT_INFO -> {
                     AccountInformationScreenComposable(
                         navigateToHomeScreen = navigateToHomeScreen,
@@ -342,7 +356,8 @@ fun HomeScreenPreview() {
             navigateToBudgetCreationScreenWithCategoryId = {},
             navigateToPreviousScreen = {},
             navigateToHomeScreen = {},
-            navigateToLoginScreenWithArgs = {phoneNumber, password ->  }
+            navigateToLoginScreenWithArgs = {phoneNumber, password ->  },
+            navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  }
         )
     }
 }

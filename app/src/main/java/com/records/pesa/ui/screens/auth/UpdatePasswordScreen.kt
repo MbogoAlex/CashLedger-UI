@@ -14,17 +14,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,96 +46,91 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.theme.CashLedgerTheme
 
-object LoginScreenDestination: AppNavigation {
-    override val title: String = "Login screen"
-    override val route: String = "login-screen"
-    val phoneNumber: String = "phoneNumber"
-    val password: String = "password"
-    val routeWithArgs: String = "$route/{$phoneNumber}/{$password}"
+object UpdatePasswordScreenDestination: AppNavigation {
+    override val title: String = "Update password screen"
+    override val route: String = "update-password-screen"
 
 }
 
 @Composable
-fun LoginScreenComposable(
-    navigateToRegistrationScreen: () -> Unit,
-    navigateToSmsFetchScreen: () -> Unit,
-    navigateToUpdatePasswordScreen: () -> Unit,
+fun UpdatePasswordScreenComposable(
+    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToLoginScreen: () -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler(onBack = navigateToPreviousScreen)
     val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
 
-    BackHandler(onBack = navigateToRegistrationScreen)
-
-    val viewModel: LoginScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val viewModel: UpdatePasswordScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.buttonEnabled()
-    }
-    
-    var showAlert by rememberSaveable {
-        mutableStateOf(false)
-    }
-    
-    if(uiState.loginStatus == LoginStatus.SUCCESS) {
-        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-        navigateToSmsFetchScreen()
-        viewModel.resetLoginStatus()
-    } else if(uiState.loginStatus == LoginStatus.FAIL) {
-        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-//        showAlert = true
-        viewModel.resetLoginStatus()
-    }
-
-    if(showAlert) {
-        AlertDialog(
-            text = {
-                Text(text = uiState.exception)
-            },
-            onDismissRequest = {showAlert = !showAlert },
-            confirmButton = { showAlert = !showAlert }
-        )
+    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+        Toast.makeText(context, uiState.resetMessage, Toast.LENGTH_SHORT).show()
+        navigateToLoginScreenWithArgs(uiState.phoneNumber, uiState.password)
+        viewModel.resetLoadingStatus()
+    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+        Toast.makeText(context, uiState.resetMessage, Toast.LENGTH_SHORT).show()
+        viewModel.resetLoadingStatus()
     }
 
     Box(
         modifier = Modifier
             .safeDrawingPadding()
     ) {
-       LoginScreen(
-           phoneNumber = uiState.phoneNumber,
-           onChangePhoneNumber = {
-               viewModel.updatePhoneNumber(it)
-               viewModel.buttonEnabled()
-           },
-           password = uiState.password,
-           onChangePassword = {
-               viewModel.updatePassword(it)
-               viewModel.buttonEnabled()
-           },
-           buttonEnabled = uiState.loginButtonEnabled,
-           onLogin = { viewModel.loginUser() },
-           navigateToRegistrationScreen = navigateToRegistrationScreen,
-           navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
-           loginStatus = uiState.loginStatus
-       )
+        UpdatePasswordScreen(
+            phoneNumber = uiState.phoneNumber,
+            onChangePhoneNumber = {
+                viewModel.updatePhoneNumber(it)
+                viewModel.buttonEnabled()
+            },
+            password = uiState.password,
+            onChangePassword = {
+                viewModel.updatePassword(it)
+                viewModel.buttonEnabled()
+            },
+            passwordConfirmation = uiState.passwordConfirmation,
+            onChangePasswordConfirmation = {
+                viewModel.updatePasswordConfirmation(it)
+                viewModel.buttonEnabled()
+            },
+            resetButtonEnabled = uiState.resetButtonEnabled,
+            onReset = {
+                if(!uiState.phoneNumber.startsWith("0")) {
+                    Toast.makeText(context, "Phone number must start with '0'", Toast.LENGTH_SHORT).show()
+                } else if(uiState.password.length < 5) {
+                    Toast.makeText(context, "Password must be at least 5 characters", Toast.LENGTH_SHORT).show()
+                } else if(uiState.password != uiState.passwordConfirmation) {
+                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.resetPassword()
+                }
+            },
+            loadingStatus = uiState.loadingStatus,
+            navigateToLoginScreen = navigateToLoginScreen,
+            navigateToPreviousScreen = navigateToPreviousScreen
+        )
     }
 
 }
 
 @Composable
-fun LoginScreen(
+fun UpdatePasswordScreen(
     phoneNumber: String,
     onChangePhoneNumber: (value: String) -> Unit,
     password: String,
     onChangePassword: (value: String) -> Unit,
-    buttonEnabled: Boolean,
-    onLogin: () -> Unit,
-    navigateToRegistrationScreen: () -> Unit,
-    navigateToUpdatePasswordScreen: () -> Unit,
-    loginStatus: LoginStatus,
+    passwordConfirmation: String,
+    onChangePasswordConfirmation: (value: String) -> Unit,
+    resetButtonEnabled: Boolean,
+    onReset: () -> Unit,
+    loadingStatus: LoadingStatus,
+    navigateToLoginScreen: () -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var passwordVisibility by rememberSaveable {
@@ -148,13 +145,24 @@ fun LoginScreen(
                 vertical = 16.dp
             )
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
     ) {
+        IconButton(
+            onClick = navigateToPreviousScreen,
+            modifier = Modifier
+                .align(Alignment.Start)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Previous screen"
+            )
+        }
         Image(
             painter = painterResource(id = R.drawable.cashledger_logo),
             contentDescription = null
         )
         Text(
-            text = "Welcome back!",
+            text = "Enter your correct phone number and new password to reset old password",
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .align(Alignment.Start)
@@ -188,10 +196,23 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(20.dp))
         PasswordInputField(
-            heading = "Password",
+            heading = "New password",
             value = password,
             trailingIcon = R.drawable.visibility_on,
             onValueChange = onChangePassword,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next,
+                keyboardType = KeyboardType.Password
+            ),
+            visibility = passwordVisibility,
+            onChangeVisibility = { passwordVisibility = !passwordVisibility }
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        PasswordInputField(
+            heading = "Confirm new password",
+            value = passwordConfirmation,
+            trailingIcon = R.drawable.visibility_on,
+            onValueChange = onChangePasswordConfirmation,
             keyboardOptions = KeyboardOptions.Default.copy(
                 imeAction = ImeAction.Done,
                 keyboardType = KeyboardType.Password
@@ -199,34 +220,29 @@ fun LoginScreen(
             visibility = passwordVisibility,
             onChangeVisibility = { passwordVisibility = !passwordVisibility }
         )
-        TextButton(
-            onClick = navigateToUpdatePasswordScreen,
-            modifier = Modifier
-                .align(Alignment.Start)
-        ) {
-            Text(text = "Forgot password?")
-        }
         Spacer(modifier = Modifier.height(20.dp))
         Row {
-            Text(text = "Don't have an account? ")
+            Text(text = "Remember password? ")
             Text(
-                text = "Register",
+                text = "Sign in",
                 color = MaterialTheme.colorScheme.surfaceTint,
                 modifier = Modifier
-                    .clickable { navigateToRegistrationScreen() }
+                    .clickable {
+                        navigateToLoginScreen()
+                    }
             )
         }
         Spacer(modifier = Modifier.weight(1f))
         Button(
-            enabled = buttonEnabled && loginStatus != LoginStatus.LOADING,
-            onClick = onLogin,
+            enabled = resetButtonEnabled && loadingStatus != LoadingStatus.LOADING,
+            onClick = onReset,
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            if(loginStatus == LoginStatus.LOADING) {
+            if(loadingStatus == LoadingStatus.LOADING) {
                 Text(text = "Loading...")
             } else {
-                Text(text = "Login")
+                Text(text = "Reset password")
             }
         }
     }
@@ -234,18 +250,20 @@ fun LoginScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginScreenPreview() {
+fun UpdatePasswordScreenPreview() {
     CashLedgerTheme {
-        LoginScreen(
+        UpdatePasswordScreen(
             phoneNumber = "",
             onChangePhoneNumber = {},
             password = "",
             onChangePassword = {},
-            buttonEnabled = false,
-            onLogin = { /*TODO*/ },
-            navigateToRegistrationScreen = { /*TODO*/ },
-            navigateToUpdatePasswordScreen = {},
-            loginStatus = LoginStatus.INITIAL
+            passwordConfirmation = "",
+            onChangePasswordConfirmation = {},
+            resetButtonEnabled = false,
+            onReset = { /*TODO*/ },
+            loadingStatus = LoadingStatus.INITIAL,
+            navigateToLoginScreen = { /*TODO*/ },
+            navigateToPreviousScreen = {}
         )
     }
 }

@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.dashboard.budget
 
 import android.os.Build
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -80,8 +81,19 @@ fun BudgetListScreenComposable(
     navigateToBudgetCreationScreen: () -> Unit,
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit = {},
+    showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
+
+    BackHandler(onBack = {
+        if(showBackArrow) {
+            navigateToPreviousScreen()
+        } else {
+            navigateToHomeScreen()
+        }
+    })
+
     val viewModel: BudgetListScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
@@ -113,12 +125,12 @@ fun BudgetListScreenComposable(
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
             navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
-            navigateToPreviousScreen = navigateToPreviousScreen
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            showBackArrow = showBackArrow
         )
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListScreen(
     budgets: List<BudgetDt>,
@@ -131,6 +143,7 @@ fun BudgetListScreen(
     navigateToBudgetCreationScreen: () -> Unit,
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -141,7 +154,7 @@ fun BudgetListScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if(categoryId != null) {
+            if(showBackArrow) {
                 IconButton(onClick = navigateToPreviousScreen) {
                     Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
                 }
@@ -348,7 +361,6 @@ fun BudgetListItem(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BudgetListScreenPreview(
@@ -365,7 +377,8 @@ fun BudgetListScreenPreview(
             navigateToBudgetInfoScreen = {},
             navigateToBudgetCreationScreen = {},
             navigateToBudgetCreationScreenWithCategoryId = {},
-            navigateToPreviousScreen = {}
+            navigateToPreviousScreen = {},
+            showBackArrow = true
         )
     }
 }

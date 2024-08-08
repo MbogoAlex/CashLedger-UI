@@ -298,7 +298,7 @@ fun AccountInformationScreen(
                     .padding(20.dp)
                     .fillMaxWidth()
             ) {
-                Text(text = "0794649026")
+                Text(text = phoneNumber)
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     tint = Color.LightGray,

@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.transactions
 import android.app.DatePickerDialog
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -95,15 +96,25 @@ object TransactionsScreenDestination: AppNavigation {
     val routeWithBudgetId: String = "$route/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}"
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionsScreenComposable(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit,
+    showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
     val viewModel: TransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    BackHandler(onBack = {
+        if(showBackArrow) {
+            navigateToPreviousScreen()
+        } else {
+            navigateToHomeScreen()
+        }
+    })
+
     val tabs = listOf(
         TransactionScreenTabItem(
             name = "All",
@@ -216,7 +227,8 @@ fun TransactionsScreenComposable(
             },
             categoryName = uiState.categoryName,
             budgetName = uiState.budgetName,
-            navigateToPreviousScreen = navigateToPreviousScreen
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            showBackArrow = showBackArrow
         )
 
     }
@@ -257,6 +269,7 @@ fun TransactionsScreen(
     onSelectDateRange: () -> Unit,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -287,14 +300,60 @@ fun TransactionsScreen(
                     .padding(it)
             ) {
                 Column() {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                    if(showBackArrow) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            IconButton(onClick = navigateToPreviousScreen) {
+                                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                            }
+                            OutlinedTextField(
+                                shape = RoundedCornerShape(10.dp),
+                                value = searchText,
+                                placeholder = {
+                                    Text(text = "Search transaction")
+                                },
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done
+                                ),
+                                onValueChange = onChangeSearchText,
+                                trailingIcon = {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.inverseOnSurface)
+                                            .padding(5.dp)
+                                            .clickable {
+                                                onClearSearch()
+                                            }
+
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Clear search",
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                        )
+                                    }
+
+                                },
+                                modifier = Modifier
+                                    .padding(
+                                        vertical = 10.dp,
+                                        horizontal = 16.dp
+                                    )
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            )
                         }
+                    } else {
                         OutlinedTextField(
                             shape = RoundedCornerShape(10.dp),
                             value = searchText,
@@ -338,27 +397,8 @@ fun TransactionsScreen(
                                 .fillMaxWidth()
                                 .height(50.dp)
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        TextButton(onClick = { /*TODO*/ }) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.calendar),
-                                    contentDescription = "Apply filtering",
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.search),
-                                    contentDescription = "Apply filtering",
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                )
-                            }
-                        }
                     }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -563,7 +603,6 @@ private fun BottomNavBar(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun TransactionsScreenPreview(
@@ -615,12 +654,12 @@ fun TransactionsScreenPreview(
             categoryName = null,
             budgetName = null,
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
-            navigateToPreviousScreen = {}
+            navigateToPreviousScreen = {},
+            showBackArrow = true
         )
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DateRangePickerDialog(
     startDate: LocalDate,

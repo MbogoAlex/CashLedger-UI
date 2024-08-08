@@ -23,6 +23,7 @@ import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
+import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
@@ -302,5 +303,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("userId") userId: Int,
         @Body user: UserRegistrationPayload
+    ): Response<UserRegistrationResponseBody>
+
+    @PUT("auth/update/password")
+    suspend fun updateUserPassword(
+        @Body password: PasswordUpdatePayload
     ): Response<UserRegistrationResponseBody>
 }
