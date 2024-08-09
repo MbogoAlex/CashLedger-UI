@@ -22,6 +22,8 @@ import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.PaymentPayload
+import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
@@ -91,6 +93,7 @@ interface ApiRepository {
     suspend fun getGroupedByMonthTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, month: String, year: String): Response<MonthlyTransactionsResponseBody>
     suspend fun updateUserDetails(token: String, userId: Int, user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
     suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody>
+    suspend fun paySubscriptionFee(token: String, paymentPayload: PaymentPayload): Response<PaymentResponseBody>
 
 }
 
@@ -464,6 +467,14 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
 
     override suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody> = apiService.updateUserPassword(
         password = password
+    )
+
+    override suspend fun paySubscriptionFee(
+        token: String,
+        paymentPayload: PaymentPayload
+    ): Response<PaymentResponseBody> = apiService.paySubscriptionFee(
+        token = token,
+        paymentPayload = paymentPayload
     )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {

@@ -38,6 +38,7 @@ import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenCompo
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenDestination
 import com.records.pesa.ui.screens.dashboard.sms.SMSFetchScreenDestination
 import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenComposable
+import com.records.pesa.ui.screens.payment.SubscriptionScreenDestination
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenDestination
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
@@ -174,6 +175,9 @@ fun NavigationGraph(
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
                 },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                },
                 showBackArrow = true
             )
         }
@@ -270,6 +274,9 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
                 },
                 showBackArrow = true
             )
@@ -372,6 +379,9 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
                 },
                 showBackArrow = true
             )

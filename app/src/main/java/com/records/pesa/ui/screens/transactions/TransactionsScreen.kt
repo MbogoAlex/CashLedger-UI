@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +83,7 @@ import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 object TransactionsScreenDestination: AppNavigation {
@@ -102,6 +105,7 @@ fun TransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
     showBackArrow: Boolean,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: TransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -152,6 +156,22 @@ fun TransactionsScreenComposable(
         mutableStateOf(false)
     }
 
+    var showSubscriptionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = {
+                showSubscriptionDialog = !showSubscriptionDialog
+            },
+            onConfirm = {
+                showSubscriptionDialog = !showSubscriptionDialog
+                navigateToSubscriptionScreen()
+            }
+        )
+    }
+
 
 
     Box(
@@ -159,6 +179,7 @@ fun TransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionsScreen(
+            premium = uiState.userDetails.paymentStatus,
             transactions = uiState.transactions,
             moneyInsortedTransactionItems = uiState.moneyInSorted,
             moneyOutsortedTransactionItems = uiState.moneyOutSorted,
@@ -228,6 +249,9 @@ fun TransactionsScreenComposable(
             categoryName = uiState.categoryName,
             budgetName = uiState.budgetName,
             navigateToPreviousScreen = navigateToPreviousScreen,
+            onShowSubscriptionDialog = {
+                showSubscriptionDialog = !showSubscriptionDialog
+            },
             showBackArrow = showBackArrow
         )
 
@@ -236,6 +260,7 @@ fun TransactionsScreenComposable(
 
 @Composable
 fun TransactionsScreen(
+    premium: Boolean,
     transactions: List<TransactionItem>,
     moneyInsortedTransactionItems: List<SortedTransactionItem>,
     moneyOutsortedTransactionItems: List<SortedTransactionItem>,
@@ -269,6 +294,7 @@ fun TransactionsScreen(
     onSelectDateRange: () -> Unit,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
     showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -429,6 +455,7 @@ fun TransactionsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     if(showDateRangePicker) {
                         DateRangePickerDialog(
+                            premium = premium,
                             startDate = startDate,
                             endDate = endDate,
                             defaultStartDate = defaultStartDate,
@@ -437,6 +464,7 @@ fun TransactionsScreen(
                             onChangeLastDate = onChangeLastDate,
                             onDismiss = onDismiss,
                             onConfirm = onConfirm,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
                             modifier = Modifier
                                 .fillMaxWidth()
                         )
@@ -603,6 +631,61 @@ private fun BottomNavBar(
     }
 }
 
+@Composable
+fun SubscriptionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(text = "Go premium?")
+        },
+        text = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "Ksh100.0 premium monthly fee",
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Premium version allows you to: ",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "1. See transactions and export reports of more than three months")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "2. Manage more than one category")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "3. Manage more than one Budget")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "4. Use in dark mode")
+
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Dismiss")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = "Subscribe")
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true)
 @Composable
 fun TransactionsScreenPreview(
@@ -622,6 +705,7 @@ fun TransactionsScreenPreview(
     )
     CashLedgerTheme {
         TransactionsScreen(
+            premium = false,
             transactions = transactions,
             moneyOutsortedTransactionItems = moneyOutSortedTransactionItems,
             moneyInsortedTransactionItems = moneyInSortedTransactionItems,
@@ -655,6 +739,7 @@ fun TransactionsScreenPreview(
             budgetName = null,
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
             navigateToPreviousScreen = {},
+            onShowSubscriptionDialog = {},
             showBackArrow = true
         )
     }
@@ -662,6 +747,7 @@ fun TransactionsScreenPreview(
 
 @Composable
 fun DateRangePickerDialog(
+    premium: Boolean,
     startDate: LocalDate,
     endDate: LocalDate,
     defaultStartDate: String?,
@@ -670,6 +756,7 @@ fun DateRangePickerDialog(
     onChangeLastDate: (date: LocalDate) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -705,12 +792,14 @@ fun DateRangePickerDialog(
                             )
                     )
                     DateRangePicker(
+                        premium = premium,
                         startDate = startDate,
                         endDate = endDate,
                         defaultStartDate = defaultStartDate,
                         defaultEndDate = defaultEndDate,
                         onChangeStartDate = onChangeStartDate,
                         onChangeLastDate = onChangeLastDate,
+                        onShowSubscriptionDialog = onShowSubscriptionDialog,
                         modifier = Modifier
                             .fillMaxWidth()
                     )
@@ -730,15 +819,16 @@ fun DateRangePickerDialog(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DateRangePicker(
+    premium: Boolean,
     startDate: LocalDate,
     endDate: LocalDate,
     defaultStartDate: String?,
     defaultEndDate: String?,
     onChangeStartDate: (date: LocalDate) -> Unit,
     onChangeLastDate: (date: LocalDate) -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -751,6 +841,8 @@ fun DateRangePicker(
     val defaultStartMillis = defaultStartLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
     val defaultEndMillis = defaultEndLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
 
+    val threeMonthsAgo = LocalDateTime.now().minusMonths(3)
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePicker(isStart: Boolean) {
         val initialDate = if (isStart) startDate else endDate
@@ -760,7 +852,15 @@ fun DateRangePicker(
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (isStart) {
                     if (selectedDate.isBefore(endDate) || selectedDate.isEqual(endDate)) {
-                        onChangeStartDate(selectedDate)
+                        if(selectedDate.isBefore(threeMonthsAgo.toLocalDate())) {
+                            if(premium) {
+                                onChangeStartDate(selectedDate)
+                            } else {
+                               onShowSubscriptionDialog()
+                            }
+                        } else {
+                            onChangeStartDate(selectedDate)
+                        }
                     } else {
                         // Handle case where start date is after end date
                         Toast.makeText(context, "Start date must be before end date", Toast.LENGTH_LONG).show()

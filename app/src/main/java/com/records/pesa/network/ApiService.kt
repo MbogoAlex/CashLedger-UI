@@ -16,6 +16,8 @@ import com.records.pesa.models.transaction.GroupedTransactionsResponseBody
 import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
+import com.records.pesa.models.payment.PaymentPayload
+import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.transaction.SortedTransactionsResponseBody
 import com.records.pesa.models.transaction.TransactionCodesResponseBody
 import com.records.pesa.models.transaction.TransactionEditPayload
@@ -309,4 +311,10 @@ interface ApiService {
     suspend fun updateUserPassword(
         @Body password: PasswordUpdatePayload
     ): Response<UserRegistrationResponseBody>
+
+    @POST("subscription/pay")
+    suspend fun paySubscriptionFee(
+        @Header("Authorization") token: String,
+        @Body paymentPayload: PaymentPayload
+    ): Response<PaymentResponseBody>
 }

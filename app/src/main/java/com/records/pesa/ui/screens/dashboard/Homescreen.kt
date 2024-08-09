@@ -249,6 +249,7 @@ fun HomeScreen(
                         navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                         navigateToPreviousScreen = navigateToPreviousScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToSubscriptionScreen = {},
                         showBackArrow = false
                     )
                 }

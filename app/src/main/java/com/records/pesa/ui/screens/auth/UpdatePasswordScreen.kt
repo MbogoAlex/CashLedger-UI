@@ -146,6 +146,7 @@ fun UpdatePasswordScreen(
             )
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+
     ) {
         IconButton(
             onClick = navigateToPreviousScreen,
