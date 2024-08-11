@@ -24,6 +24,7 @@ import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
+import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
@@ -94,6 +95,7 @@ interface ApiRepository {
     suspend fun updateUserDetails(token: String, userId: Int, user: UserRegistrationPayload): Response<UserRegistrationResponseBody>
     suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody>
     suspend fun paySubscriptionFee(token: String, paymentPayload: PaymentPayload): Response<PaymentResponseBody>
+    suspend fun subscriptionPaymentStatus(token: String, subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload): Response<SubscriptionStatusResponseBody>
 
 }
 
@@ -405,16 +407,10 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         val response = apiService.getSubscriptionStatus(userId = userId)
         if(response.isSuccessful) {
             val userDetails = dbRepository.getUser(userId).first()
-            if(response.body()?.data?.payment!!) {
+            if(response.body()?.data?.payment != userDetails.paymentStatus) {
                 dbRepository.updateUser(
                     userDetails.copy(
-                        paymentStatus = true
-                    )
-                )
-            } else {
-                dbRepository.updateUser(
-                    userDetails.copy(
-                        paymentStatus = false
+                        paymentStatus = response.body()?.data?.payment ?: false
                     )
                 )
             }
@@ -476,6 +472,27 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         token = token,
         paymentPayload = paymentPayload
     )
+
+    override suspend fun subscriptionPaymentStatus(
+        token: String,
+        subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload
+    ): Response<SubscriptionStatusResponseBody> {
+        val response = apiService.subscriptionPaymentStatus(
+            token = "Bearer $token",
+            subscriptionPaymentStatusPayload = subscriptionPaymentStatusPayload
+        )
+        if(response.isSuccessful) {
+            if(response.body()?.data?.payment!!) {
+                val userDetails = dbRepository.getUser(subscriptionPaymentStatusPayload.userId).first()
+                dbRepository.updateUser(
+                    userDetails.copy(
+                        paymentStatus = true
+                    )
+                )
+            }
+        }
+        return response
+    }
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
         val response = apiService.loginUser(user = user)

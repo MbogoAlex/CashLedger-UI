@@ -17,12 +17,13 @@ import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 class MainActivity : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CashLedgerTheme {
+            CashLedgerTheme(
+//                darkTheme =
+            ) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize(),

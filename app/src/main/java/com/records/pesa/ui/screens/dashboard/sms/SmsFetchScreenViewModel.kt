@@ -98,7 +98,7 @@ class SmsFetchScreenViewModel(
     private fun filterMessagesToSend(messages: List<SmsMessage>): List<SmsMessage> {
         val existingTransactionCodes = uiState.value.existingTransactionCodes.map { it.trim().lowercase() }
         Log.d("EXISTING", existingTransactionCodes.toString())
-        var i = 0
+//        var i = 0
         val messagesToSend = mutableListOf<SmsMessage>()
         val newTransactionCodes = getNewTransactionCodes(messages);
         if(newTransactionCodes.isNotEmpty() && uiState.value.existingTransactionCodes.isNotEmpty()) {
@@ -114,8 +114,8 @@ class SmsFetchScreenViewModel(
         } else if(uiState.value.existingTransactionCodes.isEmpty() && newTransactionCodes.isNotEmpty()) {
             messagesToSend.addAll(newTransactionCodes.map { it["message"] as SmsMessage })
         }
-        Log.d("ADDING", "$i messages")
-        Log.d("MESSAGES_TO_SEND", "$i messages")
+//        Log.d("ADDING", "$i messages")
+//        Log.d("MESSAGES_TO_SEND", "$i messages")
         return messagesToSend;
     }
 

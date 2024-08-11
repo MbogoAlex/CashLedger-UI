@@ -18,6 +18,7 @@ import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
+import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.transaction.SortedTransactionsResponseBody
 import com.records.pesa.models.transaction.TransactionCodesResponseBody
 import com.records.pesa.models.transaction.TransactionEditPayload
@@ -317,4 +318,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body paymentPayload: PaymentPayload
     ): Response<PaymentResponseBody>
+
+    @POST("subpayment/status")
+    suspend fun subscriptionPaymentStatus(
+        @Header("Authorization") token: String,
+        @Body subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload
+    ): Response<SubscriptionStatusResponseBody>
 }

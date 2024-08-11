@@ -70,7 +70,7 @@ fun SmsFetchScreenComposable(
     val smsReadPermissionState = rememberPermissionState(permission = Manifest.permission.READ_SMS)
     val smsReceivePermissionState = rememberPermissionState(permission = Manifest.permission.RECEIVE_SMS)
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+    if(uiState.loadingStatus == LoadingStatus.SUCCESS || uiState.loadingStatus == LoadingStatus.FAIL) {
         navigateToHomeScreen()
         viewModel.resetLoadingStatus()
     } else if(uiState.errorCode == 401) {

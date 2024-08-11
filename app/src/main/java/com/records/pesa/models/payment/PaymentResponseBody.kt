@@ -7,7 +7,6 @@ data class PaymentResponseBody(
     val statusCode: Int,
     val message: String,
     val data: PaymentDt,
-    val token: String
 )
 @Serializable
 data class PaymentDt(
@@ -20,4 +19,5 @@ data class PaymentData(
     val redirect_url: String,
     val error: String?,
     val status: String,
+    val token: String
 )
