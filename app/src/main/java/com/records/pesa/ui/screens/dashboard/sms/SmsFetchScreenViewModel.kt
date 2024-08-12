@@ -28,6 +28,9 @@ data class SmsFetchScreenUiState(
     val existingTransactionCodes: List<String> = emptyList(),
     val userDetails: UserDetails = UserDetails(),
     val errorCode: Int = 0,
+    val delayTime: Float = 0.0f,
+    val currentDelayTime: Float = 0.0f,
+    val counterOn: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
@@ -89,6 +92,7 @@ class SmsFetchScreenViewModel(
                 it.copy(
                     messagesSize = 1.0f,
                     messagesSent = 1.0f,
+                    counterOn = true,
                     loadingStatus = LoadingStatus.SUCCESS
                 )
             }
@@ -135,6 +139,11 @@ class SmsFetchScreenViewModel(
         return transactionCodes;
     }
     private fun postMessagesInBatches(messages: List<SmsMessage>) {
+        _uiState.update {
+            it.copy(
+                counterOn = true
+            )
+        }
 
         val batchSize = 1000
         val totalBatches = (messages.size + batchSize - 1) / batchSize
@@ -233,6 +242,14 @@ class SmsFetchScreenViewModel(
             it.copy(
                 loadingStatus = LoadingStatus.INITIAL,
                 errorCode = 0
+            )
+        }
+    }
+
+    fun resetTimer() {
+        _uiState.update {
+            it.copy(
+                counterOn = false
             )
         }
     }

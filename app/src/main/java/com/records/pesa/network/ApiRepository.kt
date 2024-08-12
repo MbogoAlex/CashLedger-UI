@@ -469,7 +469,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         token: String,
         paymentPayload: PaymentPayload
     ): Response<PaymentResponseBody> = apiService.paySubscriptionFee(
-        token = token,
+        token = "Bearer $token",
         paymentPayload = paymentPayload
     )
 
@@ -498,6 +498,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         val response = apiService.loginUser(user = user)
 
         if(response.isSuccessful) {
+            dbRepository.deleteAllFromUser()
             val userDetails = UserDetails(
                 userId = response.body()?.data?.user?.userInfo?.id!!,
                 firstName = response.body()?.data?.user?.userInfo?.fname,

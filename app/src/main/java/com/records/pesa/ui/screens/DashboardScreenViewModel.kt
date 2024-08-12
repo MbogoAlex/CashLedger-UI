@@ -78,6 +78,7 @@ class DashboardScreenViewModel(
                     userId = uiState.value.userDetails.userId
                 )
                 if(response.isSuccessful) {
+                    Log.d("CUR_BALANCE", response.body()?.data?.balance.toString())
                     _uiState.update {
                         it.copy(
                             currentBalance = response.body()?.data?.balance!!

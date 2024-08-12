@@ -26,7 +26,7 @@ class AppContainerImpl(context: Context): AppContainer {
         coerceInputValues = true
     }
 
-    private val baseUrl = "https://3bd6-102-211-145-169.ngrok-free.app/api/"
+    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
 
     private val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)

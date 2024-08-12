@@ -20,6 +20,9 @@ interface AppDao {
     @Query("delete from user where userId = :userId")
     suspend fun deleteUser(userId: Int)
 
+    @Query("delete from user")
+    suspend fun deleteAllFromUser()
+
     @Query("select * from user where userId = :userId")
     fun getUser(userId: Int): Flow<UserDetails>
 

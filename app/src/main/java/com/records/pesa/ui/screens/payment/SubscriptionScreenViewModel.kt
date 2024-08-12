@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.PaymentPayload
+import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import kotlinx.coroutines.delay
@@ -22,6 +23,7 @@ data class SubscriptionScreenUiState(
     val paymentToken: String = "",
     val orderTrackingId: String = "",
     val redirectUrl: String = "",
+    val paymentMessage: String = "",
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
@@ -53,6 +55,7 @@ class SubscriptionScreenViewModel(
         )
         viewModelScope.launch {
             try {
+                Log.d("PAYING_WITH_TOKEN", uiState.value.userDetails.token)
                 val response = apiRepository.paySubscriptionFee(
                     token = uiState.value.userDetails.token,
                     paymentPayload = paymentPayload
@@ -84,6 +87,52 @@ class SubscriptionScreenViewModel(
                 Log.e("initiatePaymentException", e.toString())
 
             }
+        }
+    }
+
+    fun checkPaymentStatus() {
+        val paymentStatusPayload = SubscriptionPaymentStatusPayload(
+            token = uiState.value.paymentToken,
+            userId = uiState.value.userDetails.userId,
+            orderId = uiState.value.orderTrackingId
+        )
+        viewModelScope.launch {
+            try {
+               val response = apiRepository.subscriptionPaymentStatus(
+                   token = uiState.value.userDetails.token,
+                   subscriptionPaymentStatusPayload = paymentStatusPayload
+               )
+                if(response.isSuccessful) {
+                    _uiState.update {
+                        it.copy(
+                            paymentMessage = "Payment successful",
+                            loadingStatus = LoadingStatus.SUCCESS
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            paymentMessage = "Payment not successful. Contact KIWITECH if you are sure you have paid",
+                            loadingStatus = LoadingStatus.SUCCESS
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        paymentMessage = "Payment not successful. Try again later",
+                        loadingStatus = LoadingStatus.SUCCESS
+                    )
+                }
+            }
+        }
+    }
+
+    fun resetPaymentStatus() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.INITIAL
+            )
         }
     }
 

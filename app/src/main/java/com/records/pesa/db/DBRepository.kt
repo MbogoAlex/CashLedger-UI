@@ -13,6 +13,7 @@ interface DBRepository {
     suspend fun insertAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
     fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
+    suspend fun deleteAllFromUser()
 }
 
 class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
@@ -30,5 +31,6 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
     override suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus) = appDao.updateAppLaunchStatus(appLaunchStatus)
 
     override fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus> = appDao.getAppLaunchStatus(id)
+    override suspend fun deleteAllFromUser() = appDao.deleteAllFromUser()
 
 }

@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.dashboard.sms
 
 import android.Manifest
 import android.app.Activity
+import android.util.Log
 import android.widget.Space
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,16 +71,32 @@ fun SmsFetchScreenComposable(
 
     val smsReadPermissionState = rememberPermissionState(permission = Manifest.permission.READ_SMS)
     val smsReceivePermissionState = rememberPermissionState(permission = Manifest.permission.RECEIVE_SMS)
+    val scope = rememberCoroutineScope()
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS || uiState.loadingStatus == LoadingStatus.FAIL) {
-        navigateToHomeScreen()
-        viewModel.resetLoadingStatus()
+    var timer by rememberSaveable {
+        mutableFloatStateOf(0.0f)
+    }
+
+    if(uiState.counterOn) {
+        Log.d("COUNTER", "COUNTER")
+        LaunchedEffect(Unit) {
+            while (uiState.messagesSize != timer) {
+                delay(5)
+                timer += 1.0f
+            }
+            viewModel.resetTimer()
+            navigateToHomeScreen()
+            viewModel.resetLoadingStatus()
+        }
+    }
+
+    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+
     } else if(uiState.errorCode == 401) {
         navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
         viewModel.resetLoadingStatus()
     }
 
-    val scope = rememberCoroutineScope()
 
     val smsReadRequestPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
         if(isGranted) {
@@ -87,6 +105,7 @@ fun SmsFetchScreenComposable(
                     delay(1000)
                 }
                 viewModel.getLatestTransactionCodes(context)
+
             }
         }
     }
@@ -119,7 +138,8 @@ fun SmsFetchScreenComposable(
     ) {
         SmsFetchScreen(
             messagesSize = uiState.messagesSize,
-            messagesSent = uiState.messagesSent
+            messagesSent = uiState.messagesSent,
+            timer = timer
         )
     }
 
@@ -129,6 +149,7 @@ fun SmsFetchScreenComposable(
 fun SmsFetchScreen(
     messagesSize: Float,
     messagesSent: Float,
+    timer: Float,
     modifier: Modifier = Modifier
 ) {
     var text by rememberSaveable {
@@ -166,7 +187,7 @@ fun SmsFetchScreen(
         )
         Spacer(modifier = Modifier.weight(1f))
         LinearProgressIndicator(
-            progress = { (messagesSent / messagesSize).toFloat() },
+            progress = { (timer / messagesSize) },
             modifier = Modifier
                 .height(20.dp)
                 .fillMaxWidth(),
@@ -181,7 +202,8 @@ fun SmsFetchScreenPreview() {
     CashLedgerTheme {
         SmsFetchScreen(
             messagesSize = 100f,
-            messagesSent = 50f
+            messagesSent = 50f,
+            timer = 0.1f
         )
     }
 }

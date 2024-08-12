@@ -388,7 +388,14 @@ fun NavigationGraph(
             )
         }
         composable(SubscriptionScreenDestination.route) {
-            SubscriptionScreenComposable()
+            SubscriptionScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                }
+            )
         }
         composable(BudgetCreationScreenDestination.route) {
             Log.i("NAV_WITH_ARGS", "FALSE")

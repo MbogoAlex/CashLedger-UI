@@ -166,8 +166,8 @@ fun AccountInformationScreenComposable(
                 showEditEmailDialog = !showEditEmailDialog
             },
             firstName = uiState.userDetails.firstName ?: "Enter first name",
-            lastName = uiState.userDetails.lastName ?: "Enter last name",
-            email = uiState.userDetails.email ?: "",
+            lastName = uiState.userDetails.lastName ?: "Enter surname",
+            email = uiState.userDetails.email ?: "Enter email",
             phoneNumber = uiState.userDetails.phoneNumber,
             logoutLoading = logoutLoading,
             onLogout = {
