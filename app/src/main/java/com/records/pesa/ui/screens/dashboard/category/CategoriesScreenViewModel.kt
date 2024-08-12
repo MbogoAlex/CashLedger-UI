@@ -39,6 +39,25 @@ class CategoriesScreenViewModel(
         }
         getUserCategories()
     }
+
+    fun updateName(name: String) {
+        _uiState.update {
+            it.copy(
+                name = name
+            )
+        }
+        getUserCategories()
+    }
+
+    fun clearName() {
+        _uiState.update {
+            it.copy(
+                name = ""
+            )
+        }
+        getUserCategories()
+    }
+
     fun getUserCategories() {
         viewModelScope.launch {
             try {

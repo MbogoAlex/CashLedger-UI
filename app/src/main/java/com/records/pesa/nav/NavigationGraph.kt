@@ -302,6 +302,9 @@ fun NavigationGraph(
                     navController.navigate(HomeScreenDestination.route)
                 },
                 showBackArrow = true,
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                }
             )
         }
         composable(CategoryAdditionScreenDestination.route) {

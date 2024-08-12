@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -39,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,16 +76,34 @@ fun DashboardScreenComposable(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    var showSubscriptionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = {
+                showSubscriptionDialog = false
+            },
+            onConfirm = {
+                showSubscriptionDialog = false
+                navigateToSubscriptionScreen()
+            }
+        )
+    }
 
     Box(
         modifier = modifier
             .safeDrawingPadding()
     ) {
         DashboardScreen(
+            premium = uiState.userDetails.paymentStatus,
             moneyInPointsData = uiState.moneyInPointsData,
             moneyOutPointsData = uiState.moneyOutPointsData,
             maxAmount = uiState.maxAmount,
@@ -104,13 +125,17 @@ fun DashboardScreenComposable(
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToCategoriesScreen = navigateToCategoriesScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
+            navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+            onShowSubscriptionDialog = {
+                showSubscriptionDialog = true
+            }
         )
     }
 }
 
 @Composable
 fun DashboardScreen(
+    premium: Boolean,
     moneyInPointsData: List<Point>,
     moneyOutPointsData: List<Point>,
     maxAmount: Float = 0.0f,
@@ -129,6 +154,7 @@ fun DashboardScreen(
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -167,9 +193,9 @@ fun DashboardScreen(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        transactions.take(2).forEach {
+        transactions.take(2).forEachIndexed { index, item ->
             TransactionItemCell(
-                transaction = it
+                transaction = item
             )
         }
         Spacer(modifier = Modifier.height(20.dp))
@@ -201,10 +227,16 @@ fun DashboardScreen(
         }
         Spacer(modifier = Modifier.height(10.dp))
         if(transactionCategories.isNotEmpty()) {
-            transactionCategories.take(2).forEach {
+            transactionCategories.take(2).forEachIndexed {index, item ->
                 TransactionCategoryCell(
-                    transactionCategory = it,
-                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen
+                    transactionCategory = item,
+                    navigateToCategoryDetailsScreen = {
+                        if(index != 0 && !premium) {
+                            onShowSubscriptionDialog()
+                        } else {
+                            navigateToCategoryDetailsScreen(item.id.toString())
+                        }
+                    }
                 )
             }
         } else {
@@ -415,6 +447,61 @@ fun HeaderSection(
 
 }
 
+@Composable
+fun SubscriptionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(text = "Go premium?")
+        },
+        text = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "Ksh100.0 premium monthly fee",
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Premium version allows you to: ",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "1. See transactions and export reports of more than three months")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "2. Manage more than one category")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "3. Manage more than one Budget")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "4. Use in dark mode")
+
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Dismiss")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = "Subscribe")
+            }
+        }
+    )
+}
+
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -443,7 +530,9 @@ fun DashboardScreenPreview(
             transactionCategories = transactionCategories,
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},
-            navigateToCategoryDetailsScreen = {}
+            navigateToCategoryDetailsScreen = {},
+            onShowSubscriptionDialog = {},
+            premium = false
         )
     }
 }

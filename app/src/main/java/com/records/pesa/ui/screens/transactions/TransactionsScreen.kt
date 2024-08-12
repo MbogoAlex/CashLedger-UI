@@ -376,7 +376,7 @@ fun TransactionsScreen(
                                         horizontal = 16.dp
                                     )
                                     .fillMaxWidth()
-                                    .height(50.dp)
+//                                    .height(50.dp)
                             )
                         }
                     } else {
@@ -421,7 +421,7 @@ fun TransactionsScreen(
                                     horizontal = 16.dp
                                 )
                                 .fillMaxWidth()
-                                .height(50.dp)
+//                                .height(50.dp)
                         )
                     }
 

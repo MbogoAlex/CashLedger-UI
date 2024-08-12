@@ -66,28 +66,16 @@ class SingleEntityTransactionsScreenViewModel(
         }
         viewModelScope.launch {
             try {
-                val response = if (uiState.value.moneyIn) apiRepository.getMoneyIn(
+                val response = apiRepository.getTransactions(
                     token = uiState.value.userDetails.token,
                     userId = uiState.value.userDetails.userId,
-                    entity = _uiState.value.entity,
+                    entity = uiState.value.entity,
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
-                    transactionType = _uiState.value.transactionType,
-                    moneyIn = uiState.value.moneyIn,
+                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     latest = true,
-                    startDate = _uiState.value.startDate,
-                    endDate = _uiState.value.endDate
-                ) else apiRepository.getMoneyOut(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = _uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = _uiState.value.transactionType,
-                    moneyIn = uiState.value.moneyIn,
-                    latest = true,
-                    startDate = _uiState.value.startDate,
-                    endDate = _uiState.value.endDate
+                    startDate = uiState.value.startDate,
+                    endDate = uiState.value.endDate
                 )
 
                 if(response.isSuccessful) {

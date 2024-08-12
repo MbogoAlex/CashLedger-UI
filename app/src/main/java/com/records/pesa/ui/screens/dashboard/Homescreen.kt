@@ -185,7 +185,8 @@ fun HomeScreenComposable(
                 } else {
                     showSubscribeDialog = true
                 }
-            }
+            },
+            navigateToSubscriptionScreen = navigateToSubscriptionScreen,
         )
     }
 }
@@ -211,6 +212,7 @@ fun HomeScreen(
     navigateToHomeScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     onSwitchTheme: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -320,6 +322,7 @@ fun HomeScreen(
                         navigateToCategoriesScreen = navigateToCategoriesScreen,
                         navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
                         navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         modifier = Modifier
                             .weight(1f)
                     )
@@ -339,7 +342,8 @@ fun HomeScreen(
                         navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
                         navigateToPreviousScreen = navigateToPreviousScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
-                        showBackArrow = false
+                        showBackArrow = false,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen
                     )
                 }
                 HomeScreenTab.BUDGETS -> {
@@ -569,7 +573,8 @@ fun HomeScreenPreview() {
             navigateToLoginScreenWithArgs = {phoneNumber, password ->  },
             navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  },
             darkTheme = false,
-            onSwitchTheme = {}
+            onSwitchTheme = {},
+            navigateToSubscriptionScreen = {}
         )
     }
 }
