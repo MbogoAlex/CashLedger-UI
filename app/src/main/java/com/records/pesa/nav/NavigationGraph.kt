@@ -49,6 +49,7 @@ import com.records.pesa.ui.screens.transactions.TransactionsScreenDestination
 @Composable
 fun NavigationGraph(
     navController: NavHostController,
+    onSwitchTheme: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -163,6 +164,10 @@ fun NavigationGraph(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
                 },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                },
+                onSwitchTheme = onSwitchTheme
             )
         }
         composable(TransactionsScreenDestination.route) {

@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, AppLaunchStatus::class], version = 3, exportSchema = false)
+@Database(entities = [UserDetails::class, AppLaunchStatus::class], version = 7, exportSchema = false)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
 

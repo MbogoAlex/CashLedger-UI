@@ -1,24 +1,41 @@
 package com.records.pesa.ui.screens.dashboard
 
 import android.app.Activity
+import android.widget.Space
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
@@ -26,8 +43,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,11 +54,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import co.yml.charts.common.extensions.isNotNull
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.HomeScreenTab
@@ -69,10 +96,16 @@ fun HomeScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+    onSwitchTheme: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
     BackHandler(onBack = {activity?.finish()})
+
+    val viewModel: HomeScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val uiState by viewModel.uiState.collectAsState()
+
     val tabs = listOf(
         HomeScreenTabItem(
             name = "Home",
@@ -101,8 +134,22 @@ fun HomeScreenComposable(
         ),
     )
 
+    var showSubscribeDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var currentTab by rememberSaveable {
         mutableStateOf(HomeScreenTab.HOME)
+    }
+
+    if(showSubscribeDialog) {
+        SubscriptionDialog(
+            onDismiss = { showSubscribeDialog = false },
+            onConfirm = {
+                showSubscribeDialog = false
+                navigateToSubscriptionScreen()
+            }
+        )
     }
 
     Box(
@@ -110,6 +157,10 @@ fun HomeScreenComposable(
             .safeDrawingPadding()
     ) {
         HomeScreen(
+            firstName = uiState.userDetails.firstName,
+            lastName = uiState.userDetails.lastName,
+            phoneNumber = uiState.userDetails.phoneNumber,
+            darkTheme = uiState.userDetails.darkThemeSet,
             currentTab = currentTab,
             onTabChange = {
                 currentTab = it
@@ -128,12 +179,23 @@ fun HomeScreenComposable(
             },
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+            onSwitchTheme = {
+                if(uiState.userDetails.paymentStatus) {
+                    onSwitchTheme()
+                } else {
+                    showSubscribeDialog = true
+                }
+            }
         )
     }
 }
 
 @Composable
 fun HomeScreen(
+    firstName: String?,
+    lastName: String?,
+    phoneNumber: String,
+    darkTheme: Boolean,
     currentTab: HomeScreenTab,
     onTabChange: (HomeScreenTab) -> Unit,
     tabs: List<HomeScreenTabItem>,
@@ -148,7 +210,7 @@ fun HomeScreen(
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
-
+    onSwitchTheme: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -162,18 +224,38 @@ fun HomeScreen(
                     modifier = Modifier
                         .padding(10.dp)
                 ) {
+                    ThemeSwitcher(
+                        darkTheme = darkTheme,
+                        size = 30.dp,
+                        padding = 5.dp,
+                        onClick = onSwitchTheme,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(
+                                end = 16.dp
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .padding(
-                                horizontal = 20.dp
+                                horizontal = 16.dp
                             )
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.cashledger_logo),
+                        Icon(
+                            painter = painterResource(id = R.drawable.account_info),
                             contentDescription = null,
                             modifier = Modifier
-                                .height(100.dp)
+                                .size(40.dp)
                         )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        (if(firstName.isNullOrEmpty() && lastName.isNullOrEmpty()) phoneNumber else if(firstName.isNotNull() && lastName.isNotNull()) "$firstName $lastName" else if (firstName.isNullOrEmpty() && lastName.isNotNull()) lastName else if (lastName.isNotNull() && firstName.isNullOrEmpty()) lastName else phoneNumber)?.let {
+                            Text(
+                                text = it,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(15.dp))
                     Divider()
@@ -230,8 +312,6 @@ fun HomeScreen(
                         contentDescription = "Menu"
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                Switch(checked = false, onCheckedChange = {})
             }
             when(currentTab) {
                 HomeScreenTab.HOME -> {
@@ -312,6 +392,132 @@ private fun BottomNavBar(
     }
 }
 
+@Composable
+fun ThemeSwitcher(
+    darkTheme: Boolean = false,
+    size: Dp = 150.dp,
+    iconSize: Dp = size / 3,
+    padding: Dp = 10.dp,
+    borderWidth: Dp = 1.dp,
+    parentShape: Shape = CircleShape,
+    toggleShape: Shape = CircleShape,
+    animationSpec: AnimationSpec<Dp> = tween(durationMillis = 300),
+    onClick: () -> Unit,
+    modifier: Modifier =Modifier
+) {
+    val offset by animateDpAsState(
+        targetValue = if (darkTheme) 0.dp else size,
+        animationSpec = animationSpec
+    )
+
+    Box(modifier = modifier
+        .width(size * 2)
+        .height(size)
+        .clip(shape = parentShape)
+        .clickable { onClick() }
+        .background(MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .offset(x = offset)
+                .padding(all = padding)
+                .clip(shape = toggleShape)
+                .background(MaterialTheme.colorScheme.primary)
+        ) {}
+        Row(
+            modifier = Modifier
+                .border(
+                    border = BorderStroke(
+                        width = borderWidth,
+                        color = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = parentShape
+                )
+        ) {
+            Box(
+                modifier = Modifier.size(size),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    tint = if (darkTheme) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.primary,
+                    painter = painterResource(id = R.drawable.nightlight),
+                    contentDescription = "Theme icon",
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+            Box(
+                modifier = Modifier.size(size),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    tint = if (darkTheme) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.secondaryContainer,
+                    painter = painterResource(id = R.drawable.lightmode),
+                    contentDescription = "Theme icon",
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SubscriptionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(text = "Go premium?")
+        },
+        text = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "Ksh100.0 premium monthly fee",
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Premium version allows you to: ",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "1. See transactions and export reports of more than three months")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "2. Manage more than one category")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "3. Manage more than one Budget")
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(text = "4. Use in dark mode")
+
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Dismiss")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = "Subscribe")
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
@@ -343,6 +549,9 @@ fun HomeScreenPreview() {
     }
     CashLedgerTheme {
         HomeScreen(
+            firstName = null,
+            lastName = null,
+            phoneNumber = "",
             currentTab = currentTab,
             onTabChange = {
                 currentTab = it
@@ -358,7 +567,9 @@ fun HomeScreenPreview() {
             navigateToPreviousScreen = {},
             navigateToHomeScreen = {},
             navigateToLoginScreenWithArgs = {phoneNumber, password ->  },
-            navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  }
+            navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  },
+            darkTheme = false,
+            onSwitchTheme = {}
         )
     }
 }

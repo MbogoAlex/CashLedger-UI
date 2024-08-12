@@ -15,5 +15,6 @@ data class UserDetails(
     val phoneNumber: String = "",
     val password: String = "",
     val token: String = "",
-    val paymentStatus: Boolean = false
+    val paymentStatus: Boolean = false,
+    val darkThemeSet: Boolean = false
 )

@@ -13,7 +13,11 @@ import com.records.pesa.nav.NavigationGraph
 @Composable
 fun StartScreen(
     navController: NavHostController = rememberNavController(),
+    onSwitchTheme: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    NavigationGraph(navController = navController)
+    NavigationGraph(
+        navController = navController,
+        onSwitchTheme = onSwitchTheme
+    )
 }
