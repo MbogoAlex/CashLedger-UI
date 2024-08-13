@@ -16,6 +16,7 @@ import com.records.pesa.models.transaction.GroupedTransactionsResponseBody
 import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
+import com.records.pesa.models.dashboard.DashboardDetailsResponseBody
 import com.records.pesa.models.transaction.SortedTransactionsResponseBody
 import com.records.pesa.models.transaction.TransactionCodesResponseBody
 import com.records.pesa.models.transaction.TransactionEditPayload
@@ -33,6 +34,7 @@ import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import kotlinx.coroutines.flow.first
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -96,6 +98,8 @@ interface ApiRepository {
     suspend fun updateUserPassword(password: PasswordUpdatePayload): Response<UserRegistrationResponseBody>
     suspend fun paySubscriptionFee(token: String, paymentPayload: PaymentPayload): Response<PaymentResponseBody>
     suspend fun subscriptionPaymentStatus(token: String, subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload): Response<SubscriptionStatusResponseBody>
+    suspend fun getDashboardDetails(token: String, userId: Int, date: String): Response<DashboardDetailsResponseBody>
+    suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<ResponseBody>
 
 }
 
@@ -493,6 +497,36 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         }
         return response
     }
+
+    override suspend fun getDashboardDetails(
+        token: String,
+        userId: Int,
+        date: String
+    ): Response<DashboardDetailsResponseBody> = apiService.getDashboardDetails(
+        token = "Bearer $token",
+        userId = userId,
+        date = date
+    )
+
+    override suspend fun getAllTransactionsReport(
+        userId: Int,
+        token: String,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        startDate: String,
+        endDate: String
+    ): Response<ResponseBody> = apiService.getAllTransactionsReport(
+        token = "Bearer $token",
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        startDate = startDate,
+        endDate = endDate
+    )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
         val response = apiService.loginUser(user = user)

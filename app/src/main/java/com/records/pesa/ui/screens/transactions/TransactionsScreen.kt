@@ -1,9 +1,13 @@
 package com.records.pesa.ui.screens.transactions
 
+import android.Manifest
 import android.app.DatePickerDialog
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,15 +30,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -68,12 +76,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
@@ -99,6 +110,7 @@ object TransactionsScreenDestination: AppNavigation {
     val routeWithBudgetId: String = "$route/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}"
 }
 
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun TransactionsScreenComposable(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
@@ -108,6 +120,7 @@ fun TransactionsScreenComposable(
     navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val viewModel: TransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
@@ -159,6 +172,28 @@ fun TransactionsScreenComposable(
     var showSubscriptionDialog by rememberSaveable {
         mutableStateOf(false)
     }
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            if(currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
+                viewModel.getTransactions()
+            } else if(currentTab == TransactionScreenTab.GROUPED) {
+                viewModel.getGroupedByEntityTransactions()
+            }
+
+        }
+    )
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
+        uri?.let {
+            viewModel.fetchReportAndSave(
+                context = context,
+                saveUri = it
+            )
+        }
+    }
+
 
     if(showSubscriptionDialog) {
         SubscriptionDialog(
@@ -252,12 +287,19 @@ fun TransactionsScreenComposable(
             onShowSubscriptionDialog = {
                 showSubscriptionDialog = !showSubscriptionDialog
             },
-            showBackArrow = showBackArrow
+            showBackArrow = showBackArrow,
+            onDownloadReport = {
+                createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+            },
+            downloadingStatus = uiState.downloadingStatus,
+            loadingStatus = uiState.loadingStatus,
+            pullRefreshState = pullRefreshState
         )
 
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun TransactionsScreen(
     premium: Boolean,
@@ -296,6 +338,10 @@ fun TransactionsScreen(
     navigateToPreviousScreen: () -> Unit,
     onShowSubscriptionDialog: () -> Unit,
     showBackArrow: Boolean,
+    onDownloadReport: () -> Unit,
+    downloadingStatus: DownloadingStatus,
+    loadingStatus: LoadingStatus,
+    pullRefreshState: PullRefreshState?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -557,15 +603,26 @@ fun TransactionsScreen(
                         }
                         if(currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
                             Spacer(modifier = Modifier.weight(1f))
-                            TextButton(onClick = { /*TODO*/ }) {
+                            TextButton(
+                                enabled = downloadingStatus != DownloadingStatus.LOADING,
+                                onClick = onDownloadReport
+                            ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(text = "Statement")
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.download),
-                                        contentDescription = null
-                                    )
+                                    if(downloadingStatus == DownloadingStatus.LOADING) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(25.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.download),
+                                            contentDescription = null
+                                        )
+                                    }
+
                                 }
                             }
                         }
@@ -574,7 +631,9 @@ fun TransactionsScreen(
                     when(currentTab) {
                         TransactionScreenTab.ALL_TRANSACTIONS -> {
                             AllTransactionsScreenComposable(
+                                pullRefreshState = pullRefreshState!!,
                                 transactions = transactions,
+                                loadingStatus = loadingStatus,
                                 modifier = Modifier
                                     .padding(
                                         horizontal = 16.dp
@@ -584,6 +643,8 @@ fun TransactionsScreen(
                         }
                         TransactionScreenTab.GROUPED -> {
                             GroupedTransactionsScreenComposable(
+                                pullRefreshState = pullRefreshState!!,
+                                loadingStatus = loadingStatus,
                                 sortedTransactionItems = moneyInsortedTransactionItems,
                                 navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                                 modifier = Modifier
@@ -686,6 +747,7 @@ fun SubscriptionDialog(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true)
 @Composable
 fun TransactionsScreenPreview(
@@ -740,7 +802,11 @@ fun TransactionsScreenPreview(
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
             navigateToPreviousScreen = {},
             onShowSubscriptionDialog = {},
-            showBackArrow = true
+            showBackArrow = true,
+            onDownloadReport = {},
+            downloadingStatus = DownloadingStatus.INITIAL,
+            pullRefreshState = null,
+            loadingStatus = LoadingStatus.INITIAL
         )
     }
 }

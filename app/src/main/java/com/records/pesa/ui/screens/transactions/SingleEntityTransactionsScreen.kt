@@ -11,14 +11,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +43,8 @@ import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -55,6 +64,7 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
     val moneyIn: String = "moneyIn"
     val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
 }
+@OptIn(ExperimentalMaterialApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SingleEntityTransactionsScreenComposable(
@@ -64,29 +74,44 @@ fun SingleEntityTransactionsScreenComposable(
     val viewModel: SingleEntityTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            viewModel.getTransactions()
+        }
+    )
+
     Box(
         modifier = Modifier
             .safeDrawingPadding()
     ) {
         SingleEntityTransactionsScreen(
+            pullRefreshState = pullRefreshState,
             transactions = uiState.transactions,
             startDate = uiState.startDate,
             endDate = uiState.endDate,
             totalMoneyIn = formatMoneyValue(uiState.totalMoneyIn),
             totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
+            downloadingStatus = uiState.downloadingStatus,
+            onDownloadReport = {},
+            loadingStatus = uiState.loadingStatus,
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun SingleEntityTransactionsScreen(
+    pullRefreshState: PullRefreshState?,
     transactions: List<TransactionItem>,
     startDate: String,
     endDate: String,
     totalMoneyIn: String,
     totalMoneyOut: String,
+    downloadingStatus: DownloadingStatus,
+    onDownloadReport: () -> Unit,
+    loadingStatus: LoadingStatus,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -106,9 +131,35 @@ fun SingleEntityTransactionsScreen(
             IconButton(onClick = navigateToPreviousScreen) {
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
             }
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                enabled = downloadingStatus != DownloadingStatus.LOADING,
+                onClick = onDownloadReport
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Statement")
+                    if(downloadingStatus == DownloadingStatus.LOADING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(25.dp)
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(id = R.drawable.download),
+                            contentDescription = null
+                        )
+                    }
+
+                }
+            }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}")
+        Text(
+            text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(20.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -138,9 +189,20 @@ fun SingleEntityTransactionsScreen(
             }
         }
 
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
+        }
+
     }
 }
-@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SingleEntityTransactionsScreenPreview(
@@ -148,11 +210,15 @@ fun SingleEntityTransactionsScreenPreview(
 ) {
     CashLedgerTheme {
         SingleEntityTransactionsScreen(
+            pullRefreshState = null,
+            loadingStatus = LoadingStatus.INITIAL,
             transactions = transactions,
             totalMoneyIn = "Ksh 1000",
             totalMoneyOut = "Ksh 500",
             startDate = "2023-03-06",
             endDate = "2024-06-25",
+            downloadingStatus = DownloadingStatus.INITIAL,
+            onDownloadReport = {},
             navigateToPreviousScreen = {}
         )
     }

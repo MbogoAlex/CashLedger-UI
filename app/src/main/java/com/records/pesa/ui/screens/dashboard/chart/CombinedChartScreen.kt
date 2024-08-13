@@ -704,8 +704,8 @@ private fun ComposeChart3(transactions: List<MonthlyTransaction>, modelProducer:
                 pointSpacing = 100.dp,
                 lineProvider =
                 LineCartesianLayer.LineProvider.series(
-                    rememberLine(DynamicShader.color(Color.Green)),
-                    rememberLine(DynamicShader.color(Color.Red))
+                    rememberLine(DynamicShader.color(MaterialTheme.colorScheme.surfaceTint)),
+                    rememberLine(DynamicShader.color(MaterialTheme.colorScheme.error))
                 ),
                 axisValueOverrider = axisValueOverrider,
             ),
@@ -728,7 +728,7 @@ private fun ComposeChart3(transactions: List<MonthlyTransaction>, modelProducer:
                 rememberTextComponent(
                     color = Color.White,
                     margins = Dimensions.of(top = 4.dp),
-                    padding = Dimensions.of(start = 8.dp, 2.dp),
+                    padding = Dimensions.of(8.dp, 2.dp),
                     background = rememberShapeComponent(bottomAxisLabelBackgroundColor, Shape.Pill),
                 ),
                 valueFormatter = { value, _, _ ->

@@ -37,11 +37,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +68,7 @@ import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+import java.time.Month
 
 object DashboardScreenDestination: AppNavigation {
     override val title: String = "Dashboard screen"
@@ -86,6 +91,10 @@ fun DashboardScreenComposable(
         mutableStateOf(false)
     }
 
+    var showBalance by rememberSaveable {
+        mutableStateOf(true)
+    }
+
     if(showSubscriptionDialog) {
         SubscriptionDialog(
             onDismiss = {
@@ -104,6 +113,11 @@ fun DashboardScreenComposable(
     ) {
         DashboardScreen(
             premium = uiState.userDetails.paymentStatus,
+            totalInToday = formatMoneyValue(uiState.todayTotalIn),
+            totalOutToday = formatMoneyValue(uiState.todayTotalOut),
+            monthlyTotalIn = formatMoneyValue(uiState.monthlyInTotal),
+            monthlyTotalOut = formatMoneyValue(uiState.monthlyOutTotal),
+            firstTransactionDate = uiState.firstTransactionDate,
             moneyInPointsData = uiState.moneyInPointsData,
             moneyOutPointsData = uiState.moneyOutPointsData,
             maxAmount = uiState.maxAmount,
@@ -128,7 +142,11 @@ fun DashboardScreenComposable(
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
             onShowSubscriptionDialog = {
                 showSubscriptionDialog = true
-            }
+            },
+            onToggleBalanceVisibility = {
+                showBalance = !showBalance
+            },
+            showBalance = showBalance
         )
     }
 }
@@ -136,6 +154,11 @@ fun DashboardScreenComposable(
 @Composable
 fun DashboardScreen(
     premium: Boolean,
+    totalInToday: String,
+    totalOutToday: String,
+    monthlyTotalIn: String,
+    monthlyTotalOut: String,
+    firstTransactionDate: String,
     moneyInPointsData: List<Point>,
     moneyOutPointsData: List<Point>,
     maxAmount: Float = 0.0f,
@@ -155,6 +178,8 @@ fun DashboardScreen(
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     onShowSubscriptionDialog: () -> Unit,
+    onToggleBalanceVisibility: () -> Unit,
+    showBalance: Boolean,
     modifier: Modifier = Modifier
 ) {
 
@@ -165,6 +190,9 @@ fun DashboardScreen(
     var selectMonthExpanded by rememberSaveable {
         mutableStateOf(false)
     }
+
+    val threeMonthsBack = LocalDate.now().minusMonths(3).month
+
 
     Column(
         modifier = Modifier
@@ -178,7 +206,12 @@ fun DashboardScreen(
             .verticalScroll(rememberScrollState())
     ) {
         HeaderSection(
-            currentBalance = currentBalance
+            totalInToday = totalInToday,
+            totalOutToday = totalOutToday,
+            currentBalance = currentBalance,
+            firstTransactionDate = firstTransactionDate,
+            onToggleBalanceVisibility = onToggleBalanceVisibility,
+            showBalance = showBalance
         )
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -284,8 +317,15 @@ fun DashboardScreen(
                                     Text(text = it)
                                 },
                                 onClick = {
-                                    onSelectMonth(it)
-                                    selectMonthExpanded = !selectMonthExpanded
+
+                                    if (Month.valueOf(it.uppercase()) < (threeMonthsBack) && !premium) {
+                                        selectMonthExpanded = !selectMonthExpanded
+                                        onShowSubscriptionDialog()
+                                    } else {
+                                        onSelectMonth(it)
+                                        selectMonthExpanded = !selectMonthExpanded
+                                    }
+
                                 }
                             )
                         }
@@ -323,8 +363,14 @@ fun DashboardScreen(
                                     Text(text = it)
                                 },
                                 onClick = {
-                                    onSelectYear(it)
-                                    selectYearExpanded = !selectYearExpanded
+                                    if(!premium) {
+                                        selectYearExpanded = !selectYearExpanded
+                                        onShowSubscriptionDialog()
+                                    } else {
+                                        selectYearExpanded = !selectYearExpanded
+                                        onSelectYear(it)
+                                    }
+
                                 }
                             )
                         }
@@ -336,6 +382,31 @@ fun DashboardScreen(
         }
         Spacer(modifier = Modifier.height(10.dp))
         if(monthlyTransactions.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.arrow_downward),
+                    contentDescription = null
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = monthlyTotalIn,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.surfaceTint
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Icon(
+                    painter = painterResource(id = R.drawable.arrow_upward),
+                    contentDescription = null
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = monthlyTotalOut,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             BarWithLineChart(
                 transactions = monthlyTransactions,
                 maxAmount = maxAmount,
@@ -346,7 +417,7 @@ fun DashboardScreen(
             )
         } else {
             Text(
-                text = "No transactions for this week",
+                text = "No transactions for this month",
                 textAlign = TextAlign.Center,
                 fontStyle = FontStyle.Italic,
                 fontWeight = FontWeight.Light,
@@ -362,7 +433,12 @@ fun DashboardScreen(
 
 @Composable
 fun HeaderSection(
+    totalInToday: String,
+    totalOutToday: String,
     currentBalance: String,
+    firstTransactionDate: String,
+    showBalance: Boolean,
+    onToggleBalanceVisibility: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -371,10 +447,11 @@ fun HeaderSection(
     ) {
         ElevatedCard(
             modifier = Modifier
+                .fillMaxWidth()
         ) {
             Column {
                 Text(
-                    text = "M-PESA transactions since ${formatLocalDate(LocalDate.now())}",
+                    text = "M-PESA transactions since $firstTransactionDate",
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .padding(10.dp)
@@ -392,14 +469,27 @@ fun HeaderSection(
             Text(
                 text = currentBalance,
                 fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .graphicsLayer {
+                        if (!showBalance) {
+                            alpha = 0.0f // Adjust the alpha to make the text semi-transparent
+                            shape = RectangleShape
+                            clip = true
+                        }
+                    }
+                    .blur(if (!showBalance) 4.dp else 0.dp) // Apply blur only when showBalance is false
             )
             IconButton(
-                onClick = { /*TODO*/ }
+                onClick = onToggleBalanceVisibility
             ) {
-                Icon(painter = painterResource(id = R.drawable.visibility_on), contentDescription = null)
+                Icon(
+                    painter = if (showBalance) painterResource(id = R.drawable.visibility_off) else painterResource(id = R.drawable.visibility_on),
+                    contentDescription = null
+                )
             }
         }
+
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = "${formatLocalDate(LocalDate.now())} (today)")
         Spacer(modifier = Modifier.height(8.dp))
@@ -418,7 +508,7 @@ fun HeaderSection(
                     ) {
                         Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
                         Text(
-                            text = "Ksh1,200",
+                            text = totalInToday,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.surfaceTint
                         )
@@ -434,7 +524,7 @@ fun HeaderSection(
                     ) {
                         Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
                         Text(
-                            text = "Ksh3,400",
+                            text = totalOutToday,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -511,6 +601,7 @@ fun DashboardScreenPreview(
     CashLedgerTheme {
         DashboardScreen(
             navigateToTransactionsScreen = {},
+            firstTransactionDate = LocalDate.now().toString(),
             transactions = transactions,
             currentBalance = "Ksh 5,350",
             maxAmount = groupedTransactions.maxOf { maxOf(it.moneyIn, it.moneyOut) },
@@ -532,7 +623,13 @@ fun DashboardScreenPreview(
             navigateToCategoryAdditionScreen = {},
             navigateToCategoryDetailsScreen = {},
             onShowSubscriptionDialog = {},
-            premium = false
+            premium = false,
+            totalInToday = "",
+            totalOutToday = "",
+            monthlyTotalIn = "",
+            monthlyTotalOut = "",
+            showBalance = true,
+            onToggleBalanceVisibility = {}
         )
     }
 }

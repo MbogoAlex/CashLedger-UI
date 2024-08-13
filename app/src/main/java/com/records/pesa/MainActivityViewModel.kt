@@ -25,7 +25,7 @@ class MainActivityViewModel(
             dbRepository.getUsers().collect(){userDetails->
                 _uiState.update {
                     it.copy(
-                        userDetails = userDetails[0]
+                        userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
                     )
                 }
             }

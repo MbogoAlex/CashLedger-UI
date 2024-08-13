@@ -16,6 +16,7 @@ import com.records.pesa.models.transaction.GroupedTransactionsResponseBody
 import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
+import com.records.pesa.models.dashboard.DashboardDetailsResponseBody
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
@@ -33,6 +34,7 @@ import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
@@ -324,4 +326,23 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload
     ): Response<SubscriptionStatusResponseBody>
+
+    @GET("transaction/dashboard/{userId}")
+    suspend fun getDashboardDetails(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int,
+        @Query("date") date: String
+    ): Response<DashboardDetailsResponseBody>
+
+    @GET("transaction/report/{userId}")
+    suspend fun getAllTransactionsReport(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int,
+        @Query("entity") entity: String?,
+        @Query("categoryId") categoryId: Int?,
+        @Query("budgetId") budgetId: Int?,
+        @Query("transactionType") transactionType: String?,
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String
+    ): Response<ResponseBody>
 }

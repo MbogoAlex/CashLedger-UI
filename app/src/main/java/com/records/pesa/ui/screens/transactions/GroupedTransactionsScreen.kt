@@ -8,11 +8,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +41,8 @@ import com.patrykandpatrick.vico.core.common.Dimensions
 import com.patrykandpatrick.vico.core.common.shape.Shape
 import com.records.pesa.composables.SortedTransactionItemCell
 import com.records.pesa.models.transaction.SortedTransactionItem
+import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.moneyInSortedTransactionItems
 import com.records.pesa.ui.screens.dashboard.chart.vico.rememberMarker
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -45,8 +51,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun GroupedTransactionsScreenComposable(
+    pullRefreshState: PullRefreshState,
+    loadingStatus: LoadingStatus,
     sortedTransactionItems: List<SortedTransactionItem>,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -56,14 +65,19 @@ fun GroupedTransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         GroupedTransactionsScreen(
+            pullRefreshState = pullRefreshState,
+            loadingStatus = loadingStatus,
             sortedTransactionItems = sortedTransactionItems,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen
         )
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun GroupedTransactionsScreen(
+    pullRefreshState: PullRefreshState?,
+    loadingStatus: LoadingStatus,
     sortedTransactionItems: List<SortedTransactionItem>,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -72,23 +86,36 @@ fun GroupedTransactionsScreen(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        LazyColumn {
-            if(sortedTransactionItems.isNotEmpty()) {
-                item {
-                    Chart6(sortedTransactionItems, Modifier.height(350.dp))
+        if(loadingStatus != LoadingStatus.LOADING) {
+            LazyColumn {
+                if(sortedTransactionItems.isNotEmpty()) {
+                    item {
+                        Chart6(sortedTransactionItems, Modifier.height(350.dp))
+                    }
+                }
+
+                items(sortedTransactionItems) {
+                    SortedTransactionItemCell(
+                        transaction = it,
+                        modifier = Modifier
+                            .clickable {
+                                navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.times.toString(), true)
+                            }
+                    )
+                    Divider()
                 }
             }
+        }
 
-            items(sortedTransactionItems) {
-                SortedTransactionItemCell(
-                    transaction = it,
-                    modifier = Modifier
-                        .clickable {
-                            navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.times.toString(), true)
-                        }
-                )
-                Divider()
-            }
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
         }
     }
 }
@@ -179,13 +206,16 @@ private fun rememberComposeHorizontalBox(): HorizontalBox {
 
 
 
+@OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun GroupedTransactionsScreenPreview() {
     CashLedgerTheme {
         GroupedTransactionsScreen(
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
-            sortedTransactionItems = moneyInSortedTransactionItems
+            sortedTransactionItems = moneyInSortedTransactionItems,
+            loadingStatus = LoadingStatus.INITIAL,
+            pullRefreshState = null
         )
     }
 }

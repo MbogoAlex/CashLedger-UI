@@ -31,7 +31,8 @@ data class SingleEntityTransactionsScreenUiState(
     val categoryId: Int? = null,
     val budgetId: Int? = null,
     val transactions: List<TransactionItem> = emptyList(),
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
 )
 class SingleEntityTransactionsScreenViewModel(
     private val apiRepository: ApiRepository,

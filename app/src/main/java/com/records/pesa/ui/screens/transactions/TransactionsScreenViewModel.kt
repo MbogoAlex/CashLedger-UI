@@ -1,6 +1,17 @@
 package com.records.pesa.ui.screens.transactions
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +23,7 @@ import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +31,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.time.LocalDate
 
 data class TransactionsScreenUiState(
@@ -45,7 +59,8 @@ data class TransactionsScreenUiState(
     val categoryName: String? = null,
     val budgetName: String? = null,
     val errorCode: Int = 0,
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
 )
 class TransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -61,6 +76,8 @@ class TransactionsScreenViewModel(
 
     private val categoryId: String? = savedStateHandle[TransactionsScreenDestination.categoryId]
     private val budgetId: String? = savedStateHandle[TransactionsScreenDestination.budgetId]
+
+    private var filterJob: Job? = null
 
     fun setInitialDates() {
         val currentDate = LocalDate.now()
@@ -83,64 +100,92 @@ class TransactionsScreenViewModel(
         }
     }
 
+    companion object {
+        private const val REQUEST_CODE_PERMISSIONS = 101 // Arbitrary integer for the permission request code
+    }
+
     fun changeStartDate(startDate: LocalDate, tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
-                startDate = startDate.toString()
+                startDate = startDate.toString(),
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-
-        when(tab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            delay(500L)
+            when(tab) {
+                TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+                TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+            }
         }
     }
 
     fun changeEndDate(endDate: LocalDate, tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
-                endDate = endDate.toString()
+                endDate = endDate.toString(),
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-        when(tab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            delay(500)
+            when(tab) {
+                TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+                TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+            }
         }
     }
 
     fun changeEntity(entity: String, tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
-                entity = entity
+                entity = entity,
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-        when(tab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            delay(500L)
+            when(tab) {
+                TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+                TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+            }
         }
     }
 
     fun clearSearch(tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
-                entity = ""
+                entity = "",
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-        when(tab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            delay(500L)
+            when(tab) {
+                TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+                TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+            }
         }
     }
 
     fun changeTransactionType(transactionType: String, tab: TransactionScreenTab) {
         _uiState.update {
             it.copy(
-                transactionType = if(transactionType.lowercase() == "buy goods and services") "Buy Goods and Services (till)" else if(transactionType.lowercase() == "withdrawal") "Withdraw Cash" else transactionType
+                transactionType = if(transactionType.lowercase() == "buy goods and services") "Buy Goods and Services (till)" else if(transactionType.lowercase() == "withdrawal") "Withdraw Cash" else transactionType,
+                loadingStatus = LoadingStatus.LOADING
             )
         }
-        when(tab) {
-            TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
-            TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            delay(500L)
+            when(tab) {
+                TransactionScreenTab.ALL_TRANSACTIONS -> getTransactions()
+                TransactionScreenTab.GROUPED -> getGroupedByEntityTransactions()
+            }
         }
 
     }
@@ -425,6 +470,84 @@ class TransactionsScreenViewModel(
             } catch (e: Exception) {
 
             }
+        }
+    }
+
+    fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+        _uiState.update {
+            it.copy(
+                downloadingStatus = DownloadingStatus.LOADING
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val response = apiRepository.getAllTransactionsReport(
+                    userId = uiState.value.userDetails.userId,
+                    token = uiState.value.userDetails.token,
+                    entity = uiState.value.entity,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
+                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    startDate = uiState.value.startDate,
+                    endDate = uiState.value.endDate,
+                )
+                if (response.isSuccessful) {
+                    val pdfBytes = response.body()?.bytes()
+                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
+                        savePdfToUri(context, pdfBytes, saveUri)
+                        _uiState.update {
+                            it.copy(
+                                downloadingStatus = DownloadingStatus.SUCCESS
+                            )
+                        }
+                    } else {
+                        Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
+                        _uiState.update {
+                            it.copy(
+                                downloadingStatus = DownloadingStatus.FAIL
+                            )
+                        }
+                    }
+                } else {
+                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
+                    _uiState.update {
+                        it.copy(
+                            downloadingStatus = DownloadingStatus.FAIL
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
+                _uiState.update {
+                    it.copy(
+                        downloadingStatus = DownloadingStatus.FAIL
+                    )
+                }
+            }
+        }
+    }
+
+    private fun savePdfToUri(context: Context, pdfBytes: ByteArray, uri: Uri?) {
+        if (uri == null) {
+            Log.e("SAVE_PDF_TO_URI", "Uri is null, cannot save PDF")
+            return
+        }
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { output ->
+                output.write(pdfBytes)
+                Log.i("SAVE_PDF_TO_URI", "PDF saved successfully to: $uri")
+            }
+        } catch (e: Exception) {
+            Log.e("SAVE_PDF_TO_URI_ERROR", "Exception: ${e.message}")
+        }
+    }
+
+
+    fun resetDownloadingStatus() {
+        _uiState.update {
+            it.copy(
+                downloadingStatus = DownloadingStatus.INITIAL
+            )
         }
     }
 

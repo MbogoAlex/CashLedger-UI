@@ -6,12 +6,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.records.pesa.db.DBRepository
+import com.records.pesa.functions.formatLocalDate
+import com.records.pesa.models.BudgetDt
 import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.network.ApiRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +33,8 @@ data class DashboardScreenUiState(
     val selectableYears: List<String> = emptyList(),
     val monthlyInTotal: Double = 0.0,
     val monthlyOutTotal: Double = 0.0,
+    val todayTotalIn: Double = 0.0,
+    val todayTotalOut: Double = 0.0,
     val startDate: String = "2024-06-15",
     val endDate: String = "2024-06-15",
     val moneyInPointsData: List<Point> = emptyList(),
@@ -37,7 +42,9 @@ data class DashboardScreenUiState(
     val totalMoneyIn: Double = 0.0,
     val totalMoneyOut: Double = 0.0,
     val maxAmount: Float = 0.0f,
+    val firstTransactionDate: String = "",
     val transactions: List<TransactionItem> = emptyList(),
+    val budgetList: List<BudgetDt> = emptyList(),
     val groupedTransactions: List<GroupedTransactionData> = emptyList(),
     val monthlyTransactions: List<MonthlyTransaction> = emptyList(),
     val categories: List<TransactionCategory> = emptyList()
@@ -49,6 +56,8 @@ class DashboardScreenViewModel(
 ): ViewModel() {
     private val _uiState = MutableStateFlow(DashboardScreenUiState())
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
+
+    private var filterJob: Job? = null
 
     fun setInitialDates() {
         val currentDate = LocalDate.now()
@@ -94,109 +103,31 @@ class DashboardScreenViewModel(
         }
     }
 
-    fun getTransactions() {
-        Log.i("LOADING_TRANSACTIONS", "LOADING TRANSACTIONS")
+    fun getDashboardDetails() {
         viewModelScope.launch {
             try {
-                val response = apiRepository.getTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = null,
-                    categoryId = null,
-                    budgetId = null,
-                    transactionType = null,
-                    latest = true,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            transactions = response.body()?.data?.transaction?.transactions!!,
-                        )
-                    }
-                } else {
-                    Log.e("GetTransactionsResponseError", response.toString())
-                }
-
+               val response = apiRepository.getDashboardDetails(
+                   token = uiState.value.userDetails.token,
+                   userId = uiState.value.userDetails.userId,
+                   date = LocalDate.now().toString()
+               )
+               if(response.isSuccessful) {
+                   _uiState.update {
+                       it.copy(
+                           todayTotalIn = response.body()?.data?.transaction?.todayExpenditure?.totalIn!!,
+                           todayTotalOut = response.body()?.data?.transaction?.todayExpenditure?.totalOut!!,
+                           transactions = response.body()?.data?.transaction?.latestTransactions!!,
+                           categories = response.body()?.data?.transaction?.categories!!,
+                           budgetList = response.body()?.data?.transaction?.budgets!!,
+                           currentBalance = response.body()?.data?.transaction?.accountBalance!!,
+                           firstTransactionDate = formatLocalDate(LocalDate.parse(response.body()?.data?.transaction?.firstTransactionDate!!))
+                       )
+                   }
+               } else {
+                   Log.e("DASHBOARD_DETAILS_RESPONSE_ERROR", response.toString())
+               }
             } catch (e: Exception) {
-                Log.e("GetTransactionsException", e.toString())
-            }
-        }
-    }
-
-    fun  getCategories() {
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getUserCategories(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    categoryId = null,
-                    name = null,
-                    orderBy = "latest"
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            categories = response.body()?.data?.category!!
-                        )
-                    }
-                } else {
-                    Log.e("GetCategoriesResponseError", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("GetCategoriesException", e.toString())
-            }
-        }
-    }
-
-    fun getGroupedTransactions() {
-        val currentDate = LocalDate.now()
-        val firstDayOfMonth = currentDate.withDayOfMonth(1)
-        var startDate = firstDayOfMonth
-        var endDate = currentDate
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getGroupedTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = null,
-                    categoryId = null,
-                    budgetId = null,
-                    transactionType = null,
-                    startDate = "2023-03-06",
-                    endDate = "2024-06-25"
-                )
-                if(response.isSuccessful) {
-                    // Calculate the maximum value for moneyIn and moneyOut dynamically
-                    val maxAmount = response.body()?.data?.transaction?.transactions!!.maxOf { maxOf(it.moneyIn, it.moneyOut) }
-                    Log.i("MAX_VALUE", maxAmount.toString())
-
-                    // Prepare data points for moneyIn and moneyOut
-                    val moneyInPointsData: List<Point> = response.body()?.data?.transaction?.transactions!!.mapIndexed { index, transaction ->
-                        Point(index.toFloat(), transaction.moneyIn)
-                    }
-
-                    val moneyOutPointsData: List<Point> = response.body()?.data?.transaction?.transactions!!.mapIndexed { index, transaction ->
-                        Point(index.toFloat(), transaction.moneyOut)
-                    }
-
-                    Log.i("TRANSACTIONS_SIZE", response.body()?.data?.transaction?.transactions!!.size.toString())
-
-                    _uiState.update {
-                        it.copy(
-                            moneyInPointsData = moneyInPointsData,
-                            moneyOutPointsData = moneyOutPointsData,
-                            maxAmount = maxAmount,
-                            groupedTransactions = response.body()?.data?.transaction?.transactions!!,
-                        )
-                    }
-                } else {
-                    Log.e("dataFetchFailResponseError", response.toString())
-                }
-            } catch (e: Exception) {
-
-                Log.e("dataFetchFailException", e.toString())
+                Log.e("DASHBOARD_DETAILS_EXCEPTION", e.toString())
             }
         }
     }
@@ -207,7 +138,10 @@ class DashboardScreenViewModel(
                 month = month
             )
         }
-        getGroupedByMonthTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            getGroupedByMonthTransactions()
+        }
     }
 
     fun updateYear(year: String) {
@@ -216,7 +150,10 @@ class DashboardScreenViewModel(
                 year = year
             )
         }
-        getGroupedByMonthTransactions()
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            getGroupedByMonthTransactions()
+        }
     }
 
     private fun getGroupedByMonthTransactions() {
@@ -235,7 +172,9 @@ class DashboardScreenViewModel(
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
-                            monthlyTransactions = response.body()?.data?.transaction?.transactions!!
+                            monthlyTransactions = response.body()?.data?.transaction?.transactions!!,
+                            monthlyInTotal = response.body()?.data?.transaction?.totalMoneyIn!!,
+                            monthlyOutTotal = response.body()?.data?.transaction?.totalMoneyOut!!
                         )
                     }
                     Log.d("groupedByMonthFetched", response.toString())
@@ -258,10 +197,7 @@ class DashboardScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
-            getTransactions()
-            getCurrentBalance()
-            getCategories()
-//            getGroupedTransactions()
+            getDashboardDetails()
             getGroupedByMonthTransactions()
 
         }

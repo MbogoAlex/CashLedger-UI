@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 data class SplashScreenUiState(
     val appLaunchStatus: AppLaunchStatus = AppLaunchStatus(),
-    val userDetails: UserDetails = UserDetails(),
+    val userDetails: UserDetails? = null,
     val subscriptionStatus: Boolean = false
 )
 
@@ -31,9 +31,11 @@ class SplashScreenViewModel(
 
         viewModelScope.launch {
             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            val userDetails = dbRepository.getUser(appLaunchStatus.user_id!!).first()
             _uiState.update {
                 it.copy(
-                    appLaunchStatus = appLaunchStatus
+                    appLaunchStatus = appLaunchStatus,
+                    userDetails = userDetails
                 )
             }
             if(uiState.value.appLaunchStatus.launched == 0) {

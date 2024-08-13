@@ -187,6 +187,9 @@ fun HomeScreenComposable(
                 }
             },
             navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+            navigateToAccountInfoScreen = {
+                currentTab = HomeScreenTab.ACCOUNT_INFO
+            }
         )
     }
 }
@@ -213,6 +216,7 @@ fun HomeScreen(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToAccountInfoScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -299,6 +303,7 @@ fun HomeScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(
                         horizontal = 16.dp
                     )
@@ -312,6 +317,13 @@ fun HomeScreen(
                         tint = Color.Gray,
                         painter = painterResource(id = R.drawable.menu),
                         contentDescription = "Menu"
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = navigateToAccountInfoScreen) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.account_info),
+                        contentDescription = "Account info"
                     )
                 }
             }
@@ -574,7 +586,8 @@ fun HomeScreenPreview() {
             navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  },
             darkTheme = false,
             onSwitchTheme = {},
-            navigateToSubscriptionScreen = {}
+            navigateToSubscriptionScreen = {},
+            navigateToAccountInfoScreen = {}
         )
     }
 }
