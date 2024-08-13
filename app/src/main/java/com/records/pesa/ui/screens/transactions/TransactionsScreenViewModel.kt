@@ -35,6 +35,20 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
 
+enum class UpdatingCommentStatus {
+    INITIAL,
+    LOADING,
+    FAIL,
+    SUCCESS
+}
+
+enum class UpdatingAliasStatus {
+    INITIAL,
+    LOADING,
+    FAIL,
+    SUCCESS
+}
+
 data class TransactionsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val transactions: List<TransactionItem> = emptyList(),
@@ -59,8 +73,11 @@ data class TransactionsScreenUiState(
     val categoryName: String? = null,
     val budgetName: String? = null,
     val errorCode: Int = 0,
+    val comment: String = "",
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
-    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
+    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL,
+    val updatingCommentStatus: UpdatingCommentStatus = UpdatingCommentStatus.INITIAL,
+    val updatingAliasStatus: UpdatingAliasStatus = UpdatingAliasStatus.INITIAL
 )
 class TransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -372,6 +389,7 @@ class TransactionsScreenViewModel(
                         it.copy(
                             moneyInSorted = response.body()?.data?.transaction?.transactions!!,
                             totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
+                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
                             loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
@@ -445,7 +463,12 @@ class TransactionsScreenViewModel(
         }
     }
 
-    fun updateTransaction(transactionItem: TransactionItem) {
+    fun updateEntityNickname(transactionItem: TransactionItem) {
+        _uiState.update {
+            it.copy(
+                updatingAliasStatus = UpdatingAliasStatus.LOADING
+            )
+        }
         var entity = ""
         if(transactionItem.transactionAmount < 0) {
             entity = transactionItem.recipient
@@ -456,7 +479,8 @@ class TransactionsScreenViewModel(
             transactionId = transactionItem.transactionId!!,
             userId = uiState.value.userDetails.userId,
             entity = entity,
-            nickName = uiState.value.nickName
+            nickName = uiState.value.nickName,
+            comment = null,
         )
         viewModelScope.launch {
             try {
@@ -465,10 +489,72 @@ class TransactionsScreenViewModel(
                     transactionEditPayload = transactionEditPayload
                 )
                 if(response.isSuccessful) {
-
-                } else {}
+                    _uiState.update {
+                        it.copy(
+                            updatingAliasStatus = UpdatingAliasStatus.SUCCESS
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            updatingAliasStatus = UpdatingAliasStatus.FAIL
+                        )
+                    }
+                }
             } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        updatingAliasStatus = UpdatingAliasStatus.FAIL
+                    )
+                }
+            }
+        }
+    }
 
+    fun updateTransactionComment(transactionItem: TransactionItem) {
+        _uiState.update {
+            it.copy(
+                updatingCommentStatus = UpdatingCommentStatus.LOADING
+            )
+        }
+        var entity = ""
+        if(transactionItem.transactionAmount < 0) {
+            entity = transactionItem.recipient
+        } else if(transactionItem.transactionAmount > 0) {
+            entity = transactionItem.sender
+        }
+        val transactionEditPayload = TransactionEditPayload(
+            transactionId = transactionItem.transactionId!!,
+            userId = uiState.value.userDetails.userId,
+            entity = entity,
+            nickName = null,
+            comment = uiState.value.comment,
+        )
+        viewModelScope.launch {
+            try {
+                val response = apiRepository.updateTransaction(
+                    token = uiState.value.userDetails.token,
+                    transactionEditPayload = transactionEditPayload
+                )
+                if(response.isSuccessful) {
+                    _uiState.update {
+                        it.copy(
+                            updatingCommentStatus = UpdatingCommentStatus.SUCCESS
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            updatingCommentStatus = UpdatingCommentStatus.FAIL
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        updatingCommentStatus = UpdatingCommentStatus.FAIL
+                    )
+                }
             }
         }
     }
@@ -547,6 +633,14 @@ class TransactionsScreenViewModel(
         _uiState.update {
             it.copy(
                 downloadingStatus = DownloadingStatus.INITIAL
+            )
+        }
+    }
+
+    fun changeComment(comment: String) {
+        _uiState.update {
+            it.copy(
+                comment = comment
             )
         }
     }

@@ -35,6 +35,7 @@ data class TransactionItem(
     val recipient: String,
     val entity: String,
     val balance: Double,
+    val comment: String?,
     val categories: List<ItemCategory>?
 )
 
@@ -93,7 +94,8 @@ data class TransactionEditPayload(
     val transactionId: Int,
     val userId: Int,
     val entity: String,
-    val nickName: String
+    val nickName: String?,
+    val comment: String?
 )
 
 @Serializable

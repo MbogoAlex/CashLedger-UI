@@ -42,6 +42,7 @@ val transaction = TransactionItem(
     balance = 1000.0,
     entity = "JOSPHAT  KAROKI 0720929489",
     categories = itemCategories,
+    comment = "This is a comment"
 )
 
 val transactions = listOf(
@@ -58,7 +59,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -73,7 +75,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -88,7 +91,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -103,7 +107,8 @@ val transactions = listOf(
         recipient = "PesaPal for account 0772364458",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -118,7 +123,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -133,7 +139,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     ),
     TransactionItem(
         transactionId = 1,
@@ -148,7 +155,8 @@ val transactions = listOf(
         recipient = "You",
         balance = 1000.0,
         entity = "JOSPHAT  KAROKI 0720929489",
-        categories = itemCategories
+        categories = itemCategories,
+        comment = "This is a comment"
     )
 )
 

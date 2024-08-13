@@ -396,15 +396,18 @@ fun CategoryDetailsScreen(
                 }
             }
         }
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
+        if(loadingStatus == LoadingStatus.LOADING) {
+            Box(
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+            ) {
+                PullRefreshIndicator(
+                    refreshing = loadingStatus == LoadingStatus.LOADING,
+                    state = pullRefreshState!!
+                )
+            }
         }
         OutlinedButton(
             onClick = {
