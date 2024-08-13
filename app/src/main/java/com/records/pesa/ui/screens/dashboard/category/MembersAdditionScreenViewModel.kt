@@ -15,6 +15,7 @@ import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,8 +53,9 @@ class MembersAdditionScreenViewModel(
     val categoryKeywords = mutableStateListOf<String>()
     private val categoryId: String? = savedStateHandle[MembersAdditionScreenDestination.categoryId]
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private val endDate = LocalDate.now().toString()
+
+    private var filterJob: Job? = null
 
     fun updateSearchText(searchText: String) {
         _uiState.update {
@@ -97,6 +99,7 @@ class MembersAdditionScreenViewModel(
     }
 
     fun addMembersToCategory() {
+        filterJob?.cancel()
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
@@ -118,7 +121,8 @@ class MembersAdditionScreenViewModel(
             keywords = newMembers
         )
 
-        viewModelScope.launch {
+        filterJob = viewModelScope.launch {
+            delay(500L)
             try {
                val response = apiRepository.addCategoryMembers(
                    token = uiState.value.userDetails.token,
@@ -150,7 +154,6 @@ class MembersAdditionScreenViewModel(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     fun getTransactions() {
         Log.i("CALLED", "SEARCHING FOR ${uiState.value.entity}")
         viewModelScope.launch {

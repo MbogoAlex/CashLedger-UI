@@ -21,11 +21,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -62,6 +66,7 @@ import com.records.pesa.R
 import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.ui.theme.CashLedgerTheme
 object CategoriesScreenDestination: AppNavigation {
@@ -69,6 +74,7 @@ object CategoriesScreenDestination: AppNavigation {
     override val route: String = "categories-screen"
 
 }
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CategoriesScreenComposable(
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
@@ -89,6 +95,13 @@ fun CategoriesScreenComposable(
 
     val viewModel: CategoriesScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            viewModel.getUserCategories()
+        }
+    )
 
     var showSubscriptionDialog by rememberSaveable {
         mutableStateOf(false)
@@ -121,6 +134,8 @@ fun CategoriesScreenComposable(
             .safeDrawingPadding()
     ) {
         CategoriesScreen(
+            pullRefreshState = pullRefreshState,
+            loadingStatus = uiState.loadingStatus,
             premium = uiState.userDetails.paymentStatus,
             searchQuery = uiState.name,
             onChangeSearchQuery = {
@@ -140,8 +155,11 @@ fun CategoriesScreenComposable(
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CategoriesScreen(
+    pullRefreshState: PullRefreshState?,
+    loadingStatus: LoadingStatus,
     premium: Boolean,
     searchQuery: String,
     categories: List<TransactionCategory>,
@@ -253,19 +271,31 @@ fun CategoriesScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        LazyColumn {
-            items(categories.size) {index ->
-                TransactionCategoryCell(
-                    transactionCategory = categories[index],
-                    navigateToCategoryDetailsScreen = {
-                        if(index != 0 && !premium) {
-                            onShowSubscriptionDialog()
-                        } else {
-                            navigateToCategoryDetailsScreen(categories[index].id.toString())
+        if(loadingStatus == LoadingStatus.SUCCESS) {
+            LazyColumn {
+                items(categories.size) {index ->
+                    TransactionCategoryCell(
+                        transactionCategory = categories[index],
+                        navigateToCategoryDetailsScreen = {
+                            if(index != 0 && !premium) {
+                                onShowSubscriptionDialog()
+                            } else {
+                                navigateToCategoryDetailsScreen(categories[index].id.toString())
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
+        }
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
         }
     }
 }
@@ -325,11 +355,14 @@ fun SubscriptionDialog(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CategoryScreenPreview() {
     CashLedgerTheme {
         CategoriesScreen(
+            loadingStatus = LoadingStatus.INITIAL,
+            pullRefreshState = null,
             categories = transactionCategories,
             searchQuery = "",
             onClearSearch = {},

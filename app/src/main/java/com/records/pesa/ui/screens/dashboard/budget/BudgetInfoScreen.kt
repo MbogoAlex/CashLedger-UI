@@ -16,11 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -74,7 +78,7 @@ object BudgetInfoScreenDestination: AppNavigation {
     val routeWithArgs: String = "$route/{$budgetId}"
 
 }
-@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun BudgetInfoScreenComposable(
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
@@ -84,6 +88,13 @@ fun BudgetInfoScreenComposable(
     val context = LocalContext.current
     val viewModel: BudgetInfoScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            viewModel.getBudget()
+        }
+    )
 
     var showEditBudgetNameDialog by rememberSaveable {
         mutableStateOf(false)
@@ -242,15 +253,19 @@ fun BudgetInfoScreenComposable(
                 showEditLimitDateDialog = !showEditLimitDateDialog
             },
             navigateToTransactionsScreen = navigateToTransactionsScreen,
-            navigateToPreviousScreen = navigateToPreviousScreen
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            pullRefreshState = pullRefreshState,
+            loadingStatus = uiState.loadingStatus
         )
     }
 
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun BudgetInfoScreen(
+    pullRefreshState: PullRefreshState?,
+    loadingStatus: LoadingStatus,
     budgetDt: BudgetDt,
     onDeleteBudget: () -> Unit,
     onEditBudgetName: (name: String) -> Unit,
@@ -296,6 +311,16 @@ fun BudgetInfoScreen(
                     contentDescription = "Delete this budget",
                 )
             }
+        }
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
         }
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -675,12 +700,15 @@ fun DeleteDialog(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BudgetInfoScreenPreview() {
     CashLedgerTheme {
         BudgetInfoScreen(
+            pullRefreshState = null,
+            loadingStatus = LoadingStatus.INITIAL,
             budgetDt = budget,
             onDeleteBudget = {},
             onEditBudgetName = {},

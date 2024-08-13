@@ -25,10 +25,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -62,6 +66,7 @@ import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.BudgetDt
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.budgets
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
@@ -75,6 +80,7 @@ object BudgetListScreenDestination: AppNavigation {
     val routeWithArgs = "$route/{$categoryId}/{$categoryName}"
 
 }
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun BudgetListScreenComposable(
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
@@ -97,6 +103,13 @@ fun BudgetListScreenComposable(
     val viewModel: BudgetListScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            viewModel.getBudgets()
+        }
+    )
+
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
 
@@ -112,6 +125,8 @@ fun BudgetListScreenComposable(
             .safeDrawingPadding()
     ) {
         BudgetListScreen(
+            pullRefreshState = pullRefreshState,
+            loadingStatus = uiState.loadingStatus,
             budgets = uiState.budgetList,
             searchQuery = uiState.searchQuery,
             categoryId = uiState.categoryId,
@@ -131,8 +146,11 @@ fun BudgetListScreenComposable(
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun BudgetListScreen(
+    pullRefreshState: PullRefreshState?,
+    loadingStatus: LoadingStatus,
     budgets: List<BudgetDt>,
     searchQuery: String,
     categoryId: String?,
@@ -215,15 +233,27 @@ fun BudgetListScreen(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        LazyColumn(
-            modifier = Modifier.weight(1f)
-        ) {
-            items(budgets) {
-                BudgetListItem(
-                    budgetDt = it,
-                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
-                )
+        if(loadingStatus == LoadingStatus.SUCCESS) {
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+                items(budgets) {
+                    BudgetListItem(
+                        budgetDt = it,
+                        navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
+                    )
+                }
             }
+        }
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
         }
 //        Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(
@@ -238,7 +268,6 @@ fun BudgetListScreen(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun BudgetListItem(
     budgetDt: BudgetDt,
@@ -361,6 +390,7 @@ fun BudgetListItem(
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BudgetListScreenPreview(
@@ -368,6 +398,8 @@ fun BudgetListScreenPreview(
 ) {
     CashLedgerTheme {
         BudgetListScreen(
+            loadingStatus = LoadingStatus.INITIAL,
+            pullRefreshState = null,
             budgets = budgets,
             searchQuery = "",
             categoryId = null,

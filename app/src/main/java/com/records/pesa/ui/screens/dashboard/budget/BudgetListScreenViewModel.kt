@@ -55,6 +55,11 @@ class BudgetListScreenViewModel(
     }
 
     fun getBudgets() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.LOADING
+            )
+        }
         viewModelScope.launch {
             try {
                 val response = if(uiState.value.categoryId != null) apiRepository.getCategoryBudgets(

@@ -16,12 +16,16 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
@@ -69,6 +73,7 @@ object CategoryDetailsScreenDestination: AppNavigation {
     val routeWithArgs: String = "$route/{$categoryId}"
 
 }
+@OptIn(ExperimentalMaterialApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoryDetailsScreenComposable(
@@ -93,6 +98,13 @@ fun CategoryDetailsScreenComposable(
             viewModel.getCategory()
         }
     }
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        onRefresh = {
+            viewModel.getCategory()
+        }
+    )
 
     var showEditCategoryNameDialog by rememberSaveable {
         mutableStateOf(false)
@@ -206,6 +218,8 @@ fun CategoryDetailsScreenComposable(
             .safeDrawingPadding()
     ) {
         CategoryDetailsScreen(
+            pullRefreshState = pullRefreshState,
+            loadingStatus = uiState.loadingStatus,
             category = uiState.category,
             onEditCategoryName = {
                 categoryName = it
@@ -235,8 +249,11 @@ fun CategoryDetailsScreenComposable(
         )
     }
 }
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CategoryDetailsScreen(
+    pullRefreshState: PullRefreshState?,
+    loadingStatus: LoadingStatus,
     category: TransactionCategory,
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     onEditCategoryName: (name: String) -> Unit,
@@ -342,40 +359,52 @@ fun CategoryDetailsScreen(
                 }
             }
         }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            items(category.keywords) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName,
+        if(loadingStatus == LoadingStatus.SUCCESS) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                items(category.keywords) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName,
 //                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
-                        onEditMemberName(it)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit member"
+                            fontSize = 16.sp
                         )
-                    }
-                    IconButton(onClick = {
-                        onRemoveMember(it.nickName, category.id, it.id)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.error,
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove member"
-                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            onEditMemberName(it)
+                        }) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.surfaceTint,
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit member"
+                            )
+                        }
+                        IconButton(onClick = {
+                            onRemoveMember(it.nickName, category.id, it.id)
+                        }) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.error,
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Remove member"
+                            )
+                        }
                     }
                 }
             }
+        }
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
         }
         OutlinedButton(
             onClick = {
@@ -467,12 +496,15 @@ fun DeleteDialog(
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CategoryDetailsScreenPreview() {
     CashLedgerTheme {
         CategoryDetailsScreen(
+            loadingStatus = LoadingStatus.INITIAL,
+            pullRefreshState = null,
             category = transactionCategory,
             onEditCategoryName = {},
             onEditMemberName = {},

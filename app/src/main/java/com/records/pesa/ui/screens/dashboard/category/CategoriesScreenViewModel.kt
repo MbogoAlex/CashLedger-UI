@@ -59,6 +59,11 @@ class CategoriesScreenViewModel(
     }
 
     fun getUserCategories() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.LOADING
+            )
+        }
         viewModelScope.launch {
             try {
                 val response = apiRepository.getUserCategories(
@@ -71,7 +76,8 @@ class CategoriesScreenViewModel(
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
-                            categories = response.body()?.data?.category!!
+                            categories = response.body()?.data?.category!!,
+                            loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
                 } else {
