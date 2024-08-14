@@ -33,6 +33,7 @@ import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
+import com.records.pesa.models.version.AppVersionCheckResponseBody
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody
@@ -352,4 +353,7 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("transactionId") transactionId: Int
     ): Response<SingleTransactionResponseBody>
+
+    @GET("version")
+    suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
 }

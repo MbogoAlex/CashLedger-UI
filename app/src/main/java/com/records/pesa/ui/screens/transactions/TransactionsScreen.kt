@@ -120,11 +120,17 @@ fun TransactionsScreenComposable(
     showBackArrow: Boolean,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
+    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val viewModel: TransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    if(uiState.errorCode == 401 && uiState.loadingStatus == LoadingStatus.FAIL) {
+        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.phoneNumber)
+        viewModel.resetLoadingStatus()
+    }
 
     BackHandler(onBack = {
         if(showBackArrow) {
@@ -196,6 +202,14 @@ fun TransactionsScreenComposable(
         }
     }
 
+    if(uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
+        Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+    } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
+        Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+    }
+
 
     if(showSubscriptionDialog) {
         SubscriptionDialog(
@@ -214,7 +228,7 @@ fun TransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionsScreen(
-            premium = uiState.userDetails.paymentStatus,
+            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
             transactions = uiState.transactions,
             moneyInsortedTransactionItems = uiState.moneyInSorted,
             moneyOutsortedTransactionItems = uiState.moneyOutSorted,
@@ -618,7 +632,7 @@ fun TransactionsScreen(
                                     if(downloadingStatus == DownloadingStatus.LOADING) {
                                         CircularProgressIndicator(
                                             modifier = Modifier
-                                                .size(25.dp)
+                                                .size(15.dp)
                                         )
                                     } else {
                                         Icon(

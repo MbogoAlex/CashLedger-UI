@@ -1,5 +1,7 @@
 package com.records.pesa.ui.screens.transactions
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -30,6 +32,7 @@ data class SingleEntityTransactionsScreenUiState(
     val totalMoneyOut: Double = 0.0,
     val categoryId: Int? = null,
     val budgetId: Int? = null,
+    val errorCode: Int = 0,
     val transactions: List<TransactionItem> = emptyList(),
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
@@ -91,7 +94,8 @@ class SingleEntityTransactionsScreenViewModel(
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            loadingStatus = LoadingStatus.FAIL,
+                            errorCode = response.code()
                         )
                     }
                     Log.e("GET_TRANSACTIONS_ERROR_RESPONSE", response.toString())
@@ -120,6 +124,92 @@ class SingleEntityTransactionsScreenViewModel(
                 delay(1000)
             }
             getTransactions()
+        }
+    }
+
+    fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+        _uiState.update {
+            it.copy(
+                downloadingStatus = DownloadingStatus.LOADING
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val response = apiRepository.getAllTransactionsReport(
+                    userId = uiState.value.userDetails.userId,
+                    token = uiState.value.userDetails.token,
+                    entity = uiState.value.entity,
+                    categoryId = uiState.value.categoryId,
+                    budgetId = uiState.value.budgetId,
+                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    startDate = uiState.value.startDate,
+                    endDate = uiState.value.endDate,
+                )
+                if (response.isSuccessful) {
+                    val pdfBytes = response.body()?.bytes()
+                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
+                        savePdfToUri(context, pdfBytes, saveUri)
+                        _uiState.update {
+                            it.copy(
+                                downloadingStatus = DownloadingStatus.SUCCESS
+                            )
+                        }
+                    } else {
+                        Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
+                        _uiState.update {
+                            it.copy(
+                                downloadingStatus = DownloadingStatus.FAIL,
+                                errorCode = response.code()
+                            )
+                        }
+                    }
+                } else {
+                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
+                    _uiState.update {
+                        it.copy(
+                            downloadingStatus = DownloadingStatus.FAIL
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
+                _uiState.update {
+                    it.copy(
+                        downloadingStatus = DownloadingStatus.FAIL
+                    )
+                }
+            }
+        }
+    }
+
+    private fun savePdfToUri(context: Context, pdfBytes: ByteArray, uri: Uri?) {
+        if (uri == null) {
+            Log.e("SAVE_PDF_TO_URI", "Uri is null, cannot save PDF")
+            return
+        }
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { output ->
+                output.write(pdfBytes)
+                Log.i("SAVE_PDF_TO_URI", "PDF saved successfully to: $uri")
+            }
+        } catch (e: Exception) {
+            Log.e("SAVE_PDF_TO_URI_ERROR", "Exception: ${e.message}")
+        }
+    }
+
+    fun resetDownloadingStatus() {
+        _uiState.update {
+            it.copy(
+                downloadingStatus = DownloadingStatus.INITIAL
+            )
+        }
+    }
+
+    fun resetLoadingStatus() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.INITIAL
+            )
         }
     }
 

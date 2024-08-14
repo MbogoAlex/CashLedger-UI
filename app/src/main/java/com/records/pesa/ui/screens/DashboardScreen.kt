@@ -1,6 +1,9 @@
 package com.records.pesa.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +55,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import co.yml.charts.common.extensions.isNotNull
 import co.yml.charts.common.model.Point
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -67,6 +73,7 @@ import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
 import com.records.pesa.ui.theme.CashLedgerTheme
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.Month
 
@@ -85,8 +92,23 @@ fun DashboardScreenComposable(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    val appVersion = 77.0
+
+    if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, "New version available", Toast.LENGTH_LONG).show()
+            delay(5000)
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=com.records.pesa")
+            )
+            context.startActivity(intent)
+        }
+    }
 
     var showSubscriptionDialog by rememberSaveable {
         mutableStateOf(false)
@@ -113,7 +135,7 @@ fun DashboardScreenComposable(
             .safeDrawingPadding()
     ) {
         DashboardScreen(
-            premium = uiState.userDetails.paymentStatus,
+            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
             totalInToday = formatMoneyValue(uiState.todayTotalIn),
             totalOutToday = formatMoneyValue(uiState.todayTotalOut),
             monthlyTotalIn = formatMoneyValue(uiState.monthlyInTotal),

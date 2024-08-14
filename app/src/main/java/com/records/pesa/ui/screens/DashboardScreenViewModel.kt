@@ -47,6 +47,7 @@ data class DashboardScreenUiState(
     val budgetList: List<BudgetDt> = emptyList(),
     val groupedTransactions: List<GroupedTransactionData> = emptyList(),
     val monthlyTransactions: List<MonthlyTransaction> = emptyList(),
+    val appVersion: Double? = null,
     val categories: List<TransactionCategory> = emptyList()
 )
 class DashboardScreenViewModel(
@@ -187,6 +188,24 @@ class DashboardScreenViewModel(
         }
     }
 
+    fun checkAppVersion() {
+        viewModelScope.launch {
+            try {
+                val response = apiRepository.checkAppVersion()
+                if(response.isSuccessful) {
+                    _uiState.update {
+                        it.copy(
+                            appVersion = response.body()?.data?.version
+                        )
+                    }
+                }
+
+            } catch (e: Exception) {
+
+            }
+        }
+    }
+
     fun getUserDetails() {
         viewModelScope.launch {
             _uiState.update {
@@ -206,5 +225,6 @@ class DashboardScreenViewModel(
     init {
         setInitialDates()
         getUserDetails()
+        checkAppVersion()
     }
 }

@@ -222,7 +222,8 @@ class TransactionsScreenViewModel(
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            loadingStatus = LoadingStatus.FAIL,
+                            errorCode = response.code()
                         )
                     }
                     Log.e("GetTransactionsResponseError", response.toString())
@@ -371,7 +372,8 @@ class TransactionsScreenViewModel(
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            loadingStatus = LoadingStatus.FAIL,
+                            errorCode = response.code()
                         )
                     }
                     Log.e("GetTransactionsResponseError", response.toString())
@@ -506,6 +508,14 @@ class TransactionsScreenViewModel(
             }
         } catch (e: Exception) {
             Log.e("SAVE_PDF_TO_URI_ERROR", "Exception: ${e.message}")
+        }
+    }
+
+    fun resetLoadingStatus() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.INITIAL
+            )
         }
     }
 

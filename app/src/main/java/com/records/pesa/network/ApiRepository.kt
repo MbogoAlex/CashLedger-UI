@@ -34,6 +34,7 @@ import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
+import com.records.pesa.models.version.AppVersionCheckResponseBody
 import kotlinx.coroutines.flow.first
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -102,6 +103,7 @@ interface ApiRepository {
     suspend fun getDashboardDetails(token: String, userId: Int, date: String): Response<DashboardDetailsResponseBody>
     suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<ResponseBody>
     suspend fun getSingleTransaction(token: String, transactionId: Int): Response<SingleTransactionResponseBody>
+    suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
 
 }
 
@@ -537,6 +539,8 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         token = "Bearer $token",
         transactionId = transactionId
     )
+
+    override suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody> = apiService.checkAppVersion()
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
         val response = apiService.loginUser(user = user)

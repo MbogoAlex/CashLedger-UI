@@ -126,7 +126,7 @@ fun SubscriptionScreen(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Don't exit this screen even when the screen is blank")
+        Text(text = "Don't exit this screen even when it gets blank")
         Spacer(modifier = Modifier.height(10.dp))
         if (url.isNotEmpty()) {
             if (showPage) {

@@ -31,9 +31,10 @@ class SplashScreenViewModel(
 
         viewModelScope.launch {
             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            val userId: Int? = appLaunchStatus.user_id
             var user: UserDetails? = null
             val users = dbRepository.getUsers().first()
-            if(appLaunchStatus.user_id != null) {
+            if(userId != null) {
                 user = if(users.isNotEmpty()) users[0] else null
             }
             _uiState.update {

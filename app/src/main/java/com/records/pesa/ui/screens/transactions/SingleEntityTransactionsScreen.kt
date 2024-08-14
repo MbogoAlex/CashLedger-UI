@@ -1,6 +1,10 @@
 package com.records.pesa.ui.screens.transactions
 
+import android.net.Uri
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -33,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,6 +55,7 @@ import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 object SingleEntityTransactionsScreenDestination: AppNavigation {
     override val title: String = "Single entity transactions screen"
@@ -70,10 +76,17 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
 fun SingleEntityTransactionsScreenComposable(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val viewModel: SingleEntityTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    if(uiState.errorCode == 401 && uiState.loadingStatus == LoadingStatus.FAIL) {
+        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.phoneNumber)
+        viewModel.resetLoadingStatus()
+    }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
@@ -81,6 +94,24 @@ fun SingleEntityTransactionsScreenComposable(
             viewModel.getTransactions()
         }
     )
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
+        uri?.let {
+            viewModel.fetchReportAndSave(
+                context = context,
+                saveUri = it
+            )
+        }
+    }
+
+
+    if(uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
+        Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+    } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
+        Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+    }
 
     Box(
         modifier = Modifier
@@ -94,7 +125,9 @@ fun SingleEntityTransactionsScreenComposable(
             totalMoneyIn = formatMoneyValue(uiState.totalMoneyIn),
             totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
             downloadingStatus = uiState.downloadingStatus,
-            onDownloadReport = {},
+            onDownloadReport = {
+                createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+            },
             loadingStatus = uiState.loadingStatus,
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
             navigateToPreviousScreen = navigateToPreviousScreen
@@ -146,7 +179,7 @@ fun SingleEntityTransactionsScreen(
                     if(downloadingStatus == DownloadingStatus.LOADING) {
                         CircularProgressIndicator(
                             modifier = Modifier
-                                .size(25.dp)
+                                .size(15.dp)
                         )
                     } else {
                         Icon(

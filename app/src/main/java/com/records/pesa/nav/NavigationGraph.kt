@@ -47,7 +47,6 @@ import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenDestinat
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenDestination
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun NavigationGraph(
     navController: NavHostController,
@@ -192,6 +191,9 @@ fun NavigationGraph(
                 showBackArrow = true,
                 navigateToTransactionDetailsScreen = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }
@@ -228,6 +230,9 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
+                },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }
@@ -298,6 +303,9 @@ fun NavigationGraph(
                 showBackArrow = true,
                 navigateToTransactionDetailsScreen = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }
@@ -409,6 +417,9 @@ fun NavigationGraph(
                 showBackArrow = true,
                 navigateToTransactionDetailsScreen = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }

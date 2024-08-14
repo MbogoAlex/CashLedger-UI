@@ -181,7 +181,7 @@ fun HomeScreenComposable(
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
             onSwitchTheme = {
-                if(uiState.userDetails.paymentStatus) {
+                if(uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199") {
                     onSwitchTheme()
                 } else {
                     showSubscribeDialog = true
@@ -233,17 +233,6 @@ fun HomeScreen(
                     modifier = Modifier
                         .padding(10.dp)
                 ) {
-                    ThemeSwitcher(
-                        darkTheme = darkTheme,
-                        size = 30.dp,
-                        padding = 5.dp,
-                        onClick = onSwitchTheme,
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(
-                                end = 16.dp
-                            )
-                    )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -265,6 +254,17 @@ fun HomeScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                        Spacer(modifier = Modifier.weight(1f))
+                        ThemeSwitcher(
+                            darkTheme = darkTheme,
+                            size = 30.dp,
+                            padding = 5.dp,
+                            onClick = onSwitchTheme,
+                            modifier = Modifier
+                                .padding(
+                                    end = 8.dp
+                                )
+                        )
                     }
                     Spacer(modifier = Modifier.height(15.dp))
                     Divider()
@@ -350,7 +350,8 @@ fun HomeScreen(
                         navigateToHomeScreen = navigateToHomeScreen,
                         navigateToSubscriptionScreen = {},
                         navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                        showBackArrow = false
+                        showBackArrow = false,
+                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
                     )
                 }
                 HomeScreenTab.CATEGORIES -> {

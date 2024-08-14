@@ -13,7 +13,8 @@ import kotlinx.coroutines.launch
 
 data class HomeScreenUiState(
     val darkMode: Boolean = false,
-    val userDetails: UserDetails = UserDetails()
+    val userDetails: UserDetails = UserDetails(),
+    val user: UserDetails = UserDetails()
 )
 
 class HomeScreenViewModel(
@@ -27,9 +28,18 @@ class HomeScreenViewModel(
             dbRepository.getUsers().collect() { userDetails ->
                 _uiState.update {
                     it.copy(
-                        userDetails = userDetails[0]
+                        userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
                     )
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            val user = dbRepository.getUsers().first()[0]
+            _uiState.update {
+                it.copy(
+                    user = user
+                )
             }
         }
     }
