@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.transactions
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,13 +26,15 @@ fun AllTransactionsScreenComposable(
     pullRefreshState: PullRefreshState,
     transactions: List<TransactionItem>,
     loadingStatus: LoadingStatus,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
         AllTransactionsScreen(
             transactions = transactions,
             pullRefreshState = pullRefreshState,
-            loadingStatus = loadingStatus
+            loadingStatus = loadingStatus,
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
         )
     }
 }
@@ -42,6 +45,7 @@ fun AllTransactionsScreen(
     transactions: List<TransactionItem>,
     pullRefreshState: PullRefreshState?,
     loadingStatus: LoadingStatus,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -51,7 +55,13 @@ fun AllTransactionsScreen(
         if(loadingStatus != LoadingStatus.LOADING) {
             LazyColumn {
                 items(transactions) {
-                    TransactionItemCell(transaction = it)
+                    TransactionItemCell(
+                        transaction = it,
+                        modifier = Modifier
+                            .clickable {
+                                navigateToTransactionDetailsScreen(it.transactionId.toString())
+                            }
+                    )
                     Divider()
                 }
             }
@@ -79,7 +89,8 @@ fun AllTransactionsScreenPreview() {
         AllTransactionsScreen(
             transactions = transactions,
             pullRefreshState = null,
-            loadingStatus = LoadingStatus.INITIAL
+            loadingStatus = LoadingStatus.INITIAL,
+            navigateToTransactionDetailsScreen = {}
         )
     }
 }

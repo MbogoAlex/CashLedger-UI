@@ -42,6 +42,8 @@ import com.records.pesa.ui.screens.payment.SubscriptionScreenComposable
 import com.records.pesa.ui.screens.payment.SubscriptionScreenDestination
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenDestination
+import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenComposable
+import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenDestination
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenDestination
 
@@ -167,7 +169,10 @@ fun NavigationGraph(
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
                 },
-                onSwitchTheme = onSwitchTheme
+                onSwitchTheme = onSwitchTheme,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                }
             )
         }
         composable(TransactionsScreenDestination.route) {
@@ -184,7 +189,10 @@ fun NavigationGraph(
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
                 },
-                showBackArrow = true
+                showBackArrow = true,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                }
             )
         }
 
@@ -215,6 +223,9 @@ fun NavigationGraph(
             )
         ) {
             SingleEntityTransactionsScreenComposable(
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 }
@@ -284,7 +295,10 @@ fun NavigationGraph(
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
                 },
-                showBackArrow = true
+                showBackArrow = true,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                }
             )
         }
         composable(CategoriesScreenDestination.route) {
@@ -392,7 +406,24 @@ fun NavigationGraph(
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
                 },
-                showBackArrow = true
+                showBackArrow = true,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                }
+            )
+        }
+        composable(
+            TransactionDetailsScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(TransactionDetailsScreenDestination.transactionId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            TransactionDetailsScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.popBackStack()
+                }
             )
         }
         composable(SubscriptionScreenDestination.route) {

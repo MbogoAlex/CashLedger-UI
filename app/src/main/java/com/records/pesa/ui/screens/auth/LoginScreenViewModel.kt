@@ -8,6 +8,7 @@ import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +28,8 @@ data class LoginScreenUiState(
 class LoginScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val workersRepository: WorkersRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(LoginScreenUiState())
     val uiState: StateFlow<LoginScreenUiState> = _uiState.asStateFlow()
@@ -72,6 +74,10 @@ class LoginScreenViewModel(
                             users = dbRepository.getUsers().first()
                         }
                         false -> {
+                            workersRepository.fetchAndPostMessages(
+                                token = response.body()?.data?.user?.token!!,
+                                userId = response.body()?.data?.user?.userInfo?.id!!
+                            )
                             _uiState.update {
                                 it.copy(
                                     loginStatus = LoginStatus.SUCCESS,

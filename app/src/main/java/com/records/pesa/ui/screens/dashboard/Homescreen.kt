@@ -98,6 +98,7 @@ fun HomeScreenComposable(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
@@ -189,7 +190,8 @@ fun HomeScreenComposable(
             navigateToSubscriptionScreen = navigateToSubscriptionScreen,
             navigateToAccountInfoScreen = {
                 currentTab = HomeScreenTab.ACCOUNT_INFO
-            }
+            },
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
         )
     }
 }
@@ -217,6 +219,7 @@ fun HomeScreen(
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToAccountInfoScreen: () -> Unit,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -335,6 +338,7 @@ fun HomeScreen(
                         navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
                         navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
                         modifier = Modifier
                             .weight(1f)
                     )
@@ -345,6 +349,7 @@ fun HomeScreen(
                         navigateToPreviousScreen = navigateToPreviousScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
                         navigateToSubscriptionScreen = {},
+                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
                         showBackArrow = false
                     )
                 }
@@ -587,7 +592,8 @@ fun HomeScreenPreview() {
             darkTheme = false,
             onSwitchTheme = {},
             navigateToSubscriptionScreen = {},
-            navigateToAccountInfoScreen = {}
+            navigateToAccountInfoScreen = {},
+            navigateToTransactionDetailsScreen = {}
         )
     }
 }

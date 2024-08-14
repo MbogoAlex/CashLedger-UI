@@ -39,7 +39,7 @@ fun TransactionItemCell(
 ) {
     Column(
         horizontalAlignment = Alignment.End,
-        modifier = Modifier
+        modifier = modifier
             .padding(
                 top = 10.dp,
                 bottom = 10.dp

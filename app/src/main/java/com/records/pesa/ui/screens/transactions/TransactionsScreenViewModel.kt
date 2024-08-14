@@ -1,25 +1,16 @@
 package com.records.pesa.ui.screens.transactions
 
-import android.Manifest
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
 import android.util.Log
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionItem
-import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
@@ -31,23 +22,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
 import java.time.LocalDate
 
-enum class UpdatingCommentStatus {
-    INITIAL,
-    LOADING,
-    FAIL,
-    SUCCESS
-}
 
-enum class UpdatingAliasStatus {
-    INITIAL,
-    LOADING,
-    FAIL,
-    SUCCESS
-}
 
 data class TransactionsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -76,8 +53,6 @@ data class TransactionsScreenUiState(
     val comment: String = "",
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL,
-    val updatingCommentStatus: UpdatingCommentStatus = UpdatingCommentStatus.INITIAL,
-    val updatingAliasStatus: UpdatingAliasStatus = UpdatingAliasStatus.INITIAL
 )
 class TransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -463,101 +438,7 @@ class TransactionsScreenViewModel(
         }
     }
 
-    fun updateEntityNickname(transactionItem: TransactionItem) {
-        _uiState.update {
-            it.copy(
-                updatingAliasStatus = UpdatingAliasStatus.LOADING
-            )
-        }
-        var entity = ""
-        if(transactionItem.transactionAmount < 0) {
-            entity = transactionItem.recipient
-        } else if(transactionItem.transactionAmount > 0) {
-            entity = transactionItem.sender
-        }
-        val transactionEditPayload = TransactionEditPayload(
-            transactionId = transactionItem.transactionId!!,
-            userId = uiState.value.userDetails.userId,
-            entity = entity,
-            nickName = uiState.value.nickName,
-            comment = null,
-        )
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.updateTransaction(
-                    token = uiState.value.userDetails.token,
-                    transactionEditPayload = transactionEditPayload
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            updatingAliasStatus = UpdatingAliasStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            updatingAliasStatus = UpdatingAliasStatus.FAIL
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        updatingAliasStatus = UpdatingAliasStatus.FAIL
-                    )
-                }
-            }
-        }
-    }
 
-    fun updateTransactionComment(transactionItem: TransactionItem) {
-        _uiState.update {
-            it.copy(
-                updatingCommentStatus = UpdatingCommentStatus.LOADING
-            )
-        }
-        var entity = ""
-        if(transactionItem.transactionAmount < 0) {
-            entity = transactionItem.recipient
-        } else if(transactionItem.transactionAmount > 0) {
-            entity = transactionItem.sender
-        }
-        val transactionEditPayload = TransactionEditPayload(
-            transactionId = transactionItem.transactionId!!,
-            userId = uiState.value.userDetails.userId,
-            entity = entity,
-            nickName = null,
-            comment = uiState.value.comment,
-        )
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.updateTransaction(
-                    token = uiState.value.userDetails.token,
-                    transactionEditPayload = transactionEditPayload
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            updatingCommentStatus = UpdatingCommentStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            updatingCommentStatus = UpdatingCommentStatus.FAIL
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        updatingCommentStatus = UpdatingCommentStatus.FAIL
-                    )
-                }
-            }
-        }
-    }
 
     fun fetchReportAndSave(context: Context, saveUri: Uri?) {
         _uiState.update {

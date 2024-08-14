@@ -27,6 +27,7 @@ import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
+import com.records.pesa.models.transaction.SingleTransactionResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
@@ -345,4 +346,10 @@ interface ApiService {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<ResponseBody>
+
+    @GET("transaction/single/{transactionId}")
+    suspend fun getSingleTransaction(
+        @Header("Authorization") token: String,
+        @Path("transactionId") transactionId: Int
+    ): Response<SingleTransactionResponseBody>
 }

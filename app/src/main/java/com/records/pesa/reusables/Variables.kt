@@ -45,6 +45,7 @@ val transaction = TransactionItem(
     comment = "This is a comment"
 )
 
+
 val transactions = listOf(
     TransactionItem(
         transactionId = 1,
@@ -364,9 +365,9 @@ val transactionCategory = TransactionCategory(
     id = 1,
     name = "",
     createdAt = "2024-07-08T19:06:12.563465",
-    transactions = transactions,
-    keywords = categoryKeywords,
-    budgets = categoryBudgets
+    transactions = emptyList(),
+    keywords = emptyList(),
+    budgets = emptyList()
 )
 
 val transactionCategories = listOf(

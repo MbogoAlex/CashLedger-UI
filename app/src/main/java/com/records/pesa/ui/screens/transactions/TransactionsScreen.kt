@@ -90,6 +90,7 @@ import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.moneyInSortedTransactionItems
 import com.records.pesa.reusables.moneyOutSortedTransactionItems
+import com.records.pesa.reusables.transaction
 import com.records.pesa.reusables.transactionTypes
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -118,6 +119,7 @@ fun TransactionsScreenComposable(
     navigateToHomeScreen: () -> Unit,
     showBackArrow: Boolean,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -207,8 +209,6 @@ fun TransactionsScreenComposable(
         )
     }
 
-
-
     Box(
         modifier = Modifier
             .safeDrawingPadding()
@@ -293,10 +293,13 @@ fun TransactionsScreenComposable(
             },
             downloadingStatus = uiState.downloadingStatus,
             loadingStatus = uiState.loadingStatus,
-            pullRefreshState = pullRefreshState
+            pullRefreshState = pullRefreshState,
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
         )
 
     }
+
+
 }
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -339,6 +342,7 @@ fun TransactionsScreen(
     onShowSubscriptionDialog: () -> Unit,
     showBackArrow: Boolean,
     onDownloadReport: () -> Unit,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     downloadingStatus: DownloadingStatus,
     loadingStatus: LoadingStatus,
     pullRefreshState: PullRefreshState?,
@@ -634,6 +638,7 @@ fun TransactionsScreen(
                                 pullRefreshState = pullRefreshState!!,
                                 transactions = transactions,
                                 loadingStatus = loadingStatus,
+                                navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
                                 modifier = Modifier
                                     .padding(
                                         horizontal = 16.dp
@@ -806,6 +811,7 @@ fun TransactionsScreenPreview(
             onDownloadReport = {},
             downloadingStatus = DownloadingStatus.INITIAL,
             pullRefreshState = null,
+            navigateToTransactionDetailsScreen = {},
             loadingStatus = LoadingStatus.INITIAL
         )
     }

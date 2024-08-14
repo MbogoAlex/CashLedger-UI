@@ -26,7 +26,7 @@ class AppContainerImpl(context: Context): AppContainer {
         coerceInputValues = true
     }
 
-    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
+    private val baseUrl = "https://cashledger-ea6eafcdd9ad.herokuapp.com/api/"
 
     private val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)

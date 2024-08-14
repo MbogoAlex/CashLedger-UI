@@ -82,6 +82,7 @@ fun DashboardScreenComposable(
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -146,7 +147,8 @@ fun DashboardScreenComposable(
             onToggleBalanceVisibility = {
                 showBalance = !showBalance
             },
-            showBalance = showBalance
+            showBalance = showBalance,
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
         )
     }
 }
@@ -180,6 +182,7 @@ fun DashboardScreen(
     onShowSubscriptionDialog: () -> Unit,
     onToggleBalanceVisibility: () -> Unit,
     showBalance: Boolean,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -228,7 +231,11 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(10.dp))
         transactions.take(2).forEachIndexed { index, item ->
             TransactionItemCell(
-                transaction = item
+                transaction = item,
+                modifier = Modifier
+                    .clickable {
+                        navigateToTransactionDetailsScreen(item.transactionId.toString())
+                    }
             )
         }
         Spacer(modifier = Modifier.height(20.dp))
@@ -629,7 +636,8 @@ fun DashboardScreenPreview(
             monthlyTotalIn = "",
             monthlyTotalOut = "",
             showBalance = true,
-            onToggleBalanceVisibility = {}
+            onToggleBalanceVisibility = {},
+            navigateToTransactionDetailsScreen = {}
         )
     }
 }

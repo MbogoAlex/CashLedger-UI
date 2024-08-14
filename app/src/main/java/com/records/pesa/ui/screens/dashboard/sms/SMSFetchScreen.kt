@@ -81,7 +81,7 @@ fun SmsFetchScreenComposable(
         Log.d("COUNTER", "COUNTER")
         LaunchedEffect(Unit) {
             while (uiState.messagesSize != timer) {
-                delay(5)
+                delay(3)
                 timer += 1.0f
             }
             viewModel.resetTimer()
@@ -186,6 +186,8 @@ fun SmsFetchScreen(
                 .align(Alignment.CenterHorizontally)
         )
         Spacer(modifier = Modifier.weight(1f))
+        Text(text = "Processing ${messagesSize.toInt()} item(s)")
+        Spacer(modifier = Modifier.height(10.dp))
         LinearProgressIndicator(
             progress = { (timer / messagesSize) },
             modifier = Modifier

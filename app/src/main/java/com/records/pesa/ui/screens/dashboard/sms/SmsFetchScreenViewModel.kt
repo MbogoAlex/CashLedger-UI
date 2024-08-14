@@ -12,6 +12,7 @@ import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +37,7 @@ data class SmsFetchScreenUiState(
 
 class SmsFetchScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(value = SmsFetchScreenUiState())
     val uiState: StateFlow<SmsFetchScreenUiState> = _uiState.asStateFlow()

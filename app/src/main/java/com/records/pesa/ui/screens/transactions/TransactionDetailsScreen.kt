@@ -22,10 +22,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -50,26 +53,41 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatDate
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.transaction
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlin.math.absoluteValue
 
+object TransactionDetailsScreenDestination: AppNavigation {
+    override val title: String = "Transaction details screen"
+    override val route: String = "transaction-details-screen"
+    val transactionId: String = "transactionId"
+    val routeWithArgs: String = "$route/{$transactionId}"
+}
+
 @Composable
 fun TransactionDetailsScreenComposable(
-    transactionItem: TransactionItem,
-    viewModel: TransactionsScreenViewModel,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    val viewModel: TransactionDetailsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    var showDeleteDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     var editAliasActive by rememberSaveable {
         mutableStateOf(false)
@@ -82,16 +100,32 @@ fun TransactionDetailsScreenComposable(
     if(uiState.updatingAliasStatus == UpdatingAliasStatus.SUCCESS) {
         editAliasActive = !editAliasActive
         Toast.makeText(context, "Alias name updated", Toast.LENGTH_SHORT).show()
+        viewModel.resetUpdatingStatus()
     } else if(uiState.updatingAliasStatus == UpdatingAliasStatus.FAIL) {
         Toast.makeText(context, "Failed to update alias name. Ensure internet connection is active", Toast.LENGTH_SHORT).show()
+        viewModel.resetUpdatingStatus()
     }
 
     if(uiState.updatingCommentStatus == UpdatingCommentStatus.SUCCESS) {
         editCommentActive = !editCommentActive
         Toast.makeText(context, "Comment updated", Toast.LENGTH_SHORT).show()
+        viewModel.resetUpdatingStatus()
     } else if(uiState.updatingCommentStatus == UpdatingCommentStatus.FAIL) {
         editCommentActive = !editCommentActive
         Toast.makeText(context, "Failed to update comment. Ensure internet connection is active", Toast.LENGTH_SHORT).show()
+        viewModel.resetUpdatingStatus()
+    }
+
+    if(showDeleteDialog) {
+        DeleteDialog(
+            onDismiss = {
+                showDeleteDialog = !showDeleteDialog
+            },
+            onConfirm = {
+                showDeleteDialog = !showDeleteDialog
+                viewModel.onDeleteComment()
+            }
+        )
     }
 
     Box(
@@ -99,22 +133,20 @@ fun TransactionDetailsScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionDetailsScreen(
-            transactionItem = transactionItem,
-            alias = uiState.nickName,
+            transactionItem = uiState.transaction,
+            alias = uiState.nickname,
             onChangeAlias = {
-                viewModel.updateNickname(it)
+                viewModel.onChangeNickname(it)
             },
             onSaveAlias = {
-                viewModel.updateEntityNickname(transactionItem)
-                viewModel.getTransactions()
+                viewModel.updateEntityNickname()
             },
             comment = uiState.comment,
             onChangeComment = {
-                viewModel.changeComment(it)
+                viewModel.onChangeComment(it)
             },
             onSaveComment = {
-                viewModel.updateTransactionComment(transactionItem)
-                viewModel.getTransactions()
+                viewModel.updateTransactionComment()
             },
             editAliasActive = editAliasActive,
             editCommentActive = editCommentActive,
@@ -126,6 +158,9 @@ fun TransactionDetailsScreenComposable(
             },
             updatingAliasStatus = uiState.updatingAliasStatus,
             updatingCommentStatus = uiState.updatingCommentStatus,
+            onDeleteComment = {
+                showDeleteDialog = !showDeleteDialog
+            },
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
@@ -146,6 +181,7 @@ fun TransactionDetailsScreen(
     onToggleEditComment: () -> Unit,
     updatingAliasStatus: UpdatingAliasStatus,
     updatingCommentStatus: UpdatingCommentStatus,
+    onDeleteComment: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -229,15 +265,15 @@ fun TransactionDetailsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                if(transaction.transactionAmount > 0) {
+                if(transactionItem.transactionAmount > 0) {
                     Text(
-                        text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
+                        text = "+ ${formatMoneyValue(transactionItem.transactionAmount)}",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.surfaceTint
                     )
-                } else if(transaction.transactionAmount < 0) {
+                } else if(transactionItem.transactionAmount < 0) {
                     Text(
-                        text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
+                        text = "- ${formatMoneyValue(transactionItem.transactionAmount.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -312,6 +348,9 @@ fun TransactionDetailsScreen(
                     ),
                     value = alias,
                     onValueChange = onChangeAlias,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                 )
@@ -363,6 +402,7 @@ fun TransactionDetailsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
+
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
                     imageVector = Icons.Default.Edit,
@@ -372,6 +412,18 @@ fun TransactionDetailsScreen(
                             onToggleEditComment()
                         }
                 )
+                if(!transactionItem.comment.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.error,
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete comment",
+                        modifier = Modifier
+                            .clickable {
+                                onDeleteComment()
+                            }
+                    )
+                }
             }
             if(transactionItem.comment != null) {
                 Text(
@@ -391,6 +443,9 @@ fun TransactionDetailsScreen(
                     ),
                     value = comment,
                     onValueChange = onChangeComment,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                 )
@@ -446,6 +501,32 @@ fun TransactionDetailsScreen(
     }
 }
 
+@Composable
+fun DeleteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        title = {
+            Text(text = "Delete comment")
+        },
+        text = {
+            Text(text = "Are you sure you want to delete this comment?")
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancel")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = "Confirm")
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun TransactionDetailsScreenPreview(
@@ -466,6 +547,7 @@ fun TransactionDetailsScreenPreview(
             editAliasActive = true,
             editCommentActive = true,
             onToggleEditComment = {},
+            onDeleteComment = {},
             navigateToPreviousScreen = {}
         )
     }

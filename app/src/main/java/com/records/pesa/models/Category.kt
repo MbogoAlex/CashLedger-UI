@@ -48,7 +48,7 @@ data class TransactionCategory(
 data class CategoryKeyword(
     val id: Int,
     val keyWord: String,
-    val nickName: String
+    val nickName: String?
 )
 
 @Serializable

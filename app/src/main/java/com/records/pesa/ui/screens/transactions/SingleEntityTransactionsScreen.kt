@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.transactions
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,9 +66,9 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
     val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
 }
 @OptIn(ExperimentalMaterialApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SingleEntityTransactionsScreenComposable(
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -95,6 +96,7 @@ fun SingleEntityTransactionsScreenComposable(
             downloadingStatus = uiState.downloadingStatus,
             onDownloadReport = {},
             loadingStatus = uiState.loadingStatus,
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
@@ -112,6 +114,7 @@ fun SingleEntityTransactionsScreen(
     downloadingStatus: DownloadingStatus,
     onDownloadReport: () -> Unit,
     loadingStatus: LoadingStatus,
+    navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -184,7 +187,13 @@ fun SingleEntityTransactionsScreen(
         }
         LazyColumn {
             items(transactions) {
-                TransactionItemCell(transaction = it)
+                TransactionItemCell(
+                    transaction = it,
+                    modifier = Modifier
+                        .clickable {
+                            navigateToTransactionDetailsScreen(it.transactionId.toString())
+                        }
+                )
                 Divider()
             }
         }
@@ -219,6 +228,7 @@ fun SingleEntityTransactionsScreenPreview(
             endDate = "2024-06-25",
             downloadingStatus = DownloadingStatus.INITIAL,
             onDownloadReport = {},
+            navigateToTransactionDetailsScreen = {},
             navigateToPreviousScreen = {}
         )
     }

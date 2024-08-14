@@ -28,6 +28,7 @@ import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
+import com.records.pesa.models.transaction.SingleTransactionResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
@@ -100,6 +101,7 @@ interface ApiRepository {
     suspend fun subscriptionPaymentStatus(token: String, subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload): Response<SubscriptionStatusResponseBody>
     suspend fun getDashboardDetails(token: String, userId: Int, date: String): Response<DashboardDetailsResponseBody>
     suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<ResponseBody>
+    suspend fun getSingleTransaction(token: String, transactionId: Int): Response<SingleTransactionResponseBody>
 
 }
 
@@ -526,6 +528,14 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         transactionType = transactionType,
         startDate = startDate,
         endDate = endDate
+    )
+
+    override suspend fun getSingleTransaction(
+        token: String,
+        transactionId: Int
+    ): Response<SingleTransactionResponseBody> = apiService.getSingleTransaction(
+        token = "Bearer $token",
+        transactionId = transactionId
     )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {

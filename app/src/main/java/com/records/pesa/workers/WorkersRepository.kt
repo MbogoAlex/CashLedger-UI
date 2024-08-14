@@ -14,6 +14,8 @@ interface WorkersRepository {
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
     override suspend fun fetchAndPostMessages(token: String, userId: Int) {
+
+        workManager.cancelUniqueWork("fetch_and_post_messages_periodic")
         // Periodic work request for fetching messages
         val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(12))
             .setInputData(workDataOf("userId" to userId, "token" to token))

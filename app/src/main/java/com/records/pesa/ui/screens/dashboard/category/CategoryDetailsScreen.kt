@@ -226,7 +226,7 @@ fun CategoryDetailsScreenComposable(
                 showEditCategoryNameDialog = !showEditCategoryNameDialog
             },
             onEditMemberName = {
-                memberName = it.nickName
+                memberName = it.nickName ?: ""
                 viewModel.updateCategoryKeyword(it)
                 showEditMemberNameDialog = !showEditMemberNameDialog
             },
@@ -359,39 +359,38 @@ fun CategoryDetailsScreen(
                 }
             }
         }
-        if(loadingStatus == LoadingStatus.SUCCESS) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-            ) {
-                items(category.keywords) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName,
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+        ) {
+            Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
+            items(category.keywords) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if(it.nickName != null) if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName else if(it.keyWord.length > 20) "${it.keyWord.substring(0, 20)}..." else it.keyWord,
 //                        fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = {
+                        onEditMemberName(it)
+                    }) {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit member"
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            onEditMemberName(it)
-                        }) {
-                            Icon(
-                                tint = MaterialTheme.colorScheme.surfaceTint,
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit member"
-                            )
-                        }
-                        IconButton(onClick = {
-                            onRemoveMember(it.nickName, category.id, it.id)
-                        }) {
-                            Icon(
-                                tint = MaterialTheme.colorScheme.error,
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Remove member"
-                            )
-                        }
+                    }
+                    IconButton(onClick = {
+                        onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
+                    }) {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.error,
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Remove member"
+                        )
                     }
                 }
             }

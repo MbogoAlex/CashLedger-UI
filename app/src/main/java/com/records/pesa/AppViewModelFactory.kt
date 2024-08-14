@@ -27,7 +27,9 @@ import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenViewModel
 import com.records.pesa.ui.screens.payment.SubscriptionScreenViewModel
 import com.records.pesa.ui.screens.profile.AccountInformationScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
+import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModel
+import com.records.pesa.workers.WorkersRepository
 
 object AppViewModelFactory {
     val Factory = viewModelFactory {
@@ -176,10 +178,12 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
             LoginScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
-                savedStateHandle = this.createSavedStateHandle()
+                savedStateHandle = this.createSavedStateHandle(),
+                workersRepository = workersRepository
             )
         }
 
@@ -221,6 +225,16 @@ object AppViewModelFactory {
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             MainActivityViewModel(
                 dbRepository = dbRepository
+            )
+        }
+
+        initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            TransactionDetailsScreenViewModel(
+                apiRepository = apiRepository,
+                dbRepository = dbRepository,
+                savedStateHandle = this.createSavedStateHandle()
             )
         }
     }

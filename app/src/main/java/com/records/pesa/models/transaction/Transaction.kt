@@ -3,6 +3,18 @@ package com.records.pesa.models.transaction
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class SingleTransactionResponseBody(
+    val statusCode: Int,
+    val message: String,
+    val data: SingleTransactionData
+)
+
+@Serializable
+data class SingleTransactionData(
+    val transaction: TransactionItem
+)
+
+@Serializable
 data class TransactionResponseBody(
     val statusCode: Int,
     val message: String,
