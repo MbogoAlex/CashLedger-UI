@@ -296,9 +296,9 @@ fun TransactionDetailsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                if(transaction.transactionAmount < 0) {
+                if(transactionItem.transactionAmount < 0) {
                     Text(
-                        text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
+                        text = "Cost: - ${formatMoneyValue(transactionItem.transactionCost.absoluteValue)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontStyle = FontStyle.Italic,

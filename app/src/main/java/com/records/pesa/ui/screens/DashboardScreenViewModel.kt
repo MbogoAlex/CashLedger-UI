@@ -218,6 +218,7 @@ class DashboardScreenViewModel(
             }
             getDashboardDetails()
             getGroupedByMonthTransactions()
+            apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
 
         }
     }

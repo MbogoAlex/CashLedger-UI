@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.transactions
 
 import android.Manifest
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -205,6 +206,12 @@ fun TransactionsScreenComposable(
     if(uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
         Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
+        val uri = uiState.downLoadUri
+        val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
     } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
         Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()

@@ -99,6 +99,7 @@ import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
 import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
 import com.patrykandpatrick.vico.compose.cartesian.fullWidth
@@ -721,6 +722,9 @@ private fun ComposeChart3(transactions: List<MonthlyTransaction>, modelProducer:
                     background = rememberShapeComponent(lineColor, Shape.Pill),
                 ),
                 title = stringResource(R.string.y_axis),
+                label = rememberAxisLabelComponent(
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             ),
             bottomAxis =
             rememberBottomAxis(
@@ -745,6 +749,9 @@ private fun ComposeChart3(transactions: List<MonthlyTransaction>, modelProducer:
                     minSizeDp = 50f
                 ),
                 title = stringResource(R.string.x_axis),
+                label = rememberAxisLabelComponent(
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             ),
             marker = rememberMarker(DefaultCartesianMarker.LabelPosition.AroundPoint),
             horizontalLayout = HorizontalLayout.fullWidth(),

@@ -33,6 +33,7 @@ data class SingleEntityTransactionsScreenUiState(
     val categoryId: Int? = null,
     val budgetId: Int? = null,
     val errorCode: Int = 0,
+    val downLoadUri: Uri? = null,
     val transactions: List<TransactionItem> = emptyList(),
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
@@ -191,6 +192,11 @@ class SingleEntityTransactionsScreenViewModel(
             context.contentResolver.openOutputStream(uri)?.use { output ->
                 output.write(pdfBytes)
                 Log.i("SAVE_PDF_TO_URI", "PDF saved successfully to: $uri")
+                _uiState.update {
+                    it.copy(
+                        downLoadUri = uri
+                    )
+                }
             }
         } catch (e: Exception) {
             Log.e("SAVE_PDF_TO_URI_ERROR", "Exception: ${e.message}")

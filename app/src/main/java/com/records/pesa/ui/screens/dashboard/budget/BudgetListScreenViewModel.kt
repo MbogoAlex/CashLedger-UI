@@ -55,6 +55,7 @@ class BudgetListScreenViewModel(
     }
 
     fun getBudgets() {
+        Log.d("TOKEN:", uiState.value.userDetails.token)
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
@@ -72,6 +73,7 @@ class BudgetListScreenViewModel(
                     name = uiState.value.searchQuery
                 )
                 if(response.isSuccessful) {
+                    Log.d("getBudgetsSuccess", response.body().toString())
                     _uiState.update {
                         it.copy(
                             budgetList = response.body()?.data?.budget!!,
@@ -104,7 +106,7 @@ class BudgetListScreenViewModel(
                     userDetails = dbRepository.getUsers().first()[0]
                 )
             }
-            while (uiState.value.userDetails.userId == 0) {
+            while (uiState.value.userDetails.userId == 0 || uiState.value.userDetails.token.isEmpty()) {
                 delay(1000)
             }
             getBudgets()

@@ -233,27 +233,29 @@ fun BudgetListScreen(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        if(loadingStatus == LoadingStatus.SUCCESS) {
-            LazyColumn(
-                modifier = Modifier.weight(1f)
-            ) {
-                items(budgets) {
-                    BudgetListItem(
-                        budgetDt = it,
-                        navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
-                    )
-                }
+        LazyColumn(
+            modifier = Modifier.weight(1f)
+        ) {
+            items(budgets) {
+                BudgetListItem(
+                    budgetDt = it,
+                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
+                )
             }
         }
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
+
+        if(loadingStatus == LoadingStatus.LOADING) {
+            Box(
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                PullRefreshIndicator(
+                    refreshing = loadingStatus == LoadingStatus.LOADING,
+                    state = pullRefreshState!!
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
         }
 //        Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(

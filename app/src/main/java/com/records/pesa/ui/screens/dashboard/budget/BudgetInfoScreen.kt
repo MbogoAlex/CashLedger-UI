@@ -141,6 +141,12 @@ fun BudgetInfoScreenComposable(
         viewModel.resetLoadingStatus()
     }
 
+    if(uiState.executionStatus == ExecutionStatus.SUCCESS) {
+        Toast.makeText(context, "Budget deleted", Toast.LENGTH_SHORT).show()
+        navigateToPreviousScreen()
+        viewModel.resetLoadingStatus()
+    }
+
     if(showEditBudgetNameDialog) {
         EditNameDialog(
             title = uiState.budget.name!!,
@@ -215,12 +221,6 @@ fun BudgetInfoScreenComposable(
             name = uiState.budget.name!!,
             onConfirm = {
                 viewModel.deleteBudget()
-                if(uiState.executionStatus == ExecutionStatus.SUCCESS) {
-                    Toast.makeText(context, "Budget deleted", Toast.LENGTH_SHORT).show()
-                    navigateToPreviousScreen()
-                    viewModel.resetLoadingStatus()
-                }
-
             },
             onDismiss = {
                 if(uiState.executionStatus != ExecutionStatus.LOADING) {
@@ -312,16 +312,19 @@ fun BudgetInfoScreen(
                 )
             }
         }
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
+        if(loadingStatus == LoadingStatus.LOADING) {
+            Box(
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                PullRefreshIndicator(
+                    refreshing = loadingStatus == LoadingStatus.LOADING,
+                    state = pullRefreshState!!
+                )
+            }
         }
+
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {

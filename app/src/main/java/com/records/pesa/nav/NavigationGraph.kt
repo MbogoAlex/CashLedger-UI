@@ -364,7 +364,7 @@ fun NavigationGraph(
                 navigateToBudgetInfoScreen = {
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
                 },
-                showBackArrow = false,
+                showBackArrow = true,
             )
         }
         composable(
