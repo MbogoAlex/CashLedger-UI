@@ -72,7 +72,9 @@ class SubscriptionScreenViewModel(
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            loadingStatus = LoadingStatus.FAIL,
+                            paymentMessage = "Failed. Check your connection or try later"
+
                         )
                     }
                     Log.e("initiatePaymentResponseError", response.toString())
@@ -81,7 +83,8 @@ class SubscriptionScreenViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        loadingStatus = LoadingStatus.FAIL
+                        loadingStatus = LoadingStatus.FAIL,
+                        paymentMessage = "Failed. Check your connection or try later"
                     )
                 }
                 Log.e("initiatePaymentException", e.toString())
@@ -91,6 +94,7 @@ class SubscriptionScreenViewModel(
     }
 
     fun checkPaymentStatus() {
+        Log.d("CKECK_STATUS", "CHECKING_PAYMENT_STATUS")
         val paymentStatusPayload = SubscriptionPaymentStatusPayload(
             token = uiState.value.paymentToken,
             userId = uiState.value.userDetails.userId,
@@ -113,7 +117,7 @@ class SubscriptionScreenViewModel(
                     _uiState.update {
                         it.copy(
                             paymentMessage = "Payment not successful. Contact KIWITECH if you are sure you have paid",
-                            loadingStatus = LoadingStatus.SUCCESS
+                            loadingStatus = LoadingStatus.FAIL
                         )
                     }
                 }
@@ -121,7 +125,7 @@ class SubscriptionScreenViewModel(
                 _uiState.update {
                     it.copy(
                         paymentMessage = "Payment not successful. Try again later",
-                        loadingStatus = LoadingStatus.SUCCESS
+                        loadingStatus = LoadingStatus.FAIL
                     )
                 }
             }

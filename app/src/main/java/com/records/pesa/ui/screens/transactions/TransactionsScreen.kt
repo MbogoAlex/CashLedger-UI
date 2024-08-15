@@ -293,7 +293,7 @@ fun TransactionsScreenComposable(
                 showDateRangePicker = !showDateRangePicker
             },
             navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->
-                navigateToEntityTransactionsScreen("1", transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
+                navigateToEntityTransactionsScreen(uiState.userDetails.id.toString(), transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
             },
             categoryName = uiState.categoryName,
             budgetName = uiState.budgetName,

@@ -64,6 +64,7 @@ fun SubscriptionScreenComposable(
         viewModel.resetPaymentStatus()
     } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
         Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
+        navigateToHomeScreen()
         viewModel.resetPaymentStatus()
     }
 
@@ -126,7 +127,7 @@ fun SubscriptionScreen(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Don't exit this screen even when it gets blank")
+        Text(text = "Don't exit this screen even when it gets blank or payment is complete. You will be redirected from the screen")
         Spacer(modifier = Modifier.height(10.dp))
         if (url.isNotEmpty()) {
             if (showPage) {
@@ -142,7 +143,7 @@ fun SubscriptionScreen(
                                     isLoading.value = true
                                 },
                                 checkPaymentStatus = {
-//                                    onCheckPaymentStatus()
+                                    onCheckPaymentStatus()
                                     isLoading.value = false
                                 },
                                 onPageStarted = {
