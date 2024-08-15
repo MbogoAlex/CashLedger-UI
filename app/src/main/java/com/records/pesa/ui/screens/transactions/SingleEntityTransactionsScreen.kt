@@ -29,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -208,14 +209,14 @@ fun SingleEntityTransactionsScreen(
             Text(
                 text = totalMoneyIn,
                 fontWeight = FontWeight.Bold,
-                color = Color.Green
+                color = MaterialTheme.colorScheme.surfaceTint
             )
             Spacer(modifier = Modifier.weight(1f))
             Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
             Text(
                 text = totalMoneyOut,
                 fontWeight = FontWeight.Bold,
-                color = Color.Red
+                color = MaterialTheme.colorScheme.error
             )
         }
         LazyColumn {

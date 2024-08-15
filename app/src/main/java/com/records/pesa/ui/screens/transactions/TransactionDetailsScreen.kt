@@ -187,6 +187,16 @@ fun TransactionDetailsScreen(
 ) {
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+    val date = transactionItem.date
+    val time = transactionItem.time
+
+    var formattedDatetime = ""
+
+    if(date.isNotEmpty() && time.isNotEmpty()) {
+        formattedDatetime = formatDate("$date $time")
+    }
+
     Column(
         modifier = Modifier
             .padding(
@@ -223,7 +233,7 @@ fun TransactionDetailsScreen(
                     )
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(
-                        text = formatDate("${transaction.date} ${transaction.time}"),
+                        text = formattedDatetime,
                         fontWeight = FontWeight.Light,
                         fontSize = 12.sp,
                         style = TextStyle(
