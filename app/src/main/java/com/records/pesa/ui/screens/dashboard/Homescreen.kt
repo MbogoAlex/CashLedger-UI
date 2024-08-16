@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.widget.Space
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
@@ -34,6 +35,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +81,8 @@ import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
 import com.records.pesa.ui.theme.CashLedgerTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 object HomeScreenDestination: AppNavigation {
@@ -109,6 +113,9 @@ fun HomeScreenComposable(
 
     val viewModel: HomeScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val tabs = listOf(
         HomeScreenTabItem(
@@ -148,9 +155,13 @@ fun HomeScreenComposable(
 
     if(showSubscribeDialog) {
         SubscriptionDialog(
-            onDismiss = { showSubscribeDialog = false },
+            onDismiss = {
+                showSubscribeDialog = false
+                onSwitchTheme()
+            },
             onConfirm = {
                 showSubscribeDialog = false
+                onSwitchTheme()
                 navigateToSubscriptionScreen()
             }
         )
@@ -161,6 +172,8 @@ fun HomeScreenComposable(
             .safeDrawingPadding()
     ) {
         HomeScreen(
+            scope = scope,
+            drawerState = drawerState,
             firstName = uiState.userDetails.firstName,
             lastName = uiState.userDetails.lastName,
             phoneNumber = uiState.userDetails.phoneNumber,
@@ -184,8 +197,13 @@ fun HomeScreenComposable(
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
             onSwitchTheme = {
+                onSwitchTheme()
+                scope.launch {
+                    delay(1000)
+                    drawerState.close()
+                }
                 if(uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199") {
-                    onSwitchTheme()
+                    Toast.makeText(context, "Theme switched", Toast.LENGTH_SHORT).show()
                 } else {
                     showSubscribeDialog = true
                 }
@@ -208,6 +226,8 @@ fun HomeScreenComposable(
 
 @Composable
 fun HomeScreen(
+    scope: CoroutineScope?,
+    drawerState: DrawerState?,
     firstName: String?,
     lastName: String?,
     phoneNumber: String,
@@ -233,11 +253,11 @@ fun HomeScreen(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+
+
 
     ModalNavigationDrawer(
-        drawerState = drawerState,
+        drawerState = drawerState!!,
         drawerContent = {
             ModalDrawerSheet {
                 Column(
@@ -299,7 +319,7 @@ fun HomeScreen(
                                 selected = currentTab == tab.tab,
                                 onClick = {
                                     onTabChange(tab.tab)
-                                    scope.launch {
+                                    scope!!.launch {
                                         drawerState.close()
                                     }
                                 }
@@ -353,7 +373,7 @@ fun HomeScreen(
                     )
             ) {
                 IconButton(onClick = {
-                    scope.launch {
+                    scope!!.launch {
                         if(drawerState.isClosed) drawerState.open() else drawerState.close()
                     }
                 }) {
@@ -612,6 +632,8 @@ fun HomeScreenPreview() {
     }
     CashLedgerTheme {
         HomeScreen(
+            scope = null,
+            drawerState = null,
             firstName = null,
             lastName = null,
             phoneNumber = "",
