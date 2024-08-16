@@ -2,6 +2,7 @@ package com.records.pesa.ui.screens.dashboard.budget
 
 import android.app.DatePickerDialog
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
@@ -275,12 +276,13 @@ fun BudgetInfoScreen(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    Log.d("BUDGET", budgetDt.toString())
     val difference = budgetDt.expenditure - budgetDt.budgetLimit
     var expanded by remember {
         mutableStateOf(false)
     }
     val progress = budgetDt.expenditure / budgetDt.budgetLimit
-    val percentLeft = (1 - progress) * 100
+    val percentLeft = "%.2f".format((1 - progress) * 100)
 
     val days = ChronoUnit.DAYS.between(LocalDate.parse(budgetDt.limitDate), LocalDateTime.parse(budgetDt.createdAt))
 
@@ -362,9 +364,12 @@ fun BudgetInfoScreen(
         )
         Spacer(modifier = Modifier.height(5.dp))
         LinearProgressIndicator(
-            progress = progress.toFloat(),
+            progress = {
+                if(progress.isNaN()) 0f else progress.toFloat()
+            },
             modifier = Modifier
-                .fillMaxWidth()
+                .height(20.dp)
+                .fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(5.dp))
         Row(
@@ -399,14 +404,14 @@ fun BudgetInfoScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Difference:",
+                text = "Remaining:",
             )
             Spacer(modifier = Modifier.width(3.dp))
             if(difference <= 0) {
                 Text(
                     text = formatMoneyValue(difference.absoluteValue),
                     fontWeight = FontWeight.Bold,
-                    color = Color.Green
+                    color = MaterialTheme.colorScheme.surfaceTint
                 )
             } else {
                 Text(

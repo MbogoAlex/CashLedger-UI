@@ -1,6 +1,8 @@
 package com.records.pesa.ui.screens.dashboard
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.widget.Space
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.AnimationSpec
@@ -101,6 +103,7 @@ fun HomeScreenComposable(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val activity = (LocalContext.current as? Activity)
     BackHandler(onBack = {activity?.finish()})
 
@@ -187,6 +190,13 @@ fun HomeScreenComposable(
                     showSubscribeDialog = true
                 }
             },
+            onReviewApp = {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=com.records.pesa")
+                )
+                context.startActivity(intent)
+            },
             navigateToSubscriptionScreen = navigateToSubscriptionScreen,
             navigateToAccountInfoScreen = {
                 currentTab = HomeScreenTab.ACCOUNT_INFO
@@ -217,6 +227,7 @@ fun HomeScreen(
     navigateToHomeScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
     onSwitchTheme: () -> Unit,
+    onReviewApp: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToAccountInfoScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
@@ -292,6 +303,36 @@ fun HomeScreen(
                                         drawerState.close()
                                     }
                                 }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier
+                                .clickable {
+                                    onReviewApp()
+                                }
+                                .padding(
+                                    horizontal = 16.dp
+                                )
+                                .fillMaxWidth()
+                        ) {
+                            Icon(
+                                tint = Color.Yellow,
+                                painter = painterResource(id = R.drawable.star),
+                                contentDescription = "Review app",
+                                modifier = Modifier
+                                    .padding(
+                                        vertical = 8.dp
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                color = MaterialTheme.colorScheme.surfaceTint,
+                                text = "Review app",
+                                modifier = Modifier
+                                    .padding(
+                                        vertical = 8.dp
+                                    )
                             )
                         }
                     }
@@ -515,7 +556,7 @@ fun SubscriptionDialog(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(text = "1. See transactions and export reports of more than three months")
+                    Text(text = "1. See transactions and export reports of more than one months")
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(text = "2. Manage more than one category")
                     Spacer(modifier = Modifier.height(5.dp))
@@ -592,6 +633,7 @@ fun HomeScreenPreview() {
             navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  },
             darkTheme = false,
             onSwitchTheme = {},
+            onReviewApp = {},
             navigateToSubscriptionScreen = {},
             navigateToAccountInfoScreen = {},
             navigateToTransactionDetailsScreen = {}

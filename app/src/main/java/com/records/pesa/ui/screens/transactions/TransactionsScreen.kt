@@ -1,10 +1,12 @@
 package com.records.pesa.ui.screens.transactions
 
 import android.Manifest
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -56,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -76,9 +80,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.play.core.review.ReviewInfo
+import com.google.android.play.core.review.ReviewManagerFactory
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatMoneyValue
@@ -140,6 +148,22 @@ fun TransactionsScreenComposable(
             navigateToHomeScreen()
         }
     })
+
+    val reviewManager = remember {
+        ReviewManagerFactory.create(context)
+    }
+
+    var reviewInfo: ReviewInfo? by remember {
+        mutableStateOf(null)
+    }
+
+    reviewManager.requestReviewFlow().addOnCompleteListener {
+        if(it.isSuccessful) {
+            reviewInfo = it.result
+        } else {
+            Log.d("TransactionsScreen", "requestReviewFlow failed, ${it.exception}")
+        }
+    }
 
     val tabs = listOf(
         TransactionScreenTabItem(
@@ -203,6 +227,27 @@ fun TransactionsScreenComposable(
         }
     }
 
+    var shouldPromptForRating by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycle = lifecycleOwner.lifecycle
+
+    LaunchedEffect(lifecycle) {
+        lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                Log.d("TransactionsScreen", "onResume, shouldPromptForRating: $shouldPromptForRating")
+                Log.d("TransactionsScreen", reviewInfo.toString())
+                if (shouldPromptForRating && reviewInfo != null) {
+                    Log.d("TransactionsScreen", "reviewInfo not null")
+                    reviewManager.launchReviewFlow(context as Activity, reviewInfo!!)
+                    shouldPromptForRating = false // Reset the flag after showing the review
+                }
+            }
+        })
+    }
+
     if(uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
         Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
@@ -211,7 +256,11 @@ fun TransactionsScreenComposable(
             setDataAndType(uri, "application/pdf")
             flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
         }
+
+        shouldPromptForRating = true
+
         context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
+
     } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
         Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
@@ -748,7 +797,7 @@ fun SubscriptionDialog(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(text = "1. See transactions and export reports of more than three months")
+                    Text(text = "1. See transactions and export reports of more than one months")
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(text = "2. Manage more than one category")
                     Spacer(modifier = Modifier.height(5.dp))
@@ -934,7 +983,7 @@ fun DateRangePicker(
     val defaultStartMillis = defaultStartLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
     val defaultEndMillis = defaultEndLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
 
-    val threeMonthsAgo = LocalDateTime.now().minusMonths(3)
+    val oneMonthAgo = LocalDateTime.now().minusMonths(1)
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePicker(isStart: Boolean) {
@@ -945,7 +994,7 @@ fun DateRangePicker(
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (isStart) {
                     if (selectedDate.isBefore(endDate) || selectedDate.isEqual(endDate)) {
-                        if(selectedDate.isBefore(threeMonthsAgo.toLocalDate())) {
+                        if(selectedDate.isBefore(oneMonthAgo.toLocalDate())) {
                             if(premium) {
                                 onChangeStartDate(selectedDate)
                             } else {

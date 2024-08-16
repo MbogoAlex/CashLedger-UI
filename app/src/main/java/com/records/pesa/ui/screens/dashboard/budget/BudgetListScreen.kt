@@ -233,14 +233,26 @@ fun BudgetListScreen(
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
-        LazyColumn(
-            modifier = Modifier.weight(1f)
-        ) {
-            items(budgets) {
-                BudgetListItem(
-                    budgetDt = it,
-                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
-                )
+        if(loadingStatus == LoadingStatus.SUCCESS) {
+            if(budgets.isEmpty()) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    Text(text = "Create budgets for your transactions. A budget must belong to a category. Create a category first then create a budget for it")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(budgets) {
+                        BudgetListItem(
+                            budgetDt = it,
+                            navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
+                        )
+                    }
+                }
             }
         }
 
@@ -281,7 +293,7 @@ fun BudgetListItem(
         mutableStateOf(false)
     }
     val progress = budgetDt.expenditure / budgetDt.budgetLimit
-    val percentLeft = (1 - progress) * 100
+    val percentLeft = "%.2f".format((1 - progress) * 100)
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -326,9 +338,12 @@ fun BudgetListItem(
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 LinearProgressIndicator(
-                    progress = progress.toFloat(),
+                    progress = {
+                        if(progress.isNaN()) 0f else progress.toFloat()
+                    },
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .height(20.dp)
+                        .fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
@@ -349,7 +364,7 @@ fun BudgetListItem(
                         Text(
                             text = formatMoneyValue(difference.absoluteValue),
                             fontWeight = FontWeight.Bold,
-                            color = Color.Green
+                            color = MaterialTheme.colorScheme.surfaceTint
                         )
                     } else {
                         Text(

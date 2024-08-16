@@ -213,6 +213,15 @@ fun CategoryDetailsScreenComposable(
         viewModel.resetLoadingStatus()
     }
 
+    if(uiState.deletionStatus == DeletionStatus.SUCCESS) {
+        Toast.makeText(context, "Category deleted", Toast.LENGTH_SHORT).show()
+        navigateToPreviousScreen()
+        viewModel.resetLoadingStatus()
+    } else if(uiState.deletionStatus == DeletionStatus.FAIL) {
+        Toast.makeText(context, "Failed to delete category. Check your connection or try later", Toast.LENGTH_SHORT).show()
+        viewModel.resetLoadingStatus()
+    }
+
     Box(
         modifier = Modifier
             .safeDrawingPadding()

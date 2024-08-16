@@ -96,7 +96,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 84.0
+    val appVersion = 86.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {
@@ -216,7 +216,7 @@ fun DashboardScreen(
         mutableStateOf(false)
     }
 
-    val threeMonthsBack = LocalDate.now().minusMonths(3).month
+    val oneMonthBack = LocalDate.now().minusMonths(1).month
 
 
     Column(
@@ -347,7 +347,7 @@ fun DashboardScreen(
                                 },
                                 onClick = {
 
-                                    if (Month.valueOf(it.uppercase()) < (threeMonthsBack) && !premium) {
+                                    if (Month.valueOf(it.uppercase()) < (oneMonthBack) && !premium) {
                                         selectMonthExpanded = !selectMonthExpanded
                                         onShowSubscriptionDialog()
                                     } else {
@@ -596,7 +596,7 @@ fun SubscriptionDialog(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(text = "1. See transactions and export reports of more than three months")
+                    Text(text = "1. See transactions and export reports of more than one month")
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(text = "2. Manage more than one category")
                     Spacer(modifier = Modifier.height(5.dp))

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.Text
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -181,15 +182,19 @@ fun SmsFetchScreen(
             text = text,
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
         )
         Spacer(modifier = Modifier.weight(1f))
-        Text(text = "Processing ${messagesSize.toInt()} item(s)")
+        Text(
+            text = "Processing ${messagesSize.toInt()} item(s)",
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.height(10.dp))
         LinearProgressIndicator(
-            progress = { (timer / messagesSize) },
+            progress = { if ((timer / messagesSize).isNaN()) 0f else (timer / messagesSize) },
             modifier = Modifier
                 .height(20.dp)
                 .fillMaxWidth(),

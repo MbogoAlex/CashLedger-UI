@@ -34,6 +34,7 @@ import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import com.records.pesa.models.version.AppVersionCheckResponseBody
+import com.records.pesa.ui.screens.dashboard.category.CategoryReportPayload
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody
@@ -356,4 +357,10 @@ interface ApiService {
 
     @GET("version")
     suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
+
+    @POST("category/report")
+    suspend fun generateReportForMultipleCategories(
+        @Header("Authorization") token: String,
+        @Body categoryReportPayload: CategoryReportPayload
+    ): Response<ResponseBody>
 }

@@ -35,6 +35,7 @@ import com.records.pesa.models.user.UserLoginResponseBody
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.models.user.UserRegistrationResponseBody
 import com.records.pesa.models.version.AppVersionCheckResponseBody
+import com.records.pesa.ui.screens.dashboard.category.CategoryReportPayload
 import kotlinx.coroutines.flow.first
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -104,7 +105,7 @@ interface ApiRepository {
     suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<ResponseBody>
     suspend fun getSingleTransaction(token: String, transactionId: Int): Response<SingleTransactionResponseBody>
     suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
-
+    suspend fun generateReportForMultipleCategories(token: String, categoryReportPayload: CategoryReportPayload): Response<ResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
@@ -541,6 +542,13 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     )
 
     override suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody> = apiService.checkAppVersion()
+    override suspend fun generateReportForMultipleCategories(
+        token: String,
+        categoryReportPayload: CategoryReportPayload
+    ): Response<ResponseBody> = apiService.generateReportForMultipleCategories(
+        token = "Bearer $token",
+        categoryReportPayload = categoryReportPayload
+    )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {
         val response = apiService.loginUser(user = user)

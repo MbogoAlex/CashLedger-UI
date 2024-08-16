@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -168,15 +169,21 @@ private fun ComposeChart6(transactions: List<SortedTransactionItem>, modelProduc
 
             ),
             startAxis = rememberStartAxis(
+                guideline = rememberAxisGuidelineComponent(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 label = rememberAxisLabelComponent(
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ),
 
             bottomAxis = rememberBottomAxis(
+                guideline = rememberAxisGuidelineComponent(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 valueFormatter = bottomAxisValueFormatter,
                 label = rememberAxisLabelComponent(
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ),
             marker = rememberMarker(),

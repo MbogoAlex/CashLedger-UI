@@ -22,6 +22,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class DeletionStatus {
+    INITIAL,
+    LOADING,
+    SUCCESS,
+    FAIL
+}
+
 data class CategoryDetailsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val categoryId: String = "",
@@ -29,7 +36,8 @@ data class CategoryDetailsScreenUiState(
     val newMemberName: String = "",
     val categoryKeyword: CategoryKeyword = CategoryKeyword(0, "", ""),
     val category: TransactionCategory = transactionCategory,
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val deletionStatus: DeletionStatus = DeletionStatus.INITIAL
 )
 class CategoryDetailsScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -201,7 +209,7 @@ class CategoryDetailsScreenViewModel(
     fun removeCategory(categoryId: Int) {
         _uiState.update {
             it.copy(
-                loadingStatus = LoadingStatus.LOADING
+                deletionStatus = DeletionStatus.LOADING
             )
         }
 
@@ -214,13 +222,13 @@ class CategoryDetailsScreenViewModel(
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.SUCCESS
+                            deletionStatus = DeletionStatus.SUCCESS
                         )
                     }
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
+                            deletionStatus = DeletionStatus.FAIL
                         )
                     }
                     Log.e("deleteCategoryErrorResponse", response.toString())
@@ -229,7 +237,7 @@ class CategoryDetailsScreenViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        loadingStatus = LoadingStatus.FAIL
+                        deletionStatus = DeletionStatus.FAIL
                     )
                 }
                 Log.e("deleteCategoryErrorException", e.toString())
@@ -262,7 +270,8 @@ class CategoryDetailsScreenViewModel(
     fun resetLoadingStatus() {
         _uiState.update {
             it.copy(
-                loadingStatus = LoadingStatus.INITIAL
+                loadingStatus = LoadingStatus.INITIAL,
+                deletionStatus = DeletionStatus.INITIAL
             )
         }
     }

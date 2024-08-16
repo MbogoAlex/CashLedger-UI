@@ -13,7 +13,7 @@ android {
         applicationId = "com.records.pesa"
         minSdk = 26
         targetSdk = 34
-        versionCode = 84
+        versionCode = 86
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -52,6 +52,10 @@ android {
 }
 
 dependencies {
+
+    // https://mvnrepository.com/artifact/com.google.android.play/review-ktx
+    implementation("com.google.android.play:review-ktx:2.0.1")
+
 
     // https://mvnrepository.com/artifact/androidx.work/work-runtime-ktx
     implementation("androidx.work:work-runtime-ktx:2.9.0")
