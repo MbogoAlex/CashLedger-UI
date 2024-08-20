@@ -29,6 +29,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
@@ -49,6 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.functions.formatIsoDateTime
@@ -68,6 +71,9 @@ import com.records.pesa.models.BudgetDt
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.budgets
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDateTime
 import kotlin.math.absoluteValue
@@ -164,9 +170,12 @@ fun BudgetListScreen(
     showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
+    var searchingOn by rememberSaveable {
+        mutableStateOf(false)
+    }
     Column(
         modifier = Modifier
-            .padding(16.dp)
+            .padding(screenWidth(x = 16.0))
             .fillMaxSize()
     ) {
         Row(
@@ -174,65 +183,118 @@ fun BudgetListScreen(
         ) {
             if(showBackArrow) {
                 IconButton(onClick = navigateToPreviousScreen) {
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Previous screen",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
-            TextField(
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Search, contentDescription = null)
-                },
-                value = searchQuery,
-                placeholder = {
-                    Text(text = "Budget / Category")
-                },
-                trailingIcon = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.inverseOnSurface)
-                            .padding(5.dp)
-                            .clickable {
-                                onClearSearch()
+            if(searchingOn) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    TextField(
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        },
+                        value = searchQuery,
+                        placeholder = {
+                            Text(
+                                text = "Budget / Category",
+                                fontSize = screenFontSize(x = 14.0).sp
+                            )
+                        },
+                        trailingIcon = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.inverseOnSurface)
+                                    .padding(screenWidth(x = 5.0))
+                                    .clickable {
+                                        onClearSearch()
+                                    }
+
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search",
+                                    modifier = Modifier
+                                        .size(screenWidth(x = 16.0))
+                                )
                             }
 
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Text
+                        ),
+                        onValueChange = onChangeSearchQuery,
+                        modifier = Modifier
+                            .weight(0.9f)
+                    )
+//                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
+                    IconButton(
+                        onClick = { searchingOn = !searchingOn },
+                        modifier = Modifier
+                            .weight(0.1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Stop searching",
                             modifier = Modifier
-                                .size(16.dp)
+                                .size(screenWidth(x = 24.0))
                         )
                     }
-
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Text
-                ),
-                onValueChange = onChangeSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            }
         }
-        Spacer(modifier = Modifier.height(10.dp))
+
         if(categoryName != null) {
             Text(
                 text = "$categoryName budgets",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
         } else {
-            Text(
-                text = "User budgets",
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "User budgets",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if(!searchingOn && budgets.isNotEmpty()) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { searchingOn = !searchingOn }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search for budgets you have created",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                }
+
+            }
+
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         if(loadingStatus == LoadingStatus.SUCCESS) {
             if(budgets.isEmpty()) {
                 Box(
@@ -241,7 +303,10 @@ fun BudgetListScreen(
                         .weight(1f)
                         .fillMaxSize()
                 ) {
-                    Text(text = "Create budgets for your transactions. A budget must belong to a category. Create a category first then create a budget for it")
+                    Text(
+                        text = "Create budgets for your transactions. A budget must belong to a category. Create a category first then create a budget for it",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
             } else {
                 LazyColumn(
@@ -278,7 +343,10 @@ fun BudgetListScreen(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            Text(text = "Add a budget")
+            Text(
+                text = "Add a budget",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
     }
 }
@@ -299,12 +367,12 @@ fun BudgetListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                bottom = 10.dp
+                bottom = screenHeight(x = 10.0)
             )
     ) {
         Row(
             modifier = Modifier
-                .padding(10.dp)
+                .padding(screenWidth(x = 10.0))
         ) {
             Column(
                 modifier = Modifier
@@ -317,27 +385,31 @@ fun BudgetListItem(
             ) {
                 Text(
                     text = budgetDt.name ?: "N/A",
+                    fontSize = screenFontSize(x = 14.0).sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 if(budgetDt.active) {
                     Text(
                         text = "ACTIVE",
+                        fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
                         text = "INACTIVE",
+                        fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
                     text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}",
+                    fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.surfaceTint,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 LinearProgressIndicator(
                     progress = {
                         if(progress.isNaN()) 0f else progress.toFloat()
@@ -346,52 +418,69 @@ fun BudgetListItem(
                         .height(20.dp)
                         .fillMaxWidth(),
                 )
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
                     text = "$percentLeft % left",
+                    fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.surfaceTint,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Row(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Difference:",
+                        fontSize = screenFontSize(x = 14.0).sp
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
                     if(difference <= 0) {
                         Text(
                             text = formatMoneyValue(difference.absoluteValue),
                             fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp,
                             color = MaterialTheme.colorScheme.surfaceTint
                         )
                     } else {
                         Text(
                             text = "- ${formatMoneyValue(difference)}",
+                            fontSize = screenFontSize(x = 14.0).sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Red
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
                     text = "Created on ${formatIsoDateTime(LocalDateTime.parse(budgetDt.createdAt))}",
+                    fontSize = screenFontSize(x = 14.0).sp,
                     fontWeight = FontWeight.Bold
                 )
                 if(budgetDt.limitReached) {
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "Limit Reached")
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "Reached limit on ${budgetDt.limitReachedAt}")
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "Overspent by ${formatMoneyValue(difference)}")
+                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                    Text(
+                        text = "Limit Reached",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                    Text(
+                        text = "Reached limit on ${budgetDt.limitReachedAt}",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                    Text(
+                        text = "Overspent by ${formatMoneyValue(difference)}",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
-                Spacer(modifier = Modifier.height(5.dp))
-                Text(text = "Category: ${budgetDt.category.name}")
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                Text(
+                    text = "Category: ${budgetDt.category.name}",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
 
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Button(
                     onClick = {
                         navigateToBudgetInfoScreen(budgetDt.id.toString())
@@ -399,7 +488,10 @@ fun BudgetListItem(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-                    Text(text = "Explore")
+                    Text(
+                        text = "Explore",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
                 

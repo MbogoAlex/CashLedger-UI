@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -32,6 +33,9 @@ import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import kotlin.math.absoluteValue
 
 @Composable
@@ -39,168 +43,87 @@ fun TransactionItemCell(
     transaction: TransactionItem,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        Log.d("WIDTH", maxWidth.toString())
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = modifier
-                        .padding(
-                            top = 10.dp,
-                            bottom = 10.dp
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-//                        Card {
-//                            Box(
-//                                contentAlignment = Alignment.Center,
-//                                modifier = Modifier
-////                    .background(Color.Red)
-//                                    .padding(8.dp)
-//                            ) {
-//                                Text(text = transaction.entity.substring(0, 2).uppercase())
-//                            }
-//                        }
-//                        Spacer(modifier = Modifier.width(5.dp))
-                        Column {
-                            Text(
-                                text = transaction.nickName?.let { if(it.length > 15) "${it.substring(0, 15).uppercase()}..." else it.uppercase() }  ?: if(transaction.entity.length > 15) "${transaction.entity.substring(0, 15).uppercase()}..." else transaction.entity.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-//                            Spacer(modifier = Modifier.height(5.dp))
-                            Text(
-                                text = transaction.transactionType,
-                                fontSize = 12.sp,
-//                    fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            if(transaction.transactionAmount > 0) {
-                                Text(
-                                    text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.surfaceTint
-                                )
-                            } else if(transaction.transactionAmount < 0) {
-                                Text(
-                                    text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-//                            Spacer(modifier = Modifier.height(5.dp))
-                            if(transaction.transactionAmount < 0) {
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-
-                    }
-                    Text(
-                        text = formatDate("${transaction.date} ${transaction.time}"),
-                        fontWeight = FontWeight.Light,
-                        fontSize = 12.sp,
-                        style = TextStyle(
-                            fontStyle = FontStyle.Italic
-                        )
-                    )
-                }
-            }
-            else -> {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = modifier
-                        .padding(
-                            top = 10.dp,
-                            bottom = 10.dp
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Card {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = modifier
+            .padding(
+                top = screenHeight(x = 10.0),
+                bottom = screenHeight(x = 10.0)
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Card {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
 //                    .background(Color.Red)
-                                    .padding(16.dp)
-                            ) {
-                                Text(text = transaction.entity.substring(0, 2).uppercase())
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Column {
-                            Text(
-                                text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() }  ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Text(
-                                text = transaction.transactionType,
-                                fontSize = 12.sp,
-//                    fontWeight = FontWeight.Bold
-                            )
-
-
-
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            if(transaction.transactionAmount > 0) {
-                                Text(
-                                    text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.surfaceTint
-                                )
-                            } else if(transaction.transactionAmount < 0) {
-                                Text(
-                                    text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(5.dp))
-                            if(transaction.transactionAmount < 0) {
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-
-                    }
+                        .padding(screenWidth(x = 16.0))
+                ) {
                     Text(
-                        text = formatDate("${transaction.date} ${transaction.time}"),
-                        fontWeight = FontWeight.Light,
-                        fontSize = 12.sp,
-                        style = TextStyle(
-                            fontStyle = FontStyle.Italic
-                        )
+                        text = transaction.entity.substring(0, 2).uppercase(),
+                        fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
             }
-        }
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+            Column {
+                Text(
+                    text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() }  ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                Text(
+                    text = transaction.transactionType,
+                    fontSize = screenFontSize(x = 12.0).sp,
+//                    fontWeight = FontWeight.Bold
+                )
 
+
+
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                if(transaction.transactionAmount > 0) {
+                    Text(
+                        text = "+ ${formatMoneyValue(transaction.transactionAmount)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.surfaceTint
+                    )
+                } else if(transaction.transactionAmount < 0) {
+                    Text(
+                        text = "- ${formatMoneyValue(transaction.transactionAmount.absoluteValue)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                if(transaction.transactionAmount < 0) {
+                    Text(
+                        text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 12.0).sp,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+        }
+        Text(
+            text = formatDate("${transaction.date} ${transaction.time}"),
+            fontWeight = FontWeight.Light,
+            fontSize = screenFontSize(x = 12.0).sp,
+            style = TextStyle(
+                fontStyle = FontStyle.Italic
+            )
+        )
     }
 
 }
@@ -210,203 +133,75 @@ fun SortedTransactionItemCell(
     transaction: SortedTransactionItem,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = modifier
-                        .padding(
-                            top = 10.dp,
-                            bottom = 10.dp
-                        )
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = modifier
+            .padding(
+                top = screenHeight(x = 10.0),
+                bottom = screenHeight(x = 10.0)
+            )
+    ) {
+        Row {
+            Card {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        //                    .background(Color.Red)
+                        .padding(screenWidth(x = 16.0))
                 ) {
-                    Row {
-                        Column {
-                            Text(
-                                text = if(transaction.nickName != null) if(transaction.nickName.length > 15) "${transaction.nickName.substring(0, 15).uppercase()}..." else transaction.nickName else if  (transaction.entity.length > 15) "${
-                                    transaction.entity.substring(
-                                        0,
-                                        15
-                                    ).uppercase()
-                                }..." else transaction.entity.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-//                            Spacer(modifier = Modifier.height(5.dp))
-                            Text(
-                                text = transaction.transactionType,
-                                fontSize = 12.sp,
-                                //                    fontWeight = FontWeight.Bold
-                            )
-
-
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text(
-                                text = "+ ${formatMoneyValue(transaction.totalIn)}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.surfaceTint
-                            )
-                            Text(
-                                text = " - ${formatMoneyValue(transaction.totalOut.absoluteValue)}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            if (transaction.totalOut != 0.0) {
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_downward),
-                                    contentDescription = null
-                                )
-                                Text(
-                                    text = "${transaction.timesIn} times",
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_upward),
-                                    contentDescription = null
-                                )
-                                Text(
-                                    text = "${transaction.timesOut} times",
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-
-                            }
-
-
-                        }
-
-                    }
+                    Text(
+                        text = transaction.nickName?.let { it.substring(0, 2).uppercase() }
+                        ?: transaction.entity.substring(0, 2).uppercase(),
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
             }
-            else -> {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = modifier
-                        .padding(
-                            top = 10.dp,
-                            bottom = 10.dp
-                        )
-                ) {
-                    Row {
-                        Card {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    //                    .background(Color.Red)
-                                    .padding(16.dp)
-                            ) {
-                                Text(text = transaction.nickName?.let { it.substring(0, 2).uppercase() }
-                                    ?: transaction.entity.substring(0, 2).uppercase())
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Column {
-                            Text(
-                                text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() } ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Text(
-                                text = transaction.transactionType,
-                                fontSize = 12.sp,
-                                //                    fontWeight = FontWeight.Bold
-                            )
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+            Column {
+                Text(
+                    text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() } ?: if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase(),
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                Text(
+                    text = transaction.transactionType,
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    //                    fontWeight = FontWeight.Bold
+                )
 
 
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text(
-                                text = "+ ${formatMoneyValue(transaction.totalIn)}",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.surfaceTint
-                            )
-                            Text(
-                                text = " - ${formatMoneyValue(transaction.totalOut.absoluteValue)}",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            if (transaction.totalOut != 0.0) {
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_downward),
-                                    contentDescription = null
-                                )
-                                Text(
-                                    text = "${transaction.timesIn} times",
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrow_upward),
-                                    contentDescription = null
-                                )
-                                Text(
-                                    text = "${transaction.timesOut} times",
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-
-                            }
-
-
-                        }
-
-                    }
-                }
             }
+            Spacer(modifier = Modifier.weight(1f))
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "+ ${formatMoneyValue(transaction.totalIn)}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    color = MaterialTheme.colorScheme.surfaceTint
+                )
+                Text(
+                    text = " - ${formatMoneyValue(transaction.totalOut.absoluteValue)}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+                if (transaction.totalOut != 0.0) {
+                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                    Text(
+                        text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 12.0).sp,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+            }
+
         }
-
     }
 }
 
@@ -416,76 +211,38 @@ fun TransactionCategoryCell(
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Card(
-                    modifier = Modifier
-                        .padding(
-                            bottom = 10.dp
-                        )
-                        .fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(10.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = transactionCategory.name,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text =  if(transactionCategory.transactions.size > 1) "${transactionCategory.transactions.size} transactions" else "${transactionCategory.transactions.size} transaction",
-                                fontStyle = FontStyle.Italic,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Light
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = transactionCategory.name
-                            )
-                        }
-                    }
-                }
+    Card(
+        modifier = Modifier
+            .padding(
+                bottom = screenHeight(x = 10.0)
+            )
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(screenWidth(x = 10.0))
+        ) {
+            Column {
+                Text(
+                    text = transactionCategory.name,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text =  if(transactionCategory.transactions.size > 1) "${transactionCategory.transactions.size} transactions" else "${transactionCategory.transactions.size} transaction",
+                    fontStyle = FontStyle.Italic,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Light
+                )
             }
-            else -> {
-                Card(
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = transactionCategory.name,
                     modifier = Modifier
-                        .padding(
-                            bottom = 10.dp
-                        )
-                        .fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(10.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = transactionCategory.name,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text =  if(transactionCategory.transactions.size > 1) "${transactionCategory.transactions.size} transactions" else "${transactionCategory.transactions.size} transaction",
-                                fontStyle = FontStyle.Italic,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Light
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(onClick = {navigateToCategoryDetailsScreen(transactionCategory.id.toString()) }) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = transactionCategory.name
-                            )
-                        }
-                    }
-                }
+                        .size(screenWidth(x = 24.0))
+                )
             }
         }
     }

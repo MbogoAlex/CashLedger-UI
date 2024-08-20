@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,6 +51,9 @@ import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactions
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 object MembersAdditionScreenDestination: AppNavigation {
@@ -137,8 +141,8 @@ fun MembersAdditionScreen(
     Column(
         modifier = Modifier
             .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 8.0)
             )
             .fillMaxSize()
     ) {
@@ -149,13 +153,19 @@ fun MembersAdditionScreen(
                 Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
             }
         }
-        Text(text = "Members will be added from your transactions list. To add a member, search and select from your transactions list")
-        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "Members will be added from your transactions list. To add a member, search and select from your transactions list",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         OutlinedTextField(
             leadingIcon = {
                 Icon(imageVector = Icons.Default.Search, contentDescription = null)
             },
-            label = { Text(text = "name / phone number") },
+            label = { Text(
+                text = "name / phone number",
+                fontSize = screenFontSize(x = 14.0).sp
+            ) },
             value = searchText,
             onValueChange = onChangeSearchText,
             keyboardOptions = KeyboardOptions.Default.copy(
@@ -165,7 +175,7 @@ fun MembersAdditionScreen(
             modifier = Modifier
                 .fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -174,12 +184,17 @@ fun MembersAdditionScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = it.nickName ?: if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient)
+                    Text(
+                        text = it.nickName ?: if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = { onAddMember(it) }) {
                         Icon(
                             tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.Add, contentDescription = "Add ${if(it.transactionAmount > 0) it.sender else it.recipient}"
+                            imageVector = Icons.Default.Add, contentDescription = "Add ${if(it.transactionAmount > 0) it.sender else it.recipient}",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
                         )
                     }
                 }
@@ -190,7 +205,10 @@ fun MembersAdditionScreen(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            Text(text = "Review")
+            Text(
+                text = "Review",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
     }
 }
@@ -208,8 +226,8 @@ fun MembersReviewScreen(
     Column(
         modifier = Modifier
             .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 8.0)
             )
             .fillMaxSize()
     ) {
@@ -217,18 +235,26 @@ fun MembersReviewScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = navigateToMembersAdditionScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous screen",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
 
             }
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(text = "Continue")
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+            Text(
+                text = "Continue",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
         Text(
             text = "You are about to add the following members:",
-            fontSize = 16.sp,
+            fontSize = screenFontSize(x = 16.0).sp,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -237,12 +263,17 @@ fun MembersReviewScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient)
+                    Text(
+                        text = if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = { onRemoveMember(it) }) {
                         Icon(
                             tint = MaterialTheme.colorScheme.error,
-                            painter = painterResource(id = R.drawable.remove), contentDescription = "Remove ${if(it.transactionAmount > 0) it.sender else it.recipient}"
+                            painter = painterResource(id = R.drawable.remove), contentDescription = "Remove ${if(it.transactionAmount > 0) it.sender else it.recipient}",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
                         )
                     }
                 }
@@ -255,9 +286,15 @@ fun MembersReviewScreen(
                 .fillMaxWidth()
         ) {
             if(loadingStatus == LoadingStatus.LOADING) {
-                Text(text = "Loading...")
+                Text(
+                    text = "Loading...",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             } else {
-                Text(text = "Confirm")
+                Text(
+                    text = "Confirm",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
 
         }

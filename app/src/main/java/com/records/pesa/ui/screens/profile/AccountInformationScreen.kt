@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,9 +43,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -203,8 +208,8 @@ fun AccountInformationScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(
-                horizontal = 32.dp,
-                vertical = 8.dp
+                horizontal = screenWidth(x = 32.0),
+                vertical = screenHeight(x = 8.0)
             )
     ) {
         Row(
@@ -216,23 +221,34 @@ fun AccountInformationScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = null
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             }
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(text = "Account details")
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+            Text(
+                text = "Account details",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "First name")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        Text(
+            text = "First name",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         ElevatedCard {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(screenWidth(x = 20.0))
                     .fillMaxWidth()
             ) {
-                Text(text = firstName)
+                Text(
+                    text = firstName,
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
@@ -242,19 +258,26 @@ fun AccountInformationScreen(
                         .clickable {
                             onEditFirstName()
                         }
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Surname")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+        Text(
+            text = "Surname",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         ElevatedCard {
             Row(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(screenWidth(x = 20.0))
                     .fillMaxWidth()
             ) {
-                Text(text = lastName)
+                Text(
+                    text = lastName,
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
@@ -264,19 +287,26 @@ fun AccountInformationScreen(
                         .clickable {
                             onEditLastName()
                         }
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Email")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+        Text(
+            text = "Email",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         ElevatedCard {
             Row(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(screenHeight(x = 20.0))
                     .fillMaxWidth()
             ) {
-                Text(text = email)
+                Text(
+                    text = email,
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
@@ -286,24 +316,33 @@ fun AccountInformationScreen(
                         .clickable {
                             onEditEmail()
                         }
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Phone number")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+        Text(
+            text = "Phone number",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         ElevatedCard {
             Row(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(screenWidth(x = 20.0))
                     .fillMaxWidth()
             ) {
-                Text(text = phoneNumber)
+                Text(
+                    text = phoneNumber,
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     tint = Color.LightGray,
                     imageVector = Icons.Default.Edit,
-                    contentDescription = null
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
@@ -315,9 +354,15 @@ fun AccountInformationScreen(
                 .fillMaxWidth()
         ) {
             if(logoutLoading) {
-                Text(text = "Logging out...")
+                Text(
+                    text = "Logging out...",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             } else {
-                Text(text = "Log out")
+                Text(
+                    text = "Log out",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
     }
@@ -336,12 +381,18 @@ fun EditDialog(
 ) {
     AlertDialog(
         title = {
-            Text(text = heading)
+            Text(
+                text = heading,
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         text = {
             OutlinedTextField(
                 label = {
-                    Text(text = label)
+                    Text(
+                        text = label,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 },
                 value = value,
                 onValueChange = onChangeValue,
@@ -359,7 +410,10 @@ fun EditDialog(
                 enabled = loadingStatus != LoadingStatus.LOADING,
                 onClick = onDismiss
             ) {
-                Text(text = "Dismiss")
+                Text(
+                    text = "Dismiss",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         },
         confirmButton = {
@@ -368,9 +422,15 @@ fun EditDialog(
                 onClick = onConfirm
             ) {
                 if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(text = "Saving...")
+                    Text(
+                        text = "Saving...",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
-                    Text(text = "Save")
+                    Text(
+                        text = "Save",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
             }
         }

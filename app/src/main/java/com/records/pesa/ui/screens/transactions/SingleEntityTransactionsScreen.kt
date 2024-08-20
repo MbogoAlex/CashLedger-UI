@@ -57,6 +57,9 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.transactions
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -161,216 +164,120 @@ fun SingleEntityTransactionsScreen(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
+    Column(
+        modifier = Modifier
+            .padding(
+                horizontal = screenWidth(x = 16.0)
+            )
+            .fillMaxSize()
+    ) {
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            IconButton(onClick = navigateToPreviousScreen) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous screen",
                     modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                        .fillMaxSize()
-                ) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        TextButton(
-                            enabled = downloadingStatus != DownloadingStatus.LOADING,
-                            onClick = onDownloadReport
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "Statement")
-                                if(downloadingStatus == DownloadingStatus.LOADING) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(15.dp)
-                                    )
-                                } else {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.download),
-                                        contentDescription = null
-                                    )
-                                }
-
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Column(
-//                                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(
-                                horizontal = 16.dp
-                            )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Money in:",
-                                fontSize = 14.sp,
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = totalMoneyIn,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.surfaceTint
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(5.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Money out:",
-                                fontSize = 14.sp,
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = totalMoneyOut,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    LazyColumn {
-                        items(transactions) {
-                            TransactionItemCell(
-                                transaction = it,
-                                modifier = Modifier
-                                    .clickable {
-                                        navigateToTransactionDetailsScreen(it.transactionId.toString())
-                                    }
-                            )
-                            Divider()
-                        }
-                    }
-
-                    Box(
-                        contentAlignment = Alignment.TopCenter,
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        PullRefreshIndicator(
-                            refreshing = loadingStatus == LoadingStatus.LOADING,
-                            state = pullRefreshState!!
-                        )
-                    }
-
-                }
+                        .size(screenWidth(x = 24.0))
+                )
             }
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                        .fillMaxSize()
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                enabled = downloadingStatus != DownloadingStatus.LOADING,
+                onClick = onDownloadReport
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        TextButton(
-                            enabled = downloadingStatus != DownloadingStatus.LOADING,
-                            onClick = onDownloadReport
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "Statement")
-                                if(downloadingStatus == DownloadingStatus.LOADING) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(15.dp)
-                                    )
-                                } else {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.download),
-                                        contentDescription = null
-                                    )
-                                }
-
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
-                        fontWeight = FontWeight.Bold
+                        text = "Statement",
+                        fontSize = screenFontSize(x = 14.0).sp
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(
-                                horizontal = 16.dp
-                            )
-                    ) {
-                        Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                        Text(
-                            text = totalMoneyIn,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.surfaceTint
+                    if(downloadingStatus == DownloadingStatus.LOADING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(screenWidth(x = 15.0))
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                        Text(
-                            text = totalMoneyOut,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    LazyColumn {
-                        items(transactions) {
-                            TransactionItemCell(
-                                transaction = it,
-                                modifier = Modifier
-                                    .clickable {
-                                        navigateToTransactionDetailsScreen(it.transactionId.toString())
-                                    }
-                            )
-                            Divider()
-                        }
-                    }
-
-                    Box(
-                        contentAlignment = Alignment.TopCenter,
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        PullRefreshIndicator(
-                            refreshing = loadingStatus == LoadingStatus.LOADING,
-                            state = pullRefreshState!!
+                    } else {
+                        Icon(
+                            painter = painterResource(id = R.drawable.download),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
                         )
                     }
 
                 }
             }
         }
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+        Text(
+            text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
+            fontWeight = FontWeight.Bold,
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(
+                    horizontal = screenWidth(x = 16.0)
+                )
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.arrow_downward),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(screenWidth(x = 24.0))
+            )
+            Text(
+                text = totalMoneyIn,
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp,
+                color = MaterialTheme.colorScheme.surfaceTint
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                painter = painterResource(id = R.drawable.arrow_upward),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(screenWidth(x = 24.0))
+            )
+            Text(
+                text = totalMoneyOut,
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        LazyColumn {
+            items(transactions) {
+                TransactionItemCell(
+                    transaction = it,
+                    modifier = Modifier
+                        .clickable {
+                            navigateToTransactionDetailsScreen(it.transactionId.toString())
+                        }
+                )
+                Divider()
+            }
+        }
+
+        Box(
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            PullRefreshIndicator(
+                refreshing = loadingStatus == LoadingStatus.LOADING,
+                state = pullRefreshState!!
+            )
+        }
+
     }
 
 }

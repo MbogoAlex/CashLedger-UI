@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -65,6 +67,9 @@ import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.budget
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -298,7 +303,12 @@ fun BudgetInfoScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = navigateToPreviousScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous screen",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
@@ -311,6 +321,8 @@ fun BudgetInfoScreen(
                     tint = MaterialTheme.colorScheme.error,
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete this budget",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
@@ -332,6 +344,7 @@ fun BudgetInfoScreen(
         ) {
             Text(
                 text = budgetDt.name!!,
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -341,42 +354,48 @@ fun BudgetInfoScreen(
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit budget name"
+                    contentDescription = "Edit budget name",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
         if(budgetDt.active) {
             Text(
                 text = "ACTIVE",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
         } else {
             Text(
                 text = "INACTIVE",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Text(
             text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}",
+            fontSize = screenFontSize(x = 14.0).sp,
             color = MaterialTheme.colorScheme.surfaceTint,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         LinearProgressIndicator(
             progress = {
                 if(progress.isNaN()) 0f else progress.toFloat()
             },
             modifier = Modifier
-                .height(20.dp)
+                .height(screenHeight(x = 20.0))
                 .fillMaxWidth(),
         )
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "$percentLeft % left",
+                fontSize = screenFontSize(x = 14.0).sp,
                 color = MaterialTheme.colorScheme.surfaceTint,
                 fontWeight = FontWeight.Bold
             )
@@ -387,51 +406,61 @@ fun BudgetInfoScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Edit budget limit")
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Edit budget limit",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
                     Icon(
                         tint = MaterialTheme.colorScheme.surfaceTint,
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit budget"
+                        contentDescription = "Edit budget",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Row(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Remaining:",
+                fontSize = screenFontSize(x = 14.0).sp
             )
-            Spacer(modifier = Modifier.width(3.dp))
+            Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
             if(difference <= 0) {
                 Text(
                     text = formatMoneyValue(difference.absoluteValue),
                     fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.surfaceTint
                 )
             } else {
                 Text(
                     text = "- ${formatMoneyValue(difference)}",
                     fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 14.0).sp,
                     color = Color.Red
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Text(
             text = "Created on ${formatIsoDateTime(LocalDateTime.parse(budgetDt.createdAt))}",
+            fontSize = screenFontSize(x = 14.0).sp,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Budget period ends on ${budgetDt.limitDate}",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -441,25 +470,40 @@ fun BudgetInfoScreen(
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit budget limit date"
+                    contentDescription = "Edit budget limit date",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             }
         }
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         Text(
             text = "Period: ${days.absoluteValue} days",
+            fontSize = screenFontSize(x = 14.0).sp,
             fontWeight = FontWeight.Bold
         )
         if(budgetDt.limitReached) {
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(text = "Limit Reached")
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(text = "Reached limit on ${budgetDt.limitReachedAt}")
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(text = "Overspent by ${formatMoneyValue(difference)}")
+            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+            Text(
+                text = "Limit Reached",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+            Text(
+                text = "Reached limit on ${budgetDt.limitReachedAt}",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+            Text(
+                text = "Overspent by ${formatMoneyValue(difference)}",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
-        Spacer(modifier = Modifier.height(5.dp))
-        Text(text = "Category: ${budgetDt.category.name}")
+        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+        Text(
+            text = "Category: ${budgetDt.category.name}",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
         Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(
             onClick = {
@@ -471,8 +515,16 @@ fun BudgetInfoScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Transactions")
-                Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
+                Text(
+                    text = "Transactions",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "See transactions",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
             }
         }
     }
@@ -492,13 +544,19 @@ fun EditNameDialog(
 ) {
     AlertDialog(
         title = {
-            Text(text = "Edit budget name for $title")
+            Text(
+                text = "Edit budget name for $title",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         text = {
             OutlinedTextField(
                 value = name,
                 label = {
-                    Text(text = label)
+                    Text(
+                        text = label,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 },
                 onValueChange = onNameChange,
                 keyboardOptions = KeyboardOptions.Default.copy(
@@ -515,9 +573,15 @@ fun EditNameDialog(
                 onClick = onConfirm
             ) {
                 if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(text = "Loading")
+                    Text(
+                        text = "Loading",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
-                    Text(text = "Confirm")
+                    Text(
+                        text = "Confirm",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
             }
@@ -527,7 +591,10 @@ fun EditNameDialog(
                 enabled = loadingStatus != LoadingStatus.LOADING,
                 onClick = onDismiss
             ) {
-                Text(text = "Cancel")
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         },
         onDismissRequest = onDismiss,
@@ -547,13 +614,19 @@ fun EditAmountDialog(
 ) {
     AlertDialog(
         title = {
-            Text(text = "Edit budget limit for $title")
+            Text(
+                text = "Edit budget limit for $title",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         text = {
             OutlinedTextField(
                 value = amount,
                 label = {
-                    Text(text = label)
+                    Text(
+                        text = label,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 },
                 onValueChange = onAmountChange,
                 keyboardOptions = KeyboardOptions.Default.copy(
@@ -570,9 +643,15 @@ fun EditAmountDialog(
                 onClick = onConfirm
             ) {
                 if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(text = "Loading")
+                    Text(
+                        text = "Loading",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
-                    Text(text = "Confirm")
+                    Text(
+                        text = "Confirm",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
             }
         },
@@ -581,14 +660,16 @@ fun EditAmountDialog(
                 enabled = loadingStatus != LoadingStatus.LOADING,
                 onClick = onDismiss
             ) {
-                Text(text = "Cancel")
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         },
         onDismissRequest = onDismiss,
     )
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EditLimitDateDialog(
     startDate: String,
@@ -625,7 +706,10 @@ fun EditLimitDateDialog(
 
     AlertDialog(
         title = {
-            Text(text = "Edit budget limit date for $title")
+            Text(
+                text = "Edit budget limit date for $title",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         text = {
             Row(
@@ -638,8 +722,13 @@ fun EditLimitDateDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = endDate)
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Icon(painter = painterResource(id = R.drawable.calendar), contentDescription = "Change limit date")
+                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                        Icon(
+                            painter = painterResource(id = R.drawable.calendar),
+                            contentDescription = "Change limit date",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
                     }
                 }
             }
@@ -650,9 +739,15 @@ fun EditLimitDateDialog(
                 onClick = onConfirm
             ) {
                 if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(text = "Loading")
+                    Text(
+                        text = "Loading",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
-                    Text(text = "Confirm")
+                    Text(
+                        text = "Confirm",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
             }
         },
@@ -661,7 +756,10 @@ fun EditLimitDateDialog(
                 enabled = loadingStatus != LoadingStatus.LOADING,
                 onClick = onDismiss
             ) {
-                Text(text = "Cancel")
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         },
         onDismissRequest = onDismiss,
@@ -678,10 +776,16 @@ fun DeleteDialog(
 ) {
     AlertDialog(
         title = {
-            Text(text = "Remove budget")
+            Text(
+                text = "Remove budget",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         text = {
-            Text(text = "Remove $name? This action cannot be undone")
+            Text(
+                text = "Remove $name? This action cannot be undone",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -690,9 +794,15 @@ fun DeleteDialog(
                 onClick = onConfirm
             ) {
                 if(executionStatus == ExecutionStatus.LOADING) {
-                    Text(text = "Loading...")
+                    Text(
+                        text = "Loading...",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
-                    Text(text = "Confirm")
+                    Text(
+                        text = "Confirm",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
             }
@@ -702,14 +812,16 @@ fun DeleteDialog(
                 enabled = executionStatus != ExecutionStatus.LOADING,
                 onClick = onDismiss
             ) {
-                Text(text = "Cancel")
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
     )
 }
 
 @OptIn(ExperimentalMaterialApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BudgetInfoScreenPreview() {

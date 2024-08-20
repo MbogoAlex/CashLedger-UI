@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.ElevatedCard
@@ -29,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.records.pesa.R
 import com.records.pesa.reusables.dateFormatter
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 
@@ -58,499 +62,239 @@ fun TransactionTypesScreen(
     navigateToTransactionsScreen: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                ) {
-                    Text(
-                        text = "Transaction types",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(
-                                horizontal = 16.dp,
-                            )
-                    ) {
-                        Text(
-                            text = "${dateFormatter.format(startDate)} to ${dateFormatter.format(endDate)}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-//                        textAlign = TextAlign.Center,
-                            modifier = Modifier
-
-//                            .align(Alignment.CenterHorizontally)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            painter = painterResource(id = R.drawable.calendar),
-                            contentDescription = "Select date range",
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable {
-                                    onSelectDateRange()
-                                }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            text = "Money in",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "All money in",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "From Send Money",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Mshwari",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "KCB",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "M-PESA Deposit",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Reversal",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Hustler fund",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Money out",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "All money out",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Send to mobile",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Airtime & Bundles",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Till Accounts",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Paybill Account",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Pochi la Biashara",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Mshwari",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "KCB",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Withdrawal",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Fuliza",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Reversal",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = true,
-                            type = "Hustler fund",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                    }
-                }
-            } 
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            horizontal = 16.dp
-                        )
-                ) {
-                    Text(
-                        text = "Transaction types",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(
-                                horizontal = 16.dp,
-                            )
-                    ) {
-                        Text(
-                            text = "${dateFormatter.format(startDate)} to ${dateFormatter.format(endDate)}",
-                            fontWeight = FontWeight.Bold,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                start = screenWidth(x = 16.0),
+                end = screenWidth(x = 16.0),
+                bottom = screenWidth(x = 16.0)
+            )
+    ) {
+        Text(
+            text = "Transaction types",
+            fontSize = screenFontSize(x = 18.0).sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(
+                    horizontal = screenWidth(x = 16.0),
+                )
+        ) {
+            Text(
+                text = "${dateFormatter.format(startDate)} to ${dateFormatter.format(endDate)}",
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp,
 //                            fontSize = 14.sp,
 //                        textAlign = TextAlign.Center,
-                            modifier = Modifier
+                modifier = Modifier
 
 //                            .align(Alignment.CenterHorizontally)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            painter = painterResource(id = R.drawable.calendar),
-                            contentDescription = "Select date range",
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable {
-                                    onSelectDateRange()
-                                }
-                        )
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                tint = MaterialTheme.colorScheme.surfaceTint,
+                painter = painterResource(id = R.drawable.calendar),
+                contentDescription = "Select date range",
+                modifier = Modifier
+                    .size(screenWidth(x = 20.0))
+                    .clickable {
+                        onSelectDateRange()
                     }
+            )
+        }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            text = "Money in",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "All money in",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "From Send Money",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Mshwari",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "KCB",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "M-PESA Deposit",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Reversal",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Hustler fund",
-                            moneyIn = true,
-                            amount = "Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Money out",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "All money out",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Send to mobile",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Till Accounts",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Paybill Account",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Pochi la Biashara",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Mshwari",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "KCB",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Withdrawal",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Fuliza",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Reversal",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TransactionTypeItem(
-                            smallScreen = false,
-                            type = "Hustler fund",
-                            moneyIn = false,
-                            amount = "- Ksh500,000",
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            navigateToTransactionsScreen = navigateToTransactionsScreen
-                        )
-                    }
-                }
-            }
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "Money in:",
+                fontSize = screenFontSize(x = 17.0).sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.surfaceTint,
+                modifier = Modifier
+                    .padding(start = screenWidth(x = 16.0))
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            Divider()
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "All money in",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "From Send Money",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Mshwari",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "KCB",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "M-PESA Deposit",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Reversal",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Hustler fund",
+                moneyIn = true,
+                amount = "Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Text(
+                text = "Money out:",
+                fontSize = screenFontSize(x = 17.0).sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .padding(start = screenWidth(x = 16.0))
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            Divider()
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "All money out",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Send to mobile",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Till Accounts",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Paybill Account",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Pochi la Biashara",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Mshwari",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "KCB",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Withdrawal",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Fuliza",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Reversal",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            TransactionTypeItem(
+                type = "Hustler fund",
+                moneyIn = false,
+                amount = "- Ksh500,000",
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                navigateToTransactionsScreen = navigateToTransactionsScreen
+            )
         }
     }
 
@@ -558,7 +302,6 @@ fun TransactionTypesScreen(
 
 @Composable
 fun TransactionTypeItem(
-    smallScreen: Boolean,
     type: String,
     moneyIn: Boolean,
     amount: String,
@@ -583,8 +326,8 @@ fun TransactionTypeItem(
 
     val moneyDirection = if(moneyIn) "in" else "out"
 
-    ElevatedCard(
-        modifier = modifier
+    Box(
+        modifier = Modifier
             .clickable {
                 navigateToTransactionsScreen(transactionType, moneyDirection, startDate, endDate)
             }
@@ -592,26 +335,30 @@ fun TransactionTypeItem(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .padding(16.dp)
+                .padding(screenWidth(x = 16.0))
+
         ) {
             Text(
                 text = type,
                 fontWeight = FontWeight.Bold,
-                fontSize = if(smallScreen) 14.sp else 16.sp,
+                fontSize = screenFontSize(x = 14.0).sp,
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = amount,
                 color = if(moneyIn) MaterialTheme.colorScheme.surfaceTint else MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.Bold,
-                fontSize = if(smallScreen) 14.sp else 16.sp,
+                fontSize = screenFontSize(x = 14.0).sp,
             )
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "See $type transactions"
+                contentDescription = "See $type transactions",
+                modifier = Modifier
+                    .size(screenWidth(x = 24.0))
             )
         }
     }
+
 }
 
 @Preview(showBackground = true, showSystemUi = true)

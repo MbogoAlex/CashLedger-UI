@@ -21,6 +21,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
 
@@ -71,7 +72,7 @@ fun SplashScreen(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(150.dp)
+                .size(screenWidth(x = 150.0))
                 .clip(CircleShape)
         )
     }

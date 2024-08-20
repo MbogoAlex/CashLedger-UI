@@ -83,6 +83,9 @@ import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
 import com.records.pesa.ui.screens.transactionTypes.TransactionTypesScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -108,7 +111,7 @@ fun HomeScreenComposable(
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
-    navigateToTransactionsScreenWithTransactionType: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
+    navigateToTransactionsScreenWithTransactionType: (comment: String, transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -229,7 +232,9 @@ fun HomeScreenComposable(
                 currentTab = HomeScreenTab.ACCOUNT_INFO
             },
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-            navigateToTransactionsScreenWithTransactionType = navigateToTransactionsScreenWithTransactionType
+            navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
+                navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
+            }
         )
     }
 }
@@ -264,412 +269,212 @@ fun HomeScreen(
     navigateToTransactionsScreenWithTransactionType: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                ModalNavigationDrawer(
-                    drawerState = drawerState!!,
-                    drawerContent = {
-                        ModalDrawerSheet {
-                            Column(
-                                modifier = Modifier
-                                    .padding(10.dp)
-                            ) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(
-                                            horizontal = 16.dp
-                                        )
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.account_info),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    (if(firstName.isNullOrEmpty() && lastName.isNullOrEmpty()) phoneNumber else if(firstName.isNotNull() && lastName.isNotNull()) "$firstName $lastName" else if (firstName.isNullOrEmpty() && lastName.isNotNull()) lastName else if (lastName.isNotNull() && firstName.isNullOrEmpty()) lastName else phoneNumber)?.let {
-                                        Text(
-                                            text = it,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    ThemeSwitcher(
-                                        darkTheme = darkTheme,
-                                        size = 25.dp,
-                                        padding = 5.dp,
-                                        onClick = onSwitchTheme,
-                                        modifier = Modifier
-                                            .padding(
-                                                end = 8.dp
-                                            )
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(15.dp))
-                                Divider()
-                                Spacer(modifier = Modifier.height(15.dp))
-                                Column(
-                                    modifier = Modifier
-                                        .verticalScroll(rememberScrollState())
-                                ) {
-                                    for(tab in tabs) {
-                                        NavigationDrawerItem(
-                                            label = {
-                                                Row {
-                                                    Icon(
-                                                        painter = painterResource(id = tab.icon),
-                                                        contentDescription = tab.name
-                                                    )
-                                                    Spacer(modifier = Modifier.width(5.dp))
-                                                    Text(
-                                                        text = tab.name,
-                                                        fontSize = 14.sp
-                                                    )
-                                                }
-                                            },
-                                            selected = currentTab == tab.tab,
-                                            onClick = {
-                                                onTabChange(tab.tab)
-                                                scope!!.launch {
-                                                    drawerState.close()
-                                                }
-                                            }
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .clickable {
-                                                onReviewApp()
-                                            }
-                                            .padding(
-                                                horizontal = 16.dp
-                                            )
-                                            .fillMaxWidth()
-                                    ) {
-                                        Icon(
-                                            tint = Color.Yellow,
-                                            painter = painterResource(id = R.drawable.star),
-                                            contentDescription = "Review app",
-                                            modifier = Modifier
-                                                .padding(
-                                                    vertical = 8.dp
-                                                )
-                                        )
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Text(
-                                            color = MaterialTheme.colorScheme.surfaceTint,
-                                            text = "Review app",
-                                            fontSize = 14.sp,
-                                            modifier = Modifier
-                                                .padding(
-                                                    vertical = 8.dp
-                                                )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+    ModalNavigationDrawer(
+        drawerState = drawerState!!,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 10.0))
                 ) {
+                    Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = screenWidth(x = 16.0)
+                            )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.account_info),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(screenWidth(x = 40.0))
+                        )
+                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                        (if(firstName.isNullOrEmpty() && lastName.isNullOrEmpty()) phoneNumber else if(firstName.isNotNull() && lastName.isNotNull()) "$firstName $lastName" else if (firstName.isNullOrEmpty() && lastName.isNotNull()) lastName else if (lastName.isNotNull() && firstName.isNullOrEmpty()) lastName else phoneNumber)?.let {
+                            Text(
+                                text = it,
+                                fontSize = screenFontSize(x = 14.0).sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        ThemeSwitcher(
+                            darkTheme = darkTheme,
+                            size = screenWidth(x = 30.0),
+                            padding = screenWidth(x = 5.0),
+                            onClick = onSwitchTheme,
+                            modifier = Modifier
+                                .padding(
+                                    end = screenWidth(x = 8.0)
+                                )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 15.0)))
+                    Divider()
+                    Spacer(modifier = Modifier.height(screenHeight(x = 15.0)))
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 16.dp
-                                )
-                        ) {
-                            IconButton(onClick = {
-                                scope!!.launch {
-                                    if(drawerState.isClosed) drawerState.open() else drawerState.close()
-                                }
-                            }) {
-                                Icon(
-                                    tint = Color.Gray,
-                                    painter = painterResource(id = R.drawable.menu),
-                                    contentDescription = "Menu"
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            IconButton(onClick = navigateToAccountInfoScreen) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.account_info),
-                                    contentDescription = "Account info"
-                                )
-                            }
-                        }
-                        when(currentTab) {
-                            HomeScreenTab.HOME -> {
-                                DashboardScreenComposable(
-                                    navigateToTransactionsScreen = navigateToTransactionsScreen,
-                                    navigateToCategoriesScreen = navigateToCategoriesScreen,
-                                    navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-                                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
-                                    navigateToSubscriptionScreen = navigateToSubscriptionScreen,
-                                    navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                )
-                            }
-                            HomeScreenTab.ALL_TRANSACTIONS -> {
-                                TransactionsScreenComposable(
-                                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    navigateToSubscriptionScreen = {},
-                                    navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                                    showBackArrow = false,
-                                    navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
-                                )
-                            }
-                            HomeScreenTab.TRANSACTION_TYPES -> {
-                                TransactionTypesScreenComposable(
-                                    navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType
-                                )
-                            }
-                            HomeScreenTab.CATEGORIES -> {
-                                CategoriesScreenComposable(
-                                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
-                                    navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    showBackArrow = false,
-                                    navigateToSubscriptionScreen = navigateToSubscriptionScreen
-                                )
-                            }
-                            HomeScreenTab.BUDGETS -> {
-                                BudgetListScreenComposable(
-                                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
-                                    navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
-                                    navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    showBackArrow = false,
-                                    modifier = Modifier
-                                )
-                            }
-                            HomeScreenTab.ACCOUNT_INFO -> {
-                                AccountInformationScreenComposable(
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            else -> {
-                ModalNavigationDrawer(
-                    drawerState = drawerState!!,
-                    drawerContent = {
-                        ModalDrawerSheet {
-                            Column(
-                                modifier = Modifier
-                                    .padding(10.dp)
-                            ) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(
-                                            horizontal = 16.dp
-                                        )
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.account_info),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    (if(firstName.isNullOrEmpty() && lastName.isNullOrEmpty()) phoneNumber else if(firstName.isNotNull() && lastName.isNotNull()) "$firstName $lastName" else if (firstName.isNullOrEmpty() && lastName.isNotNull()) lastName else if (lastName.isNotNull() && firstName.isNullOrEmpty()) lastName else phoneNumber)?.let {
-                                        Text(
-                                            text = it,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    ThemeSwitcher(
-                                        darkTheme = darkTheme,
-                                        size = 30.dp,
-                                        padding = 5.dp,
-                                        onClick = onSwitchTheme,
-                                        modifier = Modifier
-                                            .padding(
-                                                end = 8.dp
-                                            )
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(15.dp))
-                                Divider()
-                                Spacer(modifier = Modifier.height(15.dp))
-                                Column(
-                                    modifier = Modifier
-                                        .verticalScroll(rememberScrollState())
-                                ) {
-                                    for(tab in tabs) {
-                                        NavigationDrawerItem(
-                                            label = {
-                                                Row {
-                                                    Icon(
-                                                        painter = painterResource(id = tab.icon),
-                                                        contentDescription = tab.name
-                                                    )
-                                                    Spacer(modifier = Modifier.width(5.dp))
-                                                    Text(text = tab.name)
-                                                }
-                                            },
-                                            selected = currentTab == tab.tab,
-                                            onClick = {
-                                                onTabChange(tab.tab)
-                                                scope!!.launch {
-                                                    drawerState.close()
-                                                }
-                                            }
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .clickable {
-                                                onReviewApp()
-                                            }
-                                            .padding(
-                                                horizontal = 16.dp
-                                            )
-                                            .fillMaxWidth()
-                                    ) {
+                        for(tab in tabs) {
+                            NavigationDrawerItem(
+                                label = {
+                                    Row {
                                         Icon(
-                                            tint = Color.Yellow,
-                                            painter = painterResource(id = R.drawable.star),
-                                            contentDescription = "Review app",
+                                            painter = painterResource(id = tab.icon),
+                                            contentDescription = tab.name,
                                             modifier = Modifier
-                                                .padding(
-                                                    vertical = 8.dp
-                                                )
+                                                .size(screenWidth(x = 24.0))
                                         )
-                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
                                         Text(
-                                            color = MaterialTheme.colorScheme.surfaceTint,
-                                            text = "Review app",
-                                            modifier = Modifier
-                                                .padding(
-                                                    vertical = 8.dp
-                                                )
+                                            text = tab.name,
+                                            fontSize = screenFontSize(x = 14.0).sp,
                                         )
                                     }
+                                },
+                                selected = currentTab == tab.tab,
+                                onClick = {
+                                    onTabChange(tab.tab)
+                                    scope!!.launch {
+                                        drawerState.close()
+                                    }
                                 }
-                            }
+                            )
                         }
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
+                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 16.dp
-                                )
-                        ) {
-                            IconButton(onClick = {
-                                scope!!.launch {
-                                    if(drawerState.isClosed) drawerState.open() else drawerState.close()
+                                .clickable {
+                                    onReviewApp()
                                 }
-                            }) {
-                                Icon(
-                                    tint = Color.Gray,
-                                    painter = painterResource(id = R.drawable.menu),
-                                    contentDescription = "Menu"
+                                .padding(
+                                    horizontal = screenWidth(x = 16.0)
                                 )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            IconButton(onClick = navigateToAccountInfoScreen) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.account_info),
-                                    contentDescription = "Account info"
-                                )
-                            }
-                        }
-                        when(currentTab) {
-                            HomeScreenTab.HOME -> {
-                                DashboardScreenComposable(
-                                    navigateToTransactionsScreen = navigateToTransactionsScreen,
-                                    navigateToCategoriesScreen = navigateToCategoriesScreen,
-                                    navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-                                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
-                                    navigateToSubscriptionScreen = navigateToSubscriptionScreen,
-                                    navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                )
-                            }
-                            HomeScreenTab.ALL_TRANSACTIONS -> {
-                                TransactionsScreenComposable(
-                                    navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    navigateToSubscriptionScreen = {},
-                                    navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                                    showBackArrow = false,
-                                    navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
-                                )
-                            }
-                            HomeScreenTab.TRANSACTION_TYPES -> {
-                                TransactionTypesScreenComposable(
-                                    navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType
-                                )
-                            }
-                            HomeScreenTab.CATEGORIES -> {
-                                CategoriesScreenComposable(
-                                    navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
-                                    navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    showBackArrow = false,
-                                    navigateToSubscriptionScreen = navigateToSubscriptionScreen
-                                )
-                            }
-                            HomeScreenTab.BUDGETS -> {
-                                BudgetListScreenComposable(
-                                    navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
-                                    navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
-                                    navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
-                                    navigateToPreviousScreen = navigateToPreviousScreen,
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    showBackArrow = false,
-                                    modifier = Modifier
-                                )
-                            }
-                            HomeScreenTab.ACCOUNT_INFO -> {
-                                AccountInformationScreenComposable(
-                                    navigateToHomeScreen = navigateToHomeScreen,
-                                    navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
-                                )
-                            }
+                                .fillMaxWidth()
+                        ) {
+                            Icon(
+                                tint = Color.Yellow,
+                                painter = painterResource(id = R.drawable.star),
+                                contentDescription = "Review app",
+                                modifier = Modifier
+                                    .padding(
+                                        vertical = screenWidth(x = 8.0)
+                                    )
+                                    .size(screenWidth(x = 24.0))
+                            )
+                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                            Text(
+                                color = MaterialTheme.colorScheme.surfaceTint,
+                                text = "Review app",
+                                fontSize = screenFontSize(x = 14.0).sp,
+                                modifier = Modifier
+                                    .padding(
+                                        vertical = screenWidth(x = 8.0)
+                                    )
+                            )
                         }
                     }
                 }
             }
         }
-
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = screenWidth(x = 16.0)
+                    )
+            ) {
+                IconButton(onClick = {
+                    scope!!.launch {
+                        if(drawerState.isClosed) drawerState.open() else drawerState.close()
+                    }
+                }) {
+                    Icon(
+                        tint = Color.Gray,
+                        painter = painterResource(id = R.drawable.menu),
+                        contentDescription = "Menu",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = navigateToAccountInfoScreen) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.account_info),
+                        contentDescription = "Account info",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            when(currentTab) {
+                HomeScreenTab.HOME -> {
+                    DashboardScreenComposable(
+                        navigateToTransactionsScreen = navigateToTransactionsScreen,
+                        navigateToCategoriesScreen = navigateToCategoriesScreen,
+                        navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
+                        navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
+                        modifier = Modifier
+                            .weight(1f)
+                    )
+                }
+                HomeScreenTab.ALL_TRANSACTIONS -> {
+                    TransactionsScreenComposable(
+                        navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToSubscriptionScreen = {},
+                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
+                        showBackArrow = false,
+                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+                    )
+                }
+                HomeScreenTab.TRANSACTION_TYPES -> {
+                    TransactionTypesScreenComposable(
+                        navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType
+                    )
+                }
+                HomeScreenTab.CATEGORIES -> {
+                    CategoriesScreenComposable(
+                        navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
+                        navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        showBackArrow = false,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen
+                    )
+                }
+                HomeScreenTab.BUDGETS -> {
+                    BudgetListScreenComposable(
+                        navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+                        navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
+                        navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        showBackArrow = false,
+                        modifier = Modifier
+                    )
+                }
+                HomeScreenTab.ACCOUNT_INFO -> {
+                    AccountInformationScreenComposable(
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+                    )
+                }
+            }
+        }
     }
-
-
-
-
 }
 
 @Composable

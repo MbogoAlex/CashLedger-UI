@@ -35,11 +35,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
 
@@ -109,7 +113,7 @@ fun SubscriptionScreen(
 
     Column(
         modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = screenWidth(x = 16.0), vertical = screenHeight(x = 8.0))
             .fillMaxSize()
     ) {
         Row(
@@ -123,12 +127,16 @@ fun SubscriptionScreen(
             }
             Text(
                 text = "App subscription",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Don't exit this screen even when it gets blank or payment is complete. You will be redirected from the screen")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+        Text(
+            text = "Don't exit this screen even when it gets blank or payment is complete. You will be redirected from the screen",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         if (url.isNotEmpty()) {
             if (showPage) {
                 AndroidView(

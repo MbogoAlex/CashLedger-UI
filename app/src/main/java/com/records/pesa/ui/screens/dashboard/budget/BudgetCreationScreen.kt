@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.DropdownMenuItem
@@ -55,6 +56,9 @@ import com.records.pesa.models.TransactionCategory
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.ZoneId
@@ -169,8 +173,8 @@ fun BudgetCreationScreen(
     Column(
         modifier = Modifier
             .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 8.0)
             )
             .fillMaxSize()
     ) {
@@ -178,20 +182,26 @@ fun BudgetCreationScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = navigateToPreviousScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                Icon(
+                    imageVector = Icons.Default.ArrowBack, 
+                    contentDescription = "Previous screen",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = "Set budget",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = screenFontSize(x = 18.0).sp
             )
         }
         Text(
             text = "Select category",
+            fontSize = screenFontSize(x = 14.0).sp,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -205,14 +215,19 @@ fun BudgetCreationScreen(
                 ) {
                     Row(
                         modifier = Modifier
-                            .padding(10.dp)
+                            .padding(screenWidth(x = 10.0))
                     ) {
-                        Text(text = if(selectedCategory.name.length > 20) "${selectedCategory.name.substring(0, 20)}..." else selectedCategory.name.ifEmpty { "Select category" })
+                        Text(
+                            text = if(selectedCategory.name.length > 20) "${selectedCategory.name.substring(0, 20)}..." else selectedCategory.name.ifEmpty { "Select category" },
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
                         Spacer(modifier = Modifier.weight(1f))
                         Icon(
                             imageVector = if(dropDownMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription =
-                            "Select category"
+                            "Select category",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
                         )
                     }
                 }
@@ -226,16 +241,22 @@ fun BudgetCreationScreen(
                             dropDownMenuExpanded = !dropDownMenuExpanded
                         }
                         ) {
-                            Text(text = if(category.name.length > 20) "${category.name.substring(0, 20)}..." else category.name)
+                            Text(
+                                text = if(category.name.length > 20) "${category.name.substring(0, 20)}..." else category.name,
+                                fontSize = screenFontSize(x = 14.0).sp
+                            )
                         }
                     }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         OutlinedTextField(
             label = {
-                Text(text = "Budget name")
+                Text(
+                    text = "Budget name",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             },
             value = budgetName,
             keyboardOptions = KeyboardOptions.Default.copy(
@@ -246,15 +267,21 @@ fun BudgetCreationScreen(
             modifier = Modifier
                 .fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Budget starts on ${formatLocalDate(LocalDate.now())} (Today)")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+        Text(
+            text = "Budget starts on ${formatLocalDate(LocalDate.now())} (Today)",
+            fontSize = screenFontSize(x = 14.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 label = {
-                    Text(text = "Budget limit")
+                    Text(
+                        text = "Budget limit",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 },
                 value = budgetLimit,
                 keyboardOptions = KeyboardOptions.Default.copy(
@@ -265,7 +292,7 @@ fun BudgetCreationScreen(
                 modifier = Modifier
                     .weight(2f)
             )
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
             TextButton(
                 onClick = { showDatePicker() },
                 modifier = Modifier
@@ -274,9 +301,17 @@ fun BudgetCreationScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = budgetEndDate?.toString() ?: "Limit date")
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Icon(painter = painterResource(id = R.drawable.calendar), contentDescription = "Select limit date")
+                    Text(
+                        text = budgetEndDate?.toString() ?: "Limit date",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                    Icon(
+                        painter = painterResource(id = R.drawable.calendar),
+                        contentDescription = "Select limit date",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
                 }
             }
         }
@@ -288,15 +323,20 @@ fun BudgetCreationScreen(
                 .fillMaxWidth()
         ) {
             if(loadingStatus == LoadingStatus.LOADING) {
-                Text(text = "Loading...")
+                Text(
+                    text = "Loading...",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             } else {
-                Text(text = "Create budget")
+                Text(
+                    text = "Create budget",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BudgetCreationScreenPreview(

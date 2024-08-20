@@ -49,6 +49,9 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -167,8 +170,8 @@ fun SmsFetchScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 8.0)
             )
             .fillMaxSize()
     ) {
@@ -177,15 +180,15 @@ fun SmsFetchScreen(
             contentDescription = null,
 //            contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(450.dp)
-                .aspectRatio(16f/9f)
+                .size(screenWidth(x = 450.0))
+                .aspectRatio(16f / 9f)
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Text(
             text = text,
             fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
+            fontSize = screenFontSize(x = 18.0).sp,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -194,16 +197,17 @@ fun SmsFetchScreen(
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = "Processing ${messagesSize.toInt()} item(s)",
+            fontSize = screenFontSize(x = 14.0).sp,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         LinearProgressIndicator(
             progress = { if ((timer / messagesSize).isNaN()) 0f else (timer / messagesSize) },
             modifier = Modifier
-                .height(20.dp)
+                .height(screenHeight(x = 20.0))
                 .fillMaxWidth(),
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
     }
 }
 

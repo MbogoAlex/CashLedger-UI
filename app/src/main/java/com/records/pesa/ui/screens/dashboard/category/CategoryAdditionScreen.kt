@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -36,6 +37,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 object CategoryAdditionScreenDestination: AppNavigation {
@@ -89,106 +93,65 @@ fun CategoryAdditionScreen(
     loadingStatus: LoadingStatus,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 8.0)
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = navigateToPreviousScreen) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous screen",
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            horizontal = 16.dp,
-                            vertical = 8.dp
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "Add category",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    OutlinedTextField(
-                        label = {
-                            Text(text = "Category name")
-                        },
-                        value = categoryName,
-                        onValueChange = onChangeCategoryName,
-                        keyboardOptions = KeyboardOptions.Default.copy(
-                            imeAction = ImeAction.Done,
-                            keyboardType = KeyboardType.Text
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Button(
-                        enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
-                        onClick = onCreateCategory,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        if(loadingStatus == LoadingStatus.LOADING) {
-                            Text(text = "Loading...")
-                        } else {
-                            Text(text = "Next")
-                        }
-                    }
-                }
+                        .size(screenWidth(x = 24.0))
+                )
             }
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            horizontal = 16.dp,
-                            vertical = 8.dp
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "Add category",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    OutlinedTextField(
-                        label = {
-                            Text(text = "Category name")
-                        },
-                        value = categoryName,
-                        onValueChange = onChangeCategoryName,
-                        keyboardOptions = KeyboardOptions.Default.copy(
-                            imeAction = ImeAction.Done,
-                            keyboardType = KeyboardType.Text
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Button(
-                        enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
-                        onClick = onCreateCategory,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        if(loadingStatus == LoadingStatus.LOADING) {
-                            Text(text = "Loading...")
-                        } else {
-                            Text(text = "Next")
-                        }
-                    }
-                }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "Add category",
+                fontSize = screenFontSize(x = 14.0).sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        OutlinedTextField(
+            label = {
+                Text(
+                    text = "Category name",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
+            },
+            value = categoryName,
+            onValueChange = onChangeCategoryName,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Done,
+                keyboardType = KeyboardType.Text
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
+            onClick = onCreateCategory,
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            if(loadingStatus == LoadingStatus.LOADING) {
+                Text(
+                    text = "Loading...",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
+            } else {
+                Text(
+                    text = "Next",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
             }
         }
     }

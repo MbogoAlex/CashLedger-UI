@@ -47,6 +47,7 @@ import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.moneyInSortedTransactionItems
 import com.records.pesa.ui.screens.dashboard.chart.vico.rememberMarker
+import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -92,7 +93,7 @@ fun GroupedTransactionsScreen(
             LazyColumn {
                 if(sortedTransactionItems.isNotEmpty()) {
                     item {
-                        Chart6(sortedTransactionItems, Modifier.height(350.dp))
+                        Chart6(sortedTransactionItems, Modifier.height(screenHeight(x = 350.0)))
                     }
                 }
 

@@ -172,12 +172,13 @@ fun NavigationGraph(
                 navigateToTransactionDetailsScreen = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
                 },
-                navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
-                    navController.navigate("${TransactionsScreenDestination.route}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
+                navigateToTransactionsScreenWithTransactionType = {comment, transactionType, moneyDirection, startDate, endDate ->
+                    navController.navigate("${TransactionsScreenDestination.route}/${comment}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
                 }
             )
         }
         composable(TransactionsScreenDestination.route) {
+            Log.d("NAV-TYPE", TransactionsScreenDestination.route)
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
@@ -218,6 +219,7 @@ fun NavigationGraph(
                 },
             )
         ) {
+            Log.d("NAV-TYPE", TransactionsScreenDestination.routeWithTransactionType)
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
@@ -330,6 +332,7 @@ fun NavigationGraph(
                 }
             )
         ) {
+            Log.d("NAV-TYPE", TransactionsScreenDestination.routeWithCategoryId)
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
@@ -444,6 +447,7 @@ fun NavigationGraph(
                 },
             )
         ) {
+            Log.d("NAV_TYPE", TransactionsScreenDestination.routeWithBudgetId)
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
@@ -497,6 +501,7 @@ fun NavigationGraph(
                     navController.navigateUp()
                 },
                 navigateToBudgetInfoScreen = {
+                    navController.popBackStack(BudgetCreationScreenDestination.route, true)
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
                 }
             )

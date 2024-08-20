@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -43,10 +44,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 object LoginScreenDestination: AppNavigation {
@@ -147,8 +152,8 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(
-                horizontal = 16.dp,
-                vertical = 16.dp
+                horizontal = screenWidth(x = 16.0),
+                vertical = screenHeight(x = 16.0)
             )
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
@@ -161,14 +166,16 @@ fun LoginScreen(
         Text(
             text = "Welcome back!",
             fontWeight = FontWeight.Bold,
+            fontSize = screenFontSize(x = 14.0).sp,
             modifier = Modifier
                 .align(Alignment.Start)
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         TextField(
             label = {
                 Text(
                     text = "Safaricom phone number",
+                    fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.scrim,
                 )
             },
@@ -176,7 +183,9 @@ fun LoginScreen(
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.phone),
-                    contentDescription = null
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
                 )
             },
             keyboardOptions = KeyboardOptions.Default.copy(
@@ -191,7 +200,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         PasswordInputField(
             heading = "Password",
             value = password,
@@ -209,13 +218,20 @@ fun LoginScreen(
             modifier = Modifier
                 .align(Alignment.Start)
         ) {
-            Text(text = "Forgot password?")
+            Text(
+                text = "Forgot password?",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Row {
-            Text(text = "Don't have an account? ")
+            Text(
+                text = "Don't have an account? ",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
             Text(
                 text = "Register",
+                fontSize = screenFontSize(x = 14.0).sp,
                 color = MaterialTheme.colorScheme.surfaceTint,
                 modifier = Modifier
                     .clickable { navigateToRegistrationScreen() }
@@ -229,9 +245,15 @@ fun LoginScreen(
                 .fillMaxWidth()
         ) {
             if(loginStatus == LoginStatus.LOADING) {
-                Text(text = "Loading...")
+                Text(
+                    text = "Loading...",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             } else {
-                Text(text = "Login")
+                Text(
+                    text = "Login",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
     }

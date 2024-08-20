@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -66,6 +67,9 @@ import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.transaction
+import com.records.pesa.ui.screens.utils.screenFontSize
+import com.records.pesa.ui.screens.utils.screenHeight
+import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlin.math.absoluteValue
 
@@ -198,663 +202,381 @@ fun TransactionDetailsScreen(
         formattedDatetime = formatDate("$date $time")
     }
 
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Column(
-                    modifier = Modifier
-                        .padding(
-                            vertical = 8.dp,
-                            horizontal = 16.dp
-                        )
-                        .fillMaxSize()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .animateContentSize(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            )
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Previous screen"
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Transaction code: ${transactionItem.transactionCode}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    text = formattedDatetime,
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                ),
-                                onClick = {
-                                    val clip = ClipData.newPlainText("Transaction Code", transactionItem.transactionCode)
-                                    clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Transaction code copied to clipboard", Toast.LENGTH_SHORT).show()
-                                }
-                            ) {
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.surfaceTint,
-                                    painter = painterResource(id = R.drawable.copy),
-                                    contentDescription = "Copy transaction code"
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
-                            Text(
-                                text = "Type:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = transactionItem.transactionType,
-                                fontSize = 14.sp,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
-                            Text(
-                                text = "Amount:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            if(transactionItem.transactionAmount > 0) {
-                                Text(
-                                    text = "+ ${formatMoneyValue(transactionItem.transactionAmount)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.surfaceTint
-                                )
-                            } else if(transactionItem.transactionAmount < 0) {
-                                Text(
-                                    text = "- ${formatMoneyValue(transactionItem.transactionAmount.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
-                            Text(
-                                text = "Cost:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            if(transactionItem.transactionAmount < 0) {
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transactionItem.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            } else {
-                                Text(
-                                    text = "N/A",
-                                    fontSize = 14.sp,
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Entity: ",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = transactionItem.entity,
-                                fontSize = 14.sp,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Alias:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = transactionItem.nickName.takeIf { it != null } ?: "",
-                                    fontSize = 14.sp,
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.surfaceTint,
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit alias",
-                                    modifier = Modifier
-                                        .clickable {
-                                            onToggleEditAlias()
-                                        }
-                                )
-                            }
-                        }
-                        if(editAliasActive) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            TextField(
-                                label = {
-                                    Text(
-                                        text = "Alias",
-                                        fontSize = 14.sp,
-                                    )
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                value = alias,
-                                onValueChange = onChangeAlias,
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                    imeAction = ImeAction.Done,
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                TextButton(
-                                    onClick = { onToggleEditAlias() }
-                                ) {
-                                    Text(
-                                        text = "Discard",
-//                                        fontSize = 12.sp,
-                                    )
-                                }
-                                Button(
-                                    enabled = updatingAliasStatus != UpdatingAliasStatus.LOADING && alias.isNotEmpty(),
-                                    onClick = onSaveAlias
-                                ) {
-                                    if(updatingAliasStatus == UpdatingAliasStatus.LOADING) {
-                                        Text(text = "Loading...")
-                                    } else {
-                                        Text(text = "Save")
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Balance:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = formatMoneyValue(transactionItem.balance),
-                                fontSize = 14.sp,
-                                color = if(transactionItem.balance > 0) MaterialTheme.colorScheme.surfaceTint else MaterialTheme.colorScheme.error
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Comment:",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            Icon(
-                                tint = MaterialTheme.colorScheme.surfaceTint,
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit comment",
-                                modifier = Modifier
-                                    .clickable {
-                                        onToggleEditComment()
-                                    }
-                            )
-                            if(!transactionItem.comment.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.error,
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete comment",
-                                    modifier = Modifier
-                                        .clickable {
-                                            onDeleteComment()
-                                        }
-                                )
-                            }
-                        }
-                        if(transactionItem.comment != null) {
-                            Text(
-                                text = transactionItem.comment,
-                                fontSize = 14.sp,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                        if(editCommentActive) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            TextField(
-                                label = {
-                                    Text(text = "Comment")
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                value = comment,
-                                onValueChange = onChangeComment,
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                    imeAction = ImeAction.Done,
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                TextButton(onClick = { onToggleEditComment() }) {
-                                    Text(text = "Discard")
-                                }
-                                Button(
-                                    enabled = updatingCommentStatus != UpdatingCommentStatus.LOADING && comment.isNotEmpty(),
-                                    onClick = onSaveComment
-                                ) {
-                                    if(updatingCommentStatus == UpdatingCommentStatus.LOADING) {
-                                        Text(text = "Loading...")
-                                    } else {
-                                        Text(text = "Save")
-                                    }
-
-                                }
-                            }
-                        }
-
-                    }
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "Categories",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+    Column(
+        modifier = Modifier
+            .padding(
+                vertical = screenHeight(x = 8.0),
+                horizontal = screenWidth(x = 16.0)
+            )
+            .fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LazyVerticalGrid(columns = GridCells.Fixed(3)) {
-                        transactionItem.categories?.let {
-                            items(it.size) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
+                )
+                .verticalScroll(rememberScrollState())
+        ) {
+            IconButton(onClick = navigateToPreviousScreen) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous screen",
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "Transaction code: ${transactionItem.transactionCode}",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                    Text(
+                        text = formattedDatetime,
+                        fontWeight = FontWeight.Light,
+                        fontSize = screenFontSize(x = 12.0).sp,
+                        style = TextStyle(
+                            fontStyle = FontStyle.Italic
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    onClick = {
+                        val clip = ClipData.newPlainText("Transaction Code", transactionItem.transactionCode)
+                        clipboardManager.setPrimaryClip(clip)
+                        Toast.makeText(context, "Transaction code copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        painter = painterResource(id = R.drawable.copy),
+                        contentDescription = "Copy transaction code",
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row {
+                Text(
+                    text = "Type:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = transactionItem.transactionType,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row {
+                Text(
+                    text = "Amount:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if(transactionItem.transactionAmount > 0) {
+                    Text(
+                        text = "+ ${formatMoneyValue(transactionItem.transactionAmount)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.surfaceTint
+                    )
+                } else if(transactionItem.transactionAmount < 0) {
+                    Text(
+                        text = "- ${formatMoneyValue(transactionItem.transactionAmount.absoluteValue)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row {
+                Text(
+                    text = "Cost:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if(transactionItem.transactionAmount < 0) {
+                    Text(
+                        text = "Cost: - ${formatMoneyValue(transactionItem.transactionCost.absoluteValue)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    Text(
+                        text = "N/A",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Entity:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .weight(0.4f)
+                )
+//                Spacer(modifier = Modifier.weight(1f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = transactionItem.entity,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        modifier = Modifier
 
-                                    ) {
-                                    Card() {
-                                        Text(
-                                            text = transactionItem.categories[it].name,
-                                            fontSize = 14.sp,
-                                            modifier = Modifier
-                                                .padding(10.dp)
-                                        )
-                                    }
-                                }
+                    )
+                }
+
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Alias:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = transactionItem.nickName.takeIf { it != null } ?: "",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                    )
+                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit alias",
+                        modifier = Modifier
+                            .clickable {
+                                onToggleEditAlias()
                             }
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            if(editAliasActive) {
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+                TextField(
+                    label = {
+                        Text(
+                            text = "Alias",
+                            fontSize = screenFontSize(x = 14.0).sp,
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    value = alias,
+                    onValueChange = onChangeAlias,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    TextButton(
+                        onClick = { onToggleEditAlias() }
+                    ) {
+                        Text(
+                            text = "Discard",
+                            fontSize = screenFontSize(x = 14.0).sp,
+                        )
+                    }
+                    Button(
+                        enabled = updatingAliasStatus != UpdatingAliasStatus.LOADING && alias.isNotEmpty(),
+                        onClick = onSaveAlias
+                    ) {
+                        if(updatingAliasStatus == UpdatingAliasStatus.LOADING) {
+                            Text(
+                                text = "Loading...",
+                                fontSize = screenFontSize(x = 14.0).sp,
+                            )
+                        } else {
+                            Text(
+                                text = "Save",
+                                fontSize = screenFontSize(x = 14.0).sp,
+                            )
                         }
                     }
                 }
             }
-            else -> {
-                Column(
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Balance:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = formatMoneyValue(transactionItem.balance),
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    color = if(transactionItem.balance > 0) MaterialTheme.colorScheme.surfaceTint else MaterialTheme.colorScheme.error
+                )
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Comment:",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    tint = MaterialTheme.colorScheme.surfaceTint,
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit comment",
                     modifier = Modifier
-                        .padding(
-                            vertical = 8.dp,
-                            horizontal = 16.dp
-                        )
-                        .fillMaxSize()
-                ) {
-                    Column(
+                        .clickable {
+                            onToggleEditComment()
+                        }
+                        .size(screenWidth(x = 24.0))
+                )
+                if(!transactionItem.comment.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.error,
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete comment",
                         modifier = Modifier
-                            .animateContentSize(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            )
-                            .verticalScroll(rememberScrollState())
+                            .clickable {
+                                onDeleteComment()
+                            }
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            if(transactionItem.comment != null) {
+                Text(
+                    text = transactionItem.comment,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            if(editCommentActive) {
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+                TextField(
+                    label = {
+                        Text(
+                            text = "Comment",
+                            fontSize = screenFontSize(x = 14.0).sp,
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    value = comment,
+                    onValueChange = onChangeComment,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    TextButton(onClick = { onToggleEditComment() }) {
+                        Text(
+                            text = "Discard",
+                            fontSize = screenFontSize(x = 14.0).sp,
+                        )
+                    }
+                    Button(
+                        enabled = updatingCommentStatus != UpdatingCommentStatus.LOADING && comment.isNotEmpty(),
+                        onClick = onSaveComment
                     ) {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Previous screen"
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Transaction code: ${transactionItem.transactionCode}",
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    text = formattedDatetime,
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 12.sp,
-                                    style = TextStyle(
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            IconButton(
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                ),
-                                onClick = {
-                                    val clip = ClipData.newPlainText("Transaction Code", transactionItem.transactionCode)
-                                    clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Transaction code copied to clipboard", Toast.LENGTH_SHORT).show()
-                                }
-                            ) {
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.surfaceTint,
-                                    painter = painterResource(id = R.drawable.copy),
-                                    contentDescription = "Copy transaction code"
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
+                        if(updatingCommentStatus == UpdatingCommentStatus.LOADING) {
                             Text(
-                                text = "Type:",
-                                fontWeight = FontWeight.Bold
+                                text = "Loading...",
+                                fontSize = screenFontSize(x = 14.0).sp,
                             )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(text = transactionItem.transactionType)
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
+                        } else {
                             Text(
-                                text = "Amount:",
-                                fontWeight = FontWeight.Bold
+                                text = "Save",
+                                fontSize = screenFontSize(x = 14.0).sp,
                             )
-                            Spacer(modifier = Modifier.weight(1f))
-                            if(transactionItem.transactionAmount > 0) {
-                                Text(
-                                    text = "+ ${formatMoneyValue(transactionItem.transactionAmount)}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.surfaceTint
-                                )
-                            } else if(transactionItem.transactionAmount < 0) {
-                                Text(
-                                    text = "- ${formatMoneyValue(transactionItem.transactionAmount.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
-                            Text(
-                                text = "Cost:",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            if(transactionItem.transactionAmount < 0) {
-                                Text(
-                                    text = "Cost: - ${formatMoneyValue(transactionItem.transactionCost.absoluteValue)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            } else {
-                                Text(text = "N/A")
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Entity:",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(text = transactionItem.entity)
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Alias:",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = transactionItem.nickName.takeIf { it != null } ?: "")
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.surfaceTint,
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit alias",
-                                    modifier = Modifier
-                                        .clickable {
-                                            onToggleEditAlias()
-                                        }
-                                )
-                            }
-                        }
-                        if(editAliasActive) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            TextField(
-                                label = {
-                                    Text(text = "Alias")
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                value = alias,
-                                onValueChange = onChangeAlias,
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                    imeAction = ImeAction.Done,
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                TextButton(
-                                    onClick = { onToggleEditAlias() }
-                                ) {
-                                    Text(text = "Discard")
-                                }
-                                Button(
-                                    enabled = updatingAliasStatus != UpdatingAliasStatus.LOADING && alias.isNotEmpty(),
-                                    onClick = onSaveAlias
-                                ) {
-                                    if(updatingAliasStatus == UpdatingAliasStatus.LOADING) {
-                                        Text(text = "Loading...")
-                                    } else {
-                                        Text(text = "Save")
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Balance:",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = formatMoneyValue(transactionItem.balance),
-                                color = if(transactionItem.balance > 0) MaterialTheme.colorScheme.surfaceTint else MaterialTheme.colorScheme.error
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Comment:",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            Icon(
-                                tint = MaterialTheme.colorScheme.surfaceTint,
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit comment",
-                                modifier = Modifier
-                                    .clickable {
-                                        onToggleEditComment()
-                                    }
-                            )
-                            if(!transactionItem.comment.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(
-                                    tint = MaterialTheme.colorScheme.error,
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete comment",
-                                    modifier = Modifier
-                                        .clickable {
-                                            onDeleteComment()
-                                        }
-                                )
-                            }
-                        }
-                        if(transactionItem.comment != null) {
-                            Text(
-                                text = transactionItem.comment,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                        if(editCommentActive) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            TextField(
-                                label = {
-                                    Text(text = "Comment")
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                value = comment,
-                                onValueChange = onChangeComment,
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                    imeAction = ImeAction.Done,
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                TextButton(onClick = { onToggleEditComment() }) {
-                                    Text(text = "Discard")
-                                }
-                                Button(
-                                    enabled = updatingCommentStatus != UpdatingCommentStatus.LOADING && comment.isNotEmpty(),
-                                    onClick = onSaveComment
-                                ) {
-                                    if(updatingCommentStatus == UpdatingCommentStatus.LOADING) {
-                                        Text(text = "Loading...")
-                                    } else {
-                                        Text(text = "Save")
-                                    }
-
-                                }
-                            }
                         }
 
                     }
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "Categories",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LazyVerticalGrid(columns = GridCells.Fixed(3)) {
-                        transactionItem.categories?.let {
-                            items(it.size) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
+                }
+            }
 
-                                    ) {
-                                    Card() {
-                                        Text(
-                                            text = transactionItem.categories[it].name,
-                                            modifier = Modifier
-                                                .padding(10.dp)
-                                        )
-                                    }
-                                }
-                            }
+        }
+        Spacer(modifier = Modifier.height(screenHeight(x = 32.0)))
+        Text(
+            text = "Categories",
+            fontWeight = FontWeight.Bold,
+            fontSize = screenFontSize(x = 18.0).sp
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        LazyVerticalGrid(columns = GridCells.Fixed(3)) {
+            transactionItem.categories?.let {
+                items(it.size) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+
+                        ) {
+                        Card() {
+                            Text(
+                                text = transactionItem.categories[it].name,
+                                fontSize = screenFontSize(x = 14.0).sp,
+                                modifier = Modifier
+                                    .padding(screenWidth(x = 10.0))
+                            )
                         }
                     }
                 }
