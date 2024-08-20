@@ -166,6 +166,7 @@ class MembersAdditionScreenViewModel(
                     budgetId = null,
                     transactionType = null,
                     latest = true,
+                    moneyDirection = null,
                     startDate = "2002-03-06",
                     endDate = endDate
                 )

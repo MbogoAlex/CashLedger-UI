@@ -238,6 +238,7 @@ fun BudgetListScreen(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxSize()
                 ) {
                     Text(text = "Create budgets for your transactions. A budget must belong to a category. Create a category first then create a budget for it")

@@ -36,6 +36,8 @@ data class TransactionsScreenUiState(
     val nickName: String = "",
     val entity: String = "",
     val transactionType: String = "All types",
+    val defaultTransactionType: String? = null,
+    val selectableTransactionTypes: List<String> = emptyList(),
     val totalMoneyIn: Double = 0.0,
     val totalMoneyOut: Double = 0.0,
     val currentDate: String = "2024-06-15",
@@ -52,6 +54,7 @@ data class TransactionsScreenUiState(
     val errorCode: Int = 0,
     val comment: String = "",
     val downLoadUri: Uri? = null,
+    val moneyDirection: String? = null,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL,
 )
@@ -69,6 +72,9 @@ class TransactionsScreenViewModel(
 
     private val categoryId: String? = savedStateHandle[TransactionsScreenDestination.categoryId]
     private val budgetId: String? = savedStateHandle[TransactionsScreenDestination.budgetId]
+
+    private val transactionType: String? = savedStateHandle[TransactionsScreenDestination.transactionType]
+    private val moneyDirection: String? = savedStateHandle[TransactionsScreenDestination.moneyDirection]
 
     private var filterJob: Job? = null
 
@@ -207,6 +213,7 @@ class TransactionsScreenViewModel(
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    moneyDirection = uiState.value.moneyDirection,
                     latest = true,
                     startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate,
                     endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate
@@ -358,6 +365,7 @@ class TransactionsScreenViewModel(
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    moneyDirection = uiState.value.moneyDirection,
                     startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
                     endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
                 )
@@ -559,5 +567,62 @@ class TransactionsScreenViewModel(
     init {
         setInitialDates()
         getUserDetails()
+
+        val selectableTypes = when(moneyDirection) {
+            "in" -> {
+                listOf(
+                    "All types",
+                    "Send Money",
+                    "Mshwari",
+                    "Hustler fund",
+                    "Reversal",
+                    "KBC Mpesa account",
+                    "Deposit",
+                )
+            }
+            "out" -> {
+                listOf(
+                    "All types",
+                    "Send Money",
+                    "Pay Bill",
+                    "Buy goods and Services",
+                    "Pochi la Biashara",
+                    "Airtime & Bundles",
+                    "Mshwari",
+                    "Fuliza",
+                    "Hustler fund",
+                    "Reversal",
+                    "KBC Mpesa account",
+                    "Lock savings",
+                    "Withdrawal"
+                )
+            }
+            else -> {
+                listOf(
+                    "All types",
+                    "Send Money",
+                    "Pay Bill",
+                    "Buy goods and Services",
+                    "Pochi la Biashara",
+                    "Airtime & Bundles",
+                    "Mshwari",
+                    "Fuliza",
+                    "Hustler fund",
+                    "Reversal",
+                    "KBC Mpesa account",
+                    "Deposit",
+                    "Withdrawal"
+                )
+            }
+        }
+        _uiState.update {
+            it.copy(
+                defaultTransactionType = transactionType,
+                selectableTransactionTypes = selectableTypes,
+                transactionType = transactionType ?: "All types",
+                moneyDirection = moneyDirection
+
+            )
+        }
     }
 }

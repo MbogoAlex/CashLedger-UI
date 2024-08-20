@@ -4,6 +4,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.nav.AppNavigation
@@ -87,53 +89,110 @@ fun CategoryAdditionScreen(
     loadingStatus: LoadingStatus,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
-            )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = navigateToPreviousScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = navigateToPreviousScreen) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "Add category",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    OutlinedTextField(
+                        label = {
+                            Text(text = "Category name")
+                        },
+                        value = categoryName,
+                        onValueChange = onChangeCategoryName,
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Text
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
+                        onClick = onCreateCategory,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        if(loadingStatus == LoadingStatus.LOADING) {
+                            Text(text = "Loading...")
+                        } else {
+                            Text(text = "Next")
+                        }
+                    }
+                }
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Add category",
-                fontWeight = FontWeight.Bold
-            )
-        }
-        OutlinedTextField(
-            label = {
-                Text(text = "Category name")
-            },
-            value = categoryName,
-            onValueChange = onChangeCategoryName,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done,
-                keyboardType = KeyboardType.Text
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Button(
-            enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
-            onClick = onCreateCategory,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            if(loadingStatus == LoadingStatus.LOADING) {
-                Text(text = "Loading...")
-            } else {
-                Text(text = "Next")
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = navigateToPreviousScreen) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "Add category",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    OutlinedTextField(
+                        label = {
+                            Text(text = "Category name")
+                        },
+                        value = categoryName,
+                        onValueChange = onChangeCategoryName,
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Text
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        enabled = categoryName.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
+                        onClick = onCreateCategory,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        if(loadingStatus == LoadingStatus.LOADING) {
+                            Text(text = "Loading...")
+                        } else {
+                            Text(text = "Next")
+                        }
+                    }
+                }
             }
         }
     }
+
 }
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

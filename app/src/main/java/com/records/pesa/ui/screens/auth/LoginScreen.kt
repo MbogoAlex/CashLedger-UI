@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -154,7 +155,8 @@ fun LoginScreen(
     ) {
         Image(
             painter = painterResource(id = R.drawable.cashledger_logo),
-            contentDescription = null
+            contentDescription = null,
+            modifier = Modifier.aspectRatio(16f / 9f)
         )
         Text(
             text = "Welcome back!",

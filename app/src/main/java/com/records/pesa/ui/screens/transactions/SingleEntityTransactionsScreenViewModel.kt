@@ -79,6 +79,7 @@ class SingleEntityTransactionsScreenViewModel(
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     latest = true,
+                    moneyDirection = null,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate
                 )

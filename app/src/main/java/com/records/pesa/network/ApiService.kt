@@ -81,6 +81,7 @@ interface ApiService {
         @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("latest") latest: Boolean,
+        @Query("moneyDirection") moneyDirection: String?,
         @Query("startDate") startDate: String?,
         @Query("endDate") endDate: String?
     ): Response<TransactionResponseBody>
@@ -269,6 +270,7 @@ interface ApiService {
         @Query("categoryId") categoryId: Int?,
         @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
+        @Query("moneyDirection") moneyDirection: String?,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<SortedTransactionsResponseBody>

@@ -171,10 +171,53 @@ fun NavigationGraph(
                 onSwitchTheme = onSwitchTheme,
                 navigateToTransactionDetailsScreen = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
+                    navController.navigate("${TransactionsScreenDestination.route}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
                 }
             )
         }
         composable(TransactionsScreenDestination.route) {
+            TransactionsScreenComposable(
+                navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
+                    navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                },
+                showBackArrow = true,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                }
+            )
+        }
+
+        composable(
+            TransactionsScreenDestination.routeWithTransactionType,
+            arguments = listOf(
+                navArgument(TransactionsScreenDestination.transactionType) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.moneyDirection) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.startDate) {
+                    type = NavType.StringType
+                },
+                navArgument(TransactionsScreenDestination.endDate) {
+                    type = NavType.StringType
+                },
+            )
+        ) {
             TransactionsScreenComposable(
                 navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->
                     navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyIn}")

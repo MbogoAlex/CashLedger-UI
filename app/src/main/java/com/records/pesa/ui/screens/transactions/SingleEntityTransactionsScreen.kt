@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +45,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -159,98 +161,218 @@ fun SingleEntityTransactionsScreen(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .padding(
-                horizontal = 16.dp
-            )
-            .fillMaxSize()
-    ) {
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            IconButton(onClick = navigateToPreviousScreen) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(
-                enabled = downloadingStatus != DownloadingStatus.LOADING,
-                onClick = onDownloadReport
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Statement")
-                    if(downloadingStatus == DownloadingStatus.LOADING) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(15.dp)
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp
                         )
-                    } else {
-                        Icon(
-                            painter = painterResource(id = R.drawable.download),
-                            contentDescription = null
+                        .fillMaxSize()
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        IconButton(onClick = navigateToPreviousScreen) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(
+                            enabled = downloadingStatus != DownloadingStatus.LOADING,
+                            onClick = onDownloadReport
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "Statement")
+                                if(downloadingStatus == DownloadingStatus.LOADING) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.download),
+                                        contentDescription = null
+                                    )
+                                }
+
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Column(
+//                                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = 16.dp
+                            )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Money in:",
+                                fontSize = 14.sp,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = totalMoneyIn,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.surfaceTint
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Money out:",
+                                fontSize = 14.sp,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = totalMoneyOut,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    LazyColumn {
+                        items(transactions) {
+                            TransactionItemCell(
+                                transaction = it,
+                                modifier = Modifier
+                                    .clickable {
+                                        navigateToTransactionDetailsScreen(it.transactionId.toString())
+                                    }
+                            )
+                            Divider()
+                        }
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        PullRefreshIndicator(
+                            refreshing = loadingStatus == LoadingStatus.LOADING,
+                            state = pullRefreshState!!
+                        )
+                    }
+
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp
+                        )
+                        .fillMaxSize()
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        IconButton(onClick = navigateToPreviousScreen) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(
+                            enabled = downloadingStatus != DownloadingStatus.LOADING,
+                            onClick = onDownloadReport
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "Statement")
+                                if(downloadingStatus == DownloadingStatus.LOADING) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.download),
+                                        contentDescription = null
+                                    )
+                                }
+
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = 16.dp
+                            )
+                    ) {
+                        Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
+                        Text(
+                            text = totalMoneyIn,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.surfaceTint
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
+                        Text(
+                            text = totalMoneyOut,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    LazyColumn {
+                        items(transactions) {
+                            TransactionItemCell(
+                                transaction = it,
+                                modifier = Modifier
+                                    .clickable {
+                                        navigateToTransactionDetailsScreen(it.transactionId.toString())
+                                    }
+                            )
+                            Divider()
+                        }
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        PullRefreshIndicator(
+                            refreshing = loadingStatus == LoadingStatus.LOADING,
+                            state = pullRefreshState!!
                         )
                     }
 
                 }
             }
         }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = "From ${dateFormatter.format(LocalDate.parse(startDate))} to ${dateFormatter.format(LocalDate.parse(endDate))}",
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(
-                    horizontal = 16.dp
-                )
-        ) {
-            Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-            Text(
-                text = totalMoneyIn,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.surfaceTint
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-            Text(
-                text = totalMoneyOut,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-        LazyColumn {
-            items(transactions) {
-                TransactionItemCell(
-                    transaction = it,
-                    modifier = Modifier
-                        .clickable {
-                            navigateToTransactionDetailsScreen(it.transactionId.toString())
-                        }
-                )
-                Divider()
-            }
-        }
-
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
-        }
-
     }
+
 }
 @OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)

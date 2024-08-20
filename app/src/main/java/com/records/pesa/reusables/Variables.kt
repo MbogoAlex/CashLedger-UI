@@ -296,6 +296,8 @@ val transactionTypes = listOf(
     "Send Money",
     "Pay Bill",
     "Buy goods and Services",
+    "Pochi la Biashara",
+    "Airtime & Bundles",
     "Mshwari",
     "Fuliza",
     "Hustler fund",

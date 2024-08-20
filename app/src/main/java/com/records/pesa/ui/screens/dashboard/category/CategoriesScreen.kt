@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
@@ -72,6 +74,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
@@ -180,7 +183,7 @@ fun CategoriesScreenComposable(
 
     Box(
         modifier = Modifier
-            .safeDrawingPadding()
+//            .safeDrawingPadding()
     ) {
         CategoriesScreen(
             pullRefreshState = pullRefreshState,
@@ -199,7 +202,8 @@ fun CategoriesScreenComposable(
                 viewModel.updateName(it)
             },
             onClearSearch = {
-                viewModel.getUserCategories()
+                viewModel.updateName("")
+//                viewModel.getUserCategories()
             },
             categories = uiState.categories,
             selectedCategories = uiState.selectedCategories,
@@ -222,6 +226,7 @@ fun CategoriesScreenComposable(
                 filteringOn = !filteringOn
             },
             filteringOn = filteringOn,
+            showBackArrow = showBackArrow,
             downloadingStatus = uiState.downloadingStatus
         )
     }
@@ -245,7 +250,7 @@ fun CategoriesScreen(
     navigateToCategoryDetailsScreen: (categoryId: String) -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
-    showBackArrow: Boolean = false,
+    showBackArrow: Boolean,
     onShowSubscriptionDialog: () -> Unit,
     onClearSearch: () -> Unit,
     onDownloadReport: () -> Unit,
@@ -255,202 +260,431 @@ fun CategoriesScreen(
     filteringOn: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
-            )
-            .fillMaxSize()
-    ) {
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if(showBackArrow) {
-                IconButton(onClick = navigateToPreviousScreen) {
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-                }
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(
-                enabled = downloadingStatus != DownloadingStatus.LOADING,
-                onClick = onFilter
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Statement")
-                    if(downloadingStatus == DownloadingStatus.LOADING) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(15.dp)
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(id = R.drawable.download),
-                            contentDescription = null
-                        )
-                    }
-
-                }
-            }
-        }
-
-        if(!filteringOn && premium) {
-            Spacer(modifier = Modifier.height(16.dp))
-            TextField(
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Search, contentDescription = null)
-                },
-                value = searchQuery,
-                placeholder = {
-                    Text(text = "Category")
-                },
-                trailingIcon = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.inverseOnSurface)
-                            .padding(5.dp)
-                            .clickable {
-                                onClearSearch()
-                            }
-
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
-                            modifier = Modifier
-                                .size(16.dp)
-                        )
-                    }
-
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Text
-                ),
-                onValueChange = onChangeSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        if(filteringOn) {
-            DateRangePicker(
-                premium = premium,
-                startDate = startDate,
-                endDate = endDate,
-                defaultStartDate = null,
-                defaultEndDate = null,
-                onChangeStartDate = onChangeStartDate,
-                onChangeLastDate = onChangeLastDate,
-                onShowSubscriptionDialog = onShowSubscriptionDialog
-            )
-        } else {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Categories",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = {
-                    if(categories.isNotEmpty() && !premium) {
-                        onShowSubscriptionDialog()
-                    } else {
-                        navigateToCategoryAdditionScreen()
-                    }
-                }) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Add")
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
-                    }
-
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        if(loadingStatus == LoadingStatus.SUCCESS) {
-            if(categories.isEmpty()) {
-                Box(
-                    contentAlignment = Alignment.Center,
+    Log.d("Back_arrow", showBackArrow.toString())
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Column(
                     modifier = Modifier
+                        .padding(
+                            start = 10.dp,
+                            top = if (showBackArrow) 8.dp else 0.dp,
+                            end = 10.dp,
+                            bottom = 8.dp
+                        )
                         .fillMaxSize()
                 ) {
-                    Text(text = "Add categories to group you transactions. You can for example add `Supermarket` and select from the transactions list the supermarkets (members) you want to group")
-                }
-            } else {
-                if(filteringOn) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Generate report for")
+                        if(showBackArrow) {
+                            IconButton(onClick = navigateToPreviousScreen) {
+                                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                            }
+                        }
                         Spacer(modifier = Modifier.weight(1f))
                         TextButton(
-                            enabled = selectedCategories.isNotEmpty(),
-                            onClick = onDownloadReport
+                            onClick = {
+                                if(categories.isNotEmpty() && !premium) {
+                                    onShowSubscriptionDialog()
+                                } else {
+                                    navigateToCategoryAdditionScreen()
+                                }
+                            }
                         ) {
-                            Text(text = "Confirm")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Add",
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
+                            }
                         }
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-                LazyColumn {
-                    items(categories.size) {index ->
-                        if(filteringOn) {
-                            SelectableCategoryCell(
-                                category = categories[index],
-                                selectedCategories = selectedCategories,
-                                onRemoveCategory = onRemoveCategory,
-                                onAddCategory = {
-                                    if(index > 0 && !premium) {
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        onAddCategory(categories[index].id)
-                                    }
+
+                    if(!filteringOn && premium) {
+                        TextField(
+                            shape = RoundedCornerShape(10.dp),
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                            },
+                            value = searchQuery,
+                            placeholder = {
+                                Text(text = "Category")
+                            },
+                            trailingIcon = {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.inverseOnSurface)
+                                        .padding(5.dp)
+                                        .clickable {
+                                            onClearSearch()
+                                        }
+
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                    )
                                 }
+
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                imeAction = ImeAction.Done,
+                                keyboardType = KeyboardType.Text
+                            ),
+                            onValueChange = onChangeSearchQuery,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
+//                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    if(filteringOn) {
+                        DateRangePicker(
+                            premium = premium,
+                            startDate = startDate,
+                            endDate = endDate,
+                            defaultStartDate = null,
+                            defaultEndDate = null,
+                            onChangeStartDate = onChangeStartDate,
+                            onChangeLastDate = onChangeLastDate,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Categories",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                        } else {
-                            TransactionCategoryCell(
-                                transactionCategory = categories[index],
-                                navigateToCategoryDetailsScreen = {
-                                    if(index != 0 && !premium) {
-                                        onShowSubscriptionDialog()
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(
+                                enabled = downloadingStatus != DownloadingStatus.LOADING && categories.isNotEmpty(),
+                                onClick = onFilter) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Statement",
+                                        fontSize = 14.sp
+                                    )
+                                    if(downloadingStatus == DownloadingStatus.LOADING) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(15.dp)
+                                        )
                                     } else {
-                                        navigateToCategoryDetailsScreen(categories[index].id.toString())
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.download),
+                                            contentDescription = null
+                                        )
                                     }
+
                                 }
-                            )
+                            }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if(loadingStatus == LoadingStatus.SUCCESS) {
+                        if(categories.isEmpty()) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                            ) {
+                                Text(
+                                    text = "Add categories to group you transactions. You can for example add `Supermarket` and select from the transactions list the supermarkets (members) you want to group",
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            if(filteringOn) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Generate report for",
+                                        fontSize = 14.sp
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TextButton(
+                                        enabled = selectedCategories.isNotEmpty(),
+                                        onClick = onDownloadReport
+                                    ) {
+                                        Text(
+                                            text = "Confirm",
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    IconButton(
+                                        onClick = onFilter) {
+                                        androidx.compose.material.Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Cancel"
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            LazyColumn {
+                                items(categories.size) {index ->
+                                    if(filteringOn) {
+                                        SelectableCategoryCell(
+                                            category = categories[index],
+                                            selectedCategories = selectedCategories,
+                                            onRemoveCategory = onRemoveCategory,
+                                            onAddCategory = {
+                                                if(index > 0 && !premium) {
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    onAddCategory(categories[index].id)
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        TransactionCategoryCell(
+                                            transactionCategory = categories[index],
+                                            navigateToCategoryDetailsScreen = {
+                                                if(index != 0 && !premium) {
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    navigateToCategoryDetailsScreen(categories[index].id.toString())
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        PullRefreshIndicator(
+                            refreshing = loadingStatus == LoadingStatus.LOADING,
+                            state = pullRefreshState!!
+                        )
+                    }
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
+                        .fillMaxSize()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if(showBackArrow) {
+                            IconButton(onClick = navigateToPreviousScreen) {
+                                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                            }
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(
+                            enabled = downloadingStatus != DownloadingStatus.LOADING,
+                            onClick = onFilter
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "Statement")
+                                if(downloadingStatus == DownloadingStatus.LOADING) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.download),
+                                        contentDescription = null
+                                    )
+                                }
+
+                            }
+                        }
+                    }
+
+                    if(!filteringOn && premium) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextField(
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                            },
+                            value = searchQuery,
+                            placeholder = {
+                                Text(text = "Category")
+                            },
+                            trailingIcon = {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.inverseOnSurface)
+                                        .padding(5.dp)
+                                        .clickable {
+                                            onClearSearch()
+                                        }
+
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                    )
+                                }
+
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                imeAction = ImeAction.Done,
+                                keyboardType = KeyboardType.Text
+                            ),
+                            onValueChange = onChangeSearchQuery,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    if(filteringOn) {
+                        DateRangePicker(
+                            premium = premium,
+                            startDate = startDate,
+                            endDate = endDate,
+                            defaultStartDate = null,
+                            defaultEndDate = null,
+                            onChangeStartDate = onChangeStartDate,
+                            onChangeLastDate = onChangeLastDate,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Categories",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(onClick = {
+                                if(categories.isNotEmpty() && !premium) {
+                                    onShowSubscriptionDialog()
+                                } else {
+                                    navigateToCategoryAdditionScreen()
+                                }
+                            }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Add")
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
+                                }
+
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if(loadingStatus == LoadingStatus.SUCCESS) {
+                        if(categories.isEmpty()) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                            ) {
+                                Text(text = "Add categories to group you transactions. You can for example add `Supermarket` and select from the transactions list the supermarkets (members) you want to group")
+                            }
+                        } else {
+                            if(filteringOn) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Generate report for")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TextButton(
+                                        enabled = selectedCategories.isNotEmpty(),
+                                        onClick = onDownloadReport
+                                    ) {
+                                        Text(text = "Confirm")
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                            LazyColumn {
+                                items(categories.size) {index ->
+                                    if(filteringOn) {
+                                        SelectableCategoryCell(
+                                            category = categories[index],
+                                            selectedCategories = selectedCategories,
+                                            onRemoveCategory = onRemoveCategory,
+                                            onAddCategory = {
+                                                if(index > 0 && !premium) {
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    onAddCategory(categories[index].id)
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        TransactionCategoryCell(
+                                            transactionCategory = categories[index],
+                                            navigateToCategoryDetailsScreen = {
+                                                if(index != 0 && !premium) {
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    navigateToCategoryDetailsScreen(categories[index].id.toString())
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        PullRefreshIndicator(
+                            refreshing = loadingStatus == LoadingStatus.LOADING,
+                            state = pullRefreshState!!
+                        )
                     }
                 }
             }
         }
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
-        }
     }
+
 }
 
 @Composable
@@ -462,46 +696,97 @@ fun SelectableCategoryCell(
     modifier: Modifier = Modifier
         .fillMaxWidth()
 ) {
-    ElevatedCard(
-        modifier = Modifier
-            .padding(
-                bottom = 10.dp
-            )
-            .fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(10.dp)
-        ) {
-            Column {
-                Text(
-                    text = category.name,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text =  if(category.transactions.size > 1) "${category.transactions.size} transactions" else "${category.transactions.size} transaction",
-                    fontStyle = FontStyle.Italic,
-                    fontWeight = FontWeight.Light
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if(selectedCategories.contains(category.id)) {
-                IconButton(onClick = { onRemoveCategory(category.id) }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.check_box_filled),
-                        contentDescription = "Remove item from filter"
-                    )
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                ElevatedCard(
+                    modifier = Modifier
+                        .padding(
+                            bottom = 10.dp
+                        )
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(10.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = category.name,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text =  if(category.transactions.size > 1) "${category.transactions.size} transactions" else "${category.transactions.size} transaction",
+                                fontSize = 14.sp,
+                                fontStyle = FontStyle.Italic,
+                                fontWeight = FontWeight.Light
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(selectedCategories.contains(category.id)) {
+                            IconButton(onClick = { onRemoveCategory(category.id) }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.check_box_filled),
+                                    contentDescription = "Remove item from filter"
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = { onAddCategory(category.id) }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.check_box_blank),
+                                    contentDescription = "Add item to filter"
+                                )
+                            }
+                        }
+                    }
                 }
-            } else {
-                IconButton(onClick = { onAddCategory(category.id) }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.check_box_blank),
-                        contentDescription = "Add item to filter"
-                    )
+            }
+            else -> {
+                ElevatedCard(
+                    modifier = Modifier
+                        .padding(
+                            bottom = 10.dp
+                        )
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(10.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = category.name,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text =  if(category.transactions.size > 1) "${category.transactions.size} transactions" else "${category.transactions.size} transaction",
+                                fontStyle = FontStyle.Italic,
+                                fontWeight = FontWeight.Light
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(selectedCategories.contains(category.id)) {
+                            IconButton(onClick = { onRemoveCategory(category.id) }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.check_box_filled),
+                                    contentDescription = "Remove item from filter"
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = { onAddCategory(category.id) }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.check_box_blank),
+                                    contentDescription = "Add item to filter"
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
 }
 
 @Composable
@@ -627,38 +912,99 @@ fun DateRangePicker(
         datePicker.show()
     }
 
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        elevation = CardDefaults.elevatedCardElevation(10.dp),
-        modifier = modifier
-            .padding(16.dp)
-            .fillMaxWidth()
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            IconButton(onClick = { showDatePicker(true) }) {
-                Icon(
-                    tint = Color(0xFF405189),
-                    painter = painterResource(id = R.drawable.calendar),
-                    contentDescription = null
-                )
-            }
-            Text(text = dateFormatter.format(startDate))
-            Text(text = "to")
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(10.dp),
+                    modifier = modifier
+//                        .padding(16.dp)
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(5.dp)
+                    ) {
+                        IconButton(
+                            onClick = { showDatePicker(true) },
+                            modifier = Modifier
+                                .size(22.dp)
+                        ) {
+                            Icon(
+                                tint = Color(0xFF405189),
+                                painter = painterResource(id = R.drawable.calendar),
+                                contentDescription = null,
+                            )
+                        }
+                        Text(
+                            text = dateFormatter.format(startDate),
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "to",
+                            fontSize = 12.sp
+                        )
 
-            Text(text = dateFormatter.format(endDate))
-            IconButton(onClick = { showDatePicker(false) }) {
-                Icon(
-                    tint = Color(0xFF405189),
-                    painter = painterResource(id = R.drawable.calendar),
-                    contentDescription = null
-                )
+                        Text(
+                            text = dateFormatter.format(endDate),
+                            fontSize = 12.sp
+                        )
+                        IconButton(
+                            onClick = { showDatePicker(false) },
+                            modifier = Modifier
+                                .size(22.dp)
+                        ) {
+                            Icon(
+                                tint = Color(0xFF405189),
+                                painter = painterResource(id = R.drawable.calendar),
+                                contentDescription = null
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(10.dp),
+                    modifier = modifier
+                        .padding(16.dp)
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        IconButton(onClick = { showDatePicker(true) }) {
+                            Icon(
+                                tint = Color(0xFF405189),
+                                painter = painterResource(id = R.drawable.calendar),
+                                contentDescription = null
+                            )
+                        }
+                        Text(text = dateFormatter.format(startDate))
+                        Text(text = "to")
+
+                        Text(text = dateFormatter.format(endDate))
+                        IconButton(onClick = { showDatePicker(false) }) {
+                            Icon(
+                                tint = Color(0xFF405189),
+                                painter = painterResource(id = R.drawable.calendar),
+                                contentDescription = null
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -691,6 +1037,7 @@ fun CategoryScreenPreview() {
             onDownloadReport = {},
             filteringOn = false,
             onFilter = {},
+            showBackArrow = true,
             onShowSubscriptionDialog = {}
         )
     }

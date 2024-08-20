@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -275,164 +276,344 @@ fun CategoryDetailsScreen(
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = navigateToPreviousScreen
-            ) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                ),
-                onClick = {onRemoveCategory(category.id, category.name)}
-            ) {
-                Icon(
-                    tint = MaterialTheme.colorScheme.error,
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete category"
-                )
-            }
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = category.name,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                onEditCategoryName(category.name)
-            }) {
-                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit category name")
-            }
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "Created on ${formatIsoDateTime(LocalDateTime.parse(category.createdAt))}")
-        Spacer(modifier = Modifier.height(20.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Budgets (${if (category.budgets.isNotEmpty()) category.budgets.size else 0})",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-            if(category.budgets.isNotEmpty()) {
-                TextButton(
-                    onClick = {
-                        navigateToCategoryBudgetListScreen(category.id.toString(), category.name)
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxSize()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = navigateToPreviousScreen
+                        ) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            onClick = {onRemoveCategory(category.id, category.name)}
+                        ) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.error,
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete category"
+                            )
+                        }
                     }
-                ) {
-                    Text(text = "Explore")
-                }
-            } else {
-                TextButton(
-                    onClick = {
-                        navigateToBudgetCreationScreen(category.id.toString())
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = category.name,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            onEditCategoryName(category.name)
+                        }) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit category name")
+                        }
                     }
-                ) {
-                    Text(text = "Create")
-                }
-            }
-
-        }
-        Divider()
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Members",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = { navigateToMembersAdditionScreen(category.id.toString()) }) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Add")
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
-                }
-            }
-        }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
-            items(category.keywords) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = if(it.nickName != null) if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName else if(it.keyWord.length > 20) "${it.keyWord.substring(0, 20)}..." else it.keyWord,
-//                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        text = "Created on ${formatIsoDateTime(LocalDateTime.parse(category.createdAt))}",
+                        fontSize = 14.sp,
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
-                        onEditMemberName(it)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit member"
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text =
+                            "Budgets (${if (category.budgets.isNotEmpty()) category.budgets.size else 0})",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
                         )
+
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(category.budgets.isNotEmpty()) {
+                            TextButton(
+                                onClick = {
+                                    navigateToCategoryBudgetListScreen(category.id.toString(), category.name)
+                                }
+                            ) {
+                                Text(
+                                    text = "Explore",
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    navigateToBudgetCreationScreen(category.id.toString())
+                                }
+                            ) {
+                                Text(
+                                    text = "Create",
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
                     }
-                    IconButton(onClick = {
-                        onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.error,
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove member"
+                    Divider()
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Members",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
                         )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = { navigateToMembersAdditionScreen(category.id.toString()) }) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Add",
+                                    fontSize = 14.sp,
+                                )
+                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
+                            }
+                        }
                     }
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                    ) {
+                        Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
+                        items(category.keywords) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if(it.nickName != null) if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName else if(it.keyWord.length > 20) "${it.keyWord.substring(0, 20)}..." else it.keyWord,
+//                        fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    onEditMemberName(it)
+                                }) {
+                                    Icon(
+                                        tint = MaterialTheme.colorScheme.surfaceTint,
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit member"
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
+                                }) {
+                                    Icon(
+                                        tint = MaterialTheme.colorScheme.error,
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove member"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if(loadingStatus == LoadingStatus.LOADING) {
+                        Box(
+                            contentAlignment = Alignment.TopCenter,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxSize()
+                        ) {
+                            PullRefreshIndicator(
+                                refreshing = loadingStatus == LoadingStatus.LOADING,
+                                state = pullRefreshState!!
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            navigateToTransactionsScreen(category.id.toString())
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Transactions")
+                            Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
+                        }
+                    }
+
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxSize()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = navigateToPreviousScreen
+                        ) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            onClick = {onRemoveCategory(category.id, category.name)}
+                        ) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.error,
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete category"
+                            )
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = category.name,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            onEditCategoryName(category.name)
+                        }) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit category name")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "Created on ${formatIsoDateTime(LocalDateTime.parse(category.createdAt))}")
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Budgets (${if (category.budgets.isNotEmpty()) category.budgets.size else 0})",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(category.budgets.isNotEmpty()) {
+                            TextButton(
+                                onClick = {
+                                    navigateToCategoryBudgetListScreen(category.id.toString(), category.name)
+                                }
+                            ) {
+                                Text(text = "Explore")
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    navigateToBudgetCreationScreen(category.id.toString())
+                                }
+                            ) {
+                                Text(text = "Create")
+                            }
+                        }
+
+                    }
+                    Divider()
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Members",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = { navigateToMembersAdditionScreen(category.id.toString()) }) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "Add")
+                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
+                            }
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                    ) {
+                        Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
+                        items(category.keywords) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if(it.nickName != null) if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName else if(it.keyWord.length > 20) "${it.keyWord.substring(0, 20)}..." else it.keyWord,
+//                        fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    onEditMemberName(it)
+                                }) {
+                                    Icon(
+                                        tint = MaterialTheme.colorScheme.surfaceTint,
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit member"
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
+                                }) {
+                                    Icon(
+                                        tint = MaterialTheme.colorScheme.error,
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remove member"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if(loadingStatus == LoadingStatus.LOADING) {
+                        Box(
+                            contentAlignment = Alignment.TopCenter,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxSize()
+                        ) {
+                            PullRefreshIndicator(
+                                refreshing = loadingStatus == LoadingStatus.LOADING,
+                                state = pullRefreshState!!
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            navigateToTransactionsScreen(category.id.toString())
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Transactions")
+                            Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
+                        }
+                    }
+
                 }
             }
         }
-        if(loadingStatus == LoadingStatus.LOADING) {
-            Box(
-                contentAlignment = Alignment.TopCenter,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-            ) {
-                PullRefreshIndicator(
-                    refreshing = loadingStatus == LoadingStatus.LOADING,
-                    state = pullRefreshState!!
-                )
-            }
-        }
-        OutlinedButton(
-            onClick = {
-                navigateToTransactionsScreen(category.id.toString())
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Transactions")
-                Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
-            }
-        }
-
     }
+
 }
 
 @Composable
@@ -503,7 +684,8 @@ fun DeleteDialog(
             TextButton(onClick = onDismiss) {
                 Text(text = "Cancel")
             }
-        }
+        },
+        modifier = Modifier
     )
 }
 

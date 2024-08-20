@@ -47,7 +47,7 @@ import retrofit2.http.Query
 
 interface ApiRepository {
     suspend fun postMessages(token: String, id: Int, messages: List<SmsMessage>): Response<MessagesResponseBody>
-    suspend fun getTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
+    suspend fun getTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyDirection: String?, latest: Boolean, startDate: String?, endDate: String?): Response<TransactionResponseBody>
     suspend fun getMoneyIn(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
     suspend fun getMoneyOut(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
 
@@ -86,7 +86,7 @@ interface ApiRepository {
 
     suspend fun getGroupedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<GroupedTransactionsResponseBody>
 
-    suspend fun getGroupedByEntityTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+    suspend fun getGroupedByEntityTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyDirection: String?, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
 
     suspend fun getLatestTransactionCode(token: String, userId: Int): Response<TransactionCodesResponseBody>
 
@@ -126,6 +126,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId: Int?,
         budgetId: Int?,
         transactionType: String?,
+        moneyDirection: String?,
         latest: Boolean,
         startDate: String?,
         endDate: String?
@@ -136,6 +137,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId = categoryId,
         budgetId = budgetId,
         transactionType = transactionType,
+        moneyDirection = moneyDirection,
         latest = latest,
         startDate = startDate,
         endDate = endDate
@@ -391,6 +393,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId: Int?,
         budgetId: Int?,
         transactionType: String?,
+        moneyDirection: String?,
         startDate: String,
         endDate: String
     ): Response<SortedTransactionsResponseBody> = apiService.getGroupedByEntityTransactions(
@@ -400,6 +403,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId = categoryId,
         budgetId = budgetId,
         transactionType = transactionType,
+        moneyDirection = moneyDirection,
         startDate = startDate,
         endDate = endDate
     )

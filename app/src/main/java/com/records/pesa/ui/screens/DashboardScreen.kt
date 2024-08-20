@@ -6,6 +6,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,7 +98,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 86.0
+    val appVersion = 87.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {
@@ -218,244 +220,516 @@ fun DashboardScreen(
 
     val oneMonthBack = LocalDate.now().minusMonths(1).month
 
-
-    Column(
-        modifier = Modifier
-            .padding(
-                top = 8.dp,
-                start = 16.dp,
-                end = 16.dp,
-                bottom = 16.dp
-            )
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        HeaderSection(
-            totalInToday = totalInToday,
-            totalOutToday = totalOutToday,
-            currentBalance = currentBalance,
-            firstTransactionDate = firstTransactionDate,
-            onToggleBalanceVisibility = onToggleBalanceVisibility,
-            showBalance = showBalance
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Transactions History",
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = navigateToTransactionsScreen) {
-                Text(text = "See all")
-            }
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        transactions.take(2).forEachIndexed { index, item ->
-            TransactionItemCell(
-                transaction = item,
-                modifier = Modifier
-                    .clickable {
-                        navigateToTransactionDetailsScreen(item.transactionId.toString())
-                    }
-            )
-        }
-        Spacer(modifier = Modifier.height(20.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Categories",
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            if(transactionCategories.isEmpty()) {
-                TextButton(onClick = navigateToCategoryAdditionScreen) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Add")
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
-                    }
-
-                }
-            } else {
-                TextButton(onClick = navigateToCategoriesScreen) {
-                    Text(text = "See all")
-                }
-            }
-
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        if(transactionCategories.isNotEmpty()) {
-            transactionCategories.take(2).forEachIndexed {index, item ->
-                TransactionCategoryCell(
-                    transactionCategory = item,
-                    navigateToCategoryDetailsScreen = {
-                        if(index != 0 && !premium) {
-                            onShowSubscriptionDialog()
-                        } else {
-                            navigateToCategoryDetailsScreen(item.id.toString())
-                        }
-                    }
-                )
-            }
-        } else {
-            Text(
-                text = "Create categories and add transactions to them to analyze the money flow in each category",
-                textAlign = TextAlign.Center,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Light,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                TextButton(onClick = { selectMonthExpanded = !selectMonthExpanded }
+    BoxWithConstraints {
+        when(maxWidth) {
+            in 0.dp..320.dp -> {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            top = 8.dp,
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp
+                        )
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = selectedMonth)
-                        if(selectMonthExpanded) {
-                            Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
-                        } else {
-                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
-                        }
-                    }
-                }
-                DropdownMenu(
-                    expanded = selectMonthExpanded,
-                    onDismissRequest = { selectMonthExpanded = !selectMonthExpanded }
-                ) {
-                    Column(
+                    HeaderSection(
+                        totalInToday = totalInToday,
+                        totalOutToday = totalOutToday,
+                        currentBalance = currentBalance,
+                        firstTransactionDate = firstTransactionDate,
+                        onToggleBalanceVisibility = onToggleBalanceVisibility,
+                        showBalance = showBalance,
                         modifier = Modifier
-                            .height(200.dp)
-                            .verticalScroll(rememberScrollState())
+                            .fillMaxWidth()
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        selectableMonths.forEach {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(text = it)
-                                },
-                                onClick = {
-
-                                    if (Month.valueOf(it.uppercase()) < (oneMonthBack) && !premium) {
-                                        selectMonthExpanded = !selectMonthExpanded
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        onSelectMonth(it)
-                                        selectMonthExpanded = !selectMonthExpanded
-                                    }
-
-                                }
+                        Text(
+                            text = "Transactions History",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = navigateToTransactionsScreen) {
+                            Text(
+                                text = "See all",
+                                fontSize = 15.sp
                             )
                         }
                     }
-                }
-
-            }
-            Spacer(modifier = Modifier.width(5.dp))
-            Column {
-                TextButton(onClick = { selectYearExpanded = !selectYearExpanded }
-                ) {
+//        Spacer(modifier = Modifier.height(5.dp))
+                    transactions.take(2).forEachIndexed { index, item ->
+                        TransactionItemCell(
+                            transaction = item,
+                            modifier = Modifier
+                                .clickable {
+                                    navigateToTransactionDetailsScreen(item.transactionId.toString())
+                                }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = selectedYear)
-                        if(selectYearExpanded) {
-                            Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                        Text(
+                            text = "Categories",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(transactionCategories.isEmpty()) {
+                            TextButton(onClick = navigateToCategoryAdditionScreen) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Add",
+                                        fontSize = 15.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
+                                }
+
+                            }
                         } else {
-                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                            TextButton(onClick = navigateToCategoriesScreen) {
+                                Text(
+                                    text = "See all",
+                                    fontSize = 15.sp
+                                )
+                            }
                         }
+
                     }
-                }
-                DropdownMenu(
-                    expanded = selectYearExpanded,
-                    onDismissRequest = { selectYearExpanded = !selectYearExpanded }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .height(200.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        selectableYears.forEach {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(text = it)
-                                },
-                                onClick = {
-                                    if(!premium) {
-                                        selectYearExpanded = !selectYearExpanded
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if(transactionCategories.isNotEmpty()) {
+                        transactionCategories.take(2).forEachIndexed {index, item ->
+                            TransactionCategoryCell(
+                                transactionCategory = item,
+                                navigateToCategoryDetailsScreen = {
+                                    if(index != 0 && !premium) {
                                         onShowSubscriptionDialog()
                                     } else {
-                                        selectYearExpanded = !selectYearExpanded
-                                        onSelectYear(it)
+                                        navigateToCategoryDetailsScreen(item.id.toString())
                                     }
-
                                 }
                             )
                         }
+                    } else {
+                        Text(
+                            text = "Create categories and add transactions to them to analyze the money flow in each category",
+                            textAlign = TextAlign.Center,
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Light,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            TextButton(onClick = { selectMonthExpanded = !selectMonthExpanded }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = selectedMonth,
+                                        fontSize = 14.sp
+                                    )
+                                    if(selectMonthExpanded) {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                    }
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = selectMonthExpanded,
+                                onDismissRequest = { selectMonthExpanded = !selectMonthExpanded }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    selectableMonths.forEach {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(text = it)
+                                            },
+                                            onClick = {
+
+                                                if (Month.valueOf(it.uppercase()) < (oneMonthBack) && !premium) {
+                                                    selectMonthExpanded = !selectMonthExpanded
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    onSelectMonth(it)
+                                                    selectMonthExpanded = !selectMonthExpanded
+                                                }
+
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                        }
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Column {
+                            TextButton(onClick = { selectYearExpanded = !selectYearExpanded }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = selectedYear,
+                                        fontSize = 14.sp
+                                    )
+                                    if(selectYearExpanded) {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                    }
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = selectYearExpanded,
+                                onDismissRequest = { selectYearExpanded = !selectYearExpanded }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    selectableYears.forEach {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(text = it)
+                                            },
+                                            onClick = {
+                                                if(!premium) {
+                                                    selectYearExpanded = !selectYearExpanded
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    selectYearExpanded = !selectYearExpanded
+                                                    onSelectYear(it)
+                                                }
+
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if(monthlyTransactions.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_downward),
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = monthlyTotalIn,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.surfaceTint
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_upward),
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = monthlyTotalOut,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        BarWithLineChart(
+                            transactions = monthlyTransactions,
+                            maxAmount = maxAmount,
+                            moneyInPointsData = moneyInPointsData,
+                            moneyOutPointsData = moneyOutPointsData,
+                            modifier = Modifier
+                                .height(350.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "No transactions for this month",
+                            textAlign = TextAlign.Center,
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Light,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                        )
+                    }
+
                 }
             }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            top = 8.dp,
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp
+                        )
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    HeaderSection(
+                        totalInToday = totalInToday,
+                        totalOutToday = totalOutToday,
+                        currentBalance = currentBalance,
+                        firstTransactionDate = firstTransactionDate,
+                        onToggleBalanceVisibility = onToggleBalanceVisibility,
+                        showBalance = showBalance,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Transactions History",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = navigateToTransactionsScreen) {
+                            Text(text = "See all")
+                        }
+                    }
+//        Spacer(modifier = Modifier.height(5.dp))
+                    transactions.take(2).forEachIndexed { index, item ->
+                        TransactionItemCell(
+                            transaction = item,
+                            modifier = Modifier
+                                .clickable {
+                                    navigateToTransactionDetailsScreen(item.transactionId.toString())
+                                }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Categories",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if(transactionCategories.isEmpty()) {
+                            TextButton(onClick = navigateToCategoryAdditionScreen) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Add")
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
+                                }
+
+                            }
+                        } else {
+                            TextButton(onClick = navigateToCategoriesScreen) {
+                                Text(text = "See all")
+                            }
+                        }
+
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if(transactionCategories.isNotEmpty()) {
+                        transactionCategories.take(2).forEachIndexed {index, item ->
+                            TransactionCategoryCell(
+                                transactionCategory = item,
+                                navigateToCategoryDetailsScreen = {
+                                    if(index != 0 && !premium) {
+                                        onShowSubscriptionDialog()
+                                    } else {
+                                        navigateToCategoryDetailsScreen(item.id.toString())
+                                    }
+                                }
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Create categories and add transactions to them to analyze the money flow in each category",
+                            textAlign = TextAlign.Center,
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Light,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            TextButton(onClick = { selectMonthExpanded = !selectMonthExpanded }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = selectedMonth)
+                                    if(selectMonthExpanded) {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                    }
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = selectMonthExpanded,
+                                onDismissRequest = { selectMonthExpanded = !selectMonthExpanded }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    selectableMonths.forEach {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(text = it)
+                                            },
+                                            onClick = {
+
+                                                if (Month.valueOf(it.uppercase()) < (oneMonthBack) && !premium) {
+                                                    selectMonthExpanded = !selectMonthExpanded
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    onSelectMonth(it)
+                                                    selectMonthExpanded = !selectMonthExpanded
+                                                }
+
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                        }
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Column {
+                            TextButton(onClick = { selectYearExpanded = !selectYearExpanded }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = selectedYear)
+                                    if(selectYearExpanded) {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null)
+                                    }
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = selectYearExpanded,
+                                onDismissRequest = { selectYearExpanded = !selectYearExpanded }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    selectableYears.forEach {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(text = it)
+                                            },
+                                            onClick = {
+                                                if(!premium) {
+                                                    selectYearExpanded = !selectYearExpanded
+                                                    onShowSubscriptionDialog()
+                                                } else {
+                                                    selectYearExpanded = !selectYearExpanded
+                                                    onSelectYear(it)
+                                                }
+
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
 
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        if(monthlyTransactions.isNotEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.arrow_downward),
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = monthlyTotalIn,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.surfaceTint
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Icon(
-                    painter = painterResource(id = R.drawable.arrow_upward),
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = monthlyTotalOut,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
-                )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if(monthlyTransactions.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_downward),
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = monthlyTotalIn,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.surfaceTint
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_upward),
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = monthlyTotalOut,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        BarWithLineChart(
+                            transactions = monthlyTransactions,
+                            maxAmount = maxAmount,
+                            moneyInPointsData = moneyInPointsData,
+                            moneyOutPointsData = moneyOutPointsData,
+                            modifier = Modifier
+                                .height(350.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "No transactions for this month",
+                            textAlign = TextAlign.Center,
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Light,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                        )
+                    }
+
+                }
             }
-            BarWithLineChart(
-                transactions = monthlyTransactions,
-                maxAmount = maxAmount,
-                moneyInPointsData = moneyInPointsData,
-                moneyOutPointsData = moneyOutPointsData,
-                modifier = Modifier
-                    .height(350.dp)
-            )
-        } else {
-            Text(
-                text = "No transactions for this month",
-                textAlign = TextAlign.Center,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Light,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-            )
         }
-
     }
+
+
 }
 
 
@@ -470,98 +744,220 @@ fun HeaderSection(
     onToggleBalanceVisibility: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
-        ElevatedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Column {
-                Text(
-                    text = "M-PESA transactions since $firstTransactionDate",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(10.dp)
-                )
-            }
 
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Account balance"
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = currentBalance,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .graphicsLayer {
-                        if (!showBalance) {
-                            alpha = 0.0f // Adjust the alpha to make the text semi-transparent
-                            shape = RectangleShape
-                            clip = true
+    BoxWithConstraints(
+        modifier = modifier
+    ) {
+        Log.d("HEIGHT", maxHeight.toString())
+        Log.d("WIDTH", maxWidth.toString())
+        when(this.maxWidth) {
+            in (0.dp..320.dp) -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Column {
+                            Text(
+                                text = "M-PESA transactions since $firstTransactionDate",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                            )
+                        }
+
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Account balance"
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = currentBalance,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    if (!showBalance) {
+                                        alpha =
+                                            0.0f // Adjust the alpha to make the text semi-transparent
+                                        shape = RectangleShape
+                                        clip = true
+                                    }
+                                }
+                                .blur(if (!showBalance) 4.dp else 0.dp) // Apply blur only when showBalance is false
+                        )
+                        IconButton(
+                            onClick = onToggleBalanceVisibility
+                        ) {
+                            Icon(
+                                painter = if (showBalance) painterResource(id = R.drawable.visibility_off) else painterResource(
+                                    id = R.drawable.visibility_on
+                                ),
+                                contentDescription = null
+                            )
                         }
                     }
-                    .blur(if (!showBalance) 4.dp else 0.dp) // Apply blur only when showBalance is false
-            )
-            IconButton(
-                onClick = onToggleBalanceVisibility
-            ) {
-                Icon(
-                    painter = if (showBalance) painterResource(id = R.drawable.visibility_off) else painterResource(id = R.drawable.visibility_on),
-                    contentDescription = null
-                )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "${formatLocalDate(LocalDate.now())} (today)")
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(
-                    horizontal = 16.dp
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${formatLocalDate(LocalDate.now())} (today)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(
+//                                horizontal = 16.dp
+                            )
+                    ) {
+                        Column(
+                            modifier = Modifier
+//                                .padding(16.dp)
+                        ) {
+                            Text(text = "Money in: ")
+                            Text(
+                                text = totalInToday,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.surfaceTint
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        VerticalDivider(
+//                            thickness = 3.dp,
+                            modifier = Modifier
+                                .height(10.dp)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Column(
+                            modifier = Modifier
+//                                .padding(16.dp)
+                        ) {
+                            Text(text = "Money out: ")
+                            Text(
+                                text = totalOutToday,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            } else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Column {
+                        Text(
+                            text = "M-PESA transactions since $firstTransactionDate",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .padding(10.dp)
+                        )
+                    }
+
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Account balance"
                 )
-        ) {
-            Card {
-                Box {
-                    Row(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = currentBalance,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier
-                            .padding(16.dp)
+                            .graphicsLayer {
+                                if (!showBalance) {
+                                    alpha =
+                                        0.0f // Adjust the alpha to make the text semi-transparent
+                                    shape = RectangleShape
+                                    clip = true
+                                }
+                            }
+                            .blur(if (!showBalance) 4.dp else 0.dp) // Apply blur only when showBalance is false
+                    )
+                    IconButton(
+                        onClick = onToggleBalanceVisibility
                     ) {
-                        Icon(painter = painterResource(id = R.drawable.arrow_downward), contentDescription = null)
-                        Text(
-                            text = totalInToday,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.surfaceTint
+                        Icon(
+                            painter = if (showBalance) painterResource(id = R.drawable.visibility_off) else painterResource(
+                                id = R.drawable.visibility_on
+                            ),
+                            contentDescription = null
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "${formatLocalDate(LocalDate.now())} (today)")
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(
+                            horizontal = 16.dp
+                        )
+                ) {
+                    Card {
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.arrow_downward),
+                                    contentDescription = null
+                                )
+                                Text(
+                                    text = totalInToday,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.surfaceTint
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Card {
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.arrow_upward),
+                                    contentDescription = null
+                                )
+                                Text(
+                                    text = totalOutToday,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Card {
-                Box {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                    ) {
-                        Icon(painter = painterResource(id = R.drawable.arrow_upward), contentDescription = null)
-                        Text(
-                            text = totalOutToday,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
     }
 
 }
