@@ -27,8 +27,10 @@ import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.transaction.IndividualSortedTransactionsResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.transaction.SingleTransactionResponseBody
+import com.records.pesa.models.transaction.TransactionTypeResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
@@ -51,8 +53,8 @@ interface ApiRepository {
     suspend fun getMoneyIn(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
     suspend fun getMoneyOut(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, latest: Boolean, startDate: String, endDate: String): Response<TransactionResponseBody>
 
-    suspend fun getMoneyInSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
-    suspend fun getMoneyOutSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<SortedTransactionsResponseBody>
+    suspend fun getMoneyInSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<IndividualSortedTransactionsResponseBody>
+    suspend fun getMoneyOutSortedTransactions(token: String, userId: Int, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyIn: Boolean, orderByAmount: Boolean, ascendingOrder: Boolean, startDate: String, endDate: String): Response<IndividualSortedTransactionsResponseBody>
 
     suspend fun getCurrentBalance(token: String, userId: Int): Response<CurrentBalanceResponseBody>
 
@@ -102,10 +104,11 @@ interface ApiRepository {
     suspend fun paySubscriptionFee(token: String, paymentPayload: PaymentPayload): Response<PaymentResponseBody>
     suspend fun subscriptionPaymentStatus(token: String, subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload): Response<SubscriptionStatusResponseBody>
     suspend fun getDashboardDetails(token: String, userId: Int, date: String): Response<DashboardDetailsResponseBody>
-    suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, startDate: String, endDate: String): Response<ResponseBody>
+    suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyDirection: String?, startDate: String, endDate: String): Response<ResponseBody>
     suspend fun getSingleTransaction(token: String, transactionId: Int): Response<SingleTransactionResponseBody>
     suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
     suspend fun generateReportForMultipleCategories(token: String, categoryReportPayload: CategoryReportPayload): Response<ResponseBody>
+    suspend fun getTransactionTypesDashboard(token: String, userId: Int, startDate: String, endDate: String): Response<TransactionTypeResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
@@ -203,7 +206,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         ascendingOrder: Boolean,
         startDate: String,
         endDate: String
-    ): Response<SortedTransactionsResponseBody> = apiService.getMoneyInSortedTransactions(
+    ): Response<IndividualSortedTransactionsResponseBody> = apiService.getMoneyInSortedTransactions(
         token = "Bearer $token",
         userId = userId,
         entity = entity,
@@ -229,7 +232,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         ascendingOrder: Boolean,
         startDate: String,
         endDate: String
-    ): Response<SortedTransactionsResponseBody> = apiService.getMoneyOutSortedTransactions(
+    ): Response<IndividualSortedTransactionsResponseBody> = apiService.getMoneyOutSortedTransactions(
         token = "Bearer $token",
         userId = userId,
         entity = entity,
@@ -524,6 +527,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId: Int?,
         budgetId: Int?,
         transactionType: String?,
+        moneyDirection: String?,
         startDate: String,
         endDate: String
     ): Response<ResponseBody> = apiService.getAllTransactionsReport(
@@ -533,6 +537,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         categoryId = categoryId,
         budgetId = budgetId,
         transactionType = transactionType,
+        moneyDirection = moneyDirection,
         startDate = startDate,
         endDate = endDate
     )
@@ -552,6 +557,18 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     ): Response<ResponseBody> = apiService.generateReportForMultipleCategories(
         token = "Bearer $token",
         categoryReportPayload = categoryReportPayload
+    )
+
+    override suspend fun getTransactionTypesDashboard(
+        token: String,
+        userId: Int,
+        startDate: String,
+        endDate: String
+    ): Response<TransactionTypeResponseBody> = apiService.getTransactionTypesDashboard(
+        token = "Bearer $token",
+        userId = userId,
+        startDate = startDate,
+        endDate = endDate
     )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {

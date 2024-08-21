@@ -75,8 +75,8 @@ object SingleEntityTransactionsScreenDestination: AppNavigation {
     val startDate: String = "startDate"
     val endDate: String = "endDate"
     val times: String = "times"
-    val moneyIn: String = "moneyIn"
-    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyIn}"
+    val moneyDirection: String = "moneyDirection"
+    val routeWithArgs: String = "$route/{$userId}/{$transactionType}/{$entity}/{$startDate}/{$endDate}/{$times}/{$moneyDirection}"
 }
 @OptIn(ExperimentalMaterialApi::class)
 @Composable

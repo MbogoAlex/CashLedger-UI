@@ -26,8 +26,10 @@ import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.transaction.IndividualSortedTransactionsResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.transaction.SingleTransactionResponseBody
+import com.records.pesa.models.transaction.TransactionTypeResponseBody
 import com.records.pesa.models.user.PasswordUpdatePayload
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.models.user.UserLoginResponseBody
@@ -127,7 +129,7 @@ interface ApiService {
         @Query("ascendingOrder") ascendingOrder: Boolean,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
-    ): Response<SortedTransactionsResponseBody>
+    ): Response<IndividualSortedTransactionsResponseBody>
 
     @GET("transaction/sorted/{userId}")
     suspend fun getMoneyOutSortedTransactions(
@@ -142,7 +144,7 @@ interface ApiService {
         @Query("ascendingOrder") ascendingOrder: Boolean,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
-    ): Response<SortedTransactionsResponseBody>
+    ): Response<IndividualSortedTransactionsResponseBody>
 
     @GET("transaction/balance/{userId}")
     suspend fun getCurrentBalance(
@@ -347,6 +349,7 @@ interface ApiService {
         @Query("categoryId") categoryId: Int?,
         @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
+        @Query("moneyDirection") moneyDirection: String?,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<ResponseBody>
@@ -365,4 +368,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body categoryReportPayload: CategoryReportPayload
     ): Response<ResponseBody>
+
+    @GET("transaction/transactiontype/{userId}")
+    suspend fun getTransactionTypesDashboard(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int,
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String,
+    ): Response<TransactionTypeResponseBody>
 }

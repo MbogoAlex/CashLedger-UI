@@ -296,39 +296,44 @@ fun CategoriesScreen(
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .clickable {
-                        if(categories.isNotEmpty() && !premium) {
-                            onShowSubscriptionDialog()
-                        } else {
-                            navigateToCategoryAdditionScreen()
+            if(!filteringOn) {
+                Box(
+                    modifier = Modifier
+                        .clickable {
+                            if(categories.isNotEmpty() && !premium) {
+                                onShowSubscriptionDialog()
+                            } else {
+                                navigateToCategoryAdditionScreen()
+                            }
                         }
-                    }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Add",
-                        color = MaterialTheme.colorScheme.surfaceTint,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                    Icon(
-                        tint = MaterialTheme.colorScheme.surfaceTint,
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add category",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Add",
+                            color = MaterialTheme.colorScheme.surfaceTint,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add category",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
                 }
             }
+
         }
 
-
-
         if(filteringOn) {
+            Text(
+                text = "Select report date range",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
             DateRangePicker(
                 premium = premium,
                 startDate = startDate,
@@ -358,7 +363,7 @@ fun CategoriesScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(
-                    enabled = downloadingStatus != DownloadingStatus.LOADING,
+                    enabled = downloadingStatus != DownloadingStatus.LOADING && categories.isNotEmpty(),
                     onClick = onFilter
                 ) {
                     Row(
@@ -568,22 +573,15 @@ fun SelectableCategoryCell(
             .fillMaxWidth()
     ) {
         Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .padding(screenWidth(x = 10.0))
         ) {
-            Column {
-                Text(
-                    text = category.name,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text =  if(category.transactions.size > 1) "${category.transactions.size} transactions" else "${category.transactions.size} transaction",
-                    fontStyle = FontStyle.Italic,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    fontWeight = FontWeight.Light
-                )
-            }
+            Text(
+                text = category.name,
+                fontSize = screenFontSize(x = 14.0).sp,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.weight(1f))
             if(selectedCategories.contains(category.id)) {
                 IconButton(onClick = { onRemoveCategory(category.id) }) {

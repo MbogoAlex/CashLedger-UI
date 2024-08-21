@@ -127,7 +127,7 @@ object TransactionsScreenDestination: AppNavigation {
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun TransactionsScreenComposable(
-    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
     showBackArrow: Boolean,
@@ -354,8 +354,9 @@ fun TransactionsScreenComposable(
             onSelectDateRange = {
                 showDateRangePicker = !showDateRangePicker
             },
-            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->
-                navigateToEntityTransactionsScreen(uiState.userDetails.id.toString(), transactionType, entity, uiState.startDate, uiState.endDate, times, moneyIn)
+            navigateToEntityTransactionsScreen = {transactionType, entity, times ->
+                Log.d("MONEY_DIRECTION", uiState.moneyDirection.toString())
+                navigateToEntityTransactionsScreen(uiState.userDetails.id.toString(), transactionType, entity, uiState.startDate, uiState.endDate, times, if(uiState.moneyDirection == null || uiState.moneyDirection == "null") "all" else uiState.moneyDirection!!)
             },
             categoryName = uiState.categoryName,
             budgetName = uiState.budgetName,
@@ -415,7 +416,7 @@ fun TransactionsScreen(
     onChangeSearchText: (searchText: String) -> Unit,
     onClearSearch: () -> Unit,
     onSelectDateRange: () -> Unit,
-    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     onShowSubscriptionDialog: () -> Unit,
     showBackArrow: Boolean,
@@ -934,7 +935,7 @@ fun TransactionsScreenPreview(
             onClearSearch = {},
             categoryName = null,
             budgetName = null,
-            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
+            navigateToEntityTransactionsScreen = {transactionType, entity, times ->  },
             navigateToPreviousScreen = {},
             onShowSubscriptionDialog = {},
             showBackArrow = true,
@@ -984,15 +985,28 @@ fun DateRangePickerDialog(
                         .padding(10.dp)
                         .fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Select date range",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 18.0).sp,
-                        modifier = Modifier
-                            .padding(
-                                start = screenWidth(x = 16.0)
-                            )
-                    )
+                    if(defaultStartDate != null) {
+                        Text(
+                            text = "Select date range (within $defaultStartDate and $defaultEndDate)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 18.0).sp,
+                            modifier = Modifier
+                                .padding(
+                                    start = screenWidth(x = 16.0)
+                                )
+                        )
+                    } else {
+                        Text(
+                            text = "Select date range",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 18.0).sp,
+                            modifier = Modifier
+                                .padding(
+                                    start = screenWidth(x = 16.0)
+                                )
+                        )
+                    }
+
                     DateRangePicker(
                         premium = premium,
                         startDate = startDate,

@@ -60,7 +60,7 @@ fun GroupedTransactionsScreenComposable(
     pullRefreshState: PullRefreshState,
     loadingStatus: LoadingStatus,
     sortedTransactionItems: List<SortedTransactionItem>,
-    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -82,7 +82,7 @@ fun GroupedTransactionsScreen(
     pullRefreshState: PullRefreshState?,
     loadingStatus: LoadingStatus,
     sortedTransactionItems: List<SortedTransactionItem>,
-    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -102,7 +102,7 @@ fun GroupedTransactionsScreen(
                         transaction = it,
                         modifier = Modifier
                             .clickable {
-                                navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.times.toString(), true)
+                                navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.times.toString())
                             }
                     )
                     Divider()
@@ -229,7 +229,7 @@ private fun rememberComposeHorizontalBox(): HorizontalBox {
 fun GroupedTransactionsScreenPreview() {
     CashLedgerTheme {
         GroupedTransactionsScreen(
-            navigateToEntityTransactionsScreen = {transactionType, entity, times, moneyIn ->  },
+            navigateToEntityTransactionsScreen = {transactionType, entity, times ->  },
             sortedTransactionItems = moneyInSortedTransactionItems,
             loadingStatus = LoadingStatus.INITIAL,
             pullRefreshState = null

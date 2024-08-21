@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.SortedTransactionItem
@@ -94,6 +95,7 @@ class TransactionsScreenViewModel(
                 categoryName = savedStateHandle[TransactionsScreenDestination.categoryName],
                 budgetName = savedStateHandle[TransactionsScreenDestination.budgetName],
                 defaultStartDate = defaultStartDate,
+                moneyDirection = moneyDirection,
                 defaultEndDate = defaultEndDate
             )
         }
@@ -399,58 +401,6 @@ class TransactionsScreenViewModel(
         }
     }
 
-    fun getMoneyOutSortedTransactions() {
-        Log.i("LOADING_TRANSACTIONS", "LOADING TRANSACTIONS")
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.LOADING
-            )
-        }
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getMoneyOutSortedTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyIn = false,
-                    orderByAmount = true,
-                    ascendingOrder = false,
-                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
-                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            moneyOutSorted = response.body()?.data?.transaction?.transactions!!,
-                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("GetTransactionsResponseError", response.toString())
-                }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("GetTransactionsException", e.toString())
-            }
-        }
-    }
-
-
-
     fun fetchReportAndSave(context: Context, saveUri: Uri?) {
         _uiState.update {
             it.copy(
@@ -466,6 +416,7 @@ class TransactionsScreenViewModel(
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    moneyDirection = null,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate,
                 )
@@ -619,7 +570,7 @@ class TransactionsScreenViewModel(
             it.copy(
                 defaultTransactionType = transactionType,
                 selectableTransactionTypes = selectableTypes,
-                transactionType = transactionType ?: "All types",
+                transactionType = if(transactionType.isNotNull()) if(transactionType == "All money in") "All types" else if(transactionType == "All money out") "All types" else transactionType!! else "All types",
                 moneyDirection = moneyDirection
 
             )

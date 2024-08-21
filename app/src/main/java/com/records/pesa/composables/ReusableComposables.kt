@@ -32,10 +32,12 @@ import com.records.pesa.functions.formatDate
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.transaction.IndividualSortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
+import kotlin.math.abs
 import kotlin.math.absoluteValue
 
 @Composable
@@ -247,5 +249,93 @@ fun TransactionCategoryCell(
         }
     }
 
+}
+
+
+@Composable
+fun IndividualSortedTransactionItemCell(
+    transaction: IndividualSortedTransactionItem,
+    moneyIn: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = modifier
+            .padding(
+                top = screenHeight(x = 10.0),
+                bottom = screenHeight(x = 10.0)
+            )
+    ) {
+        Row {
+            Card {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        //                    .background(Color.Red)
+                        .padding(screenWidth(x = 16.0))
+                ) {
+                    Text(
+                        text = transaction.nickName?.let { it.substring(0, 2).uppercase() }
+                            ?: transaction.name.substring(0, 2).uppercase(),
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+            Column {
+                Text(
+                    text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() } ?: if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                Text(
+                    text = transaction.transactionType,
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    //                    fontWeight = FontWeight.Bold
+                )
+
+
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                if(moneyIn) {
+                    Text(
+                        text = "+ ${formatMoneyValue(transaction.amount)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.surfaceTint
+                    )
+                } else {
+                    Text(
+                        text = " - ${formatMoneyValue(abs(transaction.amount))}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    if (transaction.amount.toDouble() != 0.0) {
+                        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
+                        Text(
+                            text = "Cost: - ${formatMoneyValue(transaction.transactionCost.absoluteValue)}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 12.0).sp,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${transaction.times} times",
+                    fontSize = screenFontSize(x = 12.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+            }
+
+        }
+    }
 }
 

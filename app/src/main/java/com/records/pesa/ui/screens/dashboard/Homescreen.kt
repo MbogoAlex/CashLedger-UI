@@ -83,6 +83,7 @@ import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
 import com.records.pesa.ui.screens.transactionTypes.TransactionTypesScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
+import com.records.pesa.ui.screens.transactions.sorted.SortedTransactionsScreenComposable
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
@@ -107,7 +108,7 @@ fun HomeScreenComposable(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
-    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
@@ -134,6 +135,11 @@ fun HomeScreenComposable(
             name = "All transactions",
             icon = R.drawable.transactions,
             tab = HomeScreenTab.ALL_TRANSACTIONS
+        ),
+        HomeScreenTabItem(
+            name = "Sorted transactions",
+            icon = R.drawable.sorted,
+            tab = HomeScreenTab.SORTED_TRANSACTIONS
         ),
         HomeScreenTabItem(
             name = "Transaction types",
@@ -260,7 +266,7 @@ fun HomeScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
-    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyIn: Boolean) -> Unit,
+    navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
     onReviewApp: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
@@ -434,15 +440,22 @@ fun HomeScreen(
                         navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                         navigateToPreviousScreen = navigateToPreviousScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
-                        navigateToSubscriptionScreen = {},
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
                         showBackArrow = false,
                         navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
                     )
                 }
+                HomeScreenTab.SORTED_TRANSACTIONS -> {
+                    SortedTransactionsScreenComposable(
+                        navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen
+                    )
+                }
                 HomeScreenTab.TRANSACTION_TYPES -> {
                     TransactionTypesScreenComposable(
-                        navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType
+                        navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                     )
                 }
                 HomeScreenTab.CATEGORIES -> {
@@ -680,7 +693,7 @@ fun HomeScreenPreview() {
             navigateToPreviousScreen = {},
             navigateToHomeScreen = {},
             navigateToLoginScreenWithArgs = {phoneNumber, password ->  },
-            navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyIn ->  },
+            navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyDirection ->  },
             darkTheme = false,
             onSwitchTheme = {},
             onReviewApp = {},

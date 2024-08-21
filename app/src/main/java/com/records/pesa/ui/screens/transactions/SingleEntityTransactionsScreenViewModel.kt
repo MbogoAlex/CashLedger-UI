@@ -46,7 +46,7 @@ class SingleEntityTransactionsScreenViewModel(
     private val _uiState = MutableStateFlow(SingleEntityTransactionsScreenUiState())
     val uiState: StateFlow<SingleEntityTransactionsScreenUiState> = _uiState.asStateFlow()
 
-    private val moneyIn: String? = savedStateHandle[SingleEntityTransactionsScreenDestination.moneyIn]
+    private val moneyDirection: String? = savedStateHandle[SingleEntityTransactionsScreenDestination.moneyDirection]
 
     fun loadStartupData() {
         _uiState.update {
@@ -57,13 +57,14 @@ class SingleEntityTransactionsScreenViewModel(
                 times = savedStateHandle[SingleEntityTransactionsScreenDestination.times] ?: "",
                 startDate = savedStateHandle[SingleEntityTransactionsScreenDestination.startDate] ?: "",
                 endDate = savedStateHandle[SingleEntityTransactionsScreenDestination.endDate] ?: "",
-                moneyIn = moneyIn == "true",
+                moneyIn = moneyDirection == "in",
             )
         }
         getUserDetails()
     }
 
     fun getTransactions() {
+        Log.d("MONEY_IN", moneyDirection.toString())
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.LOADING
@@ -79,7 +80,7 @@ class SingleEntityTransactionsScreenViewModel(
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     latest = true,
-                    moneyDirection = null,
+                    moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate
                 )
@@ -130,6 +131,7 @@ class SingleEntityTransactionsScreenViewModel(
     }
 
     fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+
         _uiState.update {
             it.copy(
                 downloadingStatus = DownloadingStatus.LOADING
@@ -144,6 +146,7 @@ class SingleEntityTransactionsScreenViewModel(
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                    moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate,
                 )

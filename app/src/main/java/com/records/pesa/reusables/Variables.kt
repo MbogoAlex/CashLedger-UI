@@ -11,6 +11,7 @@ import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.transaction.ItemCategory
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.transaction.IndividualSortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import java.time.format.DateTimeFormatter
 
@@ -505,4 +506,95 @@ val groupedTransactions = listOf(
     GroupedTransactionData("2024-06-13", 7, 50.0f, 401.0f,  6.0f),
 )
 
+val individualSortedTransactionItem = IndividualSortedTransactionItem(
+    transactionType = "Send Money",
+    times = 3,
+    amount = 300.0,
+    nickName = "Dad",
+    name = "Josphat Karoki",
+    transactionCost = 22.0
+)
+
+val individualSortedTransactionItems = listOf(
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    ),
+    IndividualSortedTransactionItem(
+        transactionType = "Send Money",
+        times = 3,
+        amount = 300.0,
+        nickName = "Dad",
+        name = "Josphat Karoki",
+        transactionCost = 22.0
+    )
+)
 
