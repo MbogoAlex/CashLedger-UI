@@ -490,7 +490,7 @@ fun BudgetInfoScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
             Text(
-                text = "Reached limit on ${budgetDt.limitReachedAt}",
+                text = "Reached limit at ${formatIsoDateTime(LocalDateTime.parse(budgetDt.limitReachedAt))}",
                 fontSize = screenFontSize(x = 14.0).sp
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))

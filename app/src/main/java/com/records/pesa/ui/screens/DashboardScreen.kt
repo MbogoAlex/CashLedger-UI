@@ -102,7 +102,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 93.0
+    val appVersion = 95.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {
@@ -312,12 +312,21 @@ fun DashboardScreen(
                 TransactionCategoryCell(
                     transactionCategory = item,
                     navigateToCategoryDetailsScreen = {
+                        Log.d("PREMIUM", premium.toString())
                         if(index != 0 && !premium) {
                             onShowSubscriptionDialog()
                         } else {
                             navigateToCategoryDetailsScreen(item.id.toString())
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .clickable {
+                            if(index != 0 && !premium) {
+                                onShowSubscriptionDialog()
+                            } else {
+                                navigateToCategoryDetailsScreen(item.id.toString())
+                            }
+                        }
                 )
             }
         } else {

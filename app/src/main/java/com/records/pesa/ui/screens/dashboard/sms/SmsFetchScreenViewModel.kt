@@ -146,7 +146,7 @@ class SmsFetchScreenViewModel(
             )
         }
 
-        val batchSize = 1000
+        val batchSize = 2000
         val totalBatches = (messages.size + batchSize - 1) / batchSize
 
         viewModelScope.launch {

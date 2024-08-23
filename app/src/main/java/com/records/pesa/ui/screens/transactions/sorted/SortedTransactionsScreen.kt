@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.transactions.sorted
 import android.app.DatePickerDialog
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.DropdownMenu
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -83,8 +84,10 @@ import java.time.ZoneId
 fun SortedTransactionsScreenComposable(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler(onBack = navigateToHomeScreen)
     val viewModel: SortedTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
@@ -250,6 +253,7 @@ fun SortedTransactionsScreen(
                 text = "Sorted by ",
                 fontSize = screenFontSize(x = 14.0).sp
             )
+
             Column {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -271,11 +275,19 @@ fun SortedTransactionsScreen(
                             .size(screenWidth(x = 24.0))
                     )
                 }
-                DropdownMenu(expanded = showSortDropdown, onDismissRequest = omShowSortDropDown) {
+
+                DropdownMenu(
+                    expanded = showSortDropdown,
+                    onDismissRequest = omShowSortDropDown,
+                    modifier = Modifier
+                ) {
                     sortOptions.forEach {
                         DropdownMenuItem(
                             text = {
-                                Text(text = it)
+                                Text(
+                                    text = it,
+                                    fontSize = screenFontSize(x = 14.0).sp
+                                )
                             },
                             onClick = {
                                 if(it == "Amount") {

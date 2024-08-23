@@ -32,7 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
@@ -210,6 +210,14 @@ fun TransactionsScreenComposable(
         mutableStateOf(false)
     }
 
+    var showDownloadReportDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var reportType by rememberSaveable {
+        mutableStateOf("PDF")
+    }
+
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
         onRefresh = {
@@ -226,7 +234,8 @@ fun TransactionsScreenComposable(
         uri?.let {
             viewModel.fetchReportAndSave(
                 context = context,
-                saveUri = it
+                saveUri = it,
+                reportType = reportType
             )
         }
     }
@@ -256,14 +265,26 @@ fun TransactionsScreenComposable(
         Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
         val uri = uiState.downLoadUri
-        val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/pdf")
-            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+
+        if(reportType == "PDF") {
+            val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            shouldPromptForRating = true
+
+            context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
+        } else if(reportType == "CSV") {
+            val csvIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "text/csv")
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            shouldPromptForRating = true
+
+            context.startActivity(Intent.createChooser(csvIntent, "Open CSV with:"))
         }
-
-        shouldPromptForRating = true
-
-        context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
 
     } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
         Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
@@ -279,6 +300,25 @@ fun TransactionsScreenComposable(
             onConfirm = {
                 showSubscriptionDialog = !showSubscriptionDialog
                 navigateToSubscriptionScreen()
+            }
+        )
+    }
+
+    if(showDownloadReportDialog) {
+        DownloadReportDialog(
+            startDate = uiState.startDate,
+            endDate = uiState.endDate,
+            onDismiss = {
+                showDownloadReportDialog = !showDownloadReportDialog
+            },
+            onConfirm = { type ->
+                reportType = type
+                showDownloadReportDialog = !showDownloadReportDialog
+                if(reportType == "PDF") {
+                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+                } else if(reportType == "CSV") {
+                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.csv")
+                }
             }
         )
     }
@@ -345,8 +385,8 @@ fun TransactionsScreenComposable(
                 showDateRangePicker = !showDateRangePicker
             },
             searchText = uiState.entity,
-            onChangeSearchText = {
-                viewModel.changeEntity(it, currentTab)
+            onChangeSearchText = { searchText ->
+                viewModel.changeEntity(searchText, currentTab)
             },
             onClearSearch = {
                 viewModel.clearSearch(currentTab)
@@ -366,7 +406,7 @@ fun TransactionsScreenComposable(
             },
             showBackArrow = showBackArrow,
             onDownloadReport = {
-                createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+                showDownloadReportDialog = !showDownloadReportDialog
             },
             downloadingStatus = uiState.downloadingStatus,
             loadingStatus = uiState.loadingStatus,
@@ -716,12 +756,17 @@ fun TransactionsScreen(
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 transactionTypes.forEach {
-                                    DropdownMenuItem(onClick = { onSelectType(it) }) {
-                                        Text(
-                                            text = it,
-                                            fontSize = screenFontSize(x = 14.0).sp,
-                                        )
-                                    }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = it,
+                                                fontSize = screenFontSize(x = 14.0).sp,
+                                            )
+                                        },
+                                        onClick = { onSelectType(it) },
+                                        modifier = Modifier
+                                            .background(MaterialTheme.colorScheme.onBackground)
+                                    )
                                     Divider()
                                 }
                             }
@@ -1034,6 +1079,104 @@ fun DateRangePickerDialog(
         }
     }
 
+}
+
+@Composable
+fun DownloadReportDialog(
+    startDate: String,
+    endDate: String,
+    onDismiss: () -> Unit,
+    onConfirm: (type: String) -> Unit,
+) {
+    val types = listOf("PDF", "CSV")
+    var selectedType by rememberSaveable {
+        mutableStateOf("PDF")
+    }
+
+    var expanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    AlertDialog(
+        title = {
+            Text(
+                text = "Report for $startDate to $endDate",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        text = {
+            Row(
+//                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Export to ",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable {
+                                expanded = !expanded
+                            }
+                    ) {
+                        Text(
+                            text = selectedType,
+                            color = MaterialTheme.colorScheme.surfaceTint,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select report type",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = {expanded = !expanded},
+                        modifier = Modifier
+                    ) {
+                        types.forEach {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = it,
+                                        fontSize = screenFontSize(x = 14.0).sp
+                                    )
+                                },
+                                onClick = {
+                                    selectedType = it
+                                    expanded = !expanded
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedType) }) {
+                Text(
+                    text = "Confirm",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
 }
 
 @Composable

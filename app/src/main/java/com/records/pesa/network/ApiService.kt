@@ -350,6 +350,7 @@ interface ApiService {
         @Query("budgetId") budgetId: Int?,
         @Query("transactionType") transactionType: String?,
         @Query("moneyDirection") moneyDirection: String?,
+        @Query("reportType") reportType: String?,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<ResponseBody>

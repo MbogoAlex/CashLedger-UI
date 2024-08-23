@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
+import com.records.pesa.R
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.BudgetDt
@@ -147,6 +149,9 @@ fun BudgetListScreenComposable(
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
             navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
             navigateToPreviousScreen = navigateToPreviousScreen,
+            getBudgets = {
+                viewModel.getBudgets()
+            },
             showBackArrow = showBackArrow
         )
     }
@@ -168,6 +173,7 @@ fun BudgetListScreen(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     showBackArrow: Boolean,
+    getBudgets: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchingOn by rememberSaveable {
@@ -322,6 +328,21 @@ fun BudgetListScreen(
             }
         }
 
+        if(loadingStatus == LoadingStatus.FAIL) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                IconButton(onClick = getBudgets) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.refresh),
+                        contentDescription = "Reload categories"
+                    )
+                }
+            }
+        }
+
         if(loadingStatus == LoadingStatus.LOADING) {
             Box(
                 contentAlignment = Alignment.TopCenter,
@@ -465,7 +486,7 @@ fun BudgetListItem(
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                     Text(
-                        text = "Reached limit on ${budgetDt.limitReachedAt}",
+                        text = "Reached limit at ${formatIsoDateTime(LocalDateTime.parse(budgetDt.limitReachedAt))}",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
@@ -520,6 +541,7 @@ fun BudgetListScreenPreview(
             navigateToBudgetCreationScreen = {},
             navigateToBudgetCreationScreenWithCategoryId = {},
             navigateToPreviousScreen = {},
+            getBudgets = {},
             showBackArrow = true
         )
     }

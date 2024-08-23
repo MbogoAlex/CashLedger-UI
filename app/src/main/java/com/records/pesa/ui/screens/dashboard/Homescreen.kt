@@ -449,13 +449,15 @@ fun HomeScreen(
                 HomeScreenTab.SORTED_TRANSACTIONS -> {
                     SortedTransactionsScreenComposable(
                         navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                        navigateToSubscriptionScreen = navigateToSubscriptionScreen
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+                        navigateToHomeScreen = navigateToHomeScreen
                     )
                 }
                 HomeScreenTab.TRANSACTION_TYPES -> {
                     TransactionTypesScreenComposable(
                         navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+                        navigateToHomeScreen = navigateToHomeScreen
                     )
                 }
                 HomeScreenTab.CATEGORIES -> {

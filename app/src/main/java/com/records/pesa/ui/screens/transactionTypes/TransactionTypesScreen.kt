@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.transactionTypes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -59,8 +60,12 @@ import java.time.LocalDate
 fun TransactionTypesScreenComposable(
     navigateToTransactionsScreen: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    BackHandler(onBack = navigateToHomeScreen)
+
     val context = LocalContext.current
     
     val viewModel: TransactionTypesScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)

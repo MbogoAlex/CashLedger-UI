@@ -163,10 +163,11 @@ class CategoriesScreenViewModel(
         }
     }
 
-    fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+    fun fetchReportAndSave(context: Context, saveUri: Uri?, reportType: String) {
         val categoryReportPayload = CategoryReportPayload(
             userId = uiState.value.userDetails.userId,
             categoryIds = uiState.value.selectedCategories,
+            reportType = reportType,
             startDate = uiState.value.startDate,
             lastDate = uiState.value.endDate
         )

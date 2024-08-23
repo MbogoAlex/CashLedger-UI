@@ -401,7 +401,7 @@ class TransactionsScreenViewModel(
         }
     }
 
-    fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+    fun fetchReportAndSave(context: Context, saveUri: Uri?, reportType: String) {
         _uiState.update {
             it.copy(
                 downloadingStatus = DownloadingStatus.LOADING
@@ -416,7 +416,8 @@ class TransactionsScreenViewModel(
                     categoryId = uiState.value.categoryId,
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyDirection = null,
+                    moneyDirection = uiState.value.moneyDirection,
+                    reportType = reportType,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate,
                 )

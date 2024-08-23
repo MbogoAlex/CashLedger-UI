@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class CategoryReportPayload(
     val userId: Int,
     val categoryIds: List<Int>,
+    val reportType: String,
     val startDate: String,
     val lastDate: String
 )

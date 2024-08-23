@@ -214,7 +214,7 @@ fun TransactionCategoryCell(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .padding(
                 bottom = screenHeight(x = 10.0)
             )

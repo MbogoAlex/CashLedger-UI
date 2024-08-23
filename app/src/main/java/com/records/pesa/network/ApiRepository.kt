@@ -104,7 +104,7 @@ interface ApiRepository {
     suspend fun paySubscriptionFee(token: String, paymentPayload: PaymentPayload): Response<PaymentResponseBody>
     suspend fun subscriptionPaymentStatus(token: String, subscriptionPaymentStatusPayload: SubscriptionPaymentStatusPayload): Response<SubscriptionStatusResponseBody>
     suspend fun getDashboardDetails(token: String, userId: Int, date: String): Response<DashboardDetailsResponseBody>
-    suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyDirection: String?, startDate: String, endDate: String): Response<ResponseBody>
+    suspend fun getAllTransactionsReport(userId: Int, token: String, entity: String?, categoryId: Int?, budgetId: Int?, transactionType: String?, moneyDirection: String?, reportType: String?, startDate: String, endDate: String): Response<ResponseBody>
     suspend fun getSingleTransaction(token: String, transactionId: Int): Response<SingleTransactionResponseBody>
     suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
     suspend fun generateReportForMultipleCategories(token: String, categoryReportPayload: CategoryReportPayload): Response<ResponseBody>
@@ -528,6 +528,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         budgetId: Int?,
         transactionType: String?,
         moneyDirection: String?,
+        reportType: String?,
         startDate: String,
         endDate: String
     ): Response<ResponseBody> = apiService.getAllTransactionsReport(
@@ -538,6 +539,7 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         budgetId = budgetId,
         transactionType = transactionType,
         moneyDirection = moneyDirection,
+        reportType = reportType,
         startDate = startDate,
         endDate = endDate
     )
