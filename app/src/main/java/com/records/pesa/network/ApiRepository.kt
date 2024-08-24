@@ -23,6 +23,7 @@ import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.FreeTrialStatusResponseBody
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
@@ -109,6 +110,7 @@ interface ApiRepository {
     suspend fun checkAppVersion(): Response<AppVersionCheckResponseBody>
     suspend fun generateReportForMultipleCategories(token: String, categoryReportPayload: CategoryReportPayload): Response<ResponseBody>
     suspend fun getTransactionTypesDashboard(token: String, userId: Int, startDate: String, endDate: String): Response<TransactionTypeResponseBody>
+    suspend fun getFreeTrialStatus(token: String, userId: Int): Response<FreeTrialStatusResponseBody>
 }
 
 class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
@@ -571,6 +573,14 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
         userId = userId,
         startDate = startDate,
         endDate = endDate
+    )
+
+    override suspend fun getFreeTrialStatus(
+        token: String,
+        userId: Int
+    ): Response<FreeTrialStatusResponseBody> = apiService.getFreeTrialStatus(
+        token = "Bearer $token",
+        userId = userId
     )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {

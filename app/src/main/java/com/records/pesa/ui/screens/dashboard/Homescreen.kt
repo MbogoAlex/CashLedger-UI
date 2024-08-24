@@ -167,8 +167,21 @@ fun HomeScreenComposable(
         mutableStateOf(false)
     }
 
+    var showFreeTrialDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var currentTab by rememberSaveable {
         mutableStateOf(HomeScreenTab.HOME)
+    }
+
+    if(showFreeTrialDialog) {
+        FreeTrialDialog(
+            days = uiState.freeTrialDays,
+            onDismiss = {
+                showFreeTrialDialog = false
+            }
+        )
     }
 
     if(showSubscribeDialog) {
@@ -190,6 +203,7 @@ fun HomeScreenComposable(
             .safeDrawingPadding()
     ) {
         HomeScreen(
+            freeTrialDays = uiState.freeTrialDays,
             scope = scope,
             drawerState = drawerState,
             firstName = uiState.userDetails.firstName,
@@ -233,6 +247,9 @@ fun HomeScreenComposable(
                 )
                 context.startActivity(intent)
             },
+            onShowFreeTrialDetails = {
+                showFreeTrialDialog = !showFreeTrialDialog
+            },
             navigateToSubscriptionScreen = navigateToSubscriptionScreen,
             navigateToAccountInfoScreen = {
                 currentTab = HomeScreenTab.ACCOUNT_INFO
@@ -247,6 +264,7 @@ fun HomeScreenComposable(
 
 @Composable
 fun HomeScreen(
+    freeTrialDays: Int,
     scope: CoroutineScope?,
     drawerState: DrawerState?,
     firstName: String?,
@@ -269,6 +287,7 @@ fun HomeScreen(
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
     onReviewApp: () -> Unit,
+    onShowFreeTrialDetails: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToAccountInfoScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
@@ -350,7 +369,34 @@ fun HomeScreen(
                                 }
                             )
                         }
-                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+                        if(freeTrialDays != 0) {
+                            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .padding(
+                                        horizontal = screenWidth(x = 16.0)
+                                    )
+                            ) {
+                                Text(
+                                    text = "Free trial days: ",
+                                    fontSize = screenFontSize(x = 14.0).sp
+                                )
+                                Text(
+                                    text = freeTrialDays.toString(),
+                                    fontSize = screenFontSize(x = 14.0).sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                TextButton(onClick = onShowFreeTrialDetails) {
+                                    Text(
+                                        text = "See more",
+                                        fontSize = screenFontSize(x = 14.0).sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                         Row(
                             modifier = Modifier
                                 .clickable {
@@ -590,6 +636,42 @@ fun ThemeSwitcher(
 }
 
 @Composable
+fun FreeTrialDialog(
+    days: Int,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Free trial:",
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "We hope you’re enjoying the app! After your free trial, you can support us with a monthly fee of KES 100, paid through M-PESA. There’s no automatic deduction—it’s entirely up to you. Your support helps us maintain the app's services. Thank you!",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Text(
+                    text = "Free trial days remaining: $days",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+
+        },
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text(text = "Dismiss")
+            }
+        },
+    )
+}
+
+@Composable
 fun SubscriptionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
@@ -675,6 +757,7 @@ fun HomeScreenPreview() {
     }
     CashLedgerTheme {
         HomeScreen(
+            freeTrialDays = 0,
             scope = null,
             drawerState = null,
             firstName = null,
@@ -699,6 +782,7 @@ fun HomeScreenPreview() {
             darkTheme = false,
             onSwitchTheme = {},
             onReviewApp = {},
+            onShowFreeTrialDetails = {},
             navigateToSubscriptionScreen = {},
             navigateToAccountInfoScreen = {},
             navigateToTransactionDetailsScreen = {},

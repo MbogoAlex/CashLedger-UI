@@ -130,7 +130,7 @@ class SingleEntityTransactionsScreenViewModel(
         }
     }
 
-    fun fetchReportAndSave(context: Context, saveUri: Uri?) {
+    fun fetchReportAndSave(context: Context, saveUri: Uri?, reportType: String) {
 
         _uiState.update {
             it.copy(
@@ -147,7 +147,7 @@ class SingleEntityTransactionsScreenViewModel(
                     budgetId = uiState.value.budgetId,
                     transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
                     moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
-                    reportType = "PDF",
+                    reportType = reportType,
                     startDate = uiState.value.startDate,
                     endDate = uiState.value.endDate,
                 )

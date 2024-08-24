@@ -1082,7 +1082,7 @@ fun DateRangePickerDialog(
 }
 
 @Composable
-fun DownloadReportDialog(
+private  fun DownloadReportDialog(
     startDate: String,
     endDate: String,
     onDismiss: () -> Unit,

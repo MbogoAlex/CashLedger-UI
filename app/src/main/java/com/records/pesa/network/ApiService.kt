@@ -17,6 +17,7 @@ import com.records.pesa.models.MessagesResponseBody
 import com.records.pesa.models.SingleBudgetResponseBody
 import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.dashboard.DashboardDetailsResponseBody
+import com.records.pesa.models.payment.FreeTrialStatusResponseBody
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
@@ -377,4 +378,10 @@ interface ApiService {
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String,
     ): Response<TransactionTypeResponseBody>
+
+    @GET("payment/freetrialstatus/{userId}")
+    suspend fun getFreeTrialStatus(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: Int
+    ): Response<FreeTrialStatusResponseBody>
 }

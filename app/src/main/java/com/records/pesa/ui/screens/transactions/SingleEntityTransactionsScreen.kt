@@ -24,11 +24,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +42,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,13 +110,41 @@ fun SingleEntityTransactionsScreenComposable(
         }
     )
 
+    var showDownloadReportDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var reportType by rememberSaveable {
+        mutableStateOf("PDF")
+    }
+
     val createDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
         uri?.let {
             viewModel.fetchReportAndSave(
                 context = context,
-                saveUri = it
+                saveUri = it,
+                reportType = reportType
             )
         }
+    }
+
+    if(showDownloadReportDialog) {
+        DownloadReportDialog(
+            startDate = uiState.startDate,
+            endDate = uiState.endDate,
+            onDismiss = {
+                showDownloadReportDialog = !showDownloadReportDialog
+            },
+            onConfirm = { type ->
+                reportType = type
+                showDownloadReportDialog = !showDownloadReportDialog
+                if(reportType == "PDF") {
+                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+                } else if(reportType == "CSV") {
+                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.csv")
+                }
+            }
+        )
     }
 
 
@@ -116,11 +152,22 @@ fun SingleEntityTransactionsScreenComposable(
         Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
         val uri = uiState.downLoadUri
-        val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/pdf")
-            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+        if(reportType == "PDF") {
+            val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
+        } else if(reportType == "CSV") {
+            val csvIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "text/csv")
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            context.startActivity(Intent.createChooser(csvIntent, "Open CSV with:"))
         }
-        context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
+
     } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
         Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
@@ -139,7 +186,7 @@ fun SingleEntityTransactionsScreenComposable(
             totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
             downloadingStatus = uiState.downloadingStatus,
             onDownloadReport = {
-                createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
+                showDownloadReportDialog = !showDownloadReportDialog
             },
             loadingStatus = uiState.loadingStatus,
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
@@ -280,6 +327,104 @@ fun SingleEntityTransactionsScreen(
 
     }
 
+}
+
+@Composable
+private fun DownloadReportDialog(
+    startDate: String,
+    endDate: String,
+    onDismiss: () -> Unit,
+    onConfirm: (type: String) -> Unit,
+) {
+    val types = listOf("PDF", "CSV")
+    var selectedType by rememberSaveable {
+        mutableStateOf("PDF")
+    }
+
+    var expanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    AlertDialog(
+        title = {
+            Text(
+                text = "Report for $startDate to $endDate",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        text = {
+            Row(
+//                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Export to ",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable {
+                                expanded = !expanded
+                            }
+                    ) {
+                        Text(
+                            text = selectedType,
+                            color = MaterialTheme.colorScheme.surfaceTint,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select report type",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = {expanded = !expanded},
+                        modifier = Modifier
+                    ) {
+                        types.forEach {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = it,
+                                        fontSize = screenFontSize(x = 14.0).sp
+                                    )
+                                },
+                                onClick = {
+                                    selectedType = it
+                                    expanded = !expanded
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedType) }) {
+                Text(
+                    text = "Confirm",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
 }
 @OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)

@@ -217,9 +217,11 @@ object AppViewModelFactory {
         }
 
         initializer {
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             HomeScreenViewModel(
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                apiRepository = apiRepository
             )
         }
 
