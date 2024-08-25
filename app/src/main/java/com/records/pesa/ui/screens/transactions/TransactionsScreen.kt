@@ -141,7 +141,7 @@ fun TransactionsScreenComposable(
     val uiState by viewModel.uiState.collectAsState()
 
     if(uiState.errorCode == 401 && uiState.loadingStatus == LoadingStatus.FAIL) {
-        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.phoneNumber)
+        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
         viewModel.resetLoadingStatus()
     }
 
@@ -765,7 +765,6 @@ fun TransactionsScreen(
                                         },
                                         onClick = { onSelectType(it) },
                                         modifier = Modifier
-                                            .background(MaterialTheme.colorScheme.onBackground)
                                     )
                                     Divider()
                                 }
