@@ -8,6 +8,12 @@ import com.records.pesa.db.DBRepositoryImpl
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.ApiRepositoryImpl
 import com.records.pesa.network.ApiService
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.category.CategoryServiceImpl
+import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.service.transaction.TransactionsServiceImpl
+import com.records.pesa.service.userAccount.UserAccountService
+import com.records.pesa.service.userAccount.UserAccountServiceImpl
 import com.records.pesa.workers.WorkersRepository
 import com.records.pesa.workers.WorkersRepositoryImpl
 import kotlinx.serialization.json.Json
@@ -18,6 +24,9 @@ interface AppContainer {
     val apiRepository: ApiRepository
     val workersRepository: WorkersRepository
     val dbRepository: DBRepository
+    val transactionService: TransactionService
+    val userAccountService: UserAccountService
+    val categoryService: CategoryService
 }
 
 class AppContainerImpl(context: Context): AppContainer {
@@ -40,6 +49,19 @@ class AppContainerImpl(context: Context): AppContainer {
 
     override val dbRepository: DBRepository by lazy {
         DBRepositoryImpl(AppDatabase.getDatabase(context).appDao())
+    }
+
+    override val transactionService: TransactionService by lazy {
+        TransactionsServiceImpl(
+            AppDatabase.getDatabase(context).transactionDao(),
+            AppDatabase.getDatabase(context).categoryDao()
+        )
+    }
+    override val userAccountService: UserAccountService by lazy {
+        UserAccountServiceImpl(AppDatabase.getDatabase(context).userDao())
+    }
+    override val categoryService: CategoryService by lazy {
+        CategoryServiceImpl(AppDatabase.getDatabase(context).categoryDao())
     }
 
     override val apiRepository: ApiRepository by lazy {

@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 
 data class LoginScreenUiState(
     val phoneNumber: String = "",
@@ -29,7 +32,8 @@ class LoginScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val workersRepository: WorkersRepository
+    private val workersRepository: WorkersRepository,
+    private val userAccountService: UserAccountService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(LoginScreenUiState())
     val uiState: StateFlow<LoginScreenUiState> = _uiState.asStateFlow()
@@ -68,6 +72,22 @@ class LoginScreenViewModel(
             try {
                 val response = apiRepository.loginUser(uiState.value.password, loginPayload)
                 if(response.isSuccessful) {
+                    val userAccount = UserAccount(
+                        id = response.body()?.data?.user?.userInfo?.id!!,
+                        fname = null,
+                        lname = null,
+                        email = null,
+                        phoneNumber = response.body()?.data?.user?.userInfo?.phoneNumber!!,
+                        password = uiState.value.password,
+                        createdAt = LocalDateTime.now()
+                    )
+                    try {
+                        userAccountService.insertUserAccount(userAccount)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+//                        Log.e("failedToSaveUserException", e.toString())
+                    }
+
                     var users = dbRepository.getUsers().first()
                     when (users.isEmpty()) {
                         true -> {

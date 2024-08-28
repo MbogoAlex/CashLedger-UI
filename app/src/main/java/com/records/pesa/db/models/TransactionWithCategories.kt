@@ -8,8 +8,10 @@ data class TransactionWithCategories(
     @Embedded val transaction: Transaction,
     @Relation(
         parentColumn = "id",
-        entityColumn = "id",
-        associateBy = Junction(TransactionCategoryCrossRef::class)
+        entityColumn = "id", // This should match the primary key column in TransactionCategory
+        associateBy = Junction(TransactionCategoryCrossRef::class,
+            parentColumn = "transactionId",
+            entityColumn = "categoryId") // Explicitly mapping the cross-reference
     )
     val categories: List<TransactionCategory>
 )

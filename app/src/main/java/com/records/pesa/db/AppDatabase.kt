@@ -8,6 +8,9 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.records.pesa.db.dao.CategoryDao
+import com.records.pesa.db.dao.TransactionsDao
+import com.records.pesa.db.dao.UserDao
 import com.records.pesa.db.migration.MIGRATION_10_11
 import com.records.pesa.db.migration.MIGRATION_11_12
 import com.records.pesa.db.migration.MIGRATION_12_13
@@ -33,6 +36,9 @@ import com.records.pesa.models.dbModel.UserDetails
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
+    abstract fun transactionDao(): TransactionsDao
+    abstract fun categoryDao(): CategoryDao
+    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile

@@ -1,5 +1,6 @@
 package com.records.pesa.db.models
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -21,6 +22,7 @@ import java.time.LocalTime
 ])
 data class Transaction(
     @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "id")
     var id: Int = 0,
     var transactionCode: String,
     var transactionType: String,

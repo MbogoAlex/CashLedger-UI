@@ -20,3 +20,4 @@ data class TransactionCategoryCrossRef(
     val transactionId: Int,
     val categoryId: Int
 )
+

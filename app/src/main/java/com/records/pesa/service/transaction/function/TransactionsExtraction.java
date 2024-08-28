@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 
 public class TransactionsExtraction {
     public Transaction extractTransactionDetails(MessageData messageDto, UserAccount userAccount, TransactionsDao transactionsDao, List<TransactionCategory> categories, CategoryDao categoryDao) {
+        System.out.println("EXTRACTING TRANSACTION");
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         Transaction transactionDto = new Transaction(0, "", "", 0.0, 0.0, LocalDate.now(), LocalTime.now(), "", "", null, null, 0.0, "", 0);
@@ -643,7 +644,7 @@ public class TransactionsExtraction {
 
                 assert entity != null;
 
-                List<Transaction> transactions = (List<Transaction>) transactionsDao.getTransactionByEntity(entity);
+                List<Transaction> transactions = transactionsDao.getStaticTransactionByEntity(entity);
 
                 String nickname = "";
                 if(!transactions.isEmpty()) {

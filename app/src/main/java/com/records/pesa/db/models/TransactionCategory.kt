@@ -1,5 +1,6 @@
 package com.records.pesa.db.models
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -11,6 +12,7 @@ import java.time.LocalDateTime
 ])
 data class TransactionCategory(
     @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "id")
     val id: Int = 0,
     var name: String,
     var createdAt: LocalDateTime,

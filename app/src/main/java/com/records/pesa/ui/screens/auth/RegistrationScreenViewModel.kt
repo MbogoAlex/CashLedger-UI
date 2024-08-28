@@ -24,7 +24,7 @@ data class RegistrationScreenUiState(
 
 class RegistrationScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
 ): ViewModel() {
     private val _uiState = MutableStateFlow(RegistrationScreenUiState())
     val uiState: StateFlow<RegistrationScreenUiState> = _uiState.asStateFlow()

@@ -23,9 +23,9 @@ interface CategoryDao {
     }
 
     @Update
-    suspend fun updateCategory(transactionCategory: TransactionCategory): Long
+    suspend fun updateCategory(transactionCategory: TransactionCategory): Int
 
-    fun updateCategoryRunBlocking(transactionCategory: TransactionCategory): Long {
+    fun updateCategoryRunBlocking(transactionCategory: TransactionCategory): Int {
         return runBlocking {
             updateCategory(transactionCategory)
         }

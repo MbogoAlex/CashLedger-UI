@@ -8,6 +8,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.records.pesa.db.DBRepository
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.ui.screens.DashboardScreenViewModel
 import com.records.pesa.ui.screens.SplashScreenViewModel
 import com.records.pesa.ui.screens.auth.LoginScreenViewModel
@@ -153,9 +156,15 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val userService: UserAccountService = cashLedgerApplication().container.userAccountService
             SmsFetchScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                categoryService = categoryService,
+                transactionsService = transactionService,
+                userAccountService = userService
             )
         }
 
@@ -181,11 +190,13 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
+            val userAccountService: UserAccountService = cashLedgerApplication().container.userAccountService
             LoginScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
                 savedStateHandle = this.createSavedStateHandle(),
-                workersRepository = workersRepository
+                workersRepository = workersRepository,
+                userAccountService = userAccountService
             )
         }
 

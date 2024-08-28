@@ -79,25 +79,10 @@ fun SmsFetchScreenComposable(
     val smsReceivePermissionState = rememberPermissionState(permission = Manifest.permission.RECEIVE_SMS)
     val scope = rememberCoroutineScope()
 
-    var timer by rememberSaveable {
-        mutableFloatStateOf(0.0f)
-    }
-
-    if(uiState.counterOn) {
-        Log.d("COUNTER", "COUNTER")
-        LaunchedEffect(Unit) {
-            while (uiState.messagesSize != timer) {
-//                delay(5)
-                timer += 1.0f
-            }
-            viewModel.resetTimer()
-            navigateToHomeScreen()
-            viewModel.resetLoadingStatus()
-        }
-    }
 
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-
+        navigateToHomeScreen()
+        viewModel.resetLoadingStatus()
     } else if(uiState.errorCode == 401) {
         navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
         viewModel.resetLoadingStatus()
@@ -145,7 +130,6 @@ fun SmsFetchScreenComposable(
         SmsFetchScreen(
             messagesSize = uiState.messagesSize,
             messagesSent = uiState.messagesSent,
-            timer = timer
         )
     }
 
@@ -155,7 +139,6 @@ fun SmsFetchScreenComposable(
 fun SmsFetchScreen(
     messagesSize: Float,
     messagesSent: Float,
-    timer: Float,
     modifier: Modifier = Modifier
 ) {
     var text by rememberSaveable {
@@ -196,13 +179,13 @@ fun SmsFetchScreen(
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = "Processing ${messagesSize.toInt()} item(s)",
+            text = "Processing ${messagesSent.toInt()} / ${messagesSize.toInt()} item(s)",
             fontSize = screenFontSize(x = 14.0).sp,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         LinearProgressIndicator(
-            progress = { if ((timer / messagesSize).isNaN()) 0f else (timer / messagesSize) },
+            progress = { if ((messagesSent / messagesSize).isNaN()) 0f else (messagesSent / messagesSize) },
             modifier = Modifier
                 .height(screenHeight(x = 20.0))
                 .fillMaxWidth(),
@@ -218,7 +201,6 @@ fun SmsFetchScreenPreview() {
         SmsFetchScreen(
             messagesSize = 100f,
             messagesSent = 50f,
-            timer = 0.1f
         )
     }
 }
