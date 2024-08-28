@@ -87,7 +87,7 @@ fun SmsFetchScreenComposable(
         Log.d("COUNTER", "COUNTER")
         LaunchedEffect(Unit) {
             while (uiState.messagesSize != timer) {
-                delay(5)
+//                delay(5)
                 timer += 1.0f
             }
             viewModel.resetTimer()

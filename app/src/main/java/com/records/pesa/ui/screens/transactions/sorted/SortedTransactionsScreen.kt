@@ -437,7 +437,7 @@ fun SortedTransactionsScreen(
                         text = totalMoneyOut,
                         fontWeight = FontWeight.Bold,
                         fontSize = screenFontSize(x = 14.0).sp,
-                        color = MaterialTheme.colorScheme.surfaceTint
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
