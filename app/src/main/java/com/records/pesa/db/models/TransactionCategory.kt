@@ -12,7 +12,8 @@ import java.time.LocalDateTime
 data class TransactionCategory(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val name: String,
-    val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime
+    var name: String,
+    var createdAt: LocalDateTime,
+    var updatedAt: LocalDateTime,
+    var updatedTimes: Double?
 )

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -37,4 +38,10 @@ interface AppDao {
 
     @Query("select * from app_launch_state where id = :id")
     fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserAccount(userAccount: UserAccount): Long
+
+    @Query("select * from userAccount where id = :id")
+    fun getUserAccountById(id: Long): Flow<UserAccount>
 }

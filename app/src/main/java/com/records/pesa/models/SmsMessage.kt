@@ -23,8 +23,7 @@ data class MessagesDt(
 
 @Serializable
 data class MessageData(
-    val body: String,
-    val date: String,
-    val time: String,
-
+    var body: String,
+    var date: String,
+    var time: String,
     )

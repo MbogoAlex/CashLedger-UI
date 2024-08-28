@@ -418,6 +418,40 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
     }
 }
 
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Drop the existing table if it exists (to handle schema changes)
+        database.execSQL("DROP TABLE IF EXISTS `transactionCategoryCrossRef`")
+
+        // Recreate the 'transactionCategoryCrossRef' table with the correct schema
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `transactionCategoryCrossRef` (
+                `transactionId` INTEGER NOT NULL,
+                `categoryId` INTEGER NOT NULL,
+                PRIMARY KEY(`transactionId`, `categoryId`),
+                FOREIGN KEY(`transactionId`) REFERENCES `transaction`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+                FOREIGN KEY(`categoryId`) REFERENCES `transactionCategory`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+            )
+        """)
+
+        // Create indices for the 'transactionCategoryCrossRef' table
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_transactionCategoryCrossRef_categoryId` ON `transactionCategoryCrossRef` (`categoryId`)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_transactionCategoryCrossRef_transactionId` ON `transactionCategoryCrossRef` (`transactionId`)")
+    }
+}
+
+
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add the new column 'updatedTimes' to the 'transactionCategory' table
+        database.execSQL("ALTER TABLE transactionCategory ADD COLUMN updatedTimes REAL")
+    }
+}
+
+
+
+
+
 
 
 

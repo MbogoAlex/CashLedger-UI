@@ -13,7 +13,7 @@ import androidx.room.PrimaryKey
 data class CategoryKeyword(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val keyword: String,
-    val nickName: String?,
-    val categoryId: Int,
+    var keyword: String,
+    var nickName: String?,
+    var categoryId: Int,
 )

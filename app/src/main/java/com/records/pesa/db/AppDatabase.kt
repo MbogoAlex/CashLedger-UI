@@ -15,6 +15,8 @@ import com.records.pesa.db.migration.MIGRATION_13_14
 import com.records.pesa.db.migration.MIGRATION_14_15
 import com.records.pesa.db.migration.MIGRATION_15_16
 import com.records.pesa.db.migration.MIGRATION_16_17
+import com.records.pesa.db.migration.MIGRATION_17_18
+import com.records.pesa.db.migration.MIGRATION_18_19
 import com.records.pesa.db.migration.MIGRATION_7_8
 import com.records.pesa.db.migration.MIGRATION_8_9
 import com.records.pesa.db.migration.MIGRATION_9_10
@@ -22,11 +24,12 @@ import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
+import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class], version = 17, exportSchema = false)
+@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class], version = 19, exportSchema = false)
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
@@ -54,6 +57,8 @@ abstract class AppDatabase: RoomDatabase() {
                             MIGRATION_14_15,
                             MIGRATION_15_16,
                             MIGRATION_16_17,
+                            MIGRATION_17_18,
+                            MIGRATION_18_19,
                         )
                 }
 
