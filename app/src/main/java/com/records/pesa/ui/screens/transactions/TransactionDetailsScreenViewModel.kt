@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toTransaction
+import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionItem
@@ -11,6 +13,8 @@ import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.itemCategories
 import com.records.pesa.reusables.transactions
+import com.records.pesa.service.transaction.TransactionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 val transactionEx = TransactionItem(
     transactionId = 1,
@@ -64,7 +70,8 @@ data class TransactionDetailsScreenUiState(
 class TransactionDetailsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val transactionService: TransactionService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(TransactionDetailsScreenUiState())
     val uiState: StateFlow<TransactionDetailsScreenUiState> = _uiState.asStateFlow()
@@ -118,32 +125,50 @@ class TransactionDetailsScreenViewModel(
             )
         }
         viewModelScope.launch {
-            try {
-               val response = apiRepository.getSingleTransaction(
-                   token = uiState.value.userDetails.token,
-                   transactionId = uiState.value.transactionId!!.toInt()
-               )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            transaction = response.body()?.data?.transaction!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getTransactionById(uiState.value.transactionId!!.toInt()).collect(){transaction ->
+                        _uiState.update {
+                            it.copy(
+                                transaction = transaction.toTransactionItem(),
+                                loadingStatus = LoadingStatus.SUCCESS
+                            )
+                        }
                     }
-                } else {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
             }
+//            try {
+//               val response = apiRepository.getSingleTransaction(
+//                   token = uiState.value.userDetails.token,
+//                   transactionId = uiState.value.transactionId!!.toInt()
+//               )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            transaction = response.body()?.data?.transaction!!,
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL
+//                        )
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//            }
         }
     }
 
@@ -166,33 +191,70 @@ class TransactionDetailsScreenViewModel(
             nickName = uiState.value.nickname,
             comment = null,
         )
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails.userId,
+            entity = uiState.value.transaction.entity,
+            categoryId = null,
+            budgetId = null,
+            transactionType = null,
+            moneyDirection = null,
+            startDate = LocalDate.now().minusYears(10),
+            endDate = LocalDate.now(),
+            latest = true
+        )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.updateTransaction(
-                    token = uiState.value.userDetails.token,
-                    transactionEditPayload = transactionEditPayload
-                )
-                if(response.isSuccessful) {
-                    getTransaction()
-                    _uiState.update {
-                        it.copy(
-                            updatingAliasStatus = UpdatingAliasStatus.SUCCESS
+            withContext(Dispatchers.IO) {
+                val transactions = transactionService.getUserTransactions(query).first()
+                for(transaction in transactions) {
+                    try {
+                        transactionService.updateTransaction(
+                            transaction.toTransaction(uiState.value.userDetails.userId).copy(
+                                nickName = uiState.value.nickname
+                            )
                         )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            updatingAliasStatus = UpdatingAliasStatus.FAIL
-                        )
+
+                    } catch (e: Exception) {
+                        _uiState.update {
+                            it.copy(
+                                updatingAliasStatus = UpdatingAliasStatus.FAIL
+                            )
+                        }
                     }
                 }
-            } catch (e: Exception) {
+
                 _uiState.update {
                     it.copy(
-                        updatingAliasStatus = UpdatingAliasStatus.FAIL
+                        updatingAliasStatus = UpdatingAliasStatus.SUCCESS
                     )
                 }
+
             }
+//            try {
+//                val response = apiRepository.updateTransaction(
+//                    token = uiState.value.userDetails.token,
+//                    transactionEditPayload = transactionEditPayload
+//                )
+//                if(response.isSuccessful) {
+//                    getTransaction()
+//                    _uiState.update {
+//                        it.copy(
+//                            updatingAliasStatus = UpdatingAliasStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            updatingAliasStatus = UpdatingAliasStatus.FAIL
+//                        )
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        updatingAliasStatus = UpdatingAliasStatus.FAIL
+//                    )
+//                }
+//            }
         }
     }
 
@@ -216,32 +278,53 @@ class TransactionDetailsScreenViewModel(
             comment = uiState.value.comment,
         )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.updateTransaction(
-                    token = uiState.value.userDetails.token,
-                    transactionEditPayload = transactionEditPayload
-                )
-                if(response.isSuccessful) {
-                    getTransaction()
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.updateTransaction(
+                        uiState.value.transaction.toTransaction(uiState.value.userDetails.userId).copy(
+                            comment = uiState.value.comment
+                        )
+                    )
                     _uiState.update {
                         it.copy(
                             updatingCommentStatus = UpdatingCommentStatus.SUCCESS
                         )
                     }
-                } else {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             updatingCommentStatus = UpdatingCommentStatus.FAIL
                         )
                     }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        updatingCommentStatus = UpdatingCommentStatus.FAIL
-                    )
-                }
             }
+//            try {
+//
+//                val response = apiRepository.updateTransaction(
+//                    token = uiState.value.userDetails.token,
+//                    transactionEditPayload = transactionEditPayload
+//                )
+//                if(response.isSuccessful) {
+//                    getTransaction()
+//                    _uiState.update {
+//                        it.copy(
+//                            updatingCommentStatus = UpdatingCommentStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            updatingCommentStatus = UpdatingCommentStatus.FAIL
+//                        )
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        updatingCommentStatus = UpdatingCommentStatus.FAIL
+//                    )
+//                }
+//            }
         }
 
     }

@@ -27,7 +27,7 @@ interface TransactionsDao {
     }
 
     @Query("select * from `transaction` where id = :id")
-    fun getTransactionById(id: Int): Flow<Transaction>
+    fun getTransactionById(id: Int): Flow<TransactionWithCategories>
 
     @Query("select * from `transaction` where id = :id")
     fun getStaticTransactionById(id: Int): Transaction
@@ -57,7 +57,7 @@ interface TransactionsDao {
     fun getTransactionWithCategories(transactionId: Int): Flow<TransactionWithCategories>
 
     @Update
-    suspend fun updateTransaction(transaction: Transaction): Int
+    suspend fun updateTransaction(transaction: Transaction)
 
     @Query("select transactionCode from `transaction` order by date desc, time desc limit 1")
     fun getLatestTransactionCode(): Flow<String?>

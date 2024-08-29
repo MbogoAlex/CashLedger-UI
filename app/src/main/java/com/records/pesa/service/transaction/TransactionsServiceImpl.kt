@@ -29,6 +29,7 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
     override fun getTransactionsByEntity(entity: String): Flow<List<Transaction>> = transactionsDao.getTransactionByEntity(entity = entity)
 
     override fun getTransactionByCode(transactionCode: String): Flow<Transaction> = transactionsDao.getTransactionByCode(transactionCode)
+    override fun getTransactionById(transactionId: Int): Flow<TransactionWithCategories> = transactionsDao.getTransactionById(transactionId)
 
     override fun getAllTransactions(): Flow<List<Transaction>> = transactionsDao.getAllTransactions()
 
@@ -80,5 +81,7 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
         startDate = startDate,
         endDate = endDate
     )
+
+    override suspend fun updateTransaction(transaction: Transaction) = transactionsDao.updateTransaction(transaction)
 
 }

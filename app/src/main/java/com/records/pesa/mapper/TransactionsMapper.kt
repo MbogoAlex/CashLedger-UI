@@ -1,11 +1,14 @@
 package com.records.pesa.mapper
 
 import com.records.pesa.db.models.AggregatedTransaction
+import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
 import com.records.pesa.models.transaction.IndividualSortedTransactionItem
 import com.records.pesa.models.transaction.ItemCategory
 import com.records.pesa.models.transaction.TransactionItem
+import java.time.LocalDate
+import java.time.LocalTime
 
 fun TransactionWithCategories.toTransactionItem(): TransactionItem = TransactionItem(
     transactionId = transaction.id,
@@ -36,4 +39,38 @@ fun AggregatedTransaction.toIndividualSortedTransactionItem(): IndividualSortedT
     nickName = nickName,
     name = entity,
     transactionCost = totalCost
+)
+
+fun TransactionItem.toTransaction(userId: Int): Transaction = Transaction(
+    id = transactionId!!,
+    transactionCode = transactionCode,
+    transactionType = transactionType,
+    transactionAmount = transactionAmount,
+    transactionCost = transactionCost,
+    date = LocalDate.parse(date),
+    time = LocalTime.parse(time),
+    sender = sender,
+    recipient = recipient,
+    nickName = nickName,
+    comment = comment,
+    balance = balance,
+    entity = entity,
+    userId = userId
+)
+
+fun TransactionWithCategories.toTransaction(userId: Int): Transaction = Transaction(
+    id = transaction.id,
+    transactionCode = transaction.transactionCode,
+    transactionType = transaction.transactionType,
+    transactionAmount = transaction.transactionAmount,
+    transactionCost = transaction.transactionCost,
+    date = transaction.date,
+    time = transaction.time,
+    sender = transaction.sender,
+    recipient = transaction.recipient,
+    nickName = transaction.nickName,
+    comment = transaction.comment,
+    balance = transaction.balance,
+    entity = transaction.entity,
+    userId = userId
 )

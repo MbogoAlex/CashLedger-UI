@@ -16,6 +16,7 @@ interface TransactionService {
     fun extractTransactionDetails(messageDto: MessageData, userAccount: UserAccount, categories: List<TransactionCategory>): Transaction
     fun getTransactionsByEntity(entity: String): Flow<List<Transaction>>
     fun getTransactionByCode(transactionCode: String): Flow<Transaction>
+    fun getTransactionById(transactionId: Int): Flow<TransactionWithCategories>
     fun getAllTransactions(): Flow<List<Transaction>>
     fun getTransactionWithCategories(id: Int): Flow<TransactionWithCategories>
     fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
@@ -49,4 +50,6 @@ interface TransactionService {
         startDate: LocalDate,
         endDate: LocalDate
     ): SupportSQLiteQuery
+
+    suspend fun updateTransaction(transaction: Transaction)
 }
