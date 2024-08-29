@@ -47,11 +47,20 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "license/*"
+            excludes += "META-INF/{LICENSE*,NOTICE*,DEPENDENCIES,INDEX.LIST,README*}"
         }
     }
 }
 
 dependencies {
+
+    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports
+    implementation("net.sf.jasperreports:jasperreports:7.0.0")
+
+    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-jdt
+    implementation("net.sf.jasperreports:jasperreports-jdt:7.0.0")
+
 
     // https://mvnrepository.com/artifact/com.google.android.play/review-ktx
     implementation("com.google.android.play:review-ktx:2.0.1")

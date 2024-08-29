@@ -7,6 +7,7 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.userAccount.UserAccountService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +23,8 @@ data class SplashScreenUiState(
 
 class SplashScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val userAccountService: UserAccountService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SplashScreenUiState())
     val uiState: StateFlow<SplashScreenUiState> = _uiState.asStateFlow()
@@ -51,6 +53,8 @@ class SplashScreenViewModel(
                 )
             }
             if(uiState.value.appLaunchStatus.user_id != null) {
+                val userAccount = userAccountService.getUserAccount(uiState.value.appLaunchStatus.user_id!!).first()
+                Log.d("USER_ACCOUNT", userAccount.toString())
                 getSubscriptionStatus()
             }
         }

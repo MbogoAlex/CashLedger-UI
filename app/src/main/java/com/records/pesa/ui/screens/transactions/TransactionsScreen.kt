@@ -330,7 +330,7 @@ fun TransactionsScreenComposable(
         TransactionsScreen(
             premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
             transactions = uiState.transactions,
-            moneyInsortedTransactionItems = uiState.moneyInSorted,
+            groupedTransactionItems = uiState.groupedTransactionItems,
             moneyOutsortedTransactionItems = uiState.moneyOutSorted,
             totalMoneyIn = formatMoneyValue(uiState.totalMoneyIn),
             totalMoneyOut = formatMoneyValue(uiState.totalMoneyOut),
@@ -424,7 +424,7 @@ fun TransactionsScreenComposable(
 fun TransactionsScreen(
     premium: Boolean,
     transactions: List<TransactionItem>,
-    moneyInsortedTransactionItems: List<SortedTransactionItem>,
+    groupedTransactionItems: List<SortedTransactionItem>,
     moneyOutsortedTransactionItems: List<SortedTransactionItem>,
     transactionTypes: List<String>,
     defaultTransactionType: String?,
@@ -821,7 +821,7 @@ fun TransactionsScreen(
                         GroupedTransactionsScreenComposable(
                             pullRefreshState = pullRefreshState!!,
                             loadingStatus = loadingStatus,
-                            sortedTransactionItems = moneyInsortedTransactionItems,
+                            groupedTransactionItems = groupedTransactionItems,
                             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
                             modifier = Modifier
                                 .padding(
@@ -948,7 +948,7 @@ fun TransactionsScreenPreview(
             premium = false,
             transactions = transactions,
             moneyOutsortedTransactionItems = moneyOutSortedTransactionItems,
-            moneyInsortedTransactionItems = moneyInSortedTransactionItems,
+            groupedTransactionItems = moneyInSortedTransactionItems,
             totalMoneyIn = "Ksh 12,900",
             totalMoneyOut = "Ksh 4500",
             bottomTabItems = tabs,

@@ -7,10 +7,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.reusables.transactions
+import com.records.pesa.service.transaction.TransactionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import kotlin.math.abs
+import kotlin.math.absoluteValue
 
 data class SingleEntityTransactionsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -42,6 +50,7 @@ class SingleEntityTransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
+    private val transactionService: TransactionService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SingleEntityTransactionsScreenUiState())
     val uiState: StateFlow<SingleEntityTransactionsScreenUiState> = _uiState.asStateFlow()
@@ -70,48 +79,71 @@ class SingleEntityTransactionsScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails.userId,
+            entity = uiState.value.entity,
+            categoryId = uiState.value.categoryId,
+            budgetId = uiState.value.budgetId,
+            transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+            moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
+            startDate = LocalDate.parse(uiState.value.startDate),
+            endDate = LocalDate.parse(uiState.value.endDate),
+            latest = true
+        )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.getTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    latest = true,
-                    moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
-                )
-
-                if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                transactionService.getUserTransactions(query).collect() {transactions ->
                     _uiState.update {
                         it.copy(
-                            transactions = response.body()?.data?.transaction?.transactions!!,
-                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
-                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
+                            transactions = transactions.map { transaction -> transaction.toTransactionItem() },
+                            totalMoneyIn = transactions.map { transactionWithCategories ->  transactionWithCategories.toTransactionItem() }.filter { transaction ->  transaction.transactionAmount > 0}.sumOf { transaction -> transaction.transactionAmount },
+                            totalMoneyOut = transactions.map { transactionWithCategories -> transactionWithCategories.toTransactionItem() }.filter { transaction ->  transaction.transactionAmount < 0}.sumOf { transaction -> transaction.transactionAmount.absoluteValue },
                             loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL,
-                            errorCode = response.code()
-                        )
-                    }
-                    Log.e("GET_TRANSACTIONS_ERROR_RESPONSE", response.toString())
                 }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("GET_TRANSACTIONS_EXCEPTION", e.toString())
             }
+//            try {
+//                val response = apiRepository.getTransactions(
+//                    token = uiState.value.userDetails.token,
+//                    userId = uiState.value.userDetails.userId,
+//                    entity = uiState.value.entity,
+//                    categoryId = uiState.value.categoryId,
+//                    budgetId = uiState.value.budgetId,
+//                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+//                    latest = true,
+//                    moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
+//                    startDate = uiState.value.startDate,
+//                    endDate = uiState.value.endDate
+//                )
+//
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            transactions = response.body()?.data?.transaction?.transactions!!,
+//                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
+//                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL,
+//                            errorCode = response.code()
+//                        )
+//                    }
+//                    Log.e("GET_TRANSACTIONS_ERROR_RESPONSE", response.toString())
+//                }
+//
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("GET_TRANSACTIONS_EXCEPTION", e.toString())
+//            }
         }
 
     }

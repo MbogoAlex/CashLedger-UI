@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionEditPayload
@@ -15,16 +16,20 @@ import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
+import com.records.pesa.service.transaction.TransactionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
-
+import kotlin.math.absoluteValue
 
 
 data class TransactionsScreenUiState(
@@ -32,7 +37,7 @@ data class TransactionsScreenUiState(
     val transactions: List<TransactionItem> = emptyList(),
     val moneyInTransactions: List<TransactionItem> = emptyList(),
     val moneyOutTransactions: List<TransactionItem> = emptyList(),
-    val moneyInSorted: List<SortedTransactionItem> = emptyList(),
+    val groupedTransactionItems: List<SortedTransactionItem> = emptyList(),
     val moneyOutSorted: List<SortedTransactionItem> = emptyList(),
     val nickName: String = "",
     val entity: String = "",
@@ -62,7 +67,8 @@ data class TransactionsScreenUiState(
 class TransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val transactionService: TransactionService
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(TransactionsScreenUiState())
@@ -206,47 +212,81 @@ class TransactionsScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyDirection = uiState.value.moneyDirection,
-                    latest = true,
-                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate,
-                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            transactions = response.body()?.data?.transaction?.transactions!!,
-                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
-                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL,
-                            errorCode = response.code()
-                        )
-                    }
-                    Log.e("GetTransactionsResponseError", response.toString())
-                }
 
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails.userId,
+            entity = uiState.value.entity,
+            categoryId = uiState.value.categoryId,
+            budgetId = uiState.value.budgetId,
+            transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+            moneyDirection = uiState.value.moneyDirection,
+            startDate = LocalDate.parse(uiState.value.startDate),
+            endDate = LocalDate.parse(uiState.value.endDate),
+            latest = true
+        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getUserTransactions(query).collect() { transactions ->
+                        _uiState.update {
+                            it.copy(
+                                transactions = transactions.map { transactionWithCategories ->  transactionWithCategories.toTransactionItem() },
+                                totalMoneyIn = transactions.map { transactionWithCategories ->  transactionWithCategories.toTransactionItem() }.filter { transaction ->  transaction.transactionAmount > 0}.sumOf { transaction -> transaction.transactionAmount },
+                                totalMoneyOut = transactions.map { transactionWithCategories -> transactionWithCategories.toTransactionItem() }.filter { transaction ->  transaction.transactionAmount < 0}.sumOf { transaction -> transaction.transactionAmount.absoluteValue },
+                                loadingStatus = LoadingStatus.SUCCESS
+                            )
+                        }
+                    }
+                    Log.d("TRANSACTIONS_SIZE", uiState.value.transactions.size.toString())
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(
+                            loadingStatus = LoadingStatus.FAIL
+                        )
+                    }
+                    Log.e("GetTransactionsException", e.toString())
                 }
-                Log.e("GetTransactionsException", e.toString())
             }
+//            try {
+//                val response = apiRepository.getTransactions(
+//                    token = uiState.value.userDetails.token,
+//                    userId = uiState.value.userDetails.userId,
+//                    entity = uiState.value.entity,
+//                    categoryId = uiState.value.categoryId,
+//                    budgetId = uiState.value.budgetId,
+//                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+//                    moneyDirection = uiState.value.moneyDirection,
+//                    latest = true,
+//                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate,
+//                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            transactions = response.body()?.data?.transaction?.transactions!!,
+//                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
+//                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL,
+//                            errorCode = response.code()
+//                        )
+//                    }
+//                    Log.e("GetTransactionsResponseError", response.toString())
+//                }
+//
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("GetTransactionsException", e.toString())
+//            }
         }
     }
 
@@ -358,46 +398,73 @@ class TransactionsScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails.userId,
+            entity = uiState.value.entity,
+            categoryId = uiState.value.categoryId,
+            budgetId = uiState.value.budgetId,
+            transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+            moneyDirection = uiState.value.moneyDirection,
+            startDate = LocalDate.parse(uiState.value.startDate),
+            endDate = LocalDate.parse(uiState.value.endDate),
+            latest = true
+        )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.getGroupedByEntityTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyDirection = uiState.value.moneyDirection,
-                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
-                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
-                )
-                if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getUserTransactions(query).collect() {transactions ->
+                        transformTransactions(transactions.map { transactionWithCategories -> transactionWithCategories.toTransactionItem() })
+                    }
+
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
-                            moneyInSorted = response.body()?.data?.transaction?.transactions!!,
-                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
-                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
-                            loadingStatus = LoadingStatus.SUCCESS
+                            loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL,
-                            errorCode = response.code()
-                        )
-                    }
-                    Log.e("GetTransactionsResponseError", response.toString())
+                    Log.e("failedToLoadGroupedTransactions", e.toString())
                 }
 
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("GetTransactionsException", e.toString())
             }
+//            try {
+//                val response = apiRepository.getGroupedByEntityTransactions(
+//                    token = uiState.value.userDetails.token,
+//                    userId = uiState.value.userDetails.userId,
+//                    entity = uiState.value.entity,
+//                    categoryId = uiState.value.categoryId,
+//                    budgetId = uiState.value.budgetId,
+//                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+//                    moneyDirection = uiState.value.moneyDirection,
+//                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate!!,
+//                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate!!
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            groupedTransactionItems = response.body()?.data?.transaction?.transactions!!,
+//                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
+//                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL,
+//                            errorCode = response.code()
+//                        )
+//                    }
+//                    Log.e("GetTransactionsResponseError", response.toString())
+//                }
+//
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("GetTransactionsException", e.toString())
+//            }
         }
     }
 
@@ -515,6 +582,64 @@ class TransactionsScreenViewModel(
             getTransactions()
         }
     }
+
+    fun transformTransactions(transactions: List<TransactionItem>) {
+        // Initialize totalMoneyIn and totalMoneyOut
+        var totalMoneyIn = 0.0
+        var totalMoneyOut = 0.0
+
+        // Group transactions by entity
+        val groupedByEntity = transactions.groupBy { it.entity }
+
+        // Map each group to a SortedTransactionItem
+        val sortedTransactionItems = groupedByEntity.map { (entity, groupedTransactions) ->
+            val times = groupedTransactions.size
+            val timesOut = groupedTransactions.count { it.transactionAmount < 0 }
+            val timesIn = groupedTransactions.count { it.transactionAmount > 0 }
+            val totalOut = groupedTransactions.filter { it.transactionAmount < 0 }
+                .sumOf { it.transactionAmount.absoluteValue }
+            val totalIn = groupedTransactions.filter { it.transactionAmount > 0 }
+                .sumOf { it.transactionAmount }
+
+            // Update the totals
+            totalMoneyIn += totalIn
+            totalMoneyOut += totalOut
+
+            val transactionCost = groupedTransactions.sumOf { it.transactionCost }
+            val nickName = groupedTransactions.firstOrNull { it.nickName != null }?.nickName
+
+            SortedTransactionItem(
+                transactionType = groupedTransactions.first().transactionType,
+                times = times,
+                timesOut = timesOut,
+                timesIn = timesIn,
+                totalOut = totalOut,
+                totalIn = totalIn,
+                transactionCost = transactionCost,
+                entity = entity,
+                nickName = nickName
+            )
+        }
+
+        val sortedInDescendingOrder = sortedTransactionItems.sortedByDescending {
+            it.totalIn + it.totalOut.absoluteValue
+        }
+
+        _uiState.update {
+            it.copy(
+                groupedTransactionItems = sortedInDescendingOrder,
+                totalMoneyIn = totalMoneyIn,
+                totalMoneyOut = totalMoneyOut,
+                loadingStatus = LoadingStatus.SUCCESS
+            )
+        }
+
+        // You can use totalMoneyIn and totalMoneyOut as needed in your code
+        println("Total Money In: $totalMoneyIn")
+        println("Total Money Out: $totalMoneyOut")
+
+    }
+
 
     init {
         setInitialDates()

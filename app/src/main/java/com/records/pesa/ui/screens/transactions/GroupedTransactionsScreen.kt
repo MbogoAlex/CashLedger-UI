@@ -59,7 +59,7 @@ import kotlinx.coroutines.withContext
 fun GroupedTransactionsScreenComposable(
     pullRefreshState: PullRefreshState,
     loadingStatus: LoadingStatus,
-    sortedTransactionItems: List<SortedTransactionItem>,
+    groupedTransactionItems: List<SortedTransactionItem>,
     navigateToEntityTransactionsScreen: (transactionType: String, entity: String, times: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -70,7 +70,7 @@ fun GroupedTransactionsScreenComposable(
         GroupedTransactionsScreen(
             pullRefreshState = pullRefreshState,
             loadingStatus = loadingStatus,
-            sortedTransactionItems = sortedTransactionItems,
+            sortedTransactionItems = groupedTransactionItems,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen
         )
     }

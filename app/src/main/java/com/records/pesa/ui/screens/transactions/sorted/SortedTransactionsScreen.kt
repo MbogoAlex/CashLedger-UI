@@ -172,6 +172,14 @@ fun SortedTransactionsScreenComposable(
             totalMoneyIn = formatMoneyValue(uiState.totalIn),
             totalMoneyOut = formatMoneyValue(uiState.totalOut),
             onTabSelected = {
+                when(it) {
+                    SortedTransactionsTab.MONEY_IN -> {
+                        viewModel.changeMoneyDirection(true)
+                    }
+                    SortedTransactionsTab.MONEY_OUT -> {
+                        viewModel.changeMoneyDirection(false)
+                    }
+                }
                 viewModel.changeTab(it)
                 currentTab = it
             },

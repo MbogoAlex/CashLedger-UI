@@ -3,6 +3,7 @@ package com.records.pesa.service.transaction
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
+import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
@@ -19,9 +20,33 @@ interface TransactionService {
     fun getTransactionWithCategories(id: Int): Flow<TransactionWithCategories>
     fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
 
-    fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
+    fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<AggregatedTransaction>>
 
     fun getLatestTransactionCode(): Flow<String?>
 
     fun getFirstTransaction(): Flow<Transaction>
+
+    fun createUserTransactionQuery(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        moneyDirection: String?,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery
+
+    fun createSortedTransactionsQuery(
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        moneyIn: Boolean,
+        orderByAmount: Boolean,
+        ascendingOrder: Boolean,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery
 }

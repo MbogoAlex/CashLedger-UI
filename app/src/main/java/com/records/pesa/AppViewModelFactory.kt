@@ -40,20 +40,24 @@ object AppViewModelFactory {
     val Factory = viewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             TransactionsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = this.createSavedStateHandle(),
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                transactionService = transactionService
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             SingleEntityTransactionsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                transactionService = transactionService
             )
         }
 
@@ -171,9 +175,11 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val userService: UserAccountService = cashLedgerApplication().container.userAccountService
             SplashScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                userAccountService = userService
             )
         }
 
@@ -256,18 +262,22 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             TransactionTypesScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                transactionService = transactionService
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             SortedTransactionsScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                transactionService = transactionService
             )
         }
     }

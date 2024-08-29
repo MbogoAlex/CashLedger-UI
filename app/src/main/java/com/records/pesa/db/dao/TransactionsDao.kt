@@ -7,6 +7,7 @@ import androidx.room.RawQuery
 import androidx.room.Update
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
+import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -84,7 +85,7 @@ interface TransactionsDao {
             append("SELECT t.* FROM `transaction` t ")
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
-            append("WHERE t.userAccountId = ? ")
+            append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
             append("AND (? IS NULL OR ? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
             append("AND (? IS NULL OR tc.categoryId = ?) ")
             append("AND (? IS NULL OR b.id = ?) ")
@@ -105,6 +106,7 @@ interface TransactionsDao {
             arrayOf(userId, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, startDate.toString(), endDate.toString())
         )
     }
+
 
     @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
     fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
@@ -179,7 +181,7 @@ interface TransactionsDao {
     }
 
     @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
-    fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
+    fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<AggregatedTransaction>>
 
 
 }

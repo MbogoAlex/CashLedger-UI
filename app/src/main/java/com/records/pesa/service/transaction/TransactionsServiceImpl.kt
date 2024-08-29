@@ -3,6 +3,7 @@ package com.records.pesa.service.transaction
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
+import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
@@ -33,8 +34,51 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
 
     override fun getTransactionWithCategories(id: Int): Flow<TransactionWithCategories> = transactionsDao.getTransactionWithCategories(id)
     override fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getUserTransactions(query)
-    override fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getSortedTransactions(query)
+    override fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<AggregatedTransaction>> = transactionsDao.getSortedTransactions(query)
     override fun getLatestTransactionCode(): Flow<String?> = transactionsDao.getLatestTransactionCode()
     override fun getFirstTransaction(): Flow<Transaction> = transactionsDao.getFirstTransaction()
+    override fun createUserTransactionQuery(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        moneyDirection: String?,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery = transactionsDao.createUserTransactionQuery(
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        latest = latest,
+        moneyDirection = moneyDirection,
+        startDate = startDate,
+        endDate = endDate
+    )
+
+    override fun createSortedTransactionsQuery(
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        moneyIn: Boolean,
+        orderByAmount: Boolean,
+        ascendingOrder: Boolean,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery = transactionsDao.createSortedTransactionsQuery(
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        moneyIn = moneyIn,
+        orderByAmount = orderByAmount,
+        ascendingOrder = ascendingOrder,
+        startDate = startDate,
+        endDate = endDate
+    )
 
 }
