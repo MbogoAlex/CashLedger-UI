@@ -9,5 +9,10 @@ data class CategoryWithKeywords(
         parentColumn = "id",
         entityColumn = "categoryId"
     )
-    val keywords: List<CategoryKeyword>
+    val keywords: List<CategoryKeyword>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "categoryId"
+    )
+    val budgets: List<Budget>
 )

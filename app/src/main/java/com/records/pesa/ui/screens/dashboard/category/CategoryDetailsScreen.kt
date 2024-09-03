@@ -97,12 +97,12 @@ fun CategoryDetailsScreenComposable(
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
 
-    LaunchedEffect(lifecycleState) {
-        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
-        if(lifecycleState.name.lowercase() == "started") {
-            viewModel.getCategory()
-        }
-    }
+//    LaunchedEffect(lifecycleState) {
+//        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
+//        if(lifecycleState.name.lowercase() == "started") {
+//            viewModel.getCategory()
+//        }
+//    }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
@@ -240,7 +240,7 @@ fun CategoryDetailsScreenComposable(
                 showEditCategoryNameDialog = !showEditCategoryNameDialog
             },
             onEditMemberName = {
-                memberName = it.nickName ?: ""
+                memberName = it.nickName ?: it.keyWord
                 viewModel.updateCategoryKeyword(it)
                 showEditMemberNameDialog = !showEditMemberNameDialog
             },
@@ -409,12 +409,16 @@ fun CategoryDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if(it.nickName != null) if(it.nickName.length > 20) "${it.nickName.substring(0, 20)}..." else it.nickName else if(it.keyWord.length > 20) "${it.keyWord.substring(0, 20)}..." else it.keyWord,
+                        text = it.nickName ?: it.keyWord,
 //                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        modifier = Modifier
+                            .weight(0.8f)
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
+//                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
+                        modifier = Modifier.weight(0.1f),
+                        onClick = {
                         onEditMemberName(it)
                     }) {
                         Icon(
@@ -425,7 +429,9 @@ fun CategoryDetailsScreen(
                                 .size(screenWidth(x = 24.0))
                         )
                     }
-                    IconButton(onClick = {
+                    IconButton(
+                        modifier = Modifier.weight(0.1f),
+                        onClick = {
                         onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
                     }) {
                         Icon(

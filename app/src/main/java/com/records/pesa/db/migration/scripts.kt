@@ -455,6 +455,13 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
     }
 }
 
+val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Insert default values into the 'app_launch_state' table
+        database.execSQL("INSERT INTO app_launch_state (user_id, launched) VALUES (NULL, 0)")
+    }
+}
+
 
 
 

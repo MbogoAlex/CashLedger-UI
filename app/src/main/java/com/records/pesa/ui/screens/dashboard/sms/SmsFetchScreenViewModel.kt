@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.MessageData
 import com.records.pesa.models.SmsMessage
 import com.records.pesa.models.dbModel.UserDetails
@@ -151,7 +152,7 @@ class SmsFetchScreenViewModel(
                     count += 1
                     Log.d("COUNT_VALUE", uiState.value.messagesSent.toString())
                     try {
-                        transactionsService.extractTransactionDetails(message.toMessageData(), userAccount, categories)
+                        transactionsService.extractTransactionDetails(message.toMessageData(), userAccount, categories.map { it.toTransactionCategory() })
                     } catch (e: Exception) {
                         Log.e("transactionInsertException", e.toString())
                     }

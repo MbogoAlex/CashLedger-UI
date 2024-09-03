@@ -216,15 +216,15 @@ fun CategoriesScreenComposable(
         )
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+//    val lifecycleOwner = LocalLifecycleOwner.current
+//    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
 
-    LaunchedEffect(lifecycleState) {
-        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
-        if(lifecycleState.name.lowercase() == "started") {
-            viewModel.getUserCategories()
-        }
-    }
+//    LaunchedEffect(lifecycleState) {
+//        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
+//        if(lifecycleState.name.lowercase() == "started") {
+//            viewModel.getUserCategories()
+//        }
+//    }
 
     Box(
         modifier = Modifier

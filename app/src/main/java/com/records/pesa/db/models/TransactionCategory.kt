@@ -15,6 +15,7 @@ data class TransactionCategory(
     @ColumnInfo(name = "id")
     val id: Int = 0,
     var name: String,
+    var contains: List<String>,
     var createdAt: LocalDateTime,
     var updatedAt: LocalDateTime,
     var updatedTimes: Double?

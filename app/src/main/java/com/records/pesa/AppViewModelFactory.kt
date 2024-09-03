@@ -41,11 +41,13 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val userService: UserAccountService = cashLedgerApplication().container.userAccountService
             TransactionsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository,
-                transactionService = transactionService
+                transactionService = transactionService,
+                userAccountService = userService
             )
         }
 
@@ -74,38 +76,54 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             CategoryDetailsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = categoryService,
+                transactionService = transactionService
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             MembersAdditionScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = categoryService,
+                transactionService = transactionService
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val userAccountService: UserAccountService = cashLedgerApplication().container.userAccountService
             CategoriesScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = categoryService,
+                transactionService = transactionService,
+                userAccountService = userAccountService
             )
         }
 
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             CategoryAdditionScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = categoryService
             )
         }
 

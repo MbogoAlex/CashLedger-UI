@@ -1,5 +1,6 @@
 package com.records.pesa.service.transaction
 
+import android.content.Context
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
@@ -52,4 +53,18 @@ interface TransactionService {
     ): SupportSQLiteQuery
 
     suspend fun updateTransaction(transaction: Transaction)
+
+    fun generateAllTransactionsReport(query: SupportSQLiteQuery, userAccount: UserAccount, reportType: String, startDate: String, endDate: String, context: Context): ByteArray
+
+    fun generateReportForTransactionsForMultipleCategories(query: SupportSQLiteQuery, userAccount: UserAccount, reportType: String, startDate: String, endDate: String, context: Context): ByteArray
+    fun createUserTransactionQueryForMultipleCategories(
+        userId: Int,
+        entity: String?,
+        categoryIds: List<Int>?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery
 }

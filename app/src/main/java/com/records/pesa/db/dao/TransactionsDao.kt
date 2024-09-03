@@ -111,6 +111,65 @@ interface TransactionsDao {
     @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
     fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
 
+    fun createUserTransactionQueryForMultipleCategories(
+        userId: Int,
+        entity: String?,
+        categoryIds: List<Int>?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery {
+        val orderClause = if (latest) "DESC" else "ASC"
+
+        val query = StringBuilder().apply {
+            append("SELECT t.* FROM `transaction` t ")
+            append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
+            append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
+            append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
+            append("AND (? IS NULL OR (? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%')) ")
+
+            if (!categoryIds.isNullOrEmpty()) {
+                append("AND tc.categoryId IN (${categoryIds.joinToString(", ")}) ")
+            }
+
+            append("AND (? IS NULL OR b.id = ?) ")
+            append("AND (? IS NULL OR LOWER(t.transactionType) = ?) ")
+            append("AND (t.date >= ?) ")
+            append("AND (t.date <= ?) ")
+            append("ORDER BY t.date $orderClause, t.time $orderClause")
+        }
+
+        val argsList = mutableListOf<Any?>()
+        argsList.add(userId)
+        argsList.add(entity)
+        argsList.add(entity)
+        argsList.add(entity)
+        argsList.add(entity)
+        argsList.add(entity)
+
+        if (categoryIds != null && categoryIds.isNotEmpty()) {
+            // No need to add category IDs to args list; they are embedded directly in the query.
+        }
+
+        argsList.add(budgetId)
+        argsList.add(budgetId)
+        argsList.add(transactionType)
+        argsList.add(transactionType)
+        argsList.add(startDate.toString())
+        argsList.add(endDate.toString())
+
+        return SimpleSQLiteQuery(query.toString(), argsList.toTypedArray())
+    }
+
+    @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
+    fun getUserTransactionsForMultipleCategories(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
+
+
+    @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
+    fun getStaticUserTransactions(query: SupportSQLiteQuery): List<TransactionWithCategories>
+
     fun createSortedTransactionsQuery(
         entity: String?,
         categoryId: Int?,

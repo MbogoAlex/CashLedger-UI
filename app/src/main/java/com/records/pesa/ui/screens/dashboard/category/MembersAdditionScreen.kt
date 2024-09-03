@@ -85,12 +85,17 @@ fun MembersAdditionScreenComposable(
         mutableStateOf(false)
     }
 
+    var addMembersThatContainsEntity by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     if(showReviewScreen) {
         Box(
             modifier = Modifier
                 .safeDrawingPadding()
         ) {
             MembersReviewScreen(
+                searchText = uiState.entity,
                 newMembers = uiState.membersToAdd,
                 loadingStatus = uiState.loadingStatus,
                 onRemoveMember = {
@@ -99,6 +104,11 @@ fun MembersAdditionScreenComposable(
                 onConfirm = {
                     viewModel.addMembersToCategory()
                 },
+                onAddMembersThatContainKeyword ={
+                    addMembersThatContainsEntity = !addMembersThatContainsEntity
+                    viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
+                },
+                addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
                 navigateToMembersAdditionScreen = {
                     showReviewScreen = !showReviewScreen
                 }
@@ -112,6 +122,11 @@ fun MembersAdditionScreenComposable(
             MembersAdditionScreen(
                 selectableMembers = uiState.membersToDisplay,
                 searchText = uiState.entity,
+                onAddMembersThatContainKeyword ={
+                    addMembersThatContainsEntity = !addMembersThatContainsEntity
+                    viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
+                },
+                addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
                 onChangeSearchText = {
                     viewModel.updateSearchText(it)
                 },
@@ -129,8 +144,10 @@ fun MembersAdditionScreenComposable(
 
 @Composable
 fun MembersAdditionScreen(
+    searchText: String,
+    addAllMembersThatContainEntity: Boolean,
+    onAddMembersThatContainKeyword: () -> Unit,
     selectableMembers: List<TransactionItem>,
-    searchText: String = "",
     onChangeSearchText: (value: String) -> Unit,
     onAddMember: (member: TransactionItem) -> Unit,
     navigateToReviewScreen: () -> Unit,
@@ -180,16 +197,21 @@ fun MembersAdditionScreen(
             modifier = Modifier
                 .weight(1f)
         ) {
-            items(selectableMembers.distinct()) {
+            items(selectableMembers) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = it.nickName ?: if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = it.nickName ?: it.entity,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        modifier = Modifier
+                            .weight(0.8f)
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { onAddMember(it) }) {
+                    IconButton(
+                        onClick = { onAddMember(it) },
+                        modifier = Modifier
+                            .weight(0.2f)
+                    ) {
                         Icon(
                             tint = MaterialTheme.colorScheme.surfaceTint,
                             imageVector = Icons.Default.Add, contentDescription = "Add ${if(it.transactionAmount > 0) it.sender else it.recipient}",
@@ -199,6 +221,41 @@ fun MembersAdditionScreen(
                     }
                 }
             }
+        }
+        if(searchText.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Add all members that contain `$searchText`",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    modifier = Modifier
+                        .weight(0.8f)
+                )
+                IconButton(
+                    onClick = onAddMembersThatContainKeyword,
+                    modifier = Modifier
+                        .weight(0.2f)
+                ) {
+                    if(addAllMembersThatContainEntity) {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.error,
+                            painter = painterResource(id = R.drawable.check_box_filled), contentDescription = "No",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    } else {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            painter = painterResource(id = R.drawable.check_box_blank), contentDescription = "Yes",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
         }
         Button(
             onClick = navigateToReviewScreen,
@@ -215,6 +272,9 @@ fun MembersAdditionScreen(
 
 @Composable
 fun MembersReviewScreen(
+    searchText: String,
+    addAllMembersThatContainEntity: Boolean,
+    onAddMembersThatContainKeyword: () -> Unit,
     newMembers: List<TransactionItem>,
     onRemoveMember: (transaction: TransactionItem) -> Unit,
     onConfirm: () -> Unit,
@@ -222,6 +282,7 @@ fun MembersReviewScreen(
     loadingStatus: LoadingStatus,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     BackHandler(onBack = navigateToMembersAdditionScreen)
     Column(
         modifier = Modifier
@@ -264,11 +325,22 @@ fun MembersReviewScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if(it.transactionAmount > 0) if(it.sender.length > 25) "${it.sender.substring(0, 25)}..." else it.sender else if(it.recipient.length > 25) "${it.recipient.substring(0, 25)}..." else it.recipient,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = it.entity,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        modifier = Modifier
+                            .weight(0.8f)
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { onRemoveMember(it) }) {
+                    IconButton(
+                        onClick = {
+                            if(addAllMembersThatContainEntity) {
+                                Toast.makeText(context, "Unselect add all members that contain `$searchText`", Toast.LENGTH_SHORT).show()
+                            } else {
+                                onRemoveMember(it)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(0.2f)
+                    ) {
                         Icon(
                             tint = MaterialTheme.colorScheme.error,
                             painter = painterResource(id = R.drawable.remove), contentDescription = "Remove ${if(it.transactionAmount > 0) it.sender else it.recipient}",
@@ -278,6 +350,41 @@ fun MembersReviewScreen(
                     }
                 }
             }
+        }
+        if(searchText.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Add all members that contain `$searchText`",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    modifier = Modifier
+                        .weight(0.8f)
+                )
+                IconButton(
+                    onClick = onAddMembersThatContainKeyword,
+                    modifier = Modifier
+                        .weight(0.2f)
+                ) {
+                    if(addAllMembersThatContainEntity) {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.error,
+                            painter = painterResource(id = R.drawable.check_box_filled), contentDescription = "No",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    } else {
+                        Icon(
+                            tint = MaterialTheme.colorScheme.surfaceTint,
+                            painter = painterResource(id = R.drawable.check_box_blank), contentDescription = "Yes",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                    
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
         }
         Button(
             enabled = newMembers.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
@@ -306,6 +413,9 @@ fun MembersReviewScreen(
 fun MembersReviewScreenPreview() {
     CashLedgerTheme {
         MembersReviewScreen(
+            searchText = "",
+            addAllMembersThatContainEntity = false,
+            onAddMembersThatContainKeyword = {},
             newMembers = transactions,
             loadingStatus = LoadingStatus.INITIAL,
             onRemoveMember = {},
@@ -320,8 +430,10 @@ fun MembersReviewScreenPreview() {
 fun MembersAdditionScreenPreview() {
     CashLedgerTheme {
         MembersAdditionScreen(
-            selectableMembers = transactions,
             searchText = "",
+            addAllMembersThatContainEntity = false,
+            onAddMembersThatContainKeyword = {},
+            selectableMembers = transactions,
             onChangeSearchText = {},
             onAddMember = {},
             navigateToReviewScreen = {},

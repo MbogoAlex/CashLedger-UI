@@ -49,22 +49,49 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "license/*"
             excludes += "META-INF/{LICENSE*,NOTICE*,DEPENDENCIES,INDEX.LIST,README*}"
+            excludes += "metadata_messages-defaults.properties"
+            excludes += "properties-metadata.json"
+            excludes += "jasperreports_extension.properties"
         }
     }
 }
 
 dependencies {
 
-    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports
-    implementation("net.sf.jasperreports:jasperreports:7.0.0")
+    // https://mvnrepository.com/artifact/com.jaspersoft/jrs-rest-java-client
+//    implementation("com.jaspersoft:jrs-rest-java-client:9.0.0")
 
-    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-jdt
+    // https://mvnrepository.com/artifact/com.itextpdf/itext7-core
+    implementation("com.itextpdf:itext7-core:8.0.5")
+
+
+
+//    // https://mvnrepository.com/artifact/org.eclipse.jdt/org.eclipse.jdt.core
+//    implementation("org.eclipse.jdt:org.eclipse.jdt.core:3.38.0")
+//
+//    implementation("org.eclipse.jdt:org.eclipse.jdt.core.compiler:4.6.1")
+
+
+//    implementation("org.eclipse.jdt.core.compiler:ecj:4.6.1")
+//
+//
+    implementation("net.sf.jasperreports:jasperreports-pdf:7.0.0")
+//
+//    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports
+//    implementation("net.sf.jasperreports:jasperreports:7.0.0")
+
+//    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-jdt
     implementation("net.sf.jasperreports:jasperreports-jdt:7.0.0")
 
 
     // https://mvnrepository.com/artifact/com.google.android.play/review-ktx
     implementation("com.google.android.play:review-ktx:2.0.1")
 
+    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-fonts
+    implementation("net.sf.jasperreports:jasperreports-fonts:7.0.0")
+
+    // https://mvnrepository.com/artifact/org.apache.pdfbox/pdfbox
+    implementation("org.apache.pdfbox:pdfbox:3.0.3")
 
     // https://mvnrepository.com/artifact/androidx.work/work-runtime-ktx
     implementation("androidx.work:work-runtime-ktx:2.9.0")

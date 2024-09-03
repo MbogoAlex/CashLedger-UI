@@ -74,3 +74,20 @@ fun TransactionWithCategories.toTransaction(userId: Int): Transaction = Transact
     entity = transaction.entity,
     userId = userId
 )
+
+fun Transaction.toTransactionItem(): TransactionItem = TransactionItem(
+    transactionId = id,
+    transactionCode = transactionCode,
+    transactionType = transactionType,
+    transactionAmount = transactionAmount,
+    transactionCost = transactionCost,
+    date = date.toString(),
+    time = time.toString(),
+    sender = sender,
+    recipient = recipient,
+    nickName = nickName,
+    comment = comment,
+    balance = balance,
+    entity = entity,
+    categories = emptyList()
+)

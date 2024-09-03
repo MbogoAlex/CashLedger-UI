@@ -3,18 +3,19 @@ package com.records.pesa.ui.screens.dashboard.category
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.TransactionScreenTab
-import com.records.pesa.ui.screens.transactions.TransactionsScreenDestination
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.service.userAccount.UserAccountService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 data class CategoriesScreenUiState(
@@ -39,7 +41,10 @@ data class CategoriesScreenUiState(
 )
 class CategoriesScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val categoryService: CategoryService,
+    private val transactionService: TransactionService,
+    private val userAccountService: UserAccountService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(CategoriesScreenUiState())
     val uiState: StateFlow<CategoriesScreenUiState> = _uiState.asStateFlow()
@@ -129,37 +134,60 @@ class CategoriesScreenViewModel(
             )
         }
         viewModelScope.launch {
-            try {
-                val response = apiRepository.getUserCategories(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    categoryId = null,
-                    name = uiState.value.name,
-                    orderBy = uiState.value.orderBy
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            categories = response.body()?.data?.category!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
+            withContext(Dispatchers.IO) {
+                try {
+                    categoryService.getAllCategories().collect() {categories ->
+                        _uiState.update {
+                            it.copy(
+                                categories = categories.map { category ->
+                                    Log.d("TRANSACTIONS_SIZE", category.toResponseTransactionCategory().transactions.size.toString())
+                                    category.toResponseTransactionCategory()
+                                },
+                                loadingStatus = LoadingStatus.SUCCESS
+                            )
+                        }
                     }
-                } else {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("getUserCategoriesErrorResponse", response.toString())
+                    Log.e("errorLoadingCategories", e.toString())
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("getUserCategoriesErrorException", e.toString())
             }
+//            try {
+//
+//                val response = apiRepository.getUserCategories(
+//                    token = uiState.value.userDetails.token,
+//                    userId = uiState.value.userDetails.userId,
+//                    categoryId = null,
+//                    name = uiState.value.name,
+//                    orderBy = uiState.value.orderBy
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            categories = response.body()?.data?.category!!,
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL
+//                        )
+//                    }
+//                    Log.e("getUserCategoriesErrorResponse", response.toString())
+//                }
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("getUserCategoriesErrorException", e.toString())
+//            }
         }
     }
 
@@ -171,21 +199,34 @@ class CategoriesScreenViewModel(
             startDate = uiState.value.startDate,
             lastDate = uiState.value.endDate
         )
+        val query = transactionService.createUserTransactionQueryForMultipleCategories(
+            userId = uiState.value.userDetails.userId,
+            entity = null,
+            categoryIds = uiState.value.selectedCategories,
+            budgetId = null,
+            transactionType = null,
+            startDate = LocalDate.parse(uiState.value.startDate),
+            endDate = LocalDate.parse(uiState.value.endDate),
+            latest = true
+        )
         _uiState.update {
             it.copy(
                 downloadingStatus = DownloadingStatus.LOADING
             )
         }
         viewModelScope.launch {
-            try {
-                val response = apiRepository.generateReportForMultipleCategories(
-                    token = uiState.value.userDetails.token,
-                    categoryReportPayload = categoryReportPayload
-                )
-                if (response.isSuccessful) {
-                    val pdfBytes = response.body()?.bytes()
-                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
-                        savePdfToUri(context, pdfBytes, saveUri)
+            withContext(Dispatchers.IO) {
+                try {
+                   val report = transactionService.generateReportForTransactionsForMultipleCategories(
+                       query = query,
+                       context = context,
+                       userAccount = userAccountService.getUserAccount(userId = uiState.value.userDetails.userId).first(),
+                       reportType = reportType,
+                       startDate = uiState.value.startDate,
+                       endDate = uiState.value.endDate
+                   )
+                    if (report != null && report.isNotEmpty()) {
+                        savePdfToUri(context, report, saveUri)
                         _uiState.update {
                             it.copy(
                                 downloadingStatus = DownloadingStatus.SUCCESS
@@ -199,22 +240,53 @@ class CategoriesScreenViewModel(
                             )
                         }
                     }
-                } else {
-                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
+                } catch (e: Exception) {
+                    Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
                     _uiState.update {
                         it.copy(
                             downloadingStatus = DownloadingStatus.FAIL
                         )
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
-                _uiState.update {
-                    it.copy(
-                        downloadingStatus = DownloadingStatus.FAIL
-                    )
-                }
             }
+//            try {
+//                val response = apiRepository.generateReportForMultipleCategories(
+//                    token = uiState.value.userDetails.token,
+//                    categoryReportPayload = categoryReportPayload
+//                )
+//                if (response.isSuccessful) {
+//                    val pdfBytes = response.body()?.bytes()
+//                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
+//                        savePdfToUri(context, pdfBytes, saveUri)
+//                        _uiState.update {
+//                            it.copy(
+//                                downloadingStatus = DownloadingStatus.SUCCESS
+//                            )
+//                        }
+//                    } else {
+//                        Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
+//                        _uiState.update {
+//                            it.copy(
+//                                downloadingStatus = DownloadingStatus.FAIL
+//                            )
+//                        }
+//                    }
+//                } else {
+//                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
+//                    _uiState.update {
+//                        it.copy(
+//                            downloadingStatus = DownloadingStatus.FAIL
+//                        )
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
+//                _uiState.update {
+//                    it.copy(
+//                        downloadingStatus = DownloadingStatus.FAIL
+//                    )
+//                }
+//            }
         }
     }
 

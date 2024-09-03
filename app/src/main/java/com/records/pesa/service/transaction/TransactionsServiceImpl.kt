@@ -1,5 +1,6 @@
 package com.records.pesa.service.transaction
 
+import android.content.Context
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
@@ -9,6 +10,7 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.MessageData
+import com.records.pesa.service.transaction.function.ReportGeneration
 import com.records.pesa.service.transaction.function.TransactionsExtraction
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -83,5 +85,58 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
     )
 
     override suspend fun updateTransaction(transaction: Transaction) = transactionsDao.updateTransaction(transaction)
+    override fun generateAllTransactionsReport(
+        query: SupportSQLiteQuery,
+        userAccount: UserAccount,
+        reportType: String,
+        startDate: String,
+        endDate: String,
+        context: Context
+    ): ByteArray = ReportGeneration().generateAllTransactionsReport(
+        query,
+        transactionsDao,
+        userAccount,
+        reportType,
+        startDate,
+        endDate,
+        context
+    )
+
+    override fun generateReportForTransactionsForMultipleCategories(
+        query: SupportSQLiteQuery,
+        userAccount: UserAccount,
+        reportType: String,
+        startDate: String,
+        endDate: String,
+        context: Context
+    ): ByteArray = ReportGeneration().generateAllTransactionsReport(
+        query,
+        transactionsDao,
+        userAccount,
+        reportType,
+        startDate,
+        endDate,
+        context
+    )
+
+    override fun createUserTransactionQueryForMultipleCategories(
+        userId: Int,
+        entity: String?,
+        categoryIds: List<Int>?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): SupportSQLiteQuery = transactionsDao.createUserTransactionQueryForMultipleCategories(
+        userId = userId,
+        entity = entity,
+        categoryIds = categoryIds,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        latest = latest,
+        startDate = startDate,
+        endDate = endDate
+    )
 
 }

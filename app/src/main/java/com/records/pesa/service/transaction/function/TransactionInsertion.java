@@ -50,11 +50,28 @@ public class TransactionInsertion {
             try {
                 category.setUpdatedTimes(updatedTimes + 1.0);
                 category.setUpdatedAt(LocalDateTime.now());
-                long categoryId = categoryDao.updateCategoryRunBlocking(category);
-                TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef(transaction.getId(), (int) categoryId);
+                categoryDao.updateCategoryRunBlocking(category);
+                TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef(transaction.getId(), category.getId());
                 categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
             } catch (Exception e) {
                 e.printStackTrace();
+            }
+        }
+
+        if(!category.getContains().isEmpty()) {
+            for(String contains : category.getContains()) {
+                if(transaction.getEntity().toLowerCase().contains(contains.toLowerCase())) {
+                    if(!categoryKeywords.contains(transaction.getEntity())) {
+                        CategoryKeyword categoryKeyword = new CategoryKeyword(0, "", "", 0);
+                        categoryKeyword.setKeyword(transaction.getEntity());
+                        categoryKeyword.setNickName(null);
+                        categoryKeyword.setCategoryId(category.getId());
+                        categoryDao.insertCategoryKeywordRunBlocking(categoryKeyword);
+                        TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef(transaction.getId(), category.getId());
+                        categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
+                    }
+
+                }
             }
         }
     }

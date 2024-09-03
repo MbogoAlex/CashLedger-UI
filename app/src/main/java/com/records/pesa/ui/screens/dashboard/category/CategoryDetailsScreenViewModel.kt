@@ -5,15 +5,19 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.mapper.toResponseTransactionCategory
+import com.records.pesa.mapper.toTransaction
 import com.records.pesa.models.CategoryEditPayload
 import com.records.pesa.models.CategoryKeyword
-import com.records.pesa.models.CategoryKeywordDeletePayload
 import com.records.pesa.models.CategoryKeywordEditPayload
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.transaction.TransactionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 enum class DeletionStatus {
     INITIAL,
@@ -42,7 +48,9 @@ data class CategoryDetailsScreenUiState(
 class CategoryDetailsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val categoryService: CategoryService,
+    private val transactionService: TransactionService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(CategoryDetailsScreenUiState())
     val uiState: StateFlow<CategoryDetailsScreenUiState> = _uiState.asStateFlow()
@@ -89,35 +97,59 @@ class CategoryDetailsScreenViewModel(
             keywords = keywords,
         )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.updateCategoryName(
-                    token = uiState.value.userDetails.token,
-                    categoryId = uiState.value.category.id,
-                    category = category
-                )
-                if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val category = categoryService.getRawCategoryById(uiState.value.categoryId.toInt()).first()
+                    val updatedTimes = category.updatedTimes ?: 0.0
+                    categoryService.updateCategory(
+                        category.copy(
+                            name = uiState.value.newCategoryName,
+                            updatedTimes = updatedTimes + 1.0,
+                        )
+                    )
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
-                } else {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("editCategoryNameErrorResponse", response.toString())
+                    Log.e("editCategoryNameErrorException", e.toString())
                 }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("editCategoryNameErrorException", e.toString())
             }
+//            try {
+//                val response = apiRepository.updateCategoryName(
+//                    token = uiState.value.userDetails.token,
+//                    categoryId = uiState.value.category.id,
+//                    category = category
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL
+//                        )
+//                    }
+//                    Log.e("editCategoryNameErrorResponse", response.toString())
+//                }
+//
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("editCategoryNameErrorException", e.toString())
+//            }
         }
     }
 
@@ -135,34 +167,81 @@ class CategoryDetailsScreenViewModel(
         )
         Log.i("KEYWORD_DETAILS", keyword.toString())
         viewModelScope.launch {
-            try {
-                val response = apiRepository.updateCategoryKeyword(
-                    token = uiState.value.userDetails.token,
-                    keyword = keyword,
-                )
-                if(response.isSuccessful) {
+            val query = transactionService.createUserTransactionQuery(
+                userId = uiState.value.userDetails.userId,
+                entity = uiState.value.categoryKeyword.keyWord,
+                categoryId = uiState.value.categoryId.toInt(),
+                budgetId = null,
+                transactionType = null,
+                moneyDirection = null,
+                startDate = LocalDate.now().minusYears(10),
+                endDate = LocalDate.now(),
+                latest = true
+            )
+            withContext(Dispatchers.IO) {
+                val categoryKeyword = categoryService.getCategoryKeyword(uiState.value.categoryKeyword.id).first()
+                val transactions = transactionService.getUserTransactions(query).first()
+
+                for(transaction in transactions) {
+                    try {
+                        transactionService.updateTransaction(transaction.toTransaction(uiState.value.userDetails.userId).copy(nickName = uiState.value.newMemberName))
+                    } catch (e: Exception) {
+                        _uiState.update {
+                            it.copy(
+                                loadingStatus = LoadingStatus.FAIL
+                            )
+                        }
+                        Log.e("editKeywordErrorException", e.toString())
+                    }
+                }
+                try {
+                  categoryService.updateCategoryKeyword(
+                      categoryKeyword.copy(
+                          nickName = uiState.value.newMemberName
+                      )
+                  )
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.SUCCESS
                         )
                     }
-                } else {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("editCategoryNameErrorResponse", response.toString())
+                    Log.e("editCategoryNameErrorException", e.toString())
                 }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("editCategoryNameErrorException", e.toString())
             }
+//            try {
+//                val response = apiRepository.updateCategoryKeyword(
+//                    token = uiState.value.userDetails.token,
+//                    keyword = keyword,
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.SUCCESS
+//                        )
+//                    }
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            loadingStatus = LoadingStatus.FAIL
+//                        )
+//                    }
+//                    Log.e("editCategoryNameErrorResponse", response.toString())
+//                }
+//
+//            } catch (e: Exception) {
+//                _uiState.update {
+//                    it.copy(
+//                        loadingStatus = LoadingStatus.FAIL
+//                    )
+//                }
+//                Log.e("editCategoryNameErrorException", e.toString())
+//            }
         }
     }
 
@@ -247,23 +326,42 @@ class CategoryDetailsScreenViewModel(
     fun getCategory() {
         Log.d("getCategoryWithDetails", "${uiState.value.userDetails.token}, ${uiState.value.categoryId}")
         viewModelScope.launch {
-            try {
-                val response = apiRepository.getCategoryDetails(
-                    token = uiState.value.userDetails.token,
-                    categoryId = uiState.value.categoryId.toInt()
-                )
-                if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                try {
+                    categoryService.getCategoryById(uiState.value.categoryId.toInt()).collect() {category ->
+                        _uiState.update {
+                            it.copy(
+                                category = category.toResponseTransactionCategory(emptyList()),
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
-                            category = response.body()?.data?.category!!,
+                            loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                } else {
-                    Log.e("CategoryDetailsResponseError", "getCategory: $response")
+                    Log.e("CategoryDetailsException", "getCategory: $e")
                 }
-            } catch (e: Exception) {
-                Log.e("CategoryDetailsException", "getCategory: $e")
+
             }
+//            try {
+//                val response = apiRepository.getCategoryDetails(
+//                    token = uiState.value.userDetails.token,
+//                    categoryId = uiState.value.categoryId.toInt()
+//                )
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            category = response.body()?.data?.category!!,
+//                        )
+//                    }
+//                } else {
+//                    Log.e("CategoryDetailsResponseError", "getCategory: $response")
+//                }
+//            } catch (e: Exception) {
+//                Log.e("CategoryDetailsException", "getCategory: $e")
+//            }
         }
     }
 

@@ -9,7 +9,20 @@ data class CategoryWithTransactions(
     @Relation(
         parentColumn = "id",
         entityColumn = "id",
-        associateBy = Junction(TransactionCategoryCrossRef::class)
+        associateBy = Junction(TransactionCategoryCrossRef::class,
+            parentColumn = "categoryId",
+            entityColumn = "transactionId"
+        )
     )
-    val transactions: List<Transaction>
+    val transactions: List<Transaction>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "categoryId"
+    )
+    val budgets: List<Budget>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "categoryId"
+    )
+    val keyWords: List<CategoryKeyword>
 )

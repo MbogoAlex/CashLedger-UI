@@ -30,35 +30,48 @@ class SplashScreenViewModel(
     val uiState: StateFlow<SplashScreenUiState> = _uiState.asStateFlow()
 
     fun getAppLaunchState() {
-
         viewModelScope.launch {
-            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            // Fetch the app launch status or handle null by inserting a default value
+            var appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+
+            if (appLaunchStatus == null) {
+                // Create a default AppLaunchStatus if it doesn't exist
+                val defaultAppLaunchStatus = AppLaunchStatus(id = 1, user_id = null, launched = 1)
+                dbRepository.insertAppLaunchStatus(defaultAppLaunchStatus)
+                appLaunchStatus = defaultAppLaunchStatus
+            }
+
             val userId: Int? = appLaunchStatus.user_id
             var user: UserDetails? = null
             val users = dbRepository.getUsers().first()
-            if(userId != null) {
-                user = if(users.isNotEmpty()) users[0] else null
+
+            if (userId != null) {
+                user = if (users.isNotEmpty()) users[0] else null
             }
+
             _uiState.update {
                 it.copy(
                     appLaunchStatus = appLaunchStatus,
                     userDetails = user
                 )
             }
-            if(uiState.value.appLaunchStatus.launched == 0) {
+
+            if (uiState.value.appLaunchStatus.launched == 0) {
                 dbRepository.updateAppLaunchStatus(
                     uiState.value.appLaunchStatus.copy(
                         launched = 1
                     )
                 )
             }
-            if(uiState.value.appLaunchStatus.user_id != null) {
+
+            if (uiState.value.appLaunchStatus.user_id != null) {
                 val userAccount = userAccountService.getUserAccount(uiState.value.appLaunchStatus.user_id!!).first()
                 Log.d("USER_ACCOUNT", userAccount.toString())
                 getSubscriptionStatus()
             }
         }
     }
+
 
     fun getSubscriptionStatus() {
         viewModelScope.launch {
