@@ -12,9 +12,12 @@ import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.db.models.TransactionWithCategories
+import com.records.pesa.models.TodayExpenditure
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
+import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.util.Locale
 
 @Dao
 interface TransactionsDao {
@@ -68,6 +71,15 @@ interface TransactionsDao {
     @Query("select * from `transaction` order by date asc limit 1")
     fun getFirstTransaction(): Flow<Transaction>
 
+    @Query("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN t.transactionAmount > 0 THEN t.transactionAmount ELSE 0 END), 0) AS totalIn,
+            COALESCE(SUM(CASE WHEN t.transactionAmount < 0 THEN ABS(t.transactionAmount) ELSE 0 END), 0) AS totalOut
+        FROM `transaction` t
+        WHERE t.date = :date
+    """)
+    fun getTodayExpenditure(date: LocalDate): Flow<TodayExpenditure>
+
     fun createUserTransactionQuery(
         userId: Int,
         entity: String?,
@@ -107,9 +119,59 @@ interface TransactionsDao {
         )
     }
 
+    fun createUserTransactionQueryByMonthAndYear(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        moneyDirection: String?,
+        month: String, // The month name (e.g., "January")
+        year: Int // The year (e.g., 2024)
+    ): SupportSQLiteQuery {
+        val orderClause = if (latest) "DESC" else "ASC"
+
+        val query = StringBuilder().apply {
+            append("SELECT t.* FROM `transaction` t ")
+            append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
+            append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
+            append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
+            append("AND (? IS NULL OR ? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
+            append("AND (? IS NULL OR tc.categoryId = ?) ")
+            append("AND (? IS NULL OR b.id = ?) ")
+            append("AND (? IS NULL OR ? = '' OR LOWER(t.transactionType) LIKE '%' || ? || '%') ")
+            append("AND (strftime('%m', t.date) = strftime('%m', ?) AND strftime('%Y', t.date) = ?) ")
+            if (!moneyDirection.isNullOrEmpty()) {
+                if (moneyDirection.equals("in", ignoreCase = true)) {
+                    append("AND t.transactionAmount > 0 ")
+                } else {
+                    append("AND t.transactionAmount <= 0 ")
+                }
+            }
+            append("ORDER BY t.date $orderClause, t.time $orderClause")
+        }
+
+        // Convert the month name to a zero-padded month number (e.g., "January" to "01")
+        val monthNumber = SimpleDateFormat("MMMM", Locale.ENGLISH).parse(month)?.let {
+            SimpleDateFormat("MM", Locale.ENGLISH).format(it)
+        }
+
+        return SimpleSQLiteQuery(
+            query.toString(),
+            arrayOf(
+                userId, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, "$year-$monthNumber-01", year.toString()
+            )
+        )
+    }
+
+
 
     @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
     fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
+
+    @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
+    fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
 
     fun createUserTransactionQueryForMultipleCategories(
         userId: Int,

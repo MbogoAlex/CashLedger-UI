@@ -10,6 +10,7 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.MessageData
+import com.records.pesa.models.TodayExpenditure
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -67,4 +68,20 @@ interface TransactionService {
         startDate: LocalDate,
         endDate: LocalDate
     ): SupportSQLiteQuery
+
+    fun getTodayExpenditure(date: LocalDate): Flow<TodayExpenditure>
+    fun getCurrentBalance(): Flow<Double>
+    fun createUserTransactionQueryByMonthAndYear(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        moneyDirection: String?,
+        month: String, // The month name (e.g., "January")
+        year: Int // The year (e.g., 2024)
+    ): SupportSQLiteQuery
+
+    fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
 }

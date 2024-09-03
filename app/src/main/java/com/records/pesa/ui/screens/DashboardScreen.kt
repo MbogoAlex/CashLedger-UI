@@ -69,12 +69,14 @@ import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.transaction.MonthlyTransaction
+import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
+import com.records.pesa.ui.screens.transactions.Chart6
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
@@ -152,6 +154,7 @@ fun DashboardScreenComposable(
             maxAmount = uiState.maxAmount,
             groupedTransactions = uiState.groupedTransactions,
             monthlyTransactions = uiState.monthlyTransactions,
+            sortedTransactionItems = uiState.sortedTransactionItems,
             transactions = uiState.transactions,
             selectableYears = uiState.selectableYears,
             selectableMonths = uiState.selectableMonths,
@@ -193,6 +196,7 @@ fun DashboardScreen(
     moneyOutPointsData: List<Point>,
     maxAmount: Float = 0.0f,
     groupedTransactions: List<GroupedTransactionData>,
+    sortedTransactionItems: List<SortedTransactionItem>,
     monthlyTransactions: List<MonthlyTransaction>,
     transactions: List<TransactionItem>,
     transactionCategories: List<TransactionCategory>,
@@ -471,7 +475,7 @@ fun DashboardScreen(
 
         }
         Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        if(monthlyTransactions.isNotEmpty()) {
+        if(sortedTransactionItems.isNotEmpty()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -503,14 +507,7 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
-            BarWithLineChart(
-                transactions = monthlyTransactions,
-                maxAmount = maxAmount,
-                moneyInPointsData = moneyInPointsData,
-                moneyOutPointsData = moneyOutPointsData,
-                modifier = Modifier
-                    .height(screenHeight(x = 350.0))
-            )
+            Chart6(sortedTransactionItems, Modifier.height(screenHeight(x = 350.0)))
         } else {
             Text(
                 text = "No transactions for this month",
@@ -767,7 +764,8 @@ fun DashboardScreenPreview(
             monthlyTotalOut = "",
             showBalance = true,
             onToggleBalanceVisibility = {},
-            navigateToTransactionDetailsScreen = {}
+            navigateToTransactionDetailsScreen = {},
+            sortedTransactionItems = emptyList()
         )
     }
 }

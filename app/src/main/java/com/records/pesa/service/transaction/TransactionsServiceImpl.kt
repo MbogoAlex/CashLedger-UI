@@ -10,6 +10,7 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.MessageData
+import com.records.pesa.models.TodayExpenditure
 import com.records.pesa.service.transaction.function.ReportGeneration
 import com.records.pesa.service.transaction.function.TransactionsExtraction
 import kotlinx.coroutines.flow.Flow
@@ -138,5 +139,31 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
         startDate = startDate,
         endDate = endDate
     )
+
+    override fun getTodayExpenditure(date: LocalDate): Flow<TodayExpenditure> = transactionsDao.getTodayExpenditure(date)
+    override fun getCurrentBalance(): Flow<Double> = transactionsDao.getCurrentBalance()
+    override fun createUserTransactionQueryByMonthAndYear(
+        userId: Int,
+        entity: String?,
+        categoryId: Int?,
+        budgetId: Int?,
+        transactionType: String?,
+        latest: Boolean,
+        moneyDirection: String?,
+        month: String,
+        year: Int
+    ): SupportSQLiteQuery = transactionsDao.createUserTransactionQueryByMonthAndYear(
+        userId = userId,
+        entity = entity,
+        categoryId = categoryId,
+        budgetId = budgetId,
+        transactionType = transactionType,
+        latest = latest,
+        moneyDirection = moneyDirection,
+        month = month,
+        year = year
+    )
+
+    override fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getUserTransactionsFilteredByMonthAndYear(query)
 
 }
