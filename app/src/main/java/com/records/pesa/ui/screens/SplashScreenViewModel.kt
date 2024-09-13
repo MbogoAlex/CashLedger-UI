@@ -65,7 +65,7 @@ class SplashScreenViewModel(
             }
 
             if (uiState.value.appLaunchStatus.user_id != null) {
-                val userAccount = userAccountService.getUserAccount(uiState.value.appLaunchStatus.user_id!!).first()
+                val userAccount = dbRepository.getUser(uiState.value.appLaunchStatus.user_id!!).first()
                 Log.d("USER_ACCOUNT", userAccount.toString())
                 getSubscriptionStatus()
             }

@@ -7,16 +7,23 @@ import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserAccount
+import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.network.SupabaseClient
+import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.workers.WorkersRepository
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 data class LoginScreenUiState(
@@ -69,46 +76,70 @@ class LoginScreenViewModel(
             password = uiState.value.password
         )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.loginUser(uiState.value.password, loginPayload)
-                if(response.isSuccessful) {
-                    val userAccount = UserAccount(
-                        id = response.body()?.data?.user?.userInfo?.id!!,
-                        fname = null,
-                        lname = null,
-                        email = null,
-                        phoneNumber = response.body()?.data?.user?.userInfo?.phoneNumber!!,
-                        password = uiState.value.password,
-                        createdAt = LocalDateTime.now()
-                    )
-                    try {
-                        userAccountService.insertUserAccount(userAccount)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-//                        Log.e("failedToSaveUserException", e.toString())
-                    }
+            withContext(Dispatchers.IO) {
+                try {
+                    val user = client.postgrest["userAccount"]
+                        .select {
+                            filter {
+                                eq("phoneNumber", loginPayload.phoneNumber)
+                            }
+                        }.decodeSingle<com.records.pesa.models.user.UserAccount>()
 
-                    var users = dbRepository.getUsers().first()
-                    when (users.isEmpty()) {
-                        true -> {
-                            users = dbRepository.getUsers().first()
-                        }
-                        false -> {
-                            workersRepository.fetchAndPostMessages(
-                                token = response.body()?.data?.user?.token!!,
-                                userId = response.body()?.data?.user?.userInfo?.id!!
+                    if(user.isNotNull()) {
+                        if(user.password == uiState.value.password) {
+                            val userAccount = UserAccount(
+                                id = user.id ?: 0,
+                                fname = user.fname,
+                                lname = user.lname,
+                                email = user.email,
+                                phoneNumber = user.phoneNumber,
+                                password = uiState.value.password,
+                                createdAt = user.createdAt?.let {
+                                    LocalDateTime.parse(it)
+                                } ?: LocalDateTime.now()
                             )
+                            userAccountService.insertUserAccount(userAccount)
+                            dbRepository.deleteAllFromUser()
+                            val userDetails = UserDetails(
+                                userId = user.id ?: 0,
+                                firstName = user.fname,
+                                lastName = user.lname,
+                                email = user.email,
+                                phoneNumber = user.phoneNumber,
+                                password = uiState.value.password,
+                                token = "",
+                                paymentStatus = false
+                            )
+                            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+                            dbRepository.updateAppLaunchStatus(
+                                appLaunchStatus.copy(
+                                    user_id = user.id ?: 0
+                                )
+                            )
+                            dbRepository.insertUser(userDetails)
+                            var users = emptyList<UserDetails>()
+
+                            while (users.isEmpty()) {
+                                delay(1000)
+                                users = dbRepository.getUsers().first()
+                            }
+                            if(users.isNotEmpty()) {
+                                _uiState.update {
+                                    it.copy(
+                                        loginStatus = LoginStatus.SUCCESS,
+                                        loginMessage = "Login Successfully"
+                                    )
+                                }
+                            }
+                        } else {
                             _uiState.update {
                                 it.copy(
-                                    loginStatus = LoginStatus.SUCCESS,
-                                    loginMessage = "Login successful"
+                                    loginStatus = LoginStatus.FAIL,
+                                    loginMessage = "Invalid credentials"
                                 )
                             }
                         }
-                    }
-                } else {
-                    Log.e("UserLoginResponseError", response.toString())
-                    if(response.code() == 401) {
+                    } else {
                         _uiState.update {
                             it.copy(
                                 loginStatus = LoginStatus.FAIL,
@@ -116,16 +147,17 @@ class LoginScreenViewModel(
                             )
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e("UserLoginException", e.toString())
+                    _uiState.update {
+                        it.copy(
+                            loginStatus = LoginStatus.FAIL,
+                            exception = e.toString(),
+                            loginMessage = "Invalid credentials"
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                Log.e("UserLoginException", e.toString())
-                _uiState.update {
-                    it.copy(
-                        loginStatus = LoginStatus.FAIL,
-                        exception = e.toString(),
-                        loginMessage = "Login failed. Check your internet or try later"
-                    )
-                }
+
             }
         }
     }

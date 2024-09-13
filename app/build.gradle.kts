@@ -58,6 +58,23 @@ android {
 
 dependencies {
 
+    // https://mvnrepository.com/artifact/io.github.jan-tennert.supabase/postgrest-kt-android
+    implementation("io.github.jan-tennert.supabase:postgrest-kt-android:2.6.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.4.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+
+    implementation("io.github.jan-tennert.supabase:compose-auth-ui:2.6.1-dev")
+    implementation("io.github.jan-tennert.supabase:compose-auth:2.6.1")
+
+
+
+    implementation("io.ktor:ktor-client-cio:2.3.4")
+
+
+
+    // https://mvnrepository.com/artifact/io.github.jan-tennert.supabase/gotrue-kt
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.6.1")
+
     // https://mvnrepository.com/artifact/com.jaspersoft/jrs-rest-java-client
 //    implementation("com.jaspersoft:jrs-rest-java-client:9.0.0")
 

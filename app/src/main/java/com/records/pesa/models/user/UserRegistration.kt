@@ -22,3 +22,17 @@ data class UserRegistrationResponseBody(
 data class UserRegData(
     val user: UserDetailsData
 )
+
+@Serializable
+data class UserAccount(
+    val id: Int? = null,
+    val email: String? = null,
+    val fname: String? = null,
+    val lname: String? = null,
+    val phoneNumber: String,
+    val password: String,
+    val createdAt: String? = null,
+    val month: Int,
+    val lastLogin: String? = null,
+    val role: Int,
+)
