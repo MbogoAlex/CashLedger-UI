@@ -116,11 +116,11 @@ class RegistrationScreenViewModel(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("UserRegistrationException", e.toString())
+                    Log.e("UserRegistrationException", e.message.toString())
                     _uiState.update {
                         it.copy(
                             registrationStatus = RegistrationStatus.FAIL,
-                            registrationMessage = "Registration failed. Check your internet or try later"
+                            registrationMessage = if(e.message.toString().contains("duplicate")) "User already exists" else "Registration failed. Check your internet or try later"
                         )
                     }
                 }

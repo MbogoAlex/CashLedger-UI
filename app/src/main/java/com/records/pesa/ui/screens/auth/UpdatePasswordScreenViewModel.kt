@@ -5,14 +5,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.user.PasswordUpdatePayload
+import com.records.pesa.models.user.UserAccount
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 
 data class UpdatePasswordScreenUiState(
     val phoneNumber: String = "",
@@ -60,38 +66,41 @@ class UpdatePasswordScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
-        val passwordUpdatePayload = PasswordUpdatePayload(
-            phoneNumber = uiState.value.phoneNumber,
-            newPassword = uiState.value.password
-        )
         viewModelScope.launch {
-            try {
-                val response = apiRepository.updateUserPassword(passwordUpdatePayload)
-                if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val user = client.postgrest["userAccount"]
+                        .select {
+                            filter {
+                                eq("phoneNumber", uiState.value.phoneNumber)
+                            }
+                        }.decodeSingle<UserAccount>()
+                    val userAccount = UserAccount(
+                        phoneNumber = uiState.value.phoneNumber,
+                        password = uiState.value.password,
+                        month = user.month,
+                        role = 0,
+                    )
+                    client.postgrest["userAccount"]
+                        .update(userAccount) {
+                            filter {
+                                eq("phoneNumber", uiState.value.phoneNumber)
+                            }
+                        }
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.SUCCESS,
-                            resetMessage = "New password set successfully"
+                            resetMessage = "Password reset successfully"
                         )
                     }
-                } else {
-                    Log.e("ResetPasswordResponseError", response.toString())
-                    if(response.code() == 401) {
-                        _uiState.update {
-                            it.copy(
-                                loadingStatus = LoadingStatus.FAIL,
-                                resetMessage = "No account with the phone number exists"
-                            )
-                        }
+                } catch (e: Exception) {
+                    Log.e("ResetPasswordException", e.message.toString())
+                    _uiState.update {
+                        it.copy(
+                            loadingStatus = LoadingStatus.FAIL,
+                            resetMessage = if(e.message.toString().contains("empty")) "User with this phone number does not exist" else "Password reset failed. Check your internet or try later"
+                        )
                     }
-                }
-            } catch (e: Exception) {
-                Log.e("ResetPasswordException", e.toString())
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL,
-                        resetMessage = "Password reset failed. Check your internet or try later"
-                    )
                 }
             }
         }
