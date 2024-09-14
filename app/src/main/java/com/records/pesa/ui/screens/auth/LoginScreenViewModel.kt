@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDateTime
 
 data class LoginScreenUiState(
@@ -86,7 +87,7 @@ class LoginScreenViewModel(
                         }.decodeSingle<com.records.pesa.models.user.UserAccount>()
 
                     if(user.isNotNull()) {
-                        if(user.password == uiState.value.password) {
+                        if(BCrypt.checkpw(uiState.value.password, user.password)) {
                             val userAccount = UserAccount(
                                 id = user.id ?: 0,
                                 fname = user.fname,

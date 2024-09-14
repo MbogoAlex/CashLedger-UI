@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDateTime
 
 data class UpdatePasswordScreenUiState(
@@ -69,6 +70,7 @@ class UpdatePasswordScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
+                    val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
                     val user = client.postgrest["userAccount"]
                         .select {
                             filter {
@@ -77,7 +79,7 @@ class UpdatePasswordScreenViewModel(
                         }.decodeSingle<UserAccount>()
                     val userAccount = UserAccount(
                         phoneNumber = uiState.value.phoneNumber,
-                        password = uiState.value.password,
+                        password = hashedPassword,
                         month = user.month,
                         role = 0,
                     )

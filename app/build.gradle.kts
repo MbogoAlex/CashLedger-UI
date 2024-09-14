@@ -58,6 +58,10 @@ android {
 
 dependencies {
 
+    // https://mvnrepository.com/artifact/org.mindrot/jbcrypt
+    implementation("org.mindrot:jbcrypt:0.4")
+
+
     // https://mvnrepository.com/artifact/io.github.jan-tennert.supabase/postgrest-kt-android
     implementation("io.github.jan-tennert.supabase:postgrest-kt-android:2.6.1")
     implementation("io.github.jan-tennert.supabase:storage-kt:2.4.2")

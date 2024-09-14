@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
+import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDateTime
 
 data class RegistrationScreenUiState(
@@ -70,9 +71,10 @@ class RegistrationScreenViewModel(
                 registrationStatus = RegistrationStatus.LOADING
             )
         }
+        val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
         val userAccount = UserAccount(
             phoneNumber = uiState.value.phoneNumber,
-            password = uiState.value.password,
+            password = hashedPassword,
             month = LocalDateTime.now().monthValue,
             role = 0,
         )
