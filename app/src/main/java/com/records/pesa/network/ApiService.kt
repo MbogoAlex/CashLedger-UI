@@ -27,6 +27,10 @@ import com.records.pesa.models.transaction.TransactionEditPayload
 import com.records.pesa.models.transaction.TransactionEditResponseBody
 import com.records.pesa.models.transaction.TransactionResponseBody
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.payment.intasend.IntasendPaymentPayload
+import com.records.pesa.models.payment.intasend.IntasendPaymentResponseBody
+import com.records.pesa.models.payment.intasend.IntasendPaymentStatusPayload
+import com.records.pesa.models.payment.intasend.IntasendPaymentStatusResponseBody
 import com.records.pesa.models.transaction.IndividualSortedTransactionsResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.transaction.SingleTransactionResponseBody
@@ -384,4 +388,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("userId") userId: Int
     ): Response<FreeTrialStatusResponseBody>
+
+    @POST("live")
+    suspend fun lipa(@Body payload: IntasendPaymentPayload): Response<IntasendPaymentResponseBody>
+
+    @POST("live")
+    suspend fun lipaStatus(@Body payload: IntasendPaymentStatusPayload): Response<IntasendPaymentStatusResponseBody>
 }

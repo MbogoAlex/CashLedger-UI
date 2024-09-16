@@ -95,7 +95,7 @@ fun SmsFetchScreenComposable(
                 while (uiState.userDetails.userId == 0) {
                     delay(1000)
                 }
-                viewModel.getLatestTransactionCodes(context)
+                viewModel.fetchSmsMessages(context)
 
             }
         }
@@ -118,7 +118,7 @@ fun SmsFetchScreenComposable(
             while (uiState.userDetails.userId == 0) {
                 delay(1000)
             }
-            viewModel.getLatestTransactionCodes(context)
+            viewModel.fetchSmsMessages(context)
         }
 
     }

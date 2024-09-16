@@ -34,8 +34,10 @@ class AppContainerImpl(context: Context): AppContainer {
         ignoreUnknownKeys = true
         coerceInputValues = true
     }
-//    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
-    private val baseUrl = "http://192.168.0.106:8080/api/"
+    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
+//    private val baseUrl = "http://192.168.0.106:8080/api/"
+//      private val baseUrl = "https://example.com/"
+
 //    private val baseUrl = "https://8d1b-102-211-145-169.ngrok-free.app/api/"
 
     private val retrofit = Retrofit.Builder()
@@ -43,8 +45,28 @@ class AppContainerImpl(context: Context): AppContainer {
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
 
+    // First Retrofit instance for the first URL
+    private val retrofitLipa = Retrofit.Builder()
+        .baseUrl("https://4cv4a4f2fc.execute-api.eu-central-1.amazonaws.com/")
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+
+    // Second Retrofit instance for the second URL
+    private val retrofitLipaStatus = Retrofit.Builder()
+        .baseUrl("https://6x0twkya55.execute-api.eu-central-1.amazonaws.com/")
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+
     private val retrofitService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
+    }
+
+    private val retrofitServiceLipa: ApiService by lazy {
+        retrofitLipa.create(ApiService::class.java)
+    }
+
+    private val retrofitServiceLipaStatus: ApiService by lazy {
+        retrofitLipaStatus.create(ApiService::class.java)
     }
 
     override val dbRepository: DBRepository by lazy {
@@ -65,7 +87,7 @@ class AppContainerImpl(context: Context): AppContainer {
     }
 
     override val apiRepository: ApiRepository by lazy {
-        ApiRepositoryImpl(retrofitService, dbRepository)
+        ApiRepositoryImpl(retrofitService, retrofitServiceLipa, retrofitServiceLipaStatus,  dbRepository)
     }
     override val workersRepository: WorkersRepository = WorkersRepositoryImpl(context)
 

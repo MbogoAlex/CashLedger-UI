@@ -262,36 +262,36 @@ class SmsFetchScreenViewModel(
         }
     }
 
-    fun getLatestTransactionCodes(context: Context) {
-        Log.d("USERS_WHEN_GETTING_LATEST_CODE", uiState.value.userDetails.toString())
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.LOADING
-            )
-        }
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getLatestTransactionCode(token = uiState.value.userDetails.token, userId = uiState.value.userDetails.userId)
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            existingTransactionCodes = response.body()?.data?.transaction!!
-                        )
-                    }
-                    fetchSmsMessages(context)
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            errorCode = response.code()
-                        )
-                    }
-                    Log.e("GetLatestTransactionCodeErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("GetLatestTransactionCodeErrorException", e.toString())
-            }
-        }
-    }
+//    fun getLatestTransactionCodes(context: Context) {
+//        Log.d("USERS_WHEN_GETTING_LATEST_CODE", uiState.value.userDetails.toString())
+//        _uiState.update {
+//            it.copy(
+//                loadingStatus = LoadingStatus.LOADING
+//            )
+//        }
+//        viewModelScope.launch {
+//            try {
+//                val response = apiRepository.getLatestTransactionCode(token = uiState.value.userDetails.token, userId = uiState.value.userDetails.userId)
+//                if(response.isSuccessful) {
+//                    _uiState.update {
+//                        it.copy(
+//                            existingTransactionCodes = response.body()?.data?.transaction!!
+//                        )
+//                    }
+//                    fetchSmsMessages(context)
+//                } else {
+//                    _uiState.update {
+//                        it.copy(
+//                            errorCode = response.code()
+//                        )
+//                    }
+//                    Log.e("GetLatestTransactionCodeErrorResponse", response.toString())
+//                }
+//            } catch (e: Exception) {
+//                Log.e("GetLatestTransactionCodeErrorException", e.toString())
+//            }
+//        }
+//    }
 
     fun resetLoadingStatus() {
         _uiState.update {

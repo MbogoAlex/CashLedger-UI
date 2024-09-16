@@ -97,7 +97,7 @@ class LoginScreenViewModel(
                                 password = uiState.value.password,
                                 createdAt = user.createdAt?.let {
                                     LocalDateTime.parse(it)
-                                } ?: LocalDateTime.now()
+                                } ?: LocalDateTime.now(),
                             )
                             userAccountService.insertUserAccount(userAccount)
                             dbRepository.deleteAllFromUser()
@@ -109,7 +109,7 @@ class LoginScreenViewModel(
                                 phoneNumber = user.phoneNumber,
                                 password = uiState.value.password,
                                 token = "",
-                                paymentStatus = false
+                                paymentStatus = user.permanent,
                             )
                             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
                             dbRepository.updateAppLaunchStatus(

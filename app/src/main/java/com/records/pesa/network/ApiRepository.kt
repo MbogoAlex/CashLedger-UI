@@ -28,6 +28,10 @@ import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.PaymentResponseBody
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.SubscriptionStatusResponseBody
+import com.records.pesa.models.payment.intasend.IntasendPaymentPayload
+import com.records.pesa.models.payment.intasend.IntasendPaymentResponseBody
+import com.records.pesa.models.payment.intasend.IntasendPaymentStatusPayload
+import com.records.pesa.models.payment.intasend.IntasendPaymentStatusResponseBody
 import com.records.pesa.models.transaction.IndividualSortedTransactionsResponseBody
 import com.records.pesa.models.transaction.MonthlyTransactionsResponseBody
 import com.records.pesa.models.transaction.SingleTransactionResponseBody
@@ -45,6 +49,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -111,9 +116,13 @@ interface ApiRepository {
     suspend fun generateReportForMultipleCategories(token: String, categoryReportPayload: CategoryReportPayload): Response<ResponseBody>
     suspend fun getTransactionTypesDashboard(token: String, userId: Int, startDate: String, endDate: String): Response<TransactionTypeResponseBody>
     suspend fun getFreeTrialStatus(token: String, userId: Int): Response<FreeTrialStatusResponseBody>
+
+    suspend fun lipa(payload: IntasendPaymentPayload): Response<IntasendPaymentResponseBody>
+
+    suspend fun lipaStatus(payload: IntasendPaymentStatusPayload): Response<IntasendPaymentStatusResponseBody>
 }
 
-class ApiRepositoryImpl(private val apiService: ApiService, private val dbRepository: DBRepository): ApiRepository {
+class ApiRepositoryImpl(private val apiService: ApiService, private val retrofitServiceLipa: ApiService, private val retrofitServiceLipaStatus: ApiService, private val dbRepository: DBRepository): ApiRepository {
     override suspend fun postMessages(
         token: String,
         id: Int,
@@ -581,6 +590,14 @@ class ApiRepositoryImpl(private val apiService: ApiService, private val dbReposi
     ): Response<FreeTrialStatusResponseBody> = apiService.getFreeTrialStatus(
         token = "Bearer $token",
         userId = userId
+    )
+
+    override suspend fun lipa(payload: IntasendPaymentPayload): Response<IntasendPaymentResponseBody> = retrofitServiceLipa.lipa(
+        payload = payload
+    )
+
+    override suspend fun lipaStatus(payload: IntasendPaymentStatusPayload): Response<IntasendPaymentStatusResponseBody> = retrofitServiceLipaStatus.lipaStatus(
+        payload = payload
     )
 
     override suspend fun loginUser(password: String, user: UserLoginPayload): Response<UserLoginResponseBody> {

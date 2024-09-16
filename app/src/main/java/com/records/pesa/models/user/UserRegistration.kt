@@ -35,4 +35,5 @@ data class UserAccount(
     val month: Int,
     val lastLogin: String? = null,
     val role: Int,
+    val permanent: Boolean = false
 )
