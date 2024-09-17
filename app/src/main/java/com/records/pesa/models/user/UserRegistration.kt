@@ -1,6 +1,7 @@
 package com.records.pesa.models.user
 
 import kotlinx.serialization.Serializable
+import java.time.LocalDateTime
 
 @Serializable
 data class UserRegistrationPayload(
@@ -35,5 +36,7 @@ data class UserAccount(
     val month: Int,
     val lastLogin: String? = null,
     val role: Int,
-    val permanent: Boolean = false
+    val permanent: Boolean = false,
+    val backupSet: Boolean = false,
+    val lastBackup: String? = null,
 )

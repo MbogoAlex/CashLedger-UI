@@ -17,7 +17,8 @@ import androidx.room.Index
     ]
 )
 data class TransactionCategoryCrossRef(
-    val transactionId: Int,
-    val categoryId: Int
+    var id: Int? = 0,
+    var transactionId: Int = 0,
+    var categoryId: Int = 0
 )
 

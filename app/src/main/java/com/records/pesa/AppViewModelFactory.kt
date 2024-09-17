@@ -16,6 +16,7 @@ import com.records.pesa.ui.screens.SplashScreenViewModel
 import com.records.pesa.ui.screens.auth.LoginScreenViewModel
 import com.records.pesa.ui.screens.auth.RegistrationScreenViewModel
 import com.records.pesa.ui.screens.auth.UpdatePasswordScreenViewModel
+import com.records.pesa.ui.screens.backup.BackupScreenViewModel
 import com.records.pesa.ui.screens.dashboard.HomeScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
@@ -302,6 +303,17 @@ object AppViewModelFactory {
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
                 transactionService = transactionService
+            )
+        }
+
+        initializer {
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            BackupScreenViewModel(
+                dbRepository = dbRepository,
+                transactionService = transactionService,
+                categoryService = categoryService
             )
         }
     }

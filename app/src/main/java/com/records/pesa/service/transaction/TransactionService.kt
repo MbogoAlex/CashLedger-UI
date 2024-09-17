@@ -84,4 +84,5 @@ interface TransactionService {
     ): SupportSQLiteQuery
 
     fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
+    suspend fun insertTransaction(transaction: Transaction): Long
 }

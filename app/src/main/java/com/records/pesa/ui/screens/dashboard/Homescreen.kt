@@ -78,6 +78,7 @@ import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
 import com.records.pesa.ui.screens.DashboardScreenComposable
+import com.records.pesa.ui.screens.backup.BackupScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
@@ -160,6 +161,11 @@ fun HomeScreenComposable(
             name = "Account information",
             icon = R.drawable.account_info,
             tab = HomeScreenTab.ACCOUNT_INFO
+        ),
+        HomeScreenTabItem(
+            name = "Backup & restore",
+            icon = R.drawable.backup_restore,
+            tab = HomeScreenTab.BACK_UP
         ),
     )
 
@@ -531,6 +537,11 @@ fun HomeScreen(
                     AccountInformationScreenComposable(
                         navigateToHomeScreen = navigateToHomeScreen,
                         navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+                    )
+                }
+                HomeScreenTab.BACK_UP -> {
+                    BackupScreenComposable(
+                        navigateToPreviousScreen = navigateToPreviousScreen
                     )
                 }
             }

@@ -17,4 +17,7 @@ interface CategoryService {
     fun getAllCategories(): Flow<List<CategoryWithTransactions>>
     fun getRawCategoryById(id: Int): Flow<TransactionCategory>
     fun getCategoryKeyword(id: Int): Flow<CategoryKeyword>
+    fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>>
+    fun getAllCategoryKeywords(): List<CategoryKeyword>
+    suspend fun insertTransactionCategoryCrossRef(transactionCategoryCrossRef: TransactionCategoryCrossRef)
 }

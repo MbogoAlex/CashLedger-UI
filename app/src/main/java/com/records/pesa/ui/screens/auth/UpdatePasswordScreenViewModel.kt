@@ -77,14 +77,9 @@ class UpdatePasswordScreenViewModel(
                                 eq("phoneNumber", uiState.value.phoneNumber)
                             }
                         }.decodeSingle<UserAccount>()
-                    val userAccount = UserAccount(
-                        phoneNumber = uiState.value.phoneNumber,
-                        password = hashedPassword,
-                        month = user.month,
-                        role = 0,
-                    )
+
                     client.postgrest["userAccount"]
-                        .update(userAccount) {
+                        .update(user.copy(password = hashedPassword)) {
                             filter {
                                 eq("phoneNumber", uiState.value.phoneNumber)
                             }

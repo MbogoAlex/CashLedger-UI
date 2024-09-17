@@ -3,6 +3,7 @@ package com.records.pesa.models.dbModel
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.time.LocalDateTime
 
 @Entity(tableName = "user", [Index(value = ["userId"], unique = true)])
 data class UserDetails(
@@ -20,5 +21,7 @@ data class UserDetails(
     val expiredAt: String? = null,
     val supabaseLogin: Boolean = false,
     val permanent: Boolean = false,
+    val backupSet: Boolean = false,
+    val lastBackup: LocalDateTime? = null,
     val darkThemeSet: Boolean = false
 )

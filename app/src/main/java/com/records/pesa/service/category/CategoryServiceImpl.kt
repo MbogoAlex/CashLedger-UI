@@ -21,4 +21,7 @@ class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService
     override fun getAllCategories(): Flow<List<CategoryWithTransactions>> = categoryDao.getAllCategories()
     override fun getRawCategoryById(id: Int): Flow<TransactionCategory> = categoryDao.getRawCategoryById(id)
     override fun getCategoryKeyword(id: Int): Flow<CategoryKeyword> = categoryDao.getCategoryKeyword(id)
+    override fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>> = categoryDao.getTransactionCategoryCrossRefs()
+    override fun getAllCategoryKeywords(): List<CategoryKeyword> = categoryDao.getAllCategoryKeywords()
+    override suspend fun insertTransactionCategoryCrossRef(transactionCategoryCrossRef: TransactionCategoryCrossRef) = categoryDao.insertTransactionCategoryCrossRef(transactionCategoryCrossRef)
 }

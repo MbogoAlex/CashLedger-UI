@@ -18,7 +18,8 @@ enum class HomeScreenTab {
     TRANSACTION_TYPES,
     CATEGORIES,
     BUDGETS,
-    ACCOUNT_INFO
+    ACCOUNT_INFO,
+    BACK_UP
 }
 
 data class HomeScreenTabItem(

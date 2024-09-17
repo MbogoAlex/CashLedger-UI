@@ -2,6 +2,7 @@ package com.records.pesa.db.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.models.CategoryKeyword
@@ -14,15 +15,18 @@ import kotlinx.coroutines.runBlocking
 
 @Dao
 interface CategoryDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransactionCategory(transactionCategory: TransactionCategory): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransactionCategoryCrossRef(transactionCategoryCrossRef: TransactionCategoryCrossRef)
 
     fun insertCategoryRunBlocking(transactionCategory: TransactionCategory): Long {
         return runBlocking {
             insertTransactionCategory(transactionCategory)
         }
     }
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertCategoryKeyword(categoryKeyword: CategoryKeyword)
 
     fun insertCategoryKeywordRunBlocking(categoryKeyword: CategoryKeyword) {
@@ -46,9 +50,14 @@ interface CategoryDao {
         }
     }
 
+    @Query("select * from transactionCategoryCrossRef")
+    fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>>
+
     @Query("select * from transactionCategory where id = :id")
     fun getCategoryById(id: Int): Flow<CategoryWithKeywords>
 
+    @Query("select * from categoryKeyword")
+    fun getAllCategoryKeywords(): List<CategoryKeyword>
 
     @Query("select * from transactionCategory where id = :id")
     fun getRawCategoryById(id: Int): Flow<TransactionCategory>
@@ -59,7 +68,7 @@ interface CategoryDao {
     @Query("select * from categoryKeyword where categoryId = :id")
     fun getStaticCategoryKeywords(id: Int): List<CategoryKeyword>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertCategoryTransactionMapping(transactionCategoryCrossRef: TransactionCategoryCrossRef): Long
 
     fun insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef: TransactionCategoryCrossRef): Long {

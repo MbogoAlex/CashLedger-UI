@@ -51,7 +51,9 @@ public class TransactionInsertion {
                 category.setUpdatedTimes(updatedTimes + 1.0);
                 category.setUpdatedAt(LocalDateTime.now());
                 categoryDao.updateCategoryRunBlocking(category);
-                TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef(transaction.getId(), category.getId());
+                TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef();
+                transactionCategoryCrossRef.setTransactionId(transaction.getId());
+                transactionCategoryCrossRef.setCategoryId(category.getId());
                 categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -67,7 +69,9 @@ public class TransactionInsertion {
                         categoryKeyword.setNickName(null);
                         categoryKeyword.setCategoryId(category.getId());
                         categoryDao.insertCategoryKeywordRunBlocking(categoryKeyword);
-                        TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef(transaction.getId(), category.getId());
+                        TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef();
+                        transactionCategoryCrossRef.setTransactionId(transaction.getId());
+                        transactionCategoryCrossRef.setCategoryId(category.getId());
                         categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
                     }
 

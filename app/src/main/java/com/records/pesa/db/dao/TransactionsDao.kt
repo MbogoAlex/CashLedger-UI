@@ -2,6 +2,7 @@ package com.records.pesa.db.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Update
@@ -21,7 +22,7 @@ import java.util.Locale
 
 @Dao
 interface TransactionsDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction): Long
     fun insertTransactionBlocking(transaction: Transaction): Long {
         return runBlocking {
@@ -47,7 +48,7 @@ interface TransactionsDao {
     @Query("select * from `transaction` where entity = :entity")
     fun getStaticTransactionByEntity(entity: String): List<Transaction>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertCategoryTransactionMapping(transactionCategoryCrossRef: TransactionCategoryCrossRef): Long
 
     fun insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef: TransactionCategoryCrossRef): Long {
