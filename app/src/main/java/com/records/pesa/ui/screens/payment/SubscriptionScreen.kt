@@ -92,7 +92,7 @@ fun SubscriptionScreenComposable(
         navigateToHomeScreen()
         viewModel.resetPaymentStatus()
     } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
-        Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
         navigateToHomeScreen()
         viewModel.resetPaymentStatus()
     }
@@ -225,7 +225,10 @@ fun SubscriptionScreen(
                 Button(onClick = {
                     navigateToPaymentScreen(true)
                 }) {
-                    Text(text = "Subscribe")
+                    Text(
+                        text = "Subscribe",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
             }
@@ -261,7 +264,10 @@ fun SubscriptionScreen(
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 Button(onClick = { navigateToPaymentScreen(false) }) {
-                    Text(text = "Subscribe")
+                    Text(
+                        text = "Subscribe",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
             }
@@ -317,7 +323,7 @@ fun PaymentScreen(
         }
         Text(
             text = if(monthly) "Monthly subscription fee" else "Lifetime subscription fee",
-            fontSize = 22.sp,
+            fontSize = screenFontSize(x = 22.0).sp,
             fontWeight = FontWeight.Bold
         )
         Column(
@@ -328,12 +334,14 @@ fun PaymentScreen(
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Deposit Amount",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(40.dp))
             Text(
                 text = "Amount",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextField(
@@ -356,6 +364,7 @@ fun PaymentScreen(
                 text = "Payment method",
                 lineHeight = 23.sp,
                 fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp,
                 modifier = Modifier
                     .padding(
                         top = 8.dp,
@@ -371,6 +380,7 @@ fun PaymentScreen(
                 Card {
                     Text(
                         text = "Mpesa",
+                        fontSize = screenFontSize(x = 14.0).sp,
                         modifier = Modifier
                             .padding(
                                 horizontal = 16.dp,
@@ -382,13 +392,17 @@ fun PaymentScreen(
             Spacer(modifier = Modifier.height(40.dp))
             Text(
                 text = "Phone number",
+                fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextField(
                 value = phoneNumber,
                 placeholder = {
-                    Text(text = "Enter phone number")
+                    Text(
+                        text = "Enter phone number",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 },
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -432,7 +446,10 @@ fun PaymentScreen(
                 if(loadingStatus == LoadingStatus.LOADING) {
                     Text(text = "$status...")
                 } else {
-                    Text(text = "Pay now")
+                    Text(
+                        text = "Pay now",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 }
 
             }

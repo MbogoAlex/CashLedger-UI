@@ -8,6 +8,7 @@ import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.supabase.PaymentData
 import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.SupabaseClient
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 data class LoginScreenUiState(
     val phoneNumber: String = "",
@@ -99,6 +101,7 @@ class LoginScreenViewModel(
                                     LocalDateTime.parse(it)
                                 } ?: LocalDateTime.now(),
                             )
+
                             userAccountService.insertUserAccount(userAccount)
                             dbRepository.deleteAllFromUser()
                             val userDetails = UserDetails(
@@ -110,6 +113,8 @@ class LoginScreenViewModel(
                                 password = uiState.value.password,
                                 token = "",
                                 paymentStatus = user.permanent,
+                                permanent = user.permanent,
+                                supabaseLogin = true
                             )
                             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
                             dbRepository.updateAppLaunchStatus(
@@ -124,6 +129,53 @@ class LoginScreenViewModel(
                                 delay(1000)
                                 users = dbRepository.getUsers().first()
                             }
+
+                            val userData = dbRepository.getUser(userId = userAccount.id).first()
+                            val payments = client.postgrest["payment"]
+                                .select {
+                                    filter{
+                                        eq("userId", userAccount.id)
+                                    }
+                                }.decodeList<PaymentData>()
+
+                            if(user.permanent) {
+                                dbRepository.updateUser(
+                                    userData.copy(
+                                        paymentStatus = true,
+                                    )
+                                )
+                            } else if(payments.isNotEmpty()) {
+                                val sortedPayments = payments.sortedByDescending {
+                                    LocalDateTime.parse(it.paidAt)
+                                }
+                                val payment = sortedPayments.first()
+                                val paidAt = LocalDateTime.parse(payment.paidAt)
+                                val expiredAt = LocalDateTime.parse(payment.expiredAt)
+                                if(expiredAt.isBefore(LocalDateTime.now())) {
+                                    dbRepository.updateUser(
+                                        userData.copy(
+                                            paymentStatus = false,
+                                            paidAt = payment.paidAt,
+                                            expiredAt = payment.expiredAt
+                                        )
+                                    )
+                                } else {
+                                    dbRepository.updateUser(
+                                        userData.copy(
+                                            paymentStatus = true,
+                                            paidAt = payment.paidAt,
+                                            expiredAt = payment.expiredAt
+                                        )
+                                    )
+                                }
+                            } else {
+                                dbRepository.updateUser(
+                                    userData.copy(
+                                        paymentStatus = false
+                                    )
+                                )
+                            }
+
                             if(users.isNotEmpty()) {
                                 _uiState.update {
                                     it.copy(

@@ -34,6 +34,7 @@ object SplashScreenDestination: AppNavigation {
 fun SplashScreenComposable(
     navigateToSmsFetchScreen: () -> Unit,
     navigateToRegistrationScreen: () -> Unit,
+    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -42,11 +43,15 @@ fun SplashScreenComposable(
 
     LaunchedEffect(Unit) {
         delay(2000L)
-        while(uiState.paymentStatus == null) {
+        while(uiState.paymentStatus == null && uiState.appLaunchStatus.user_id != null) {
             delay(1000)
         }
         if(uiState.appLaunchStatus.user_id != null && uiState.userDetails != null) {
-            navigateToSmsFetchScreen()
+            if(!uiState.userDetails!!.supabaseLogin) {
+                navigateToLoginScreenWithArgs(uiState.userDetails!!.phoneNumber, uiState.userDetails!!.password)
+            } else {
+                navigateToSmsFetchScreen()
+            }
         } else {
             navigateToRegistrationScreen()
         }

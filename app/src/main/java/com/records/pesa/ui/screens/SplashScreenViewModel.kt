@@ -58,6 +58,7 @@ class SplashScreenViewModel(
             if (userId != null) {
                 user = if (users.isNotEmpty()) users[0] else null
             }
+            Log.d("appLaunchStatus", appLaunchStatus.toString())
 
             _uiState.update {
                 it.copy(
@@ -75,7 +76,13 @@ class SplashScreenViewModel(
             }
 
             if (uiState.value.appLaunchStatus.user_id != null) {
+                Log.d("gettingUserData", "GETTING USER DATA")
                 val userAccount = dbRepository.getUser(uiState.value.appLaunchStatus.user_id!!).first()
+                _uiState.update {
+                    it.copy(
+                        userDetails = userAccount
+                    )
+                }
                 Log.d("USER_ACCOUNT", userAccount.toString())
                 getSubscriptionStatus(userAccount)
             }
@@ -84,72 +91,62 @@ class SplashScreenViewModel(
 
 
     fun getSubscriptionStatus(userDetails: UserDetails) {
+        Log.d("subscriptionStatusCheckMessage", "getting subscription status")
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                try {
-                    val user = client.postgrest["userAccount"]
-                        .select {
-                            filter {
-                                eq("phoneNumber", uiState.value.userDetails!!.phoneNumber)
-                            }
-                        }.decodeSingle<com.records.pesa.models.user.UserAccount>()
-                    val payments = client.postgrest["payment"]
-                        .select {
-                            filter{
-                                eq("userId", uiState.value.appLaunchStatus.user_id!!)
-                            }
-                        }.decodeList<PaymentData>()
-                        .sortedByDescending {
-                            LocalDateTime.parse(it.paidAt)
-                        }
-                    val payment = payments.first()
-
-                    if(user.permanent) {
-                        dbRepository.updateUser(
-                            userDetails.copy(
-                                paymentStatus = true
-                            )
+                if(userDetails.permanent) {
+                    dbRepository.updateUser(
+                        userDetails.copy(
+                            paymentStatus = true,
                         )
-                        _uiState.update {
-                            it.copy(
-                                paymentStatus = true
-                            )
-                        }
-                    } else if(payments.isNotEmpty()) {
-                        val paidAt = LocalDateTime.parse(payment.paidAt)
-                        if(ChronoUnit.MONTHS.between(paidAt, LocalDateTime.now())  >= 1) {
-                            dbRepository.updateUser(
-                                userDetails.copy(
-                                    paymentStatus = false
-                                )
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    paymentStatus = false
-                                )
-                            }
-                        } else {
-                            dbRepository.updateUser(
-                                userDetails.copy(
-                                    paymentStatus = true
-                                )
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    paymentStatus = true
-                                )
-                            }
-                        }
-                    }
-
-                } catch (e: Exception) {
+                    )
                     _uiState.update {
                         it.copy(
                             paymentStatus = true
                         )
                     }
-                    Log.e("SubscriptionStatusCheckException", e.toString())
+                } else {
+                    if(userDetails.paidAt == null) {
+                        _uiState.update {
+                            it.copy(
+                                paymentStatus = false
+                            )
+                        }
+                    } else {
+                        val paidAt = LocalDateTime.parse(userDetails.paidAt)
+                        val expiredAt = LocalDateTime.parse(userDetails.expiredAt)
+                        if(expiredAt.isBefore(LocalDateTime.now())) {
+                            dbRepository.updateUser(
+                                userDetails.copy(
+                                    paymentStatus = false,
+                                )
+                            )
+                            _uiState.update {
+                                it.copy(
+                                    paymentStatus = false
+                                )
+                            }
+                        } else if(expiredAt.isAfter(LocalDateTime.now())) {
+                            dbRepository.updateUser(
+                                userDetails.copy(
+                                    paymentStatus = true,
+                                )
+                            )
+                            _uiState.update {
+                                it.copy(
+                                    paymentStatus = false
+                                )
+                            }
+                        }
+                    }
                 }
+
+                _uiState.update {
+                    it.copy(
+                        paymentStatus = false
+                    )
+                }
+
             }
         }
     }

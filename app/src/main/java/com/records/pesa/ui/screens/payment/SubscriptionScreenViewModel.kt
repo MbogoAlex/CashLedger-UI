@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.PaymentData
 import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.intasend.IntasendPaymentPayload
@@ -20,6 +21,7 @@ import com.records.pesa.models.user.UserAccount
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 
 data class SubscriptionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -92,7 +95,7 @@ class SubscriptionScreenViewModel(
             _uiState.update {
                 it.copy(
                     userDetails = user,
-                    phoneNumber = user.phoneNumber
+                    phoneNumber = user.phoneNumber,
                 )
             }
             while (uiState.value.userDetails.userId == 0) {
@@ -111,7 +114,7 @@ class SubscriptionScreenViewModel(
             it.copy(
                 cancelled = false,
                 loadingStatus = LoadingStatus.LOADING,
-                state = "PROCESSING"
+                state = "STARTING..."
             )
         }
         val paymentPayload = IntasendPaymentPayload(
@@ -156,66 +159,92 @@ class SubscriptionScreenViewModel(
             invoice_id = uiState.value.invoice_id
         )
         viewModelScope.launch {
-            delay(10000)
-            while(uiState.value.state.lowercase() != "complete" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user") {
-                delay(5000)
-                try {
-                    val response = apiRepository.lipaStatus(
-                        payload = lipaStatusPayload
-                    )
-                    if(response.isSuccessful) {
+            withContext(Dispatchers.IO) {
+                delay(10000)
+                while(uiState.value.state.lowercase() != "complete" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
+                    delay(5000)
+                    try {
+                        val response = apiRepository.lipaStatus(
+                            payload = lipaStatusPayload
+                        )
+                        if(response.isSuccessful) {
+                            _uiState.update {
+                                it.copy(
+                                    failedReason = response.body()?.invoice?.failed_reason,
+                                    state = uiState.value.state
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.d("failedToCheckPaymentStatus", "Failed to check payment status")
+                    }
+                }
+
+                if(uiState.value.amount == "1000" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
+                    try {
+                        val user = client.postgrest["userAccount"]
+                            .select {
+                                filter {
+                                    eq("phoneNumber", uiState.value.phoneNumber)
+                                }
+                            }.decodeSingle<UserAccount>()
+                        val dbUser = dbRepository.getUser(userId = user.id!!).first()
+                        dbRepository.updateUser(
+                            dbUser.copy(
+                                permanent = true
+                            )
+                        )
+                        client.postgrest["userAccount"]
+                            .update(user.copy(permanent = true)) {
+                                filter {
+                                    eq("phoneNumber", uiState.value.phoneNumber)
+                                }
+                            }
+                    } catch (e: Exception) {
+                        Log.d("userUpdateFailure", e.toString())
+                    }
+                } else if(uiState.value.amount == "50" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
+                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                        amount = uiState.value.amount.toDouble(),
+                        expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                        paidAt = LocalDateTime.now().toString(),
+                        month = LocalDateTime.now().month.toString(),
+                        userId = uiState.value.userDetails.userId,
+
+                        )
+                    val savedPayment = client.from("payment").insert(payment) {
+                        select()
+                    }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
+                }
+
+                if(!uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
+                    withContext(Dispatchers.IO) {
+                        dbRepository.updateUser(
+                            uiState.value.userDetails.copy(
+                                paymentStatus = true
+                            )
+                        )
+
+                        var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+
+                        while(!user.paymentStatus) {
+                            user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                        }
+
                         _uiState.update {
                             it.copy(
-                                failedReason = response.body()?.invoice?.failed_reason,
-                                state = uiState.value.state
+                                loadingStatus = LoadingStatus.SUCCESS
                             )
                         }
                     }
-                } catch (e: Exception) {
-                    Log.d("failedToCheckPaymentStatus", "Failed to check payment status")
+                } else if(uiState.value.failedReason?.lowercase() == "request cancelled by user" || uiState.value.failedReason?.lowercase() == "ds timeout user cannot be reached") {
+                    _uiState.update {
+                        it.copy(
+                            loadingStatus = LoadingStatus.FAIL
+                        )
+                    }
                 }
             }
-
-            if(uiState.value.amount == "1000" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
-                try {
-                    val user = client.postgrest["userAccount"]
-                        .select {
-                            filter {
-                                eq("phoneNumber", uiState.value.phoneNumber)
-                            }
-                        }.decodeSingle<UserAccount>()
-
-                    client.postgrest["userAccount"]
-                        .update(user.copy(permanent = true)) {
-                            filter {
-                                eq("phoneNumber", uiState.value.phoneNumber)
-                            }
-                        }
-                } catch (e: Exception) {
-                    Log.d("userUpdateFailure", e.toString())
-                }
-            }
-
-            withContext(Dispatchers.IO) {
-                dbRepository.updateUser(
-                    uiState.value.userDetails.copy(
-                        paymentStatus = true
-                    )
-                )
-
-                var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-
-                while(!user.paymentStatus) {
-                    user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-                }
-
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.SUCCESS
-                    )
-                }
-            }
-
         }
     }
 

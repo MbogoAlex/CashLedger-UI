@@ -62,6 +62,9 @@ fun NavigationGraph(
                 navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) },
                 navigateToRegistrationScreen = {
                     navController.navigate(RegistrationScreenDestination.route)
+                },
+                navigateToLoginScreenWithArgs = {phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
                 }
             )
         }
