@@ -37,7 +37,7 @@ import java.time.LocalDateTime
 data class SubscriptionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val phoneNumber: String = "",
-    val amount: String = "50",
+    val amount: String = "1",
     val invoice_id: String = "",
     val state: String = "",
     val failedReason: String? = "",
@@ -101,7 +101,14 @@ class SubscriptionScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
-            paySubscriptionFee()
+        }
+    }
+
+    fun updatePhoneNumber(number: String) {
+        _uiState.update {
+            it.copy(
+                phoneNumber = number
+            )
         }
     }
 
@@ -137,6 +144,7 @@ class SubscriptionScreenViewModel(
                     lipaStatus()
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
                 _uiState.update {
                     it.copy(
                         loadingStatus = LoadingStatus.FAIL
@@ -146,32 +154,28 @@ class SubscriptionScreenViewModel(
         }
     }
 
-    fun updatePhoneNumber(number: String) {
-        _uiState.update {
-            it.copy(
-                phoneNumber = number
-            )
-        }
-    }
-
     private fun lipaStatus() {
         val lipaStatusPayload = IntasendPaymentStatusPayload(
             invoice_id = uiState.value.invoice_id
         )
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                delay(10000)
-                while(uiState.value.state.lowercase() != "complete" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
-                    delay(5000)
+                delay(5000)
+                val paidAt = LocalDateTime.now()
+                val expiredAt = paidAt.plusMonths(1)
+                while(uiState.value.state.lowercase() != "complete" && uiState.value.state.lowercase() != "redirecting" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
+                    Log.d("CHECKING_STATUS, INVOICE ", uiState.value.invoice_id)
+                    delay(2000)
                     try {
                         val response = apiRepository.lipaStatus(
                             payload = lipaStatusPayload
                         )
                         if(response.isSuccessful) {
+                            Log.d("STATUS_CHECKED:", uiState.value.state)
                             _uiState.update {
                                 it.copy(
                                     failedReason = response.body()?.invoice?.failed_reason,
-                                    state = uiState.value.state
+                                    state = response.body()?.invoice?.state ?: ""
                                 )
                             }
                         }
@@ -181,19 +185,31 @@ class SubscriptionScreenViewModel(
                 }
 
                 if(uiState.value.amount == "1000" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
+                    _uiState.update {
+                        it.copy(
+                            state = "REDIRECTING"
+                        )
+                    }
                     try {
+                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                            amount = uiState.value.amount.toDouble(),
+                            expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                            paidAt = LocalDateTime.now().toString(),
+                            month = LocalDateTime.now().month.value,
+                            userId = uiState.value.userDetails.userId,
+
+                            )
                         val user = client.postgrest["userAccount"]
                             .select {
                                 filter {
                                     eq("phoneNumber", uiState.value.phoneNumber)
                                 }
                             }.decodeSingle<UserAccount>()
-                        val dbUser = dbRepository.getUser(userId = user.id!!).first()
-                        dbRepository.updateUser(
-                            dbUser.copy(
-                                permanent = true
-                            )
-                        )
+
+                        val savedPayment = client.from("payment").insert(payment) {
+                            select()
+                        }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
+
                         client.postgrest["userAccount"]
                             .update(user.copy(permanent = true)) {
                                 filter {
@@ -203,38 +219,82 @@ class SubscriptionScreenViewModel(
                     } catch (e: Exception) {
                         Log.d("userUpdateFailure", e.toString())
                     }
-                } else if(uiState.value.amount == "50" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
-                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                        amount = uiState.value.amount.toDouble(),
-                        expiredAt = LocalDateTime.now().plusMonths(1).toString(),
-                        paidAt = LocalDateTime.now().toString(),
-                        month = LocalDateTime.now().month.toString(),
-                        userId = uiState.value.userDetails.userId,
-
+                } else if(uiState.value.amount == "1" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
+                    _uiState.update {
+                        it.copy(
+                            state = "REDIRECTING"
                         )
-                    val savedPayment = client.from("payment").insert(payment) {
-                        select()
-                    }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
+                    }
+                    try {
+                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                            amount = uiState.value.amount.toDouble(),
+                            expiredAt = expiredAt.toString(),
+                            paidAt = paidAt.toString(),
+                            month = LocalDateTime.now().month.value,
+                            userId = uiState.value.userDetails.userId,
+
+                            )
+                        val savedPayment = client.from("payment").insert(payment) {
+                            select()
+                        }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
+
+                    } catch (e: Exception) {
+                        Log.d("userUpdateFailure", e.toString())
+                    }
+
                 }
 
-                if(!uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
-                    withContext(Dispatchers.IO) {
-                        dbRepository.updateUser(
-                            uiState.value.userDetails.copy(
-                                paymentStatus = true
+                // save to local db
+                if(uiState.value.state.lowercase() == "redirecting") {
+                    Log.d("SAVING_TO_DB", "SAVING")
+                    if(uiState.value.amount == "1") {
+                        Log.d("SAVING_TO_DB", "SAVING KES 1")
+                        withContext(Dispatchers.IO) {
+                            var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            Log.d("SAVING_TO_DB", user.toString())
+                            dbRepository.updateUser(
+                                user.copy(
+                                    paymentStatus = true,
+                                    paidAt = paidAt.toString(),
+                                    expiredAt = expiredAt.toString()
+                                )
                             )
-                        )
 
-                        var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            while(!user.paymentStatus) {
+                                user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            }
 
-                        while(!user.paymentStatus) {
-                            user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            Log.d("SAVING_TO_DB", "UPDATED USER: $user")
+
+                            _uiState.update {
+                                it.copy(
+                                    paymentMessage = "Payment received",
+                                    loadingStatus = LoadingStatus.SUCCESS
+                                )
+                            }
                         }
-
-                        _uiState.update {
-                            it.copy(
-                                loadingStatus = LoadingStatus.SUCCESS
+                    } else if(uiState.value.amount == "1000") {
+                        withContext(Dispatchers.IO) {
+                            var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            dbRepository.updateUser(
+                                user.copy(
+                                    paymentStatus = true,
+                                    permanent = true,
+                                    paidAt = paidAt.toString(),
+                                    expiredAt = null
+                                )
                             )
+
+                            while(!user.paymentStatus) {
+                                user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
+                            }
+
+                            _uiState.update {
+                                it.copy(
+                                    paymentMessage = "Payment received",
+                                    loadingStatus = LoadingStatus.SUCCESS
+                                )
+                            }
                         }
                     }
                 } else if(uiState.value.failedReason?.lowercase() == "request cancelled by user" || uiState.value.failedReason?.lowercase() == "ds timeout user cannot be reached") {
@@ -243,55 +303,19 @@ class SubscriptionScreenViewModel(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                }
-            }
-        }
-    }
-
-    fun paySubscriptionFee() {
-        val paymentPayload = PaymentPayload(
-            userId = uiState.value.userDetails.userId,
-            phoneNumber = uiState.value.phoneNumber.takeIf { it.isNotEmpty() } ?: uiState.value.userDetails.phoneNumber,
-        )
-        viewModelScope.launch {
-            try {
-                Log.d("PAYING_WITH_TOKEN", uiState.value.userDetails.token)
-                val response = apiRepository.paySubscriptionFee(
-                    token = uiState.value.userDetails.token,
-                    paymentPayload = paymentPayload
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            paymentToken = response.body()?.data?.payment?.token!!,
-                            orderTrackingId = response.body()?.data?.payment?.order_tracking_id!!,
-                            redirectUrl = response.body()?.data?.payment?.redirect_url!!,
-//                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
                 } else {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL,
-                            paymentMessage = "Failed. Check your connection or try later"
-
+                            failedReason = "Something went wrong. Contact CashLedger team if this persists",
+                            loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("initiatePaymentResponseError", response.toString())
                 }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL,
-                        paymentMessage = "Failed. Check your connection or try later"
-                    )
-                }
-                Log.e("initiatePaymentException", e.toString())
-
             }
         }
     }
+
+
 
     fun checkPaymentStatus() {
         Log.d("CKECK_STATUS", "CHECKING_PAYMENT_STATUS")

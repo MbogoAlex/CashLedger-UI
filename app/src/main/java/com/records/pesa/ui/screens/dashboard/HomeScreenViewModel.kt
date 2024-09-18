@@ -1,6 +1,7 @@
 package com.records.pesa.ui.screens.dashboard
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
@@ -18,19 +19,24 @@ data class HomeScreenUiState(
     val darkMode: Boolean = false,
     val userDetails: UserDetails = UserDetails(),
     val freeTrialDays: Int = 0,
+    val screen: String? = null,
     val user: UserDetails = UserDetails()
 )
 
 class HomeScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
+    private val savedStateHandle: SavedStateHandle
 ): ViewModel() {
     private val _uiState = MutableStateFlow(value = HomeScreenUiState())
     val uiState: StateFlow<HomeScreenUiState> = _uiState.asStateFlow()
 
+    val screen: String? = savedStateHandle[HomeScreenDestination.route]
+
     fun getUserDetails() {
         viewModelScope.launch {
             dbRepository.getUsers().collect() { userDetails ->
+                Log.d("DB_USER", userDetails.toString())
                 _uiState.update {
                     it.copy(
                         userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
@@ -41,6 +47,7 @@ class HomeScreenViewModel(
 
         viewModelScope.launch {
             val user = dbRepository.getUsers().first()[0]
+            Log.d("DB_USER", user.toString())
             _uiState.update {
                 it.copy(
                     user = user
@@ -69,7 +76,20 @@ class HomeScreenViewModel(
         }
     }
 
+    fun resetNavigationScreen() {
+        _uiState.update {
+            it.copy(
+                screen = null
+            )
+        }
+    }
+
     init {
         getUserDetails()
+        _uiState.update {
+            it.copy(
+                screen = screen
+            )
+        }
     }
 }

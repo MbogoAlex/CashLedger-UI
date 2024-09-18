@@ -40,13 +40,19 @@ data class BackupScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val backupSet: Boolean = false,
     val paymentStatus: Boolean = false,
-    val transactionsNotBackedUp: Int = 0,
     val transactions: List<SupabaseTransaction> = emptyList(),
     val categories: List<SupabaseTransactionCategory> = emptyList(),
     val categoryKeywords: List<SupabaseCategoryKeyword> = emptyList(),
     val totalItems: Int = 0,
     val itemsInserted: Int = 0,
     val backupMessage: String = "",
+    val itemsNotBackedUp: Int = 0,
+    val transactionsNotBackedUp: Int = 0,
+    val categoriesNotBackedUp: Int = 0,
+    val categoryKeywordsNotBackedUp: Int = 0,
+    val categoryMappingsNotBackedUp: Int = 0,
+    val totalItemsToRestore: Int = 0,
+    val totalItemsRestored: Int = 0,
     val transactionWithCategoryMappings: List<SupabaseTransactionCategoryCrossRef> = emptyList(),
     val backupStatus: BackupStatus = BackupStatus.INITIAL,
     val restoreStatus: RestoreStatus = RestoreStatus.INITIAL
@@ -66,7 +72,7 @@ class BackupScreenViewModel(
                 dbRepository.getUsers().collect() {userDetails ->
                     _uiState.update {
                         it.copy(
-                            userDetails = userDetails.first()
+                            userDetails = userDetails.first(),
                         )
                     }
                 }
@@ -74,7 +80,7 @@ class BackupScreenViewModel(
         }
     }
 
-    private fun getAllLocalData() {
+    fun getAllLocalData() {
         viewModelScope.launch {
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
@@ -150,23 +156,54 @@ class BackupScreenViewModel(
         }
     }
 
+    fun getItemsNotBackedUp() {
+        var totalItems = 0
+        totalItems += uiState.value.transactions.size
+        totalItems += uiState.value.categories.size
+        totalItems += uiState.value.categoryKeywords.size
+        totalItems += uiState.value.transactionWithCategoryMappings.size
+
+        Log.d("TOTAL_ITEMS", totalItems.toString())
+        Log.d("TOTAL_ITEMS_NOT_BACKED_UP", "${totalItems - uiState.value.userDetails.backedUpItemsSize}")
+        val itemsNotBackedUp = totalItems - uiState.value.userDetails.backedUpItemsSize
+        _uiState.update {
+            it.copy(
+                itemsNotBackedUp = if(itemsNotBackedUp < 0) 0 else itemsNotBackedUp,
+                transactionsNotBackedUp = uiState.value.transactions.size - uiState.value.userDetails.transactions,
+                categoriesNotBackedUp = uiState.value.categories.size - uiState.value.userDetails.categories,
+                categoryKeywordsNotBackedUp = uiState.value.categoryKeywords.size - uiState.value.userDetails.categoryKeywords,
+                categoryMappingsNotBackedUp = uiState.value.transactionWithCategoryMappings.size - uiState.value.userDetails.categoryMappings
+            )
+        }
+    }
+
     fun backup() {
+        Log.d("backingUpInProcess", "LOADING...")
         _uiState.update {
             it.copy(
                 backupStatus = BackupStatus.LOADING
             )
         }
+
+        val transactionsToBackup = uiState.value.transactions.subList(uiState.value.userDetails.transactions, uiState.value.transactions.size)
+        val categoriesToBackup = uiState.value.categories.subList(uiState.value.userDetails.categories, uiState.value.categories.size)
+        val categoryKeywordsToBackup = uiState.value.categoryKeywords.subList(uiState.value.userDetails.categoryKeywords, uiState.value.categoryKeywords.size)
+        val categoryMappingsToBackup = uiState.value.transactionWithCategoryMappings.subList(uiState.value.userDetails.categoryMappings, uiState.value.transactionWithCategoryMappings.size)
+
         var totalItems = 0
         var insertedItems = 0
-        totalItems += uiState.value.transactions.size
-        totalItems += uiState.value.categories.size
-        totalItems += uiState.value.categoryKeywords.size
-        totalItems += uiState.value.transactionWithCategoryMappings.size
-        val batchSize = 20
-        val totalTransactionsBatches = (uiState.value.transactions.size + batchSize - 1) / batchSize
-        val totalCategoriesBatches = (uiState.value.categories.size + batchSize - 1) / batchSize
-        val totalCategoryKeywordsBatches = (uiState.value.categoryKeywords.size + batchSize - 1) / batchSize
-        val totalTransactionWithCategoryMappingsBatches = (uiState.value.transactionWithCategoryMappings.size + batchSize - 1) / batchSize
+
+        val batchSize = 2000
+        val totalTransactionsBatches = (transactionsToBackup.size + batchSize - 1) / batchSize
+        val totalCategoriesBatches = (categoriesToBackup.size + batchSize - 1) / batchSize
+        val totalCategoryKeywordsBatches = (categoryKeywordsToBackup.size + batchSize - 1) / batchSize
+        val totalTransactionWithCategoryMappingsBatches = (categoryMappingsToBackup.size + batchSize - 1) / batchSize
+
+        totalItems += transactionsToBackup.size
+        totalItems += categoriesToBackup.size
+        totalItems += categoryKeywordsToBackup.size
+        totalItems += categoryMappingsToBackup.size
+
         _uiState.update {
             it.copy(
                 totalItems = totalItems,
@@ -174,16 +211,29 @@ class BackupScreenViewModel(
             )
         }
         viewModelScope.launch {
-            val user = client.postgrest["userAccount"].select {
-                filter {
-                    eq("id", uiState.value.userDetails.userId)
-                }
-            }.decodeSingle<UserAccount>()
             try {
+                val user = client.postgrest["userAccount"].select {
+                    filter {
+                        eq("id", uiState.value.userDetails.userId)
+                    }
+                }.decodeSingle<UserAccount>()
+
+                client.postgrest["userAccount"].update(user.copy(
+                    backupSet = true
+                )) {
+                    filter {
+                        eq("id", uiState.value.userDetails.userId)
+                    }
+                }
+
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(backupSet = true)
+                )
+
                 for(i in 0 until totalTransactionsBatches) {
-                    val fromIndex = i * totalTransactionsBatches
-                    val toIndex = minOf(fromIndex + totalTransactionsBatches, uiState.value.transactions.size)
-                    val batch = uiState.value.transactions.subList(fromIndex, toIndex)
+                    val fromIndex = i * batchSize
+                    val toIndex = minOf(fromIndex + batchSize, transactionsToBackup.size)
+                    val batch = transactionsToBackup.subList(fromIndex, toIndex)
                     // backup transactions
                     client.postgrest["transaction"].upsert(batch, onConflict = "transactionCode")
                     _uiState.update {
@@ -194,9 +244,9 @@ class BackupScreenViewModel(
                 }
 
                 for(i in 0 until totalCategoriesBatches) {
-                    val fromIndex = i * totalCategoriesBatches
-                    val toIndex = minOf(fromIndex + totalCategoriesBatches, uiState.value.categories.size)
-                    val batch = uiState.value.categories.subList(fromIndex, toIndex)
+                    val fromIndex = i * batchSize
+                    val toIndex = minOf(fromIndex + batchSize, categoriesToBackup.size)
+                    val batch = categoriesToBackup.subList(fromIndex, toIndex)
                     // backup categories
                     client.postgrest["transactionCategory"].upsert(batch, onConflict = "id")
                     _uiState.update {
@@ -207,9 +257,9 @@ class BackupScreenViewModel(
                 }
 
                 for(i in 0 until totalCategoryKeywordsBatches) {
-                    val fromIndex = i * totalCategoryKeywordsBatches
-                    val toIndex = minOf(fromIndex + totalCategoryKeywordsBatches, uiState.value.categoryKeywords.size)
-                    val batch = uiState.value.categoryKeywords.subList(fromIndex, toIndex)
+                    val fromIndex = i * batchSize
+                    val toIndex = minOf(fromIndex + batchSize, categoryKeywordsToBackup.size)
+                    val batch = categoryKeywordsToBackup.subList(fromIndex, toIndex)
                     // backup category keywords
                     client.postgrest["categoryKeyword"].upsert(batch, onConflict = "id")
                     _uiState.update {
@@ -220,12 +270,17 @@ class BackupScreenViewModel(
                 }
 
                 for(i in 0 until totalTransactionWithCategoryMappingsBatches) {
-                    val fromIndex = i * totalTransactionWithCategoryMappingsBatches
-                    val toIndex = minOf(fromIndex + totalTransactionWithCategoryMappingsBatches, uiState.value.transactionWithCategoryMappings.size)
-                    val batch = uiState.value.transactionWithCategoryMappings.subList(fromIndex, toIndex)
+                    val fromIndex = i * batchSize
+                    val toIndex = minOf(fromIndex + batchSize, categoryMappingsToBackup.size)
+                    val batch = categoryMappingsToBackup.subList(fromIndex, toIndex)
                     // backup category keywords
                     // backup transactionCategoryCrossRef
-                    client.postgrest["transactionCategoryCrossRef"].upsert(batch, onConflict = "id")
+                    client.postgrest["transactionCategoryCrossRef"].upsert(
+                        batch,
+                        onConflict = "transactionId, categoryId"
+                    )
+
+
                     _uiState.update {
                         it.copy(
                             itemsInserted = it.itemsInserted + batch.size
@@ -235,17 +290,33 @@ class BackupScreenViewModel(
 
                 val lastBackup = LocalDateTime.now()
 
-                client.postgrest["userAccount"].update(user.copy(lastBackup = lastBackup.toString())) {
+                client.postgrest["userAccount"].update(user.copy(
+                    lastBackup = lastBackup.toString(),
+                    backedUpItemsSize = user.backedUpItemsSize + totalItems,
+                    transactions = user.transactions + uiState.value.transactionsNotBackedUp,
+                    categories = user.categories + uiState.value.categoriesNotBackedUp,
+                    categoryKeywords = user.categoryKeywords + uiState.value.categoryKeywordsNotBackedUp,
+                    categoryMappings = user.categoryMappings + uiState.value.categoryMappingsNotBackedUp
+                )) {
                     filter {
-                        eq("userId", uiState.value.userDetails.userId)
+                        eq("id", uiState.value.userDetails.userId)
                     }
                 }
 
                 dbRepository.updateUser(
                     user = uiState.value.userDetails.copy(
-                        lastBackup = lastBackup
+                        lastBackup = lastBackup,
+                        backedUpItemsSize = user.backedUpItemsSize + totalItems,
+                        transactions = user.transactions + uiState.value.transactionsNotBackedUp,
+                        categories = user.categories + uiState.value.categoriesNotBackedUp,
+                        categoryKeywords = user.categoryKeywords + uiState.value.categoryKeywordsNotBackedUp,
+                        categoryMappings = user.categoryMappings + uiState.value.categoryMappingsNotBackedUp
                     )
                 )
+
+                Log.d("backUpSuccess", "SUCCESS")
+
+                getItemsNotBackedUp()
 
                 _uiState.update {
                     it.copy(
@@ -258,12 +329,18 @@ class BackupScreenViewModel(
                         backupStatus = BackupStatus.FAIL
                     )
                 }
+                Log.e("backUpException", e.toString())
             }
 
         }
     }
 
     fun restore() {
+        _uiState.update {
+            it.copy(
+                restoreStatus = RestoreStatus.LOADING
+            )
+        }
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
@@ -273,9 +350,8 @@ class BackupScreenViewModel(
                             eq("userId", uiState.value.userDetails.userId)
                         }
                     }.decodeList<SupabaseTransaction>()
-                    for(transaction in transactions.map { it.toTransaction() }) {
-                        transactionService.insertTransaction(transaction)
-                    }
+
+                    Log.d("LOADED_ITEMS", "transactions: ${transactions.size}")
 
                     // restore categories
                     val categories = client.postgrest["transactionCategory"].select{
@@ -283,9 +359,8 @@ class BackupScreenViewModel(
                             eq("userId", uiState.value.userDetails.userId)
                         }
                     }.decodeList<SupabaseTransactionCategory>()
-                    for(category in categories.map { it.toTransactionCategory() }) {
-                        categoryService.insertTransactionCategory(category)
-                    }
+
+                    Log.d("LOADED_ITEMS", "categories: ${categories.size}")
 
                     // restore category keywords
                     val categoryKeywords = client.postgrest["categoryKeyword"].select {
@@ -294,9 +369,7 @@ class BackupScreenViewModel(
                         }
                     }.decodeList<SupabaseCategoryKeyword>()
 
-                    for(categoryKeyword in categoryKeywords.map { it.toCategoryKeyword() }) {
-                        categoryService.insertCategoryKeyword(categoryKeyword)
-                    }
+                    Log.d("LOADED_ITEMS", "categoryKeywords: ${categoryKeywords.size}")
 
                     // restore transactionCategoryCrossRef
                     val categoryMappings = client.postgrest["transactionCategoryCrossRef"].select {
@@ -306,19 +379,90 @@ class BackupScreenViewModel(
 
                     }.decodeList<SupabaseTransactionCategoryCrossRef>()
 
-                    for(categoryMapping in categoryMappings.map { it.toTransactionCategoryCrossRef() }) {
-                        categoryService.insertTransactionCategoryCrossRef(categoryMapping)
+                    Log.d("LOADED_ITEMS", "categoryMappings: ${categoryMappings.size}")
+
+                    _uiState.update {
+                        it.copy(
+                            totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size
+                        )
                     }
 
-                } catch (e: Exception) {
+                    Log.d("LOADED_ITEMS", uiState.value.totalItemsToRestore.toString())
 
+                    for(transaction in transactions.map { it.toTransaction() }) {
+                        transactionService.insertTransaction(transaction)
+                        _uiState.update {
+                            it.copy(
+                                totalItemsRestored = uiState.value.totalItemsRestored + 1
+                            )
+                        }
+                    }
+
+
+                    for(category in categories.map { it.toTransactionCategory() }) {
+                        categoryService.insertTransactionCategory(category)
+                        _uiState.update {
+                            it.copy(
+                                totalItemsRestored = uiState.value.totalItemsRestored + 1
+                            )
+                        }
+                    }
+
+                    for(categoryKeyword in categoryKeywords.map { it.toCategoryKeyword() }) {
+                        categoryService.insertCategoryKeyword(categoryKeyword)
+                        _uiState.update {
+                            it.copy(
+                                totalItemsRestored = uiState.value.totalItemsRestored + 1
+                            )
+                        }
+                    }
+
+                    for(categoryMapping in categoryMappings.map { it.toTransactionCategoryCrossRef() }) {
+                        categoryService.insertTransactionCategoryCrossRef(categoryMapping)
+                        _uiState.update {
+                            it.copy(
+                                totalItemsRestored = uiState.value.totalItemsRestored + 1
+                            )
+                        }
+                    }
+
+                    when(uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
+                        true -> {
+                            _uiState.update {
+                                it.copy(
+                                    restoreStatus = RestoreStatus.SUCCESS
+                                )
+                            }
+                        }
+                        false -> {
+
+                        }
+                    }
+
+
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(
+                            restoreStatus = RestoreStatus.FAIL
+                        )
+                    }
+                    Log.e("itemsRestoreException", e.toString())
                 }
             }
         }
     }
 
+    fun resetStatus() {
+        _uiState.update {
+            it.copy(
+                backupStatus = BackupStatus.INITIAL,
+                restoreStatus = RestoreStatus.INITIAL
+            )
+        }
+    }
+
     init {
         getUserDetails()
-        getAllLocalData()
+//        getAllLocalData()
     }
 }

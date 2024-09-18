@@ -114,7 +114,14 @@ class LoginScreenViewModel(
                                 token = "",
                                 paymentStatus = user.permanent,
                                 permanent = user.permanent,
-                                supabaseLogin = true
+                                supabaseLogin = true,
+                                backupSet = user.backupSet,
+                                lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup) else null,
+                                backedUpItemsSize = user.backedUpItemsSize,
+                                transactions = user.transactions,
+                                categories = user.categories,
+                                categoryKeywords = user.categoryKeywords,
+                                categoryMappings = user.categoryMappings
                             )
                             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
                             dbRepository.updateAppLaunchStatus(

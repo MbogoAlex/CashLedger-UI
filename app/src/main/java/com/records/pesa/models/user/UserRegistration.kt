@@ -39,4 +39,9 @@ data class UserAccount(
     val permanent: Boolean = false,
     val backupSet: Boolean = false,
     val lastBackup: String? = null,
+    val backedUpItemsSize: Int = 0,
+    val transactions: Int = 0,
+    val categories: Int = 0,
+    val categoryKeywords: Int = 0,
+    val categoryMappings: Int = 0,
 )

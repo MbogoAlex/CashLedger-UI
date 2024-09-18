@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.backup
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -12,36 +13,112 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.functions.formatIsoDateTime
+import com.records.pesa.nav.AppNavigation
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
+import kotlinx.coroutines.delay
 import java.time.LocalDateTime
+
+object BackupScreenDestination: AppNavigation {
+    override val title: String = "Backup Screen"
+    override val route: String = "backup-screen"
+}
 
 @Composable
 fun BackupScreenComposable(
+    refreshScreen: Boolean = false,
+    navigateToHomeScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit
 ) {
+    val context = LocalContext.current
     BackHandler(onBack = navigateToPreviousScreen)
     val viewModel: BackupScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    var showSubscriptionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(refreshScreen) {
+        LaunchedEffect(Unit) {
+            viewModel.getAllLocalData()
+            var i = 10
+            while (i != 0) {
+                delay(2000)
+                viewModel.getItemsNotBackedUp()
+                i--
+            }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+
+    LaunchedEffect(lifecycleState) {
+        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
+        if(lifecycleState.name.lowercase() == "started") {
+            viewModel.getItemsNotBackedUp()
+        }
+    }
+
+    if(uiState.restoreStatus == RestoreStatus.SUCCESS) {
+        Toast.makeText(context, "Restore successful", Toast.LENGTH_SHORT).show()
+        navigateToHomeScreen()
+        viewModel.resetStatus()
+    } else if(uiState.restoreStatus == RestoreStatus.FAIL) {
+        Toast.makeText(context, "Restore failed. Try again later", Toast.LENGTH_SHORT).show()
+        viewModel.resetStatus()
+    }
+
+    if(uiState.backupStatus == BackupStatus.SUCCESS) {
+        Toast.makeText(context, "Backup successful", Toast.LENGTH_SHORT).show()
+        viewModel.resetStatus()
+    } else if(uiState.backupStatus == BackupStatus.FAIL) {
+        Toast.makeText(context, "Backup failed. Try again later", Toast.LENGTH_SHORT).show()
+        viewModel.resetStatus()
+    }
+
+    if(showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = {
+                showSubscriptionDialog = !showSubscriptionDialog
+            },
+            onConfirm = {
+                showSubscriptionDialog = !showSubscriptionDialog
+                navigateToSubscriptionScreen()
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -49,8 +126,9 @@ fun BackupScreenComposable(
     ) {
         BackupScreen(
             backupSet = uiState.userDetails.backupSet,
-            paymentStatus = true,
-            transactionsNotBackedUp = 14,
+            lastBackup = uiState.userDetails.lastBackup,
+            paymentStatus = uiState.userDetails.paymentStatus,
+            transactionsNotBackedUp = uiState.itemsNotBackedUp,
             onBackup = {
                 viewModel.backup()
             },
@@ -59,7 +137,13 @@ fun BackupScreenComposable(
             },
             totalBackupItems = uiState.totalItems,
             backedUpItems = uiState.itemsInserted,
-            backupStatus = uiState.backupStatus
+            backupStatus = uiState.backupStatus,
+            totalItemsRestored = uiState.totalItemsRestored,
+            totalItemsToRestore = uiState.totalItemsToRestore,
+            restoreStatus = uiState.restoreStatus,
+            navigateToSubscriptionScreen = {
+                showSubscriptionDialog = !showSubscriptionDialog
+            }
         )
     }
 }
@@ -67,13 +151,18 @@ fun BackupScreenComposable(
 @Composable
 fun BackupScreen(
     backupSet: Boolean,
+    lastBackup: LocalDateTime?,
     paymentStatus: Boolean,
     transactionsNotBackedUp: Int,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     totalBackupItems: Int,
     backedUpItems: Int,
+    totalItemsToRestore: Int,
+    totalItemsRestored: Int,
     backupStatus: BackupStatus,
+    restoreStatus: RestoreStatus,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -101,7 +190,7 @@ fun BackupScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
-                text = "Last backup: ${formatIsoDateTime(LocalDateTime.parse("2024-09-17T06:47:30.082328"))}",
+                text = "Last backup: ${lastBackup?.let { formatIsoDateTime(it) } ?: "Never"}",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
@@ -122,7 +211,7 @@ fun BackupScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Text(text = "$transactionsNotBackedUp transactions scheduled for backup")
+                Text(text = "$transactionsNotBackedUp items scheduled for backup")
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 Row {
                     Button(
@@ -131,15 +220,24 @@ fun BackupScreen(
                         modifier = Modifier
                             .weight(1f)
                     ) {
-                        Text(text = "Manual backup")
+                        if(backupStatus == BackupStatus.LOADING) {
+                            Text(text = "Backing up...")
+                        } else {
+                            Text(text = "Manual backup")
+                        }
                     }
                     Spacer(modifier = Modifier.width(screenWidth(x = 8.0)))
                     OutlinedButton(
+                        enabled = restoreStatus != RestoreStatus.LOADING,
                         onClick = onRestore,
                         modifier = Modifier
                             .weight(1f)
                     ) {
-                        Text(text = "Manual restore")
+                        if(restoreStatus == RestoreStatus.LOADING) {
+                            Text(text = "Restoring...")
+                        } else {
+                            Text(text = "Manual restore")
+                        }
                     }
                 }
 
@@ -169,7 +267,7 @@ fun BackupScreen(
                     fontSize = screenFontSize(x = 14.0).sp
                 )
                 Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-                Button(onClick = { /*TODO*/ }) {
+                Button(onClick = navigateToSubscriptionScreen) {
                     Text(
                         text = "Pay subscription fee",
                         fontSize = screenFontSize(x = 14.0).sp
@@ -177,8 +275,9 @@ fun BackupScreen(
                 }
             }
             if(backupStatus == BackupStatus.LOADING) {
+                Log.d("showIndicator", "showing indicator")
                 Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-                androidx.compose.material.Text(
+                Text(
                     text = "Backed up $backedUpItems / $totalBackupItems item(s)",
                     fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.onSurface
@@ -186,6 +285,23 @@ fun BackupScreen(
                 Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
                 LinearProgressIndicator(
                     progress = { if ((backedUpItems.toFloat() / totalBackupItems.toFloat()).isNaN()) 0f else (backedUpItems.toFloat() / totalBackupItems.toFloat()) },
+                    modifier = Modifier
+                        .height(screenHeight(x = 20.0))
+                        .fillMaxWidth(),
+                )
+            }
+
+            if(restoreStatus == RestoreStatus.LOADING) {
+                Log.d("showIndicator", "showing indicator")
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+                Text(
+                    text = "Restored $totalItemsRestored / $totalItemsToRestore item(s)",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+                LinearProgressIndicator(
+                    progress = { if ((totalItemsRestored.toFloat() / totalItemsToRestore.toFloat()).isNaN()) 0f else (totalItemsRestored.toFloat() / totalItemsToRestore.toFloat()) },
                     modifier = Modifier
                         .height(screenHeight(x = 20.0))
                         .fillMaxWidth(),
@@ -217,7 +333,7 @@ fun BackupScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
-                text = "Last backup: ${formatIsoDateTime(LocalDateTime.parse("2024-09-17T06:47:30.082328"))}",
+                text = "Last backup: ${lastBackup?.let { formatIsoDateTime(it) } ?: "Never"}",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
@@ -241,7 +357,13 @@ fun BackupScreen(
             Row {
                 Button(
                     enabled = backupStatus != BackupStatus.LOADING,
-                    onClick = onBackup,
+                    onClick = {
+                        if(paymentStatus) {
+                            onBackup()
+                        } else {
+                            navigateToSubscriptionScreen()
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
                 ) {
@@ -270,6 +392,90 @@ fun BackupScreen(
 
 }
 
+@Composable
+fun SubscriptionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Go premium?",
+                fontSize = screenFontSize(x = 16.0).sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "Ksh100.0 premium monthly fee",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Premium version allows you to: ",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "1. See transactions and export reports of more than one months",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "2. Backup your transactions",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "3. Manage more than one category",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "4. Manage more than one Budget",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "5. Use in dark mode",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Dismiss",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(
+                    text = "Subscribe",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BackupScreenPreview() {
@@ -277,12 +483,17 @@ fun BackupScreenPreview() {
         BackupScreen(
             transactionsNotBackedUp = 15,
             backupSet = true,
+            lastBackup = null,
             paymentStatus = true,
             onBackup = {},
             onRestore = {},
+            totalItemsRestored = 0,
+            totalItemsToRestore = 0,
             totalBackupItems = 15,
             backedUpItems = 7,
-            backupStatus = BackupStatus.INITIAL
+            backupStatus = BackupStatus.INITIAL,
+            restoreStatus = RestoreStatus.INITIAL,
+            navigateToSubscriptionScreen = {}
         )
     }
 }

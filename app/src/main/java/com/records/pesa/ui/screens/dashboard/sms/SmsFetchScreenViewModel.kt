@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.Telephony
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
@@ -38,6 +39,7 @@ data class SmsFetchScreenUiState(
     val delayTime: Float = 0.0f,
     val currentDelayTime: Float = 0.0f,
     val counterOn: Boolean = false,
+    val fromLogin: String? = null,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
@@ -46,10 +48,13 @@ class SmsFetchScreenViewModel(
     private val dbRepository: DBRepository,
     private val transactionsService: TransactionService,
     private val userAccountService: UserAccountService,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(value = SmsFetchScreenUiState())
     val uiState: StateFlow<SmsFetchScreenUiState> = _uiState.asStateFlow()
+
+    private val fromLogin: String? = savedStateHandle[SMSFetchScreenDestination.fromLogin]
 
     private var allMessagesSent = mutableStateOf(false)
 
@@ -311,6 +316,11 @@ class SmsFetchScreenViewModel(
 
     init {
         getUserDetails()
+        _uiState.update {
+            it.copy(
+                fromLogin = fromLogin
+            )
+        }
     }
 
 }

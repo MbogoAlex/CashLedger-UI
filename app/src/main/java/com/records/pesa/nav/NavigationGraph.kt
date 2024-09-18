@@ -20,6 +20,10 @@ import com.records.pesa.ui.screens.auth.RegistrationScreenComposable
 import com.records.pesa.ui.screens.auth.RegistrationScreenDestination
 import com.records.pesa.ui.screens.auth.UpdatePasswordScreenComposable
 import com.records.pesa.ui.screens.auth.UpdatePasswordScreenDestination
+import com.records.pesa.ui.screens.backup.BackupRestoreScreenComposable
+import com.records.pesa.ui.screens.backup.BackupRestoreScreenDestination
+import com.records.pesa.ui.screens.backup.BackupScreenComposable
+import com.records.pesa.ui.screens.backup.BackupScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
@@ -83,8 +87,8 @@ fun NavigationGraph(
                 navigateToRegistrationScreen = {
                     navController.navigate(RegistrationScreenDestination.route)
                 },
-                navigateToSmsFetchScreen = {
-                    navController.navigate(SMSFetchScreenDestination.route)
+                navigateToSmsFetchScreenWithArgs = {
+                    navController.navigate("${SMSFetchScreenDestination.route}/${it}")
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
@@ -106,8 +110,8 @@ fun NavigationGraph(
                 navigateToRegistrationScreen = {
                     navController.navigate(RegistrationScreenDestination.route)
                 },
-                navigateToSmsFetchScreen = {
-                    navController.navigate(SMSFetchScreenDestination.route)
+                navigateToSmsFetchScreenWithArgs = {
+                    navController.navigate("${SMSFetchScreenDestination.route}/${it}")
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
@@ -133,9 +137,110 @@ fun NavigationGraph(
                 navigateToLoginScreenWithArgs = { phoneNumber, password ->
                     navController.popBackStack(SMSFetchScreenDestination.route, true)
                     navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToBackupRestoreScreen = {
+                    navController.navigate(BackupRestoreScreenDestination.route)
                 }
             )
         }
+
+        composable(
+            SMSFetchScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(SMSFetchScreenDestination.fromLogin) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            SmsFetchScreenComposable(
+                navigateToHomeScreen = { navController.navigate(HomeScreenDestination.route) },
+                navigateToLoginScreenWithArgs = { phoneNumber, password ->
+                    navController.popBackStack(SMSFetchScreenDestination.route, true)
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToBackupRestoreScreen = {
+                    navController.navigate(BackupRestoreScreenDestination.route)
+                }
+            )
+        }
+
+        composable(BackupRestoreScreenDestination.route) {
+            BackupRestoreScreenComposable(
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToHomeScreenWithArgs = {
+                    navController.navigate("${HomeScreenDestination.route}/${it}")
+                }
+            )
+        }
+
+        composable(
+            HomeScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(HomeScreenDestination.screen) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            HomeScreenComposable(
+                navigateToTransactionsScreen = {
+                    navController.navigate(TransactionsScreenDestination.route)
+                },
+                navigateToCategoryDetailsScreen = {
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/${it}")
+                },
+                navigateToCategoryAdditionScreen = {
+                    navController.navigate(CategoryAdditionScreenDestination.route)
+                },
+                navigateToCategoriesScreen = {
+                    navController.navigate(CategoriesScreenDestination.route)
+                },
+                navigateToBudgetInfoScreen = {
+                    navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                },
+                navigateToBudgetCreationScreen = {
+                    navController.navigate(BudgetCreationScreenDestination.route)
+                },
+                navigateToBudgetCreationScreenWithCategoryId = {
+                    navController.navigate("${BudgetCreationScreenDestination.route}/${it}")
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToLoginScreenWithArgs = {phoneNumber, password ->
+                    navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToEntityTransactionsScreen = {userId, transactionType, entity, startDate, endDate, times, moneyDirection ->
+                    navController.navigate("${SingleEntityTransactionsScreenDestination.route}/${userId}/${transactionType}/${entity}/${startDate}/${endDate}/${times}/${moneyDirection}")
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                },
+                onSwitchTheme = onSwitchTheme,
+                navigateToTransactionDetailsScreen = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/${it}")
+                },
+                navigateToTransactionsScreenWithTransactionType = {comment, transactionType, moneyDirection, startDate, endDate ->
+                    navController.navigate("${TransactionsScreenDestination.route}/${comment}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
+                }
+            )
+        }
+
+        composable(BackupScreenDestination.route) {
+            BackupScreenComposable(
+                navigateToHomeScreen = {
+                    navController.navigate(HomeScreenDestination.route)
+                },
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                }
+            )
+        }
+
         composable(HomeScreenDestination.route) {
             HomeScreenComposable(
                 navigateToTransactionsScreen = {

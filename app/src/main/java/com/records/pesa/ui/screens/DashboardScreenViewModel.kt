@@ -307,7 +307,7 @@ class DashboardScreenViewModel(
             getCategories()
 //            getGroupedByMonthTransactions()
             getGroupedTransactions()
-            apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
+//            apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
 
         }
     }

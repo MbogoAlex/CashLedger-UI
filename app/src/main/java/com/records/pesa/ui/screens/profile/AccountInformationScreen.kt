@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.profile
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -184,7 +185,11 @@ fun AccountInformationScreenComposable(
                     delay(2000)
                     logoutLoading = !logoutLoading
                     Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
-                    navigateToLoginScreenWithArgs(phoneNumber, password)
+                    try {
+                        navigateToLoginScreenWithArgs(phoneNumber, password)
+                    } catch (e: Exception) {
+                        Log.e("failedToLogout", e.toString())
+                    }
                 }
             }
         )

@@ -345,7 +345,7 @@ fun PaymentScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextField(
-                value = if(monthly) "50" else "1000",
+                value = if(monthly) "1" else "1000",
                 readOnly = true,
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,

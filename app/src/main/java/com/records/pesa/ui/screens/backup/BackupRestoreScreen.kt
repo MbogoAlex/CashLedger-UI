@@ -1,12 +1,8 @@
-package com.records.pesa.ui.screens.dashboard.sms
+package com.records.pesa.ui.screens.backup
 
-import android.Manifest
 import android.app.Activity
-import android.util.Log
-import android.widget.Space
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,129 +22,74 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
-import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-object SMSFetchScreenDestination: AppNavigation {
-    override val title: String = "SMS fetch Screen"
-    override val route: String = "sms-fetch-screen"
-    val fromLogin: String = "fromLogin"
-    val routeWithArgs: String = "$route/{$fromLogin}"
+object BackupRestoreScreenDestination: AppNavigation {
+    override val title: String = "Backup-Restore Screen"
+    override val route: String = "backup-restore-screen"
 }
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun SmsFetchScreenComposable(
+fun BackupRestoreScreenComposable(
     navigateToHomeScreen: () -> Unit,
-    navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
-    navigateToBackupRestoreScreen: () -> Unit,
+    navigateToHomeScreenWithArgs: (screen: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
     BackHandler(onBack = {activity?.finish()})
-    val viewModel: SmsFetchScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val viewModel: BackupRestoreScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val smsReadPermissionState = rememberPermissionState(permission = Manifest.permission.READ_SMS)
-    val smsReceivePermissionState = rememberPermissionState(permission = Manifest.permission.RECEIVE_SMS)
-    val scope = rememberCoroutineScope()
-
-
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-        if(uiState.userDetails.paymentStatus && uiState.userDetails.backupSet && uiState.fromLogin == "fromLogin") {
-            navigateToBackupRestoreScreen()
-        } else {
-            navigateToHomeScreen()
-        }
-        viewModel.resetLoadingStatus()
-    } else if(uiState.errorCode == 401) {
-        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
-        viewModel.resetLoadingStatus()
+    if(uiState.restoreStatus == RestoreStatus.SUCCESS) {
+        navigateToHomeScreen()
+        viewModel.resetStatus()
+    } else if(uiState.restoreStatus == RestoreStatus.FAIL) {
+        Toast.makeText(context, "Restoring failed. Try to restore your data manually", Toast.LENGTH_LONG).show()
+        navigateToHomeScreenWithArgs("backup-screen")
+        viewModel.resetStatus()
     }
 
-
-    val smsReadRequestPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
-        if(isGranted) {
-            scope.launch {
-                while (uiState.userDetails.userId == 0) {
-                    delay(1000)
-                }
-                viewModel.fetchSmsMessages(context)
-
-            }
-        }
-    }
-
-    val smsReceivePermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
-        if(isGranted) {
-
-        } else {
-
-        }
-    }
-
-    LaunchedEffect(smsReadPermissionState, smsReceivePermissionState) {
-
-        if(!smsReadPermissionState.status.isGranted) {
-//            Todo: Show rationale if needed
-            smsReadRequestPermissionHandler.launch(Manifest.permission.READ_SMS)
-        } else {
-            while (uiState.userDetails.userId == 0) {
-                delay(1000)
-            }
-            viewModel.fetchSmsMessages(context)
-        }
-
-    }
 
     Box(
         modifier = Modifier
             .safeDrawingPadding()
     ) {
-        SmsFetchScreen(
-            messagesSize = uiState.messagesSize,
-            messagesSent = uiState.messagesSent,
+        BackupRestoreScreen(
+            totalItemsToRestore = uiState.totalItemsToRestore.toFloat(),
+            totalItemsRestored = uiState.totalItemsRestored.toFloat(),
         )
     }
 
 }
 
 @Composable
-fun SmsFetchScreen(
-    messagesSize: Float,
-    messagesSent: Float,
+fun BackupRestoreScreen(
+    totalItemsToRestore: Float,
+    totalItemsRestored: Float,
     modifier: Modifier = Modifier
 ) {
     var text by rememberSaveable {
-        mutableStateOf("Fetching transactions...")
+        mutableStateOf("Restoring your data...")
     }
     LaunchedEffect(Unit) {
         delay(2000)
@@ -185,13 +126,13 @@ fun SmsFetchScreen(
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = "Processing ${messagesSent.toInt()} / ${messagesSize.toInt()} item(s)",
+            text = "Restoring ${totalItemsRestored.toInt()} / ${totalItemsToRestore.toInt()} item(s)",
             fontSize = screenFontSize(x = 14.0).sp,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         LinearProgressIndicator(
-            progress = { if ((messagesSent / messagesSize).isNaN()) 0f else (messagesSent / messagesSize) },
+            progress = { if ((totalItemsRestored / totalItemsToRestore).isNaN()) 0f else (totalItemsRestored / totalItemsToRestore) },
             modifier = Modifier
                 .height(screenHeight(x = 20.0))
                 .fillMaxWidth(),
@@ -202,11 +143,11 @@ fun SmsFetchScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun SmsFetchScreenPreview() {
+fun BackupRestoreScreenPreview() {
     CashLedgerTheme {
-        SmsFetchScreen(
-            messagesSize = 100f,
-            messagesSent = 50f,
+        BackupRestoreScreen(
+            totalItemsRestored = 20f,
+            totalItemsToRestore = 10f
         )
     }
 }

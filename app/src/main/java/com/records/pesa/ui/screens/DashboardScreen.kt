@@ -670,7 +670,8 @@ fun SubscriptionDialog(
         title = {
             Text(
                 text = "Go premium?",
-                fontSize = screenFontSize(x = 14.0).sp
+                fontSize = screenFontSize(x = 16.0).sp,
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
@@ -680,7 +681,7 @@ fun SubscriptionDialog(
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(screenWidth(x = 10.0))
+                        .padding(10.dp)
                 ) {
                     Text(
                         text = "Ksh100.0 premium monthly fee",
@@ -688,20 +689,37 @@ fun SubscriptionDialog(
                         fontWeight = FontWeight.Bold,
                         textDecoration = TextDecoration.Underline
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Premium version allows you to: ",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-                    Text(text = "1. See transactions and export reports of more than one month")
-                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-                    Text(text = "2. Manage more than one category")
-                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-                    Text(text = "3. Manage more than one Budget")
-                    Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-                    Text(text = "4. Use in dark mode")
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "1. See transactions and export reports of more than one months",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "2. Backup your transactions",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "3. Manage more than one category",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "4. Manage more than one Budget",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = "5. Use in dark mode",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
 
                 }
             }

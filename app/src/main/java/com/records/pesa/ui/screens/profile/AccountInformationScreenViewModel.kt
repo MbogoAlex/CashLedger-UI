@@ -6,9 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.user.UserAccount
 import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,41 +67,40 @@ class AccountInformationScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
-        val user = UserRegistrationPayload(
-            fname = uiState.value.firstName,
-            lname = uiState.value.lastName,
-            email = uiState.value.email,
-            phoneNumber = uiState.value.userDetails.phoneNumber,
-            password = uiState.value.userDetails.password,
-        )
         viewModelScope.launch {
             try {
-                val response = apiRepository.updateUserDetails(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    user = user
+                val user = client.postgrest["userAccount"].select {
+                    filter {
+                        eq("id", uiState.value.userDetails.userId)
+                    }
+                }.decodeSingle<UserAccount>()
+                client.postgrest["userAccount"].update(user.copy(
+                    fname = uiState.value.firstName,
+                    lname = uiState.value.lastName,
+                    email = uiState.value.email,
+                )) {
+                    filter {
+                        eq("id", uiState.value.userDetails.userId)
+                    }
+                }
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(
+                        firstName = uiState.value.firstName,
+                        lastName = uiState.value.lastName,
+                        email = uiState.value.email
+                    )
                 )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            successMessage = "Successfully updated details",
-                            userDetails = dbRepository.getUser(uiState.value.userDetails.userId).first(),
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            successMessage = "Failed to update details",
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("updateUserDetailsResponseError", response.toString())
+                _uiState.update {
+                    it.copy(
+                        successMessage = "Successfully updated details",
+                        userDetails = dbRepository.getUser(uiState.value.userDetails.userId).first(),
+                        loadingStatus = LoadingStatus.SUCCESS
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        successMessage = "Failed to update details",
+                        successMessage = "Failed to update details. Check your connection or try later",
                         loadingStatus = LoadingStatus.FAIL
                     )
                 }
@@ -129,14 +131,15 @@ class AccountInformationScreenViewModel(
     private fun getUserDetails() {
         viewModelScope.launch {
             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
-            val user = dbRepository.getUsers().first()[0]
+
+            val userDetails = dbRepository.getUsers().first()
             _uiState.update {
                 it.copy(
-                    userDetails = user,
+                    userDetails = userDetails[0],
                     appLaunchStatus = appLaunchStatus,
-                    firstName = user.firstName ?: "",
-                    lastName = user.lastName ?: "",
-                    email = user.email ?: ""
+                    firstName = userDetails[0].firstName ?: "",
+                    lastName = userDetails[0].lastName ?: "",
+                    email = userDetails[0].email ?: ""
                 )
             }
         }

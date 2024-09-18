@@ -16,6 +16,7 @@ import com.records.pesa.ui.screens.SplashScreenViewModel
 import com.records.pesa.ui.screens.auth.LoginScreenViewModel
 import com.records.pesa.ui.screens.auth.RegistrationScreenViewModel
 import com.records.pesa.ui.screens.auth.UpdatePasswordScreenViewModel
+import com.records.pesa.ui.screens.backup.BackupRestoreScreenViewModel
 import com.records.pesa.ui.screens.backup.BackupScreenViewModel
 import com.records.pesa.ui.screens.dashboard.HomeScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
@@ -191,7 +192,8 @@ object AppViewModelFactory {
                 dbRepository = dbRepository,
                 categoryService = categoryService,
                 transactionsService = transactionService,
-                userAccountService = userService
+                userAccountService = userService,
+                savedStateHandle = this.createSavedStateHandle()
             )
         }
 
@@ -261,7 +263,8 @@ object AppViewModelFactory {
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             HomeScreenViewModel(
                 dbRepository = dbRepository,
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                savedStateHandle = this.createSavedStateHandle()
             )
         }
 
@@ -311,6 +314,17 @@ object AppViewModelFactory {
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             BackupScreenViewModel(
+                dbRepository = dbRepository,
+                transactionService = transactionService,
+                categoryService = categoryService
+            )
+        }
+
+        initializer {
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            BackupRestoreScreenViewModel(
                 dbRepository = dbRepository,
                 transactionService = transactionService,
                 categoryService = categoryService
