@@ -24,8 +24,8 @@ class BackupWorker(
         val token = inputData.getString("token")
         val userId = inputData.getInt("userId", -1)
 
-        val appContext = context.applicationContext as CashLedger
-        appContext.container = AppContainerImpl(appContext)
+        val appContext = context.applicationContext as? CashLedger
+            ?: return Result.failure() // appContext was not found
 
         val dbRepository = appContext.container.dbRepository
         val transactionService = appContext.container.transactionService

@@ -40,7 +40,10 @@ class FetchMessagesWorker(
 ): CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
 
-        val appContext = context.applicationContext as CashLedger
+        val appContext = context.applicationContext as? CashLedger
+            ?: return Result.failure() // appContext was not found
+
+        // Ensure AppContainer is initialized
         appContext.container = AppContainerImpl(appContext)
 
         val transactionService = appContext.container.transactionService

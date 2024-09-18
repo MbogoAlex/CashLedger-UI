@@ -18,7 +18,7 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
     override suspend fun fetchAndBackupTransactions(token: String, userId: Int) {
 
-        workManager.cancelUniqueWork("fetch_and_post_messages_periodic")
+        workManager.cancelUniqueWork("fetch_and_backup_transactions_periodic")
         // Periodic work request for fetching messages
         val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(12))
             .setInputData(workDataOf("userId" to userId, "token" to token))
@@ -27,7 +27,7 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
 
         // Enqueue the periodic work request
         workManager.enqueueUniquePeriodicWork(
-            "fetch_and_post_messages_periodic",
+            "fetch_and_backup_transactions_periodic",
             ExistingPeriodicWorkPolicy.REPLACE,
             fetchMessagesPeriodicRequest
         )
