@@ -11,4 +11,16 @@ class CashLedger: Application() {
         super.onCreate()
         container = AppContainerImpl(this)
     }
+
+    companion object {
+        private var instance: CashLedger? = null
+
+        fun getInstance(): CashLedger {
+            return instance!!
+        }
+    }
+
+    init {
+        instance = this
+    }
 }

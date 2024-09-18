@@ -23,6 +23,7 @@ import com.records.pesa.models.user.UserAccount
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.WorkersRepository
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -62,6 +63,7 @@ class BackupScreenViewModel(
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
     private val categoryService: CategoryService,
+    private val workersRepository: WorkersRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(BackupScreenUiState())
     val uiState: StateFlow<BackupScreenUiState> = _uiState.asStateFlow()
@@ -226,9 +228,16 @@ class BackupScreenViewModel(
                     }
                 }
 
-                dbRepository.updateUser(
-                    uiState.value.userDetails.copy(backupSet = true)
-                )
+                if(!uiState.value.userDetails.backupSet) {
+                    workersRepository.fetchAndBackupTransactions(
+                        token = "dala",
+                        userId = uiState.value.userDetails.userId
+                    )
+
+                    dbRepository.updateUser(
+                        uiState.value.userDetails.copy(backupSet = true)
+                    )
+                }
 
                 for(i in 0 until totalTransactionsBatches) {
                     val fromIndex = i * batchSize

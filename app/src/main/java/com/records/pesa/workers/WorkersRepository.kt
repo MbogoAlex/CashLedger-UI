@@ -8,12 +8,15 @@ import androidx.work.workDataOf
 import java.time.Duration
 
 interface WorkersRepository {
-    suspend fun fetchAndPostMessages(token: String, userId: Int)
+    suspend fun fetchAndBackupTransactions(
+        token: String,
+        userId: Int,
+    )
 }
 
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
-    override suspend fun fetchAndPostMessages(token: String, userId: Int) {
+    override suspend fun fetchAndBackupTransactions(token: String, userId: Int) {
 
         workManager.cancelUniqueWork("fetch_and_post_messages_periodic")
         // Periodic work request for fetching messages

@@ -96,7 +96,7 @@ fun BackupScreenComposable(
         navigateToHomeScreen()
         viewModel.resetStatus()
     } else if(uiState.restoreStatus == RestoreStatus.FAIL) {
-        Toast.makeText(context, "Restore failed. Try again later", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Restore failed. Make sure you are connected to the internet", Toast.LENGTH_SHORT).show()
         viewModel.resetStatus()
     }
 
@@ -104,7 +104,7 @@ fun BackupScreenComposable(
         Toast.makeText(context, "Backup successful", Toast.LENGTH_SHORT).show()
         viewModel.resetStatus()
     } else if(uiState.backupStatus == BackupStatus.FAIL) {
-        Toast.makeText(context, "Backup failed. Try again later", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Backup failed. Make sure you are connected to the internet", Toast.LENGTH_SHORT).show()
         viewModel.resetStatus()
     }
 

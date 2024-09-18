@@ -183,6 +183,13 @@ class LoginScreenViewModel(
                                 )
                             }
 
+                            if(userData.backupSet) {
+                                workersRepository.fetchAndBackupTransactions(
+                                    token = "dala",
+                                    userId = userData.userId
+                                )
+                            }
+
                             if(users.isNotEmpty()) {
                                 _uiState.update {
                                     it.copy(
