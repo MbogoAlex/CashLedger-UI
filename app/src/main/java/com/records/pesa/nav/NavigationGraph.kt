@@ -92,6 +92,12 @@ fun NavigationGraph(
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
+                },
+                navigateToSmsFetchScreen = {
+                    navController.navigate(SMSFetchScreenDestination.route)
+                },
+                navigateToBackupRestoreScreen = {
+                    navController.navigate(BackupRestoreScreenDestination.route)
                 }
             )
         }
@@ -115,6 +121,12 @@ fun NavigationGraph(
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
+                },
+                navigateToSmsFetchScreen = {
+                    navController.navigate(SMSFetchScreenDestination.route)
+                },
+                navigateToBackupRestoreScreen = {
+                    navController.navigate(BackupRestoreScreenDestination.route)
                 }
             )
         }
@@ -171,6 +183,9 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreenWithArgs = {
                     navController.navigate("${HomeScreenDestination.route}/${it}")
+                },
+                navigateToSmsFetchScreen = {
+                    navController.navigate(SMSFetchScreenDestination.route)
                 }
             )
         }

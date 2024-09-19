@@ -35,6 +35,7 @@ data class LoginScreenUiState(
     val loginButtonEnabled: Boolean = false,
     val loginMessage: String = "",
     val exception: String = "",
+    val userDetails: UserDetails = UserDetails(),
     val loginStatus: LoginStatus = LoginStatus.INITIAL
 )
 
@@ -80,6 +81,7 @@ class LoginScreenViewModel(
         )
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
+
                 try {
                     val user = client.postgrest["userAccount"]
                         .select {
@@ -104,6 +106,7 @@ class LoginScreenViewModel(
 
                             userAccountService.insertUserAccount(userAccount)
                             dbRepository.deleteAllFromUser()
+                            Log.d("loggedInUser", user.toString())
                             val userDetails = UserDetails(
                                 userId = user.id ?: 0,
                                 firstName = user.fname,
@@ -123,6 +126,7 @@ class LoginScreenViewModel(
                                 categoryKeywords = user.categoryKeywords,
                                 categoryMappings = user.categoryMappings
                             )
+                            Log.d("loggedInUserDetails", userDetails.toString())
                             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
                             dbRepository.updateAppLaunchStatus(
                                 appLaunchStatus.copy(
@@ -153,12 +157,14 @@ class LoginScreenViewModel(
                                 )
                             } else if(payments.isNotEmpty()) {
                                 val sortedPayments = payments.sortedByDescending {
-                                    LocalDateTime.parse(it.paidAt)
+                                    it.id
                                 }
+                                Log.d("sortedPayments", sortedPayments.toString())
                                 val payment = sortedPayments.first()
-                                val paidAt = LocalDateTime.parse(payment.paidAt)
-                                val expiredAt = LocalDateTime.parse(payment.expiredAt)
-                                if(expiredAt.isBefore(LocalDateTime.now())) {
+                                val paidAt = if(payment.paidAt != null) LocalDateTime.parse(payment.paidAt) else null
+                                val expiredAt = if(payment.expiredAt != null) LocalDateTime.parse(payment.expiredAt) else LocalDateTime.parse(payment.freeTrialEndedOn)
+                                if(expiredAt!!.isBefore(LocalDateTime.now())) {
+                                    Log.d("paymentStatus", expiredAt!!.isBefore(LocalDateTime.now()).toString())
                                     dbRepository.updateUser(
                                         userData.copy(
                                             paymentStatus = false,
@@ -193,6 +199,7 @@ class LoginScreenViewModel(
                             if(users.isNotEmpty()) {
                                 _uiState.update {
                                     it.copy(
+                                        userDetails = dbRepository.getUser(userId = user.id!!).first(),
                                         loginStatus = LoginStatus.SUCCESS,
                                         loginMessage = "Login Successfully"
                                     )
@@ -220,7 +227,7 @@ class LoginScreenViewModel(
                         it.copy(
                             loginStatus = LoginStatus.FAIL,
                             exception = e.toString(),
-                            loginMessage = "Invalid credentials"
+                            loginMessage = "Failed. Ensure you are connected to the internet"
                         )
                     }
                 }

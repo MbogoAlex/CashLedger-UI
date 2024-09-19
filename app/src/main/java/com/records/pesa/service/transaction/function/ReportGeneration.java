@@ -16,8 +16,6 @@ import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
-import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.borders.GrooveBorder;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
@@ -32,8 +30,6 @@ import com.records.pesa.db.models.TransactionCategory;
 import com.records.pesa.db.models.TransactionWithCategories;
 import com.records.pesa.db.models.UserAccount;
 
-import net.sf.jasperreports.engine.JRException;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.text.ParseException;
@@ -44,7 +40,7 @@ import java.util.List;
 
 public class ReportGeneration {
 
-    public byte[] generateAllTransactionsReport(SupportSQLiteQuery query, TransactionsDao transactionsDao, UserAccount userAccount, String reportType, String startDate, String endDate, Context context) throws JRException, ParseException {
+    public byte[] generateAllTransactionsReport(SupportSQLiteQuery query, TransactionsDao transactionsDao, UserAccount userAccount, String reportType, String startDate, String endDate, Context context) throws ParseException {
 
         // Fetch user and transactions
         List<TransactionWithCategories> transactions = transactionsDao.getStaticUserTransactions(query);

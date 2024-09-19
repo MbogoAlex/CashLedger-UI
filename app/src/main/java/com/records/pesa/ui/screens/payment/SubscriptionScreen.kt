@@ -345,7 +345,7 @@ fun PaymentScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextField(
-                value = if(monthly) "1" else "1000",
+                value = if(monthly) "50" else "1000",
                 readOnly = true,
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -444,7 +444,10 @@ fun PaymentScreen(
                     .fillMaxWidth()
             ) {
                 if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(text = "$status...")
+                    Text(
+                        text = "$status...",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
                 } else {
                     Text(
                         text = "Pay now",
@@ -455,7 +458,10 @@ fun PaymentScreen(
             }
             Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
             if(payButtonClicked) {
-                Text(text = "Don't exit the screen or the transaction will be cancelled. You will be redirected from the screen when the transaction is complete")
+                Text(
+                    text = "Don't exit the screen or the transaction will be cancelled. You will be redirected from the screen when the transaction is complete",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
 

@@ -37,7 +37,7 @@ import java.time.LocalDateTime
 data class SubscriptionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val phoneNumber: String = "",
-    val amount: String = "1",
+    val amount: String = "50",
     val invoice_id: String = "",
     val state: String = "",
     val failedReason: String? = "",
@@ -219,7 +219,7 @@ class SubscriptionScreenViewModel(
                     } catch (e: Exception) {
                         Log.d("userUpdateFailure", e.toString())
                     }
-                } else if(uiState.value.amount == "1" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
+                } else if(uiState.value.amount == "50" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
                     _uiState.update {
                         it.copy(
                             state = "REDIRECTING"
@@ -238,8 +238,10 @@ class SubscriptionScreenViewModel(
                             select()
                         }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
 
+                        Log.d("paymentInserted", savedPayment.toString())
+
                     } catch (e: Exception) {
-                        Log.d("userUpdateFailure", e.toString())
+                        Log.e("userUpdateFailure", e.toString())
                     }
 
                 }
@@ -247,8 +249,8 @@ class SubscriptionScreenViewModel(
                 // save to local db
                 if(uiState.value.state.lowercase() == "redirecting") {
                     Log.d("SAVING_TO_DB", "SAVING")
-                    if(uiState.value.amount == "1") {
-                        Log.d("SAVING_TO_DB", "SAVING KES 1")
+                    if(uiState.value.amount == "50") {
+                        Log.d("SAVING_TO_DB", "SAVING KES 50")
                         withContext(Dispatchers.IO) {
                             var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
                             Log.d("SAVING_TO_DB", user.toString())

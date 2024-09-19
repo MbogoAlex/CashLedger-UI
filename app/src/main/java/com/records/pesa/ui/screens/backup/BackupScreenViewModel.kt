@@ -74,7 +74,7 @@ class BackupScreenViewModel(
                 dbRepository.getUsers().collect() {userDetails ->
                     _uiState.update {
                         it.copy(
-                            userDetails = userDetails.first(),
+                            userDetails = if(userDetails.isNotEmpty()) userDetails.first() else UserDetails(),
                         )
                     }
                 }

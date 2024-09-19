@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PaymentData(
     val id: Int? = null,
-    val amount: Double,
+    val amount: Double?,
     val expiredAt: String?,
     val paidAt: String?,
     val month: Int?,

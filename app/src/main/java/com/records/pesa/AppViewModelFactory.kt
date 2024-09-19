@@ -57,11 +57,13 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val userAccountService: UserAccountService = cashLedgerApplication().container.userAccountService
             SingleEntityTransactionsScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
                 dbRepository = cashLedgerApplication().container.dbRepository,
-                transactionService = transactionService
+                transactionService = transactionService,
+                userAccountService = userAccountService
             )
         }
 

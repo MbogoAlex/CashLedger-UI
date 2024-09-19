@@ -40,7 +40,6 @@ public class TransactionInsertion {
         for (CategoryKeyword categoryKeyword : categoryKeywords) {
             keywordMap.put(categoryKeyword.getKeyword().toLowerCase(), categoryKeyword);
         }
-
 // Step 2: Look up the transaction entity in the keyword map.
         String entityLower = transaction.getEntity().toLowerCase();
         CategoryKeyword matchingKeyword = keywordMap.get(entityLower);
@@ -58,26 +57,37 @@ public class TransactionInsertion {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
+        } else {
+            for (String keyword : category.getContains()) {
+                if (!keyword.isEmpty()) {
+                    if (transaction.getEntity().toLowerCase().contains(keyword.toLowerCase())) {
+                        // Check if the keyword already exists in the keyword map (not the list)
+                        if (!keywordMap.containsKey(transaction.getEntity().toLowerCase())) {
+                            try {
+                                System.out.println("ADDING " + transaction.getEntity() + " KEYWORD");
+                                CategoryKeyword categoryKeyword = new CategoryKeyword(0, "", "", 0);
+                                categoryKeyword.setKeyword(transaction.getEntity());
+                                categoryKeyword.setNickName(null);
+                                categoryKeyword.setCategoryId(category.getId());
+                                categoryDao.insertCategoryKeywordRunBlocking(categoryKeyword);
 
-        if(!category.getContains().isEmpty()) {
-            for(String contains : category.getContains()) {
-                if(transaction.getEntity().toLowerCase().contains(contains.toLowerCase())) {
-                    if(!categoryKeywords.contains(transaction.getEntity())) {
-                        CategoryKeyword categoryKeyword = new CategoryKeyword(0, "", "", 0);
-                        categoryKeyword.setKeyword(transaction.getEntity());
-                        categoryKeyword.setNickName(null);
-                        categoryKeyword.setCategoryId(category.getId());
-                        categoryDao.insertCategoryKeywordRunBlocking(categoryKeyword);
-                        TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef();
-                        transactionCategoryCrossRef.setTransactionId(transaction.getId());
-                        transactionCategoryCrossRef.setCategoryId(category.getId());
-                        categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
+                                category.setUpdatedTimes(updatedTimes + 1.0);
+                                category.setUpdatedAt(LocalDateTime.now());
+                                categoryDao.updateCategoryRunBlocking(category);
+
+                                TransactionCategoryCrossRef transactionCategoryCrossRef = new TransactionCategoryCrossRef();
+                                transactionCategoryCrossRef.setTransactionId(transaction.getId());
+                                transactionCategoryCrossRef.setCategoryId(category.getId());
+                                categoryDao.insertCategoryTransactionMappingRunBlocking(transactionCategoryCrossRef);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
-
                 }
             }
         }
+
     }
 }
 

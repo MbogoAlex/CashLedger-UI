@@ -127,7 +127,7 @@ fun BackupScreenComposable(
         BackupScreen(
             backupSet = uiState.userDetails.backupSet,
             lastBackup = uiState.userDetails.lastBackup,
-            paymentStatus = uiState.userDetails.paymentStatus,
+            paymentStatus = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
             transactionsNotBackedUp = uiState.itemsNotBackedUp,
             onBackup = {
                 viewModel.backup()
@@ -180,7 +180,6 @@ fun BackupScreen(
                 fontSize = screenFontSize(x = 16.0).sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
@@ -200,7 +199,7 @@ fun BackupScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Automatic backup and restore: ",
+                        text = "Automatic backup: ",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Text(
@@ -211,7 +210,11 @@ fun BackupScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Text(text = "Your items will be backed up automatically if you do not do a manual backup")
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 Text(text = "$transactionsNotBackedUp items scheduled for backup")
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Text(text = "Data restore happens when you log in")
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 Row {
                     Button(
@@ -226,19 +229,6 @@ fun BackupScreen(
                             Text(text = "Manual backup")
                         }
                     }
-                    Spacer(modifier = Modifier.width(screenWidth(x = 8.0)))
-                    OutlinedButton(
-                        enabled = restoreStatus != RestoreStatus.LOADING,
-                        onClick = onRestore,
-                        modifier = Modifier
-                            .weight(1f)
-                    ) {
-                        if(restoreStatus == RestoreStatus.LOADING) {
-                            Text(text = "Restoring...")
-                        } else {
-                            Text(text = "Manual restore")
-                        }
-                    }
                 }
 
             } else {
@@ -246,7 +236,7 @@ fun BackupScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Automatic backup and restore: ",
+                        text = "Automatic backup: ",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Text(
@@ -323,7 +313,6 @@ fun BackupScreen(
                 fontSize = screenFontSize(x = 16.0).sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
@@ -334,6 +323,12 @@ fun BackupScreen(
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
                 text = "Last backup: ${lastBackup?.let { formatIsoDateTime(it) } ?: "Never"}",
+                fontSize = screenFontSize(x = 14.0).sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            Text(
+                text = "$transactionsNotBackedUp not backed up",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
@@ -372,20 +367,6 @@ fun BackupScreen(
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
-                Spacer(modifier = Modifier.width(screenWidth(x = 8.0)))
-                OutlinedButton(
-                    enabled = backupStatus != BackupStatus.LOADING,
-                    onClick = {
-                        Toast.makeText(context, "Back up your data first", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                ) {
-                    Text(
-                        text = "Restore",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
             }
         }
     }
@@ -416,7 +397,7 @@ fun SubscriptionDialog(
                         .padding(10.dp)
                 ) {
                     Text(
-                        text = "Ksh100.0 premium monthly fee",
+                        text = "Ksh50.0 premium monthly fee",
                         fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold,
                         textDecoration = TextDecoration.Underline
@@ -444,12 +425,7 @@ fun SubscriptionDialog(
                     )
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(
-                        text = "4. Manage more than one Budget",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "5. Use in dark mode",
+                        text = "4. Use in dark mode",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
 

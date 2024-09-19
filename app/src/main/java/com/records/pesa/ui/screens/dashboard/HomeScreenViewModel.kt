@@ -53,26 +53,6 @@ class HomeScreenViewModel(
                     user = user
                 )
             }
-            while (user.userId == 0) {
-                delay(1000)
-            }
-            try {
-                val response = apiRepository.getFreeTrialStatus(
-                    token = user.token,
-                    userId = user.userId
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            freeTrialDays = response.body()!!.data.days
-                        )
-                    }
-                } else {
-                    Log.e("geFreeTrialErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("geFreeTrialError", e.toString())
-            }
         }
     }
 

@@ -83,11 +83,7 @@ fun SmsFetchScreenComposable(
 
 
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-        if(uiState.userDetails.paymentStatus && uiState.userDetails.backupSet && uiState.fromLogin == "fromLogin") {
-            navigateToBackupRestoreScreen()
-        } else {
-            navigateToHomeScreen()
-        }
+        navigateToHomeScreen()
         viewModel.resetLoadingStatus()
     } else if(uiState.errorCode == 401) {
         navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)

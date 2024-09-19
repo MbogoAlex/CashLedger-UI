@@ -76,6 +76,7 @@ class RegistrationScreenViewModel(
             phoneNumber = uiState.value.phoneNumber,
             password = hashedPassword,
             month = LocalDateTime.now().monthValue,
+            createdAt = LocalDateTime.now().toString(),
             role = 0,
         )
         viewModelScope.launch {

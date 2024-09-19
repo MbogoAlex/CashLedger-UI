@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.absoluteValue
 
 data class DashboardScreenUiState(
@@ -110,6 +111,32 @@ class DashboardScreenViewModel(
                     }
                 } catch (e: Exception) {
                     Log.e("INITIALIZATION_ERROR", e.toString())
+                }
+            }
+        }
+    }
+
+    fun getMoneyInAndOutToday() {
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails.userId,
+            entity = null,
+            categoryId = null,
+            budgetId = null,
+            transactionType = null,
+            moneyDirection = null,
+            startDate = LocalDate.now(),
+            endDate = LocalDate.now(),
+            latest = true
+        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getUserTransactions(query).collect() {transactions ->
+                        transformTransactions2(transactions.map { transactionWithCategories -> transactionWithCategories.toTransactionItem() })
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("failedToLoadGroupedTransactions", e.toString())
                 }
             }
         }
@@ -393,10 +420,43 @@ class DashboardScreenViewModel(
 
     }
 
+    fun transformTransactions2(transactions: List<TransactionItem>) {
+        Log.d("todayTransactions", transactions.toString())
+        // Initialize totalMoneyIn and totalMoneyOut
+        var totalMoneyIn = 0.0
+        var totalMoneyOut = 0.0
+
+        for(transaction in transactions) {
+            if(transaction.transactionAmount < 0) {
+                totalMoneyOut = totalMoneyOut.plus(transaction.transactionAmount.absoluteValue)
+            } else if(transaction.transactionAmount > 0) {
+                totalMoneyIn = totalMoneyIn.plus(transaction.transactionAmount)
+            }
+        }
+
+        _uiState.update {
+            it.copy(
+                todayTotalIn = totalMoneyIn,
+                todayTotalOut = totalMoneyOut
+            )
+        }
+
+    }
+
+    private fun initialzeApp() {
+        viewModelScope.launch {
+            while (uiState.value.userDetails.userId == 0) {
+                delay(2000)
+            }
+            getLatestTransactions()
+            getMoneyInAndOutToday()
+        }
+    }
+
     init {
         setInitialDates()
         getUserDetails()
-        checkAppVersion()
-        getLatestTransactions()
+        initialzeApp()
+//        checkAppVersion()
     }
 }

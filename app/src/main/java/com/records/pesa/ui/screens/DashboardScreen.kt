@@ -104,7 +104,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 98.0
+    val appVersion = 102.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {
@@ -684,7 +684,7 @@ fun SubscriptionDialog(
                         .padding(10.dp)
                 ) {
                     Text(
-                        text = "Ksh100.0 premium monthly fee",
+                        text = "Ksh50.0 premium monthly fee",
                         fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold,
                         textDecoration = TextDecoration.Underline
@@ -712,12 +712,7 @@ fun SubscriptionDialog(
                     )
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(
-                        text = "4. Manage more than one Budget",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "5. Use in dark mode",
+                        text = "4. Use in dark mode",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
 

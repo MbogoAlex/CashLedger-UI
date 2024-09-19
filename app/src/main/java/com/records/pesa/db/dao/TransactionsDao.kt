@@ -95,7 +95,7 @@ interface TransactionsDao {
         val orderClause = if (latest) "DESC" else "ASC"
 
         val query = StringBuilder().apply {
-            append("SELECT t.* FROM `transaction` t ")
+            append("SELECT distinct t.* FROM `transaction` t ")
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
@@ -134,7 +134,7 @@ interface TransactionsDao {
         val orderClause = if (latest) "DESC" else "ASC"
 
         val query = StringBuilder().apply {
-            append("SELECT t.* FROM `transaction` t ")
+            append("SELECT distinct t.* FROM `transaction` t ")
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
@@ -187,7 +187,7 @@ interface TransactionsDao {
         val orderClause = if (latest) "DESC" else "ASC"
 
         val query = StringBuilder().apply {
-            append("SELECT t.* FROM `transaction` t ")
+            append("SELECT distinct t.* FROM `transaction` t ")
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
@@ -249,7 +249,7 @@ interface TransactionsDao {
 
         val query = StringBuilder().apply {
             append("""
-            SELECT 
+            SELECT distinct 
                 CASE 
                     WHEN ? THEN t.sender 
                     ELSE t.recipient 

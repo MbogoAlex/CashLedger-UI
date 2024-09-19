@@ -14,6 +14,7 @@ import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactions
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.service.userAccount.UserAccountService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +51,8 @@ class SingleEntityTransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
-    private val transactionService: TransactionService
+    private val transactionService: TransactionService,
+    private val userAccountService: UserAccountService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SingleEntityTransactionsScreenUiState())
     val uiState: StateFlow<SingleEntityTransactionsScreenUiState> = _uiState.asStateFlow()
@@ -163,30 +165,35 @@ class SingleEntityTransactionsScreenViewModel(
     }
 
     fun fetchReportAndSave(context: Context, saveUri: Uri?, reportType: String) {
-
         _uiState.update {
             it.copy(
                 downloadingStatus = DownloadingStatus.LOADING
             )
         }
         viewModelScope.launch {
-            try {
-                val response = apiRepository.getAllTransactionsReport(
-                    userId = uiState.value.userDetails.userId,
-                    token = uiState.value.userDetails.token,
-                    entity = uiState.value.entity,
-                    categoryId = uiState.value.categoryId,
-                    budgetId = uiState.value.budgetId,
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
-                    reportType = reportType,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate,
-                )
-                if (response.isSuccessful) {
-                    val pdfBytes = response.body()?.bytes()
-                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
-                        savePdfToUri(context, pdfBytes, saveUri)
+            val query = transactionService.createUserTransactionQuery(
+                userId = uiState.value.userDetails.userId,
+                entity = uiState.value.entity,
+                categoryId = uiState.value.categoryId,
+                budgetId = uiState.value.budgetId,
+                transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
+                moneyDirection = if(moneyDirection != "null" && moneyDirection != null && moneyDirection != "all") moneyDirection else null,
+                startDate = LocalDate.parse(uiState.value.startDate),
+                endDate = LocalDate.parse(uiState.value.endDate),
+                latest = true
+            )
+            withContext(Dispatchers.IO) {
+                try {
+                    val report = transactionService.generateAllTransactionsReport(
+                        query = query,
+                        userAccount = userAccountService.getUserAccount(userId = uiState.value.userDetails.userId).first(),
+                        reportType = reportType,
+                        startDate = uiState.value.startDate,
+                        endDate = uiState.value.endDate,
+                        context = context
+                    )
+                    if (report != null && report.isNotEmpty()) {
+                        savePdfToUri(context, report, saveUri)
                         _uiState.update {
                             it.copy(
                                 downloadingStatus = DownloadingStatus.SUCCESS
@@ -196,25 +203,18 @@ class SingleEntityTransactionsScreenViewModel(
                         Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
                         _uiState.update {
                             it.copy(
-                                downloadingStatus = DownloadingStatus.FAIL,
-                                errorCode = response.code()
+                                downloadingStatus = DownloadingStatus.FAIL
                             )
                         }
                     }
-                } else {
-                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
+
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             downloadingStatus = DownloadingStatus.FAIL
                         )
                     }
-                }
-            } catch (e: Exception) {
-                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
-                _uiState.update {
-                    it.copy(
-                        downloadingStatus = DownloadingStatus.FAIL
-                    )
+                    Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.toString()}")
                 }
             }
         }

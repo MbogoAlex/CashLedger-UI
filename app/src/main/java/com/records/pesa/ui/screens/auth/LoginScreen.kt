@@ -67,7 +67,9 @@ object LoginScreenDestination: AppNavigation {
 fun LoginScreenComposable(
     navigateToRegistrationScreen: () -> Unit,
     navigateToSmsFetchScreenWithArgs: (arg: String) -> Unit,
+    navigateToSmsFetchScreen: () -> Unit,
     navigateToUpdatePasswordScreen: () -> Unit,
+    navigateToBackupRestoreScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activity = (LocalContext.current as? Activity)
@@ -88,7 +90,11 @@ fun LoginScreenComposable(
     
     if(uiState.loginStatus == LoginStatus.SUCCESS) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-        navigateToSmsFetchScreenWithArgs("fromLogin")
+        if(uiState.userDetails.paymentStatus && uiState.userDetails.backupSet) {
+            navigateToBackupRestoreScreen()
+        } else {
+            navigateToSmsFetchScreen()
+        }
         viewModel.resetLoginStatus()
     } else if(uiState.loginStatus == LoginStatus.FAIL) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()

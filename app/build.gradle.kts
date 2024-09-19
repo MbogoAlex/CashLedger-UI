@@ -13,7 +13,7 @@ android {
         applicationId = "com.records.pesa"
         minSdk = 26
         targetSdk = 34
-        versionCode = 98
+        versionCode = 102
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -96,23 +96,23 @@ dependencies {
 //    implementation("org.eclipse.jdt.core.compiler:ecj:4.6.1")
 //
 //
-    implementation("net.sf.jasperreports:jasperreports-pdf:7.0.0")
+//    implementation("net.sf.jasperreports:jasperreports-pdf:7.0.0")
 //
 //    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports
 //    implementation("net.sf.jasperreports:jasperreports:7.0.0")
 
 //    // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-jdt
-    implementation("net.sf.jasperreports:jasperreports-jdt:7.0.0")
+//    implementation("net.sf.jasperreports:jasperreports-jdt:7.0.0")
 
 
     // https://mvnrepository.com/artifact/com.google.android.play/review-ktx
     implementation("com.google.android.play:review-ktx:2.0.1")
 
     // https://mvnrepository.com/artifact/net.sf.jasperreports/jasperreports-fonts
-    implementation("net.sf.jasperreports:jasperreports-fonts:7.0.0")
+//    implementation("net.sf.jasperreports:jasperreports-fonts:7.0.0")
 
     // https://mvnrepository.com/artifact/org.apache.pdfbox/pdfbox
-    implementation("org.apache.pdfbox:pdfbox:3.0.3")
+//    implementation("org.apache.pdfbox:pdfbox:3.0.3")
 
     // https://mvnrepository.com/artifact/androidx.work/work-runtime-ktx
     implementation("androidx.work:work-runtime-ktx:2.9.0")
