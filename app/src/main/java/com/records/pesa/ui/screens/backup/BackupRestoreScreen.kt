@@ -69,8 +69,8 @@ fun BackupRestoreScreenComposable(
         viewModel.resetStatus()
     } else if(uiState.restoreStatus == RestoreStatus.FAIL) {
         Toast.makeText(context, "Restoring failed. Try to restore your data manually", Toast.LENGTH_LONG).show()
-        navigateToHomeScreenWithArgs("backup-screen")
-        viewModel.resetStatus()
+//        navigateToHomeScreenWithArgs("backup-screen")
+//        viewModel.resetStatus()
     }
 
 
@@ -164,9 +164,14 @@ fun BackupRestoreScreen(
                         delay(2000)
                         text = "Wait a minute..."
                     }
-                }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
             ) {
-                Text(text = "Restore manually")
+                Text(
+                    text = "Restore manually",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
             }
         }
 

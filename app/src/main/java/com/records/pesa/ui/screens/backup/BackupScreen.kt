@@ -130,7 +130,7 @@ fun BackupScreenComposable(
             paymentStatus = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
             transactionsNotBackedUp = uiState.itemsNotBackedUp,
             onBackup = {
-                viewModel.backup()
+                viewModel.backup(context = context)
             },
             onRestore = {
                 viewModel.restore()
@@ -210,11 +210,20 @@ fun BackupScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Text(text = "Your items will be backed up automatically if you do not do a manual backup")
+                Text(
+                    text = "Your items will be backed up automatically if you do not do a manual backup",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Text(text = "$transactionsNotBackedUp items scheduled for backup")
+                Text(
+                    text = "$transactionsNotBackedUp items scheduled for backup",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Text(text = "Data restore happens when you log in")
+                Text(
+                    text = "Data restore happens when you log in",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 Row {
                     Button(
@@ -224,9 +233,15 @@ fun BackupScreen(
                             .weight(1f)
                     ) {
                         if(backupStatus == BackupStatus.LOADING) {
-                            Text(text = "Backing up...")
+                            Text(
+                                text = "Backing up...",
+                                fontSize = screenFontSize(x = 14.0).sp
+                            )
                         } else {
-                            Text(text = "Manual backup")
+                            Text(
+                                text = "Manual backup",
+                                fontSize = screenFontSize(x = 14.0).sp
+                            )
                         }
                     }
                 }

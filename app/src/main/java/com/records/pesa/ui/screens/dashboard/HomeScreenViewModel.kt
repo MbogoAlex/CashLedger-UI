@@ -31,7 +31,7 @@ class HomeScreenViewModel(
     private val _uiState = MutableStateFlow(value = HomeScreenUiState())
     val uiState: StateFlow<HomeScreenUiState> = _uiState.asStateFlow()
 
-    val screen: String? = savedStateHandle[HomeScreenDestination.route]
+    val screen: String? = savedStateHandle[HomeScreenDestination.screen]
 
     fun getUserDetails() {
         viewModelScope.launch {

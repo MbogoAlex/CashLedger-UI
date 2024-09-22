@@ -1,9 +1,15 @@
 package com.records.pesa.ui.screens.backup
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.Transaction
+import com.records.pesa.db.models.TransactionCategory
+import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.mapper.toTransaction
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.dbModel.UserDetails
@@ -19,12 +25,22 @@ import com.records.pesa.models.payment.supabase.mapper.toSupabaseTransactionCate
 import com.records.pesa.models.payment.supabase.mapper.toTransaction
 import com.records.pesa.models.payment.supabase.mapper.toTransactionCategory
 import com.records.pesa.models.payment.supabase.mapper.toTransactionCategoryCrossRef
+import com.records.pesa.models.payment.supabase.payload.SupabaseCategoryKeywordPayload
+import com.records.pesa.models.payment.supabase.payload.SupabaseTransactionCategoryCrossRefPayload
+import com.records.pesa.models.payment.supabase.payload.SupabaseTransactionCategoryPayload
+import com.records.pesa.models.payment.supabase.payload.SupabaseTransactionPayload
+import com.records.pesa.models.payment.supabase.payload.payloadMapper.toSupabaseCategoryKeywordsPayload
+import com.records.pesa.models.payment.supabase.payload.payloadMapper.toSupabaseTransactionCategoryCrossRefsPayload
+import com.records.pesa.models.payment.supabase.payload.payloadMapper.toSupabaseTransactionCategoryPayload
+import com.records.pesa.models.payment.supabase.payload.payloadMapper.toSupabaseTransactionPayload
 import com.records.pesa.models.user.UserAccount
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.workers.WorkersRepository
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.storage.upload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,16 +50,23 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.apache.commons.csv.CSVFormat
+import org.apache.commons.csv.CSVPrinter
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStreamReader
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
+import kotlin.math.ceil
 
 data class BackupScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val backupSet: Boolean = false,
     val paymentStatus: Boolean = false,
-    val transactions: List<SupabaseTransaction> = emptyList(),
-    val categories: List<SupabaseTransactionCategory> = emptyList(),
-    val categoryKeywords: List<SupabaseCategoryKeyword> = emptyList(),
+    val transactions: List<Transaction> = emptyList(),
+    val categories: List<TransactionCategory> = emptyList(),
+    val categoryKeywords: List<CategoryKeyword> = emptyList(),
     val totalItems: Int = 0,
     val itemsInserted: Int = 0,
     val backupMessage: String = "",
@@ -54,7 +77,7 @@ data class BackupScreenUiState(
     val categoryMappingsNotBackedUp: Int = 0,
     val totalItemsToRestore: Int = 0,
     val totalItemsRestored: Int = 0,
-    val transactionWithCategoryMappings: List<SupabaseTransactionCategoryCrossRef> = emptyList(),
+    val transactionWithCategoryMappings: List<TransactionCategoryCrossRef> = emptyList(),
     val backupStatus: BackupStatus = BackupStatus.INITIAL,
     val restoreStatus: RestoreStatus = RestoreStatus.INITIAL
 )
@@ -110,9 +133,10 @@ class BackupScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val transactions = transactionService.getUserTransactions(query = query).first()
+                Log.d("addingBatchTransactions", "FROM 2845 to 2847: ${transactions.map { transaction -> transaction.toTransaction(userId = uiState.value.userDetails.userId).toSupabaseTransaction() }.reversed().subList(2845, 2847)}")
                 _uiState.update {
                     it.copy(
-                        transactions = transactions.map { transaction -> transaction.toTransaction(userId = uiState.value.userDetails.userId).toSupabaseTransaction() }
+                        transactions = transactions.map { transaction -> transaction.toTransaction(userId = uiState.value.userDetails.userId) }
                     )
                 }
             }
@@ -125,7 +149,7 @@ class BackupScreenViewModel(
                 val categories = categoryService.getAllCategories().first()
                 _uiState.update {
                     it.copy(
-                        categories = categories.map { category -> category.toTransactionCategory().toSupabaseTransactionCategory(userId = uiState.value.userDetails.userId) }
+                        categories = categories.map { category -> category.toTransactionCategory() }
                     )
                 }
             }
@@ -138,7 +162,7 @@ class BackupScreenViewModel(
                 val categoryKeywords = categoryService.getAllCategoryKeywords()
                 _uiState.update {
                     it.copy(
-                        categoryKeywords = categoryKeywords.toSupabaseCategoryKeywords(userId = uiState.value.userDetails.userId)
+                        categoryKeywords = categoryKeywords
                     )
                 }
             }
@@ -151,7 +175,7 @@ class BackupScreenViewModel(
                 val transactionCategoryMappings = categoryService.getTransactionCategoryCrossRefs().first()
                 _uiState.update {
                     it.copy(
-                        transactionWithCategoryMappings = transactionCategoryMappings.toSupabaseTransactionCategoryCrossRefs(userId = uiState.value.userDetails.userId)
+                        transactionWithCategoryMappings = transactionCategoryMappings
                     )
                 }
             }
@@ -179,7 +203,7 @@ class BackupScreenViewModel(
         }
     }
 
-    fun backup() {
+    fun backup(context: Context) {
         Log.d("backingUpInProcess", "LOADING...")
         _uiState.update {
             it.copy(
@@ -187,19 +211,18 @@ class BackupScreenViewModel(
             )
         }
 
-        val transactionsToBackup = uiState.value.transactions.subList(uiState.value.userDetails.transactions, uiState.value.transactions.size)
-        val categoriesToBackup = uiState.value.categories.subList(uiState.value.userDetails.categories, uiState.value.categories.size)
-        val categoryKeywordsToBackup = uiState.value.categoryKeywords.subList(uiState.value.userDetails.categoryKeywords, uiState.value.categoryKeywords.size)
-        val categoryMappingsToBackup = uiState.value.transactionWithCategoryMappings.subList(uiState.value.userDetails.categoryMappings, uiState.value.transactionWithCategoryMappings.size)
+        Log.d("addingBatchTransactions", "FROM ${uiState.value.userDetails.transactions}")
+        Log.d("addingBatchTransactions", "TO ${uiState.value.transactions.size}")
+
+        val transactionsToBackup = uiState.value.transactions
+        val categoriesToBackup = uiState.value.categories
+        val categoryKeywordsToBackup = uiState.value.categoryKeywords
+        val categoryMappingsToBackup = uiState.value.transactionWithCategoryMappings
+
+        Log.d("categoriesToBackup", categoriesToBackup.toString())
 
         var totalItems = 0
         var insertedItems = 0
-
-        val batchSize = 2000
-        val totalTransactionsBatches = (transactionsToBackup.size + batchSize - 1) / batchSize
-        val totalCategoriesBatches = (categoriesToBackup.size + batchSize - 1) / batchSize
-        val totalCategoryKeywordsBatches = (categoryKeywordsToBackup.size + batchSize - 1) / batchSize
-        val totalTransactionWithCategoryMappingsBatches = (categoryMappingsToBackup.size + batchSize - 1) / batchSize
 
         totalItems += transactionsToBackup.size
         totalItems += categoriesToBackup.size
@@ -212,114 +235,89 @@ class BackupScreenViewModel(
                 itemsInserted = insertedItems
             )
         }
+
         viewModelScope.launch {
             try {
                 val user = client.postgrest["userAccount"].select {
-                    filter {
-                        eq("id", uiState.value.userDetails.userId)
-                    }
+                    filter { eq("id", uiState.value.userDetails.userId) }
                 }.decodeSingle<UserAccount>()
 
-                client.postgrest["userAccount"].update(user.copy(
-                    backupSet = true
-                )) {
-                    filter {
-                        eq("id", uiState.value.userDetails.userId)
-                    }
-                }
+                val userId = uiState.value.userDetails.userId
 
-                if(!uiState.value.userDetails.backupSet) {
-                    workersRepository.fetchAndBackupTransactions(
-                        token = "dala",
-                        userId = uiState.value.userDetails.userId
-                    )
+                val bucketName = "cashLedgerBackup"
 
-                    dbRepository.updateUser(
-                        uiState.value.userDetails.copy(backupSet = true)
-                    )
-                }
 
-                for(i in 0 until totalTransactionsBatches) {
-                    val fromIndex = i * batchSize
-                    val toIndex = minOf(fromIndex + batchSize, transactionsToBackup.size)
-                    val batch = transactionsToBackup.subList(fromIndex, toIndex)
-                    // backup transactions
-                    client.postgrest["transaction"].upsert(batch, onConflict = "transactionCode")
+
+
+                val bucket = client.storage[bucketName]
+
+
+                // Backup data to CSV with proper CSV formatting
+                val transactionsCsv = backupTransactionsToCSV(context, "${userId}_transactions.csv", transactionsToBackup)
+                val categoriesCsv = backupCategoriesToCSV(context, "${userId}_categories.csv", categoriesToBackup)
+                val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context,"${userId}_categoryKeywords.csv", categoryKeywordsToBackup)
+                val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${userId}_transactionCategoryCrossRef.csv", categoryMappingsToBackup)
+
+
+
+                if(transactionsCsv != null) {
+                    bucket.upload("${userId}_transactions.csv", transactionsCsv, true)
                     _uiState.update {
                         it.copy(
-                            itemsInserted = it.itemsInserted + batch.size
+                            itemsInserted = uiState.value.itemsInserted + transactionsToBackup.size
                         )
                     }
                 }
 
-                for(i in 0 until totalCategoriesBatches) {
-                    val fromIndex = i * batchSize
-                    val toIndex = minOf(fromIndex + batchSize, categoriesToBackup.size)
-                    val batch = categoriesToBackup.subList(fromIndex, toIndex)
-                    // backup categories
-                    client.postgrest["transactionCategory"].upsert(batch, onConflict = "id")
+                if(categoriesCsv != null) {
+                    bucket.upload("${userId}_categories.csv", categoriesCsv, true)
                     _uiState.update {
                         it.copy(
-                            itemsInserted = it.itemsInserted + batch.size
+                            itemsInserted = uiState.value.itemsInserted + categoriesToBackup.size
                         )
                     }
                 }
 
-                for(i in 0 until totalCategoryKeywordsBatches) {
-                    val fromIndex = i * batchSize
-                    val toIndex = minOf(fromIndex + batchSize, categoryKeywordsToBackup.size)
-                    val batch = categoryKeywordsToBackup.subList(fromIndex, toIndex)
-                    // backup category keywords
-                    client.postgrest["categoryKeyword"].upsert(batch, onConflict = "id")
+                if(categoryKeywordsCsv != null) {
+                    bucket.upload("${userId}_categoryKeywords.csv", categoryKeywordsCsv, true)
                     _uiState.update {
                         it.copy(
-                            itemsInserted = it.itemsInserted + batch.size
+                            itemsInserted = uiState.value.itemsInserted + categoryKeywordsToBackup.size
                         )
                     }
                 }
 
-                for(i in 0 until totalTransactionWithCategoryMappingsBatches) {
-                    val fromIndex = i * batchSize
-                    val toIndex = minOf(fromIndex + batchSize, categoryMappingsToBackup.size)
-                    val batch = categoryMappingsToBackup.subList(fromIndex, toIndex)
-                    // backup category keywords
-                    // backup transactionCategoryCrossRef
-                    client.postgrest["transactionCategoryCrossRef"].upsert(
-                        batch,
-                        onConflict = "transactionId, categoryId"
-                    )
-
-
+                if(categoryMappingsCsv != null) {
+                    bucket.upload("${userId}_transactionCategoryCrossRef.csv", categoryMappingsCsv, true)
                     _uiState.update {
                         it.copy(
-                            itemsInserted = it.itemsInserted + batch.size
+                            itemsInserted = uiState.value.itemsInserted + categoryMappingsToBackup.size
                         )
                     }
                 }
 
                 val lastBackup = LocalDateTime.now()
 
+                // Update user account with backup details
                 client.postgrest["userAccount"].update(user.copy(
                     lastBackup = lastBackup.toString(),
-                    backedUpItemsSize = user.backedUpItemsSize + totalItems,
-                    transactions = user.transactions + uiState.value.transactionsNotBackedUp,
-                    categories = user.categories + uiState.value.categoriesNotBackedUp,
-                    categoryKeywords = user.categoryKeywords + uiState.value.categoryKeywordsNotBackedUp,
-                    categoryMappings = user.categoryMappings + uiState.value.categoryMappingsNotBackedUp
+                    backedUpItemsSize = totalItems,
+                    transactions = transactionsToBackup.size,
+                    categories = categoriesToBackup.size,
+                    categoryKeywords = categoryKeywordsToBackup.size,
+                    categoryMappings = categoryMappingsToBackup.size
                 )) {
-                    filter {
-                        eq("id", uiState.value.userDetails.userId)
-                    }
+                    filter { eq("id", userId) }
                 }
 
                 dbRepository.updateUser(
                     user = uiState.value.userDetails.copy(
                         lastBackup = lastBackup,
-                        backedUpItemsSize = user.backedUpItemsSize + totalItems,
-                        transactions = user.transactions + uiState.value.transactionsNotBackedUp,
-                        categories = user.categories + uiState.value.categoriesNotBackedUp,
-                        categoryKeywords = user.categoryKeywords + uiState.value.categoryKeywordsNotBackedUp,
-                        categoryMappings = user.categoryMappings + uiState.value.categoryMappingsNotBackedUp
+                        backedUpItemsSize = totalItems,
+                        transactions = transactionsToBackup.size,
+                        categories = categoriesToBackup.size,
+                        categoryKeywords = categoryKeywordsToBackup.size,
+                        categoryMappings = categoryMappingsToBackup.size
                     )
                 )
 
@@ -329,7 +327,8 @@ class BackupScreenViewModel(
 
                 _uiState.update {
                     it.copy(
-                        backupStatus = BackupStatus.SUCCESS
+                        itemsNotBackedUp = 0,
+                        backupStatus = BackupStatus.SUCCESS,
                     )
                 }
             } catch (e: Exception) {
@@ -340,9 +339,215 @@ class BackupScreenViewModel(
                 }
                 Log.e("backUpException", e.toString())
             }
-
         }
     }
+
+    fun parseTransactionsCsv(csvData: ByteArray): List<Transaction> {
+        val transactions = mutableListOf<Transaction>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val transaction = Transaction(
+                id = row[0].toInt(),
+                transactionCode = row[1],
+                transactionType = row[2],
+                transactionAmount = row[3].toDouble(),
+                transactionCost = row[4].toDouble(),
+                date = LocalDate.parse(row[5]),
+                time = LocalTime.parse(row[6]),
+                sender = row[7],
+                recipient = row[8],
+                nickName = row.getOrNull(9),
+                comment = row.getOrNull(10),
+                balance = row[11].toDouble(),
+                entity = row[12],
+                userId = row[13].toInt()
+            )
+            transactions.add(transaction)
+        }
+        return transactions
+    }
+
+    fun parseTransactionCategoriesCsv(csvData: ByteArray): List<TransactionCategory> {
+        val categories = mutableListOf<TransactionCategory>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val containsValue = row.getOrNull(4) ?: "" // Handle potential null or missing value
+            val containsList = if (containsValue.isNotEmpty()) {
+                containsValue.split(",")
+            } else {
+                emptyList()
+            }
+            Log.d("category_row", row.toString())
+            Log.d("category_row 0", row[0].toString())
+            Log.d("category_row 1", row[1].toString())
+            Log.d("category_row 2", row[2].toString())
+            Log.d("category_row 3", row[3].toString())
+            Log.d("category_row 4", row[4].toString())
+            Log.d("category_row 5", row.getOrNull(5).toString())
+            val category = TransactionCategory(
+                id = row[0].toInt(),                     // ID
+                createdAt = LocalDateTime.parse(row[1]), // createdAt
+                updatedAt = LocalDateTime.parse(row[2]), // updatedAt
+                name = row[3],                           // name
+                contains = containsList,                 // Split by comma or return empty list
+                updatedTimes = row.getOrNull(5)?.toDouble() // updatedTimes (optional)
+            )
+            categories.add(category)
+        }
+        return categories
+    }
+
+
+    fun parseCategoryKeywordsCsv(csvData: ByteArray): List<CategoryKeyword> {
+        val keywords = mutableListOf<CategoryKeyword>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val keyword = CategoryKeyword(
+                id = row[0].toInt(),
+                keyword = row[1],
+                nickName = row.getOrNull(2),
+                categoryId = row[3].toInt()
+            )
+            keywords.add(keyword)
+        }
+        return keywords
+    }
+
+    fun parseTransactionCategoryCrossRefCsv(csvData: ByteArray): List<TransactionCategoryCrossRef> {
+        val crossRefs = mutableListOf<TransactionCategoryCrossRef>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            Log.d("category_mapping_data", row.toString())
+            Log.d("category_mapping_data 0", row[0].toIntOrNull().toString())
+            Log.d("category_mapping_data 1", row[1].toIntOrNull().toString())
+            Log.d("category_mapping_data 2", row[2].toIntOrNull().toString())
+            val crossRef = TransactionCategoryCrossRef(
+                id = row[0].toIntOrNull(), // `id` might be nullable
+                transactionId = row[1].toInt(),
+                categoryId = row[2].toInt()
+            )
+            crossRefs.add(crossRef)
+        }
+        return crossRefs
+    }
+
+    // Helper function to get a writable internal storage file
+    fun getInternalStorageFile(context: Context, fileName: String): File {
+        return File(context.filesDir, fileName)
+    }
+
+    // Helper function to backup transactions data to CSV
+    fun backupTransactionsToCSV(context: Context, fileName: String, transactionsToBackup: List<Transaction>): File? {
+        try {
+            val file = getInternalStorageFile(context, fileName)
+            FileWriter(file).use { writer ->
+                val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                    "id", "transactionCode", "transactionType", "transactionAmount",
+                    "transactionCost", "date", "time", "sender", "recipient",
+                    "nickName", "comment", "balance", "entity", "userId"
+                ))
+
+                transactionsToBackup.forEach { transaction ->
+                    csvPrinter.printRecord(
+                        transaction.id, transaction.transactionCode, transaction.transactionType,
+                        transaction.transactionAmount, transaction.transactionCost, transaction.date,
+                        transaction.time, transaction.sender, transaction.recipient, transaction.nickName,
+                        transaction.comment, transaction.balance, transaction.entity, transaction.userId
+                    )
+                }
+                csvPrinter.flush()
+            }
+            Log.d("backupTransactionsToCSV", "Transactions backup saved to ${file.absolutePath}")
+            return file
+        } catch (e: Exception) {
+            Log.e("backupTransactionsToCSV", "Error saving transactions backup: ${e.message}")
+            return null
+        }
+    }
+
+    // Helper function to backup categories data to CSV
+    fun backupCategoriesToCSV(context: Context, fileName: String, categoriesToBackup: List<TransactionCategory>): File? {
+        try {
+            val file = getInternalStorageFile(context, fileName)
+            FileWriter(file).use { writer ->
+                val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                    "id", "createdAt", "updatedAt", "name", "contains", "updatedTimes"
+                ))
+
+                categoriesToBackup.forEach { category ->
+                    csvPrinter.printRecord(
+                        category.id, category.createdAt, category.updatedAt,
+                        category.name, category.contains.joinToString(","),
+                        category.updatedTimes
+                    )
+                }
+                csvPrinter.flush()
+            }
+            Log.d("backupCategoriesToCSV", "Categories backup saved to ${file.absolutePath}")
+            return file
+        } catch (e: Exception) {
+            Log.e("backupCategoriesToCSV", "Error saving categories backup: ${e.message}")
+            return null
+        }
+    }
+
+    // Helper function to backup category keywords data to CSV
+    fun backupCategoryKeywordsToCSV(context: Context, fileName: String, categoryKeywordsToBackup: List<CategoryKeyword>): File? {
+        try {
+            val file = getInternalStorageFile(context, fileName)
+            FileWriter(file).use { writer ->
+                val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                    "id", "keyword", "nickName", "categoryId"
+                ))
+
+                categoryKeywordsToBackup.forEach { keyword ->
+                    csvPrinter.printRecord(
+                        keyword.id, keyword.keyword, keyword.nickName, keyword.categoryId
+                    )
+                }
+                csvPrinter.flush()
+            }
+            Log.d("backupCategoryKeywordsToCSV", "Category Keywords backup saved to ${file.absolutePath}")
+            return file
+        } catch (e: Exception) {
+            Log.e("backupCategoryKeywordsToCSV", "Error saving category keywords backup: ${e.message}")
+            return null
+        }
+    }
+
+    // Helper function to backup category mappings data to CSV
+    fun backupCategoryMappingsToCSV(context: Context, fileName: String, categoryMappingsToBackup: List<TransactionCategoryCrossRef>): File? {
+        try {
+            val file = getInternalStorageFile(context, fileName)
+            FileWriter(file).use { writer ->
+                val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                    "id", "transactionId", "categoryId"
+                ))
+
+                categoryMappingsToBackup.forEach { mapping ->
+                    csvPrinter.printRecord(
+                        mapping.id, mapping.transactionId, mapping.categoryId
+                    )
+                }
+                csvPrinter.flush()
+            }
+            Log.d("backupCategoryMappingsToCSV", "Transaction Category Mappings backup saved to ${file.absolutePath}")
+            return file
+        } catch (e: Exception) {
+            Log.e("backupCategoryMappingsToCSV", "Error saving transaction category mappings backup: ${e.message}")
+            return null
+        }
+    }
+
+
 
     fun restore() {
         _uiState.update {

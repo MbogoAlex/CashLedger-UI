@@ -340,43 +340,6 @@ fun CategoryDetailsScreen(
             fontSize = screenFontSize(x = 14.0).sp
         )
         Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Budgets (${if (category.budgets.isNotEmpty()) category.budgets.size else 0})",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 18.0).sp
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-            if(category.budgets.isNotEmpty()) {
-                TextButton(
-                    enabled = category.budgets.isNotEmpty(),
-                    onClick = {
-                        navigateToCategoryBudgetListScreen(category.id.toString(), category.name)
-                    }
-                ) {
-                    Text(
-                        text = "Explore",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            } else {
-                TextButton(
-                    enabled = category.keywords.isNotEmpty(),
-                    onClick = {
-                        navigateToBudgetCreationScreen(category.id.toString())
-                    }
-                ) {
-                    Text(
-                        text = "Create",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            }
-
-        }
         Divider()
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -409,7 +372,7 @@ fun CategoryDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = it.nickName ?: it.keyWord,
+                        text = if(it.nickName.isNullOrEmpty()) it.keyWord else it.keyWord,
 //                        fontWeight = FontWeight.Bold,
                         fontSize = screenFontSize(x = 14.0).sp,
                         modifier = Modifier

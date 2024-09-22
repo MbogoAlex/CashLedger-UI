@@ -254,24 +254,11 @@ class CategoryDetailsScreenViewModel(
 
         viewModelScope.launch {
             try {
-                val response = apiRepository.deleteCategoryKeyword(
-                    token = uiState.value.userDetails.token,
-                    categoryId = categoryId,
-                    keywordId = keywordId
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("deleteCategoryKeywordErrorResponse", response.toString())
+                dbRepository.deleteCategoryKeywordByCategoryId(categoryId = categoryId)
+                _uiState.update {
+                    it.copy(
+                        loadingStatus = LoadingStatus.SUCCESS
+                    )
                 }
 
             } catch (e: Exception) {
@@ -294,23 +281,13 @@ class CategoryDetailsScreenViewModel(
 
         viewModelScope.launch {
             try {
-                val response = apiRepository.deleteCategory(
-                    token = uiState.value.userDetails.token,
-                    categoryId = categoryId,
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            deletionStatus = DeletionStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            deletionStatus = DeletionStatus.FAIL
-                        )
-                    }
-                    Log.e("deleteCategoryErrorResponse", response.toString())
+                dbRepository.deleteFromCategoryMappingByCategoryId(categoryId)
+                dbRepository.deleteCategoryKeywordByCategoryId(categoryId)
+                dbRepository.deleteCategory(categoryId)
+                _uiState.update {
+                    it.copy(
+                        deletionStatus = DeletionStatus.SUCCESS
+                    )
                 }
 
             } catch (e: Exception) {

@@ -824,99 +824,46 @@ fun DateRangePicker(
         datePicker.show()
     }
 
-    BoxWithConstraints {
-        when(maxWidth) {
-            in 0.dp..320.dp -> {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    elevation = CardDefaults.elevatedCardElevation(10.dp),
-                    modifier = modifier
-//                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(5.dp)
-                    ) {
-                        IconButton(
-                            onClick = { showDatePicker(true) },
-                            modifier = Modifier
-                                .size(22.dp)
-                        ) {
-                            Icon(
-                                tint = Color(0xFF405189),
-                                painter = painterResource(id = R.drawable.calendar),
-                                contentDescription = null,
-                            )
-                        }
-                        Text(
-                            text = dateFormatter.format(startDate),
-                            fontSize = 12.sp
-                        )
-                        Text(
-                            text = "to",
-                            fontSize = 12.sp
-                        )
-
-                        Text(
-                            text = dateFormatter.format(endDate),
-                            fontSize = 12.sp
-                        )
-                        IconButton(
-                            onClick = { showDatePicker(false) },
-                            modifier = Modifier
-                                .size(22.dp)
-                        ) {
-                            Icon(
-                                tint = Color(0xFF405189),
-                                painter = painterResource(id = R.drawable.calendar),
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.onPrimary
+        ),
+        elevation = CardDefaults.elevatedCardElevation(screenWidth(x = 10.0)),
+        modifier = modifier
+            .padding(screenWidth(x = 16.0))
+            .fillMaxWidth()
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            IconButton(onClick = { showDatePicker(true) }) {
+                Icon(
+                    tint = Color(0xFF405189),
+                    painter = painterResource(id = R.drawable.calendar),
+                    contentDescription = null
+                )
             }
-            else -> {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    elevation = CardDefaults.elevatedCardElevation(10.dp),
-                    modifier = modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        IconButton(onClick = { showDatePicker(true) }) {
-                            Icon(
-                                tint = Color(0xFF405189),
-                                painter = painterResource(id = R.drawable.calendar),
-                                contentDescription = null
-                            )
-                        }
-                        Text(text = dateFormatter.format(startDate))
-                        Text(text = "to")
+            Text(text = dateFormatter.format(startDate))
+            Text(
+                text = "to",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
 
-                        Text(text = dateFormatter.format(endDate))
-                        IconButton(onClick = { showDatePicker(false) }) {
-                            Icon(
-                                tint = Color(0xFF405189),
-                                painter = painterResource(id = R.drawable.calendar),
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
+            Text(
+                text = dateFormatter.format(endDate),
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            IconButton(onClick = { showDatePicker(false) }) {
+                Icon(
+                    tint = Color(0xFF405189),
+                    painter = painterResource(id = R.drawable.calendar),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(screenWidth(x = 24.0))
+                )
             }
         }
     }

@@ -35,6 +35,15 @@ interface CategoryDao {
         }
     }
 
+    @Query("delete from transactionCategory where id = :id")
+    suspend fun deleteCategory(id: Int)
+
+    @Query("delete from categoryKeyword where id = :id")
+    suspend fun deleteCategoryKeyword(id: Int)
+
+    @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId")
+    suspend fun deleteCategoryMapping(categoryId: Int)
+
     @Query("select * from categoryKeyword where id = :id")
     fun getCategoryKeyword(id: Int): Flow<CategoryKeyword>
 

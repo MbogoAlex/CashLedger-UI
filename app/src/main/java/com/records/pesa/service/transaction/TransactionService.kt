@@ -1,6 +1,7 @@
 package com.records.pesa.service.transaction
 
 import android.content.Context
+import androidx.room.Query
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
@@ -85,4 +86,5 @@ interface TransactionService {
 
     fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
     suspend fun insertTransaction(transaction: Transaction): Long
+    suspend fun deleteTransaction(id: Int)
 }

@@ -120,6 +120,14 @@ class AccountInformationScreenViewModel(
     fun logout() {
         viewModelScope.launch {
             dbRepository.deleteUser(uiState.value.userDetails.userId)
+            dbRepository.deleteCategoryMappings()
+            dbRepository.deleteCategoryKeywords()
+            dbRepository.deleteCategories()
+            dbRepository.deleteTransactions()
+            dbRepository.resetTransactionPK()
+            dbRepository.resetCategoryMappingsPK()
+            dbRepository.resetCategoryKeywordPK()
+            dbRepository.resetCategoryPK()
             dbRepository.updateAppLaunchStatus(
                 uiState.value.appLaunchStatus.copy(
                     user_id = null

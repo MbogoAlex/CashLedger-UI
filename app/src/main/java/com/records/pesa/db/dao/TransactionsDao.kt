@@ -120,6 +120,9 @@ interface TransactionsDao {
         )
     }
 
+    @Query("delete from `transaction` where id = :id")
+    suspend fun deleteTransaction(id: Int)
+
     fun createUserTransactionQueryByMonthAndYear(
         userId: Int,
         entity: String?,

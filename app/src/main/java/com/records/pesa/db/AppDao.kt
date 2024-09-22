@@ -24,6 +24,49 @@ interface AppDao {
     @Query("delete from user")
     suspend fun deleteAllFromUser()
 
+    @Query("delete from transactionCategoryCrossRef")
+    suspend fun deleteCategoryMappings()
+
+    @Query("delete from categoryKeyword")
+    suspend fun deleteCategoryKeywords()
+
+    @Query("delete from transactionCategory")
+    suspend fun deleteCategories()
+
+    @Query("delete from `transaction`")
+    suspend fun deleteTransactions()
+
+    @Query("DELETE FROM sqlite_sequence WHERE name = 'transaction'")
+    suspend fun resetTransactionPK()
+
+    @Query("DELETE FROM sqlite_sequence WHERE name = 'transactionCategory'")
+    suspend fun resetCategoryPK()
+
+    @Query("DELETE FROM sqlite_sequence WHERE name = 'categoryKeyword'")
+    suspend fun resetCategoryKeywordPK()
+
+    @Query("DELETE FROM sqlite_sequence WHERE name = 'transactionCategoryCrossRef'")
+    suspend fun resetCategoryMappingsPK()
+
+    @Query("delete from `transaction` where id = :id")
+    suspend fun deleteTransaction(id: Int)
+
+    @Query("delete from transactionCategory where id = :id")
+    suspend fun deleteCategory(id: Int)
+
+    @Query("delete from categoryKeyword where id = :id")
+    suspend fun deleteCategoryKeyword(id: Int)
+
+    @Query("delete from categoryKeyword where categoryId = :categoryId")
+    suspend fun deleteCategoryKeywordByCategoryId(categoryId: Int)
+
+    @Query("delete from transactionCategoryCrossRef where transactionId = :transactionId")
+    suspend fun deleteTransactionFromCategoryMapping(transactionId: Int)
+
+    @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId")
+    suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
+
+
     @Query("select * from user where userId = :userId")
     fun getUser(userId: Int): Flow<UserDetails>
 

@@ -202,7 +202,7 @@ fun MembersAdditionScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = it.nickName ?: it.entity,
+                        text = if(it.nickName.isNullOrEmpty()) it.entity else it.nickName,
                         fontSize = screenFontSize(x = 14.0).sp,
                         modifier = Modifier
                             .weight(0.8f)
@@ -325,7 +325,7 @@ fun MembersReviewScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = it.entity,
+                        text = if(it.nickName.isNullOrEmpty()) it.entity else it.nickName,
                         fontSize = screenFontSize(x = 14.0).sp,
                         modifier = Modifier
                             .weight(0.8f)

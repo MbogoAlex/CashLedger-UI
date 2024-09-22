@@ -1,5 +1,6 @@
 package com.records.pesa.service.category
 
+import androidx.room.Query
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.CategoryWithKeywords
 import com.records.pesa.db.models.CategoryWithTransactions
@@ -20,4 +21,10 @@ interface CategoryService {
     fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>>
     fun getAllCategoryKeywords(): List<CategoryKeyword>
     suspend fun insertTransactionCategoryCrossRef(transactionCategoryCrossRef: TransactionCategoryCrossRef)
+
+    suspend fun deleteCategory(id: Int)
+
+    suspend fun deleteCategoryKeyword(id: Int)
+
+    suspend fun deleteCategoryMapping(categoryId: Int)
 }

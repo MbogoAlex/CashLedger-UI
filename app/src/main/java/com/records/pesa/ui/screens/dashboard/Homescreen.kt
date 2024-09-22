@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.dashboard
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -179,7 +180,9 @@ fun HomeScreenComposable(
     }
 
     LaunchedEffect(Unit) {
+        Log.d("current_screen", uiState.screen.toString())
         if(uiState.screen == "backup-screen") {
+            Log.d("current_screen", uiState.screen.toString())
             currentTab = HomeScreenTab.BACK_UP
             viewModel.resetNavigationScreen()
         }

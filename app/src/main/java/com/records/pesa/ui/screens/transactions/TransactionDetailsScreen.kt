@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,6 +103,22 @@ fun TransactionDetailsScreenComposable(
         mutableStateOf(false)
     }
 
+    var showDeleteTransactionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showDeleteTransactionDialog) {
+        DeleteTransactionDialog(
+            onDismiss = {
+                showDeleteTransactionDialog = !showDeleteTransactionDialog
+            },
+            onConfirm = {
+                viewModel.deleteTransaction(uiState.transaction.transactionId!!)
+                showDeleteTransactionDialog = !showDeleteTransactionDialog
+            }
+        )
+    }
+
     if(uiState.updatingAliasStatus == UpdatingAliasStatus.SUCCESS) {
         editAliasActive = !editAliasActive
         Toast.makeText(context, "Alias name updated", Toast.LENGTH_SHORT).show()
@@ -118,6 +135,16 @@ fun TransactionDetailsScreenComposable(
     } else if(uiState.updatingCommentStatus == UpdatingCommentStatus.FAIL) {
         editCommentActive = !editCommentActive
         Toast.makeText(context, "Failed to update comment. Ensure internet connection is active", Toast.LENGTH_SHORT).show()
+        viewModel.resetUpdatingStatus()
+    }
+
+    if(uiState.deletingTransactionStatus == DeletingTransactionStatus.SUCCESS) {
+        showDeleteTransactionDialog = !showDeleteTransactionDialog
+        Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
+        navigateToPreviousScreen()
+        viewModel.resetUpdatingStatus()
+    } else if(uiState.deletingTransactionStatus == DeletingTransactionStatus.FAIL) {
+        Toast.makeText(context, "Failed to delete transaction. Ensure internet connection is active", Toast.LENGTH_SHORT).show()
         viewModel.resetUpdatingStatus()
     }
 
@@ -166,6 +193,9 @@ fun TransactionDetailsScreenComposable(
             onDeleteComment = {
                 showDeleteDialog = !showDeleteDialog
             },
+            onDeleteTransaction = {
+                showDeleteTransactionDialog = !showDeleteTransactionDialog
+            },
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
@@ -187,6 +217,7 @@ fun TransactionDetailsScreen(
     updatingAliasStatus: UpdatingAliasStatus,
     updatingCommentStatus: UpdatingCommentStatus,
     onDeleteComment: () -> Unit,
+    onDeleteTransaction: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -563,7 +594,11 @@ fun TransactionDetailsScreen(
             fontSize = screenFontSize(x = 18.0).sp
         )
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        LazyVerticalGrid(columns = GridCells.Fixed(3)) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+//            modifier = Modifier
+//                .weight(1f)
+        ) {
             transactionItem.categories?.let {
                 items(it.size) {
                     Box(
@@ -582,6 +617,20 @@ fun TransactionDetailsScreen(
                 }
             }
         }
+//        Button(
+//            colors = ButtonDefaults.buttonColors(
+//                containerColor = MaterialTheme.colorScheme.error,
+//                contentColor = MaterialTheme.colorScheme.onError
+//            ),
+//            onClick = onDeleteTransaction,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//        ) {
+//            Text(
+//                text = "Delete transaction",
+//                fontSize = screenFontSize(x = 14.0).sp
+//            )
+//        }
     }
 
 
@@ -613,6 +662,44 @@ fun DeleteDialog(
     )
 }
 
+@Composable
+fun DeleteTransactionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Delete transaction",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        text = {
+            Text(
+                text = "Are you sure you want to delete this transaction? This action cannot be undone",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(
+                    text = "Confirm",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun TransactionDetailsScreenPreview(
@@ -634,6 +721,7 @@ fun TransactionDetailsScreenPreview(
             editCommentActive = true,
             onToggleEditComment = {},
             onDeleteComment = {},
+            onDeleteTransaction = {},
             navigateToPreviousScreen = {}
         )
     }

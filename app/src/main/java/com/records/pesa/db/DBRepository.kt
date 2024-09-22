@@ -1,5 +1,6 @@
 package com.records.pesa.db
 
+import androidx.room.Query
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +15,37 @@ interface DBRepository {
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
     fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
     suspend fun deleteAllFromUser()
+
+    suspend fun deleteCategoryMappings()
+
+
+    suspend fun deleteCategoryKeywords()
+
+
+    suspend fun deleteCategories()
+
+    suspend fun deleteTransactions()
+
+    suspend fun resetTransactionPK()
+
+
+    suspend fun resetCategoryPK()
+
+    suspend fun resetCategoryKeywordPK()
+
+    suspend fun resetCategoryMappingsPK()
+
+    suspend fun deleteTransaction(id: Int)
+
+    suspend fun deleteCategory(id: Int)
+
+    suspend fun deleteCategoryKeyword(id: Int)
+
+    suspend fun deleteTransactionFromCategoryMapping(transactionId: Int)
+    suspend fun deleteCategoryKeywordByCategoryId(categoryId: Int)
+    suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int)
+
+    suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
 }
 
 class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
@@ -32,5 +64,29 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
 
     override fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus> = appDao.getAppLaunchStatus(id)
     override suspend fun deleteAllFromUser() = appDao.deleteAllFromUser()
+    override suspend fun deleteCategoryMappings() = appDao.deleteCategoryMappings()
+
+    override suspend fun deleteCategoryKeywords() = appDao.deleteCategoryKeywords()
+
+    override suspend fun deleteCategories() = appDao.deleteCategories()
+
+    override suspend fun deleteTransactions() = appDao.deleteTransactions()
+    override suspend fun resetTransactionPK()  = appDao.resetTransactionPK()
+
+    override suspend fun resetCategoryPK() = appDao.resetCategoryPK()
+
+    override suspend fun resetCategoryKeywordPK() = appDao.resetCategoryKeywordPK()
+
+    override suspend fun resetCategoryMappingsPK() = appDao.resetCategoryMappingsPK()
+    override suspend fun deleteTransaction(id: Int) = appDao.deleteTransaction(id)
+
+    override suspend fun deleteCategory(id: Int) = appDao.deleteCategory(id)
+
+    override suspend fun deleteCategoryKeyword(id: Int) = appDao.deleteCategoryKeyword(id)
+
+    override suspend fun deleteTransactionFromCategoryMapping(transactionId: Int) = appDao.deleteTransactionFromCategoryMapping(transactionId)
+    override suspend fun deleteCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
+    override suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
+    override suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int) = appDao.deleteFromCategoryMappingByCategoryId(categoryId)
 
 }

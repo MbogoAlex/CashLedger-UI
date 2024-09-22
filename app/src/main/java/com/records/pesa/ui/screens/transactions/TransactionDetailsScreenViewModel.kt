@@ -56,6 +56,13 @@ enum class UpdatingAliasStatus {
     SUCCESS
 }
 
+enum class DeletingTransactionStatus {
+    INITIAL,
+    LOADING,
+    FAIL,
+    SUCCESS
+}
+
 data class TransactionDetailsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val transactionId: String? = null,
@@ -64,14 +71,15 @@ data class TransactionDetailsScreenUiState(
     val transaction: TransactionItem = transactionEx,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val updatingAliasStatus: UpdatingAliasStatus = UpdatingAliasStatus.INITIAL,
-    val updatingCommentStatus: UpdatingCommentStatus = UpdatingCommentStatus.INITIAL
+    val updatingCommentStatus: UpdatingCommentStatus = UpdatingCommentStatus.INITIAL,
+    val deletingTransactionStatus: DeletingTransactionStatus = DeletingTransactionStatus.INITIAL
 )
 
 class TransactionDetailsScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val transactionService: TransactionService
+    private val transactionService: TransactionService,
 ): ViewModel() {
     private val _uiState = MutableStateFlow(TransactionDetailsScreenUiState())
     val uiState: StateFlow<TransactionDetailsScreenUiState> = _uiState.asStateFlow()
@@ -329,11 +337,37 @@ class TransactionDetailsScreenViewModel(
 
     }
 
+    fun deleteTransaction(id: Int) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    dbRepository.deleteTransactionFromCategoryMapping(id)
+                    transactionService.deleteTransaction(id)
+                    _uiState.update {
+                        it.copy(
+                            deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
+                        )
+                    }
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(
+                            deletingTransactionStatus = DeletingTransactionStatus.FAIL
+                        )
+                    }
+                }
+            }
+        }
+
+    }
+
+
+
     fun resetUpdatingStatus() {
         _uiState.update {
             it.copy(
                 updatingAliasStatus = UpdatingAliasStatus.INITIAL,
-                updatingCommentStatus = UpdatingCommentStatus.INITIAL
+                updatingCommentStatus = UpdatingCommentStatus.INITIAL,
+                deletingTransactionStatus = DeletingTransactionStatus.INITIAL
             )
         }
     }

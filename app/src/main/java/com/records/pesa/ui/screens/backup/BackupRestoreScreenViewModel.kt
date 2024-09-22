@@ -1,9 +1,15 @@
 package com.records.pesa.ui.screens.backup
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.Transaction
+import com.records.pesa.db.models.TransactionCategory
+import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.supabase.SupabaseCategoryKeyword
 import com.records.pesa.models.payment.supabase.SupabaseTransaction
@@ -17,15 +23,19 @@ import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.InputStreamReader
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 data class BackupRestoreScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -90,52 +100,63 @@ class BackupRestoreScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    // restore transactions
-                    val transactions = client.postgrest["transaction"].select {
-                        filter {
-                            eq("userId", uiState.value.userDetails.userId)
-                        }
-                    }.decodeList<SupabaseTransaction>()
+                    val userId = uiState.value.userDetails.userId
+                    val bucketName = "cashLedgerBackup"
+                    val bucket = client.storage[bucketName]
 
-                    Log.d("LOADED_ITEMS", "transactions: ${transactions.size}")
+                    // Download CSV files from Supabase
 
-                    // restore categories
-                    val categories = client.postgrest["transactionCategory"].select{
-                        filter {
-                            eq("userId", uiState.value.userDetails.userId)
-                        }
-                    }.decodeList<SupabaseTransactionCategory>()
+                    var existingTransactionsCsv: ByteArray? = null
+                    var existingCategoriesCsv: ByteArray? = null
+                    var existingCategoryKeywordsCsv: ByteArray? = null
+                    var existingCategoryMappingsCsv: ByteArray? = null
 
-                    Log.d("LOADED_ITEMS", "categories: ${categories.size}")
+                    var transactions = emptyList<Transaction>()
+                    var categories = emptyList<TransactionCategory>()
+                    var categoryKeywords = emptyList<CategoryKeyword>()
+                    var categoryMappings = emptyList<TransactionCategoryCrossRef>()
 
-                    // restore category keywords
-                    val categoryKeywords = client.postgrest["categoryKeyword"].select {
-                        filter {
-                            eq("userId", uiState.value.userDetails.userId)
-                        }
-                    }.decodeList<SupabaseCategoryKeyword>()
+                    try {
+                        existingTransactionsCsv = bucket.downloadPublic("${userId}_transactions.csv")
+                        transactions = parseTransactionsCsv(existingTransactionsCsv)
+                    } catch (e: Exception) {
+                        Log.e("FileNotFound", "Transactions CSV not found: ${e.message}")
+                    }
 
-                    Log.d("LOADED_ITEMS", "categoryKeywords: ${categoryKeywords.size}")
+                    try {
+                        existingCategoriesCsv = bucket.downloadPublic("${userId}_categories.csv")
+                        categories = parseTransactionCategoriesCsv(existingCategoriesCsv)
+                        Log.d("found_categories", categories.toString())
+                    } catch (e: Exception) {
+                        Log.e("FileNotFound", "Categories CSV not found: ${e.message}")
+                    }
 
-                    // restore transactionCategoryCrossRef
-                    val categoryMappings = client.postgrest["transactionCategoryCrossRef"].select {
-                        filter {
-                            eq("userId", uiState.value.userDetails.userId)
-                        }
+                    try {
+                        existingCategoryKeywordsCsv = bucket.downloadPublic("${userId}_categoryKeywords.csv")
+                        categoryKeywords = parseCategoryKeywordsCsv(existingCategoryKeywordsCsv)
+                    } catch (e: Exception) {
+                        Log.e("FileNotFound", "Category Keywords CSV not found: ${e.message}")
+                    }
 
-                    }.decodeList<SupabaseTransactionCategoryCrossRef>()
+                    try {
+                        existingCategoryMappingsCsv = bucket.downloadPublic("${userId}_transactionCategoryCrossRef.csv")
+                        categoryMappings = parseTransactionCategoryCrossRefCsv(existingCategoryMappingsCsv)
+                    } catch (e: Exception) {
+                        Log.e("FileNotFound", "Category Mappings CSV not found: ${e.message}")
+                    }
 
-                    Log.d("LOADED_ITEMS", "categoryMappings: ${categoryMappings.size}")
-
+                    // Update the total number of items to restore
                     _uiState.update {
                         it.copy(
                             totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size
                         )
                     }
 
-                    Log.d("LOADED_ITEMS", uiState.value.totalItemsToRestore.toString())
+                    // Insert Transactions into Room
+                    Log.d("Restoring_data_size: ", transactions.size.toString())
+                    for (transaction in transactions) {
+                        Log.d("Restoring_data: ", "Transaction ID: ${transaction.id}")
 
-                    for(transaction in transactions.map { it.toTransaction() }) {
                         transactionService.insertTransaction(transaction)
                         _uiState.update {
                             it.copy(
@@ -144,8 +165,9 @@ class BackupRestoreScreenViewModel(
                         }
                     }
 
-
-                    for(category in categories.map { it.toTransactionCategory() }) {
+                    // Insert Categories into Room
+                    for (category in categories) {
+                        Log.d("Restoring_data_category: ", category.toString())
                         categoryService.insertTransactionCategory(category)
                         _uiState.update {
                             it.copy(
@@ -154,7 +176,9 @@ class BackupRestoreScreenViewModel(
                         }
                     }
 
-                    for(categoryKeyword in categoryKeywords.map { it.toCategoryKeyword() }) {
+                    // Insert Category Keywords into Room
+                    for (categoryKeyword in categoryKeywords) {
+                        Log.d("Restoring_data: ", "categoryKeyword")
                         categoryService.insertCategoryKeyword(categoryKeyword)
                         _uiState.update {
                             it.copy(
@@ -163,28 +187,29 @@ class BackupRestoreScreenViewModel(
                         }
                     }
 
-                    for(categoryMapping in categoryMappings.map { it.toTransactionCategoryCrossRef() }) {
-                        categoryService.insertTransactionCategoryCrossRef(categoryMapping)
+                    // Insert TransactionCategoryCrossRef into Room
+                    for (categoryMapping in categoryMappings) {
+                        Log.d("Restoring_data: ", "categoryMapping")
+                        try {
+                            categoryService.insertTransactionCategoryCrossRef(categoryMapping)
+                            _uiState.update {
+                                it.copy(
+                                    totalItemsRestored = uiState.value.totalItemsRestored + 1
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("insertException", "categoryMapping $e")
+                        }
+                    }
+
+                    // Update restore status on completion
+                    if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
                         _uiState.update {
                             it.copy(
-                                totalItemsRestored = uiState.value.totalItemsRestored + 1
+                                restoreStatus = RestoreStatus.SUCCESS
                             )
                         }
                     }
-
-                    when(uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
-                        true -> {
-                            _uiState.update {
-                                it.copy(
-                                    restoreStatus = RestoreStatus.SUCCESS
-                                )
-                            }
-                        }
-                        false -> {
-
-                        }
-                    }
-
 
                 } catch (e: Exception) {
                     _uiState.update {
@@ -197,6 +222,104 @@ class BackupRestoreScreenViewModel(
             }
         }
     }
+
+    fun parseTransactionsCsv(csvData: ByteArray): List<Transaction> {
+        val transactions = mutableListOf<Transaction>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val transaction = Transaction(
+                id = row[0].toInt(),
+                transactionCode = row[1],
+                transactionType = row[2],
+                transactionAmount = row[3].toDouble(),
+                transactionCost = row[4].toDouble(),
+                date = LocalDate.parse(row[5]),
+                time = LocalTime.parse(row[6]),
+                sender = row[7],
+                recipient = row[8],
+                nickName = row.getOrNull(9),
+                comment = row.getOrNull(10),
+                balance = row[11].toDouble(),
+                entity = row[12],
+                userId = row[13].toInt()
+            )
+            transactions.add(transaction)
+        }
+        return transactions
+    }
+
+    fun parseTransactionCategoriesCsv(csvData: ByteArray): List<TransactionCategory> {
+        val categories = mutableListOf<TransactionCategory>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val containsValue = row.getOrNull(4) ?: "" // Handle potential null or missing value
+            val containsList = if (containsValue.isNotEmpty()) {
+                containsValue.split(",")
+            } else {
+                emptyList()
+            }
+            Log.d("category_row", row.toString())
+            Log.d("category_row 0", row[0].toString())
+            Log.d("category_row 1", row[1].toString())
+            Log.d("category_row 2", row[2].toString())
+            Log.d("category_row 3", row[3].toString())
+            Log.d("category_row 4", row[4].toString())
+            Log.d("category_row 5", row.getOrNull(5).toString())
+            val category = TransactionCategory(
+                id = row[0].toInt(),                     // ID
+                createdAt = LocalDateTime.parse(row[1]), // createdAt
+                updatedAt = LocalDateTime.parse(row[2]), // updatedAt
+                name = row[3],                           // name
+                contains = containsList,                 // Split by comma or return empty list
+                updatedTimes = row.getOrNull(5)?.toDouble() // updatedTimes (optional)
+            )
+            categories.add(category)
+        }
+        return categories
+    }
+
+
+    fun parseCategoryKeywordsCsv(csvData: ByteArray): List<CategoryKeyword> {
+        val keywords = mutableListOf<CategoryKeyword>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val keyword = CategoryKeyword(
+                id = row[0].toInt(),
+                keyword = row[1],
+                nickName = row.getOrNull(2),
+                categoryId = row[3].toInt()
+            )
+            keywords.add(keyword)
+        }
+        return keywords
+    }
+
+    fun parseTransactionCategoryCrossRefCsv(csvData: ByteArray): List<TransactionCategoryCrossRef> {
+        val crossRefs = mutableListOf<TransactionCategoryCrossRef>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            Log.d("category_mapping_data", row.toString())
+            Log.d("category_mapping_data 0", row[0].toIntOrNull().toString())
+            Log.d("category_mapping_data 1", row[1].toIntOrNull().toString())
+            Log.d("category_mapping_data 2", row[2].toIntOrNull().toString())
+            val crossRef = TransactionCategoryCrossRef(
+                id = row[0].toIntOrNull(), // `id` might be nullable
+                transactionId = row[1].toInt(),
+                categoryId = row[2].toInt()
+            )
+            crossRefs.add(crossRef)
+        }
+        return crossRefs
+    }
+
 
     fun resetStatus() {
         _uiState.update {

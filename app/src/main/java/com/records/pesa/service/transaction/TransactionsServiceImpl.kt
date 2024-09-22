@@ -166,5 +166,6 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
 
     override fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getUserTransactionsFilteredByMonthAndYear(query)
     override suspend fun insertTransaction(transaction: Transaction): Long = transactionsDao.insertTransaction(transaction)
+    override suspend fun deleteTransaction(id: Int) = transactionsDao.deleteTransaction(id)
 
 }
