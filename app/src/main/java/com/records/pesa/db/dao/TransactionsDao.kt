@@ -9,6 +9,7 @@ import androidx.room.Update
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.models.AggregatedTransaction
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -72,6 +73,9 @@ interface TransactionsDao {
     @Query("select * from `transaction` order by date asc limit 1")
     fun getFirstTransaction(): Flow<Transaction>
 
+    @Query("select * from `transaction` where entity = :entity")
+    fun getTransactionsByEntity(entity: String): Flow<List<Transaction>>
+
     @Query("""
         SELECT 
             COALESCE(SUM(CASE WHEN t.transactionAmount > 0 THEN t.transactionAmount ELSE 0 END), 0) AS totalIn,
@@ -122,6 +126,12 @@ interface TransactionsDao {
 
     @Query("delete from `transaction` where id = :id")
     suspend fun deleteTransaction(id: Int)
+
+    @Insert
+    suspend fun insertDeletedTransaction(deletedTransaction: DeletedTransaction)
+
+    @Query("select * from deletedTransactions")
+    fun getDeletedTransactionEntities(): List<DeletedTransaction>
 
     fun createUserTransactionQueryByMonthAndYear(
         userId: Int,

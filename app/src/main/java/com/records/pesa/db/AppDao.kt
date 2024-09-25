@@ -66,6 +66,9 @@ interface AppDao {
     @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId")
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
 
+    @Query("delete from categoryKeyword where id = :keywordId")
+    suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
+
 
     @Query("select * from user where userId = :userId")
     fun getUser(userId: Int): Flow<UserDetails>

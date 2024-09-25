@@ -8,6 +8,7 @@ import androidx.room.Update
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.CategoryWithKeywords
 import com.records.pesa.db.models.CategoryWithTransactions
+import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
@@ -38,8 +39,12 @@ interface CategoryDao {
     @Query("delete from transactionCategory where id = :id")
     suspend fun deleteCategory(id: Int)
 
+
     @Query("delete from categoryKeyword where id = :id")
     suspend fun deleteCategoryKeyword(id: Int)
+
+    @Query("delete from categoryKeyword where keyword = :keyword")
+    suspend fun deleteCategoryKeywordByKeyword(keyword: String)
 
     @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId")
     suspend fun deleteCategoryMapping(categoryId: Int)

@@ -46,6 +46,7 @@ interface DBRepository {
     suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int)
 
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
+    suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
 }
 
 class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
@@ -88,5 +89,6 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
     override suspend fun deleteCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
     override suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
     override suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int) = appDao.deleteFromCategoryMappingByCategoryId(categoryId)
+    override suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int) = appDao.deleteCategoryKeywordByKeywordId(keywordId)
 
 }

@@ -168,7 +168,6 @@ class SortedTransactionsScreenViewModel(
                 latest = true
             )
             withContext(Dispatchers.IO) {
-
                 try {
                     transactionService.getUserTransactions(query).collect() {transactions ->
                         transformTransactions(transactions.map { it.toTransactionItem() }, uiState.value.orderByAmount)

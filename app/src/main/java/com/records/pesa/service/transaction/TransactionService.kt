@@ -6,6 +6,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
@@ -87,4 +88,7 @@ interface TransactionService {
     fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>>
     suspend fun insertTransaction(transaction: Transaction): Long
     suspend fun deleteTransaction(id: Int)
+
+    suspend fun insertDeletedTransaction(deletedTransaction: DeletedTransaction)
+    fun getDeletedTransactionEntities(): List<DeletedTransaction>
 }

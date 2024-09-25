@@ -27,4 +27,5 @@ interface CategoryService {
     suspend fun deleteCategoryKeyword(id: Int)
 
     suspend fun deleteCategoryMapping(categoryId: Int)
+    suspend fun deleteCategoryKeywordByKeyword(keyword: String)
 }

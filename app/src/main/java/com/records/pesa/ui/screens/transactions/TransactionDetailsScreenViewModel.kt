@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.mapper.toTransaction
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
@@ -13,6 +14,7 @@ import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.itemCategories
 import com.records.pesa.reusables.transactions
+import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -68,6 +70,7 @@ data class TransactionDetailsScreenUiState(
     val transactionId: String? = null,
     val nickname: String = "",
     val comment: String = "",
+    val deleteAllInstanceOffThisTransaction: Boolean = false,
     val transaction: TransactionItem = transactionEx,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val updatingAliasStatus: UpdatingAliasStatus = UpdatingAliasStatus.INITIAL,
@@ -80,6 +83,7 @@ class TransactionDetailsScreenViewModel(
     private val dbRepository: DBRepository,
     private val savedStateHandle: SavedStateHandle,
     private val transactionService: TransactionService,
+    private val categoryService: CategoryService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(TransactionDetailsScreenUiState())
     val uiState: StateFlow<TransactionDetailsScreenUiState> = _uiState.asStateFlow()
@@ -337,24 +341,64 @@ class TransactionDetailsScreenViewModel(
 
     }
 
-    fun deleteTransaction(id: Int) {
+    fun deleteTransaction(id: Int, deleteAllInstances: Boolean) {
+        _uiState.update {
+            it.copy(
+                deletingTransactionStatus = DeletingTransactionStatus.LOADING
+            )
+        }
+        val deletedTransaction = DeletedTransaction(
+            entity = uiState.value.transaction.entity
+        )
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                try {
-                    dbRepository.deleteTransactionFromCategoryMapping(id)
-                    transactionService.deleteTransaction(id)
-                    _uiState.update {
-                        it.copy(
-                            deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
+                val transactions = transactionService.getTransactionsByEntity(entity = uiState.value.transaction.entity).first()
+                if(deleteAllInstances) {
+                    try {
+                        transactionService.insertDeletedTransaction(
+                            deletedTransaction = deletedTransaction
                         )
+                        categoryService.deleteCategoryKeywordByKeyword(keyword = uiState.value.transaction.entity)
+                        for(transaction in transactions) {
+                            dbRepository.deleteTransactionFromCategoryMapping(id)
+                            transactionService.deleteTransaction(transaction.id)
+                        }
+
+                        _uiState.update {
+                            it.copy(
+                                deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
+                            )
+                        }
+                    } catch (e: Exception) {
+                        _uiState.update {
+                            it.copy(
+                                deletingTransactionStatus = DeletingTransactionStatus.FAIL
+                            )
+                        }
                     }
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            deletingTransactionStatus = DeletingTransactionStatus.FAIL
+                } else {
+                    try {
+                        transactionService.insertDeletedTransaction(
+                            deletedTransaction = deletedTransaction
                         )
+//                        categoryService.deleteCategoryKeywordByKeyword(keyword = uiState.value.transaction.entity)
+                        dbRepository.deleteTransactionFromCategoryMapping(id)
+                        transactionService.deleteTransaction(id)
+
+                        _uiState.update {
+                            it.copy(
+                                deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
+                            )
+                        }
+                    } catch (e: Exception) {
+                        _uiState.update {
+                            it.copy(
+                                deletingTransactionStatus = DeletingTransactionStatus.FAIL
+                            )
+                        }
                     }
                 }
+
             }
         }
 

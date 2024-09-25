@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -95,6 +96,10 @@ fun TransactionDetailsScreenComposable(
         mutableStateOf(false)
     }
 
+    var deleteAllInstanceOffThisTransaction by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var editAliasActive by rememberSaveable {
         mutableStateOf(false)
     }
@@ -109,12 +114,16 @@ fun TransactionDetailsScreenComposable(
 
     if(showDeleteTransactionDialog) {
         DeleteTransactionDialog(
+            deleteAllInstanceOffThisTransaction = deleteAllInstanceOffThisTransaction,
+            onDeleteAllInstances = {
+                deleteAllInstanceOffThisTransaction = !deleteAllInstanceOffThisTransaction
+            },
             onDismiss = {
-                showDeleteTransactionDialog = !showDeleteTransactionDialog
+                showDeleteTransactionDialog = false
             },
             onConfirm = {
-                viewModel.deleteTransaction(uiState.transaction.transactionId!!)
-                showDeleteTransactionDialog = !showDeleteTransactionDialog
+                viewModel.deleteTransaction(uiState.transaction.transactionId!!, deleteAllInstanceOffThisTransaction)
+                showDeleteTransactionDialog = false
             }
         )
     }
@@ -139,7 +148,6 @@ fun TransactionDetailsScreenComposable(
     }
 
     if(uiState.deletingTransactionStatus == DeletingTransactionStatus.SUCCESS) {
-        showDeleteTransactionDialog = !showDeleteTransactionDialog
         Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
         navigateToPreviousScreen()
         viewModel.resetUpdatingStatus()
@@ -190,11 +198,12 @@ fun TransactionDetailsScreenComposable(
             },
             updatingAliasStatus = uiState.updatingAliasStatus,
             updatingCommentStatus = uiState.updatingCommentStatus,
+            deletingTransactionStatus = uiState.deletingTransactionStatus,
             onDeleteComment = {
                 showDeleteDialog = !showDeleteDialog
             },
             onDeleteTransaction = {
-                showDeleteTransactionDialog = !showDeleteTransactionDialog
+                showDeleteTransactionDialog = true
             },
             navigateToPreviousScreen = navigateToPreviousScreen
         )
@@ -219,6 +228,7 @@ fun TransactionDetailsScreen(
     onDeleteComment: () -> Unit,
     onDeleteTransaction: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    deletingTransactionStatus: DeletingTransactionStatus,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -596,8 +606,8 @@ fun TransactionDetailsScreen(
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-//            modifier = Modifier
-//                .weight(1f)
+            modifier = Modifier
+                .weight(1f)
         ) {
             transactionItem.categories?.let {
                 items(it.size) {
@@ -617,20 +627,28 @@ fun TransactionDetailsScreen(
                 }
             }
         }
-//        Button(
-//            colors = ButtonDefaults.buttonColors(
-//                containerColor = MaterialTheme.colorScheme.error,
-//                contentColor = MaterialTheme.colorScheme.onError
-//            ),
-//            onClick = onDeleteTransaction,
-//            modifier = Modifier
-//                .fillMaxWidth()
-//        ) {
-//            Text(
-//                text = "Delete transaction",
-//                fontSize = screenFontSize(x = 14.0).sp
-//            )
-//        }
+        Button(
+            enabled = deletingTransactionStatus != DeletingTransactionStatus.LOADING,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            ),
+            onClick = onDeleteTransaction,
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            if(deletingTransactionStatus == DeletingTransactionStatus.LOADING) {
+                Text(
+                    text = "Deleting...",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            } else {
+                Text(
+                    text = "Delete transaction",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
     }
 
 
@@ -664,6 +682,8 @@ fun DeleteDialog(
 
 @Composable
 fun DeleteTransactionDialog(
+    deleteAllInstanceOffThisTransaction: Boolean,
+    onDeleteAllInstances: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -675,10 +695,61 @@ fun DeleteTransactionDialog(
             )
         },
         text = {
-            Text(
-                text = "Are you sure you want to delete this transaction? This action cannot be undone",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Are you sure you want to delete this transaction? This action is permanent",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+//                    modifier = Modifier
+//                        .padding(screenWidth(x = 10.0))
+                ) {
+                    if(deleteAllInstanceOffThisTransaction) {
+                        IconButton(onClick = onDeleteAllInstances) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.check_box_filled),
+                                contentDescription = "Remove item from filter?",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onDeleteAllInstances) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.check_box_blank),
+                                contentDescription = "Add item to filter",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "Delete all intances of this transaction",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                if(deleteAllInstanceOffThisTransaction) {
+                    Text(
+                        text = "Existing transactions with the same entity will also be deleted",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Text(
+                        text = "New transactions with the same entity name will not be added",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+
+            }
         },
         onDismissRequest = onDismiss,
         dismissButton = {
@@ -716,6 +787,7 @@ fun TransactionDetailsScreenPreview(
             onSaveComment = {},
             updatingAliasStatus = UpdatingAliasStatus.INITIAL,
             updatingCommentStatus = UpdatingCommentStatus.INITIAL,
+            deletingTransactionStatus = DeletingTransactionStatus.LOADING,
             onToggleEditAlias = {},
             editAliasActive = true,
             editCommentActive = true,

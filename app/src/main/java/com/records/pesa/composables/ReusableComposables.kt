@@ -67,7 +67,7 @@ fun TransactionItemCell(
                         .padding(screenWidth(x = 16.0))
                 ) {
                     Text(
-                        text = if(transaction.nickName.isNullOrEmpty()) transaction.entity.substring(0, 2) else transaction.nickName.substring(0, 2),
+                        text = if(transaction.nickName.isNullOrEmpty()) transaction.entity.take(2) else transaction.nickName.take(2),
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
@@ -75,7 +75,7 @@ fun TransactionItemCell(
             Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
             Column {
                 Text(
-                    text = if(transaction.nickName.isNullOrEmpty()) if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase() else if(transaction.nickName.length > 20) "${transaction.nickName.substring(0, 20).uppercase()}..." else transaction.nickName.uppercase(),
+                    text = if(transaction.nickName.isNullOrEmpty()) if(transaction.entity.length > 20) "${transaction.entity.take(20).uppercase()}..." else transaction.entity.uppercase() else if(transaction.nickName.length > 20) "${transaction.nickName.take(20).uppercase()}..." else transaction.nickName.uppercase(),
                     fontSize = screenFontSize(x = 12.0).sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -155,7 +155,7 @@ fun SortedTransactionItemCell(
                         .padding(screenWidth(x = 16.0))
                 ) {
                     Text(
-                        text = if(transaction.nickName.isNullOrEmpty()) transaction.entity.substring(0, 2) else transaction.nickName.substring(0, 2),
+                        text = if(transaction.nickName.isNullOrEmpty()) transaction.entity.take(2) else transaction.nickName.take(2),
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
@@ -163,7 +163,7 @@ fun SortedTransactionItemCell(
             Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
             Column {
                 Text(
-                    text = if(transaction.nickName.isNullOrEmpty()) if(transaction.entity.length > 20) "${transaction.entity.substring(0, 20).uppercase()}..." else transaction.entity.uppercase() else if(transaction.nickName.length > 20) "${transaction.nickName.substring(0, 20).uppercase()}..." else transaction.nickName.uppercase(),
+                    text = if(transaction.nickName.isNullOrEmpty()) if(transaction.entity.length > 20) "${transaction.entity.take(20).uppercase()}..." else transaction.entity.uppercase() else if(transaction.nickName.length > 20) "${transaction.nickName.take(20).uppercase()}..." else transaction.nickName.uppercase(),
                     fontSize = screenFontSize(x = 12.0).sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -260,6 +260,7 @@ fun IndividualSortedTransactionItemCell(
     moneyIn: Boolean,
     modifier: Modifier = Modifier
 ) {
+    Log.d("individualSortedTransaction", transaction.toString())
     Column(
         horizontalAlignment = Alignment.End,
         modifier = modifier
@@ -277,8 +278,7 @@ fun IndividualSortedTransactionItemCell(
                         .padding(screenWidth(x = 16.0))
                 ) {
                     Text(
-                        text = transaction.nickName?.let { it.substring(0, 2).uppercase() }
-                            ?: transaction.name.substring(0, 2).uppercase(),
+                        text = if(transaction.nickName.isNullOrEmpty()) transaction.name.take(2) else transaction.nickName.take(2),
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
@@ -286,10 +286,14 @@ fun IndividualSortedTransactionItemCell(
             Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
             Column {
                 Text(
-                    text = transaction.nickName?.let { if(it.length > 20) "${it.substring(0, 20).uppercase()}..." else it.uppercase() } ?: if(transaction.name.length > 20) "${transaction.name.substring(0, 20).uppercase()}..." else transaction.name.uppercase(),
+                    text = if(transaction.nickName.isNullOrEmpty())
+                        transaction.name.take(20)
+                    else
+                        transaction.nickName.take(20),
                     fontSize = screenFontSize(x = 12.0).sp,
                     fontWeight = FontWeight.Bold
                 )
+
                 Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
                     text = transaction.transactionType,

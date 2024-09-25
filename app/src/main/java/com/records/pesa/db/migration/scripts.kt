@@ -462,6 +462,17 @@ val MIGRATION_21_22 = object : Migration(21, 22) {
     }
 }
 
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create the new deletedTransactions table
+        database.execSQL(
+            "CREATE TABLE IF NOT EXISTS `deletedTransactions` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`entity` TEXT NOT NULL)"
+        )
+    }
+}
+
 
 
 

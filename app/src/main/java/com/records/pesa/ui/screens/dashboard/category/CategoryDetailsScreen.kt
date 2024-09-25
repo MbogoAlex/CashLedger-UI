@@ -223,7 +223,7 @@ fun CategoryDetailsScreenComposable(
         navigateToPreviousScreen()
         viewModel.resetLoadingStatus()
     } else if(uiState.deletionStatus == DeletionStatus.FAIL) {
-        Toast.makeText(context, "Failed to delete category. Check your connection or try later", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(context, "Failed to delete category. Check your connection or try later", Toast.LENGTH_SHORT).show()
         viewModel.resetLoadingStatus()
     }
 

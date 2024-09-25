@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -110,11 +111,13 @@ class BackupRestoreScreenViewModel(
                     var existingCategoriesCsv: ByteArray? = null
                     var existingCategoryKeywordsCsv: ByteArray? = null
                     var existingCategoryMappingsCsv: ByteArray? = null
+                    var existingDeletedTransactionsCsv: ByteArray? = null
 
                     var transactions = emptyList<Transaction>()
                     var categories = emptyList<TransactionCategory>()
                     var categoryKeywords = emptyList<CategoryKeyword>()
                     var categoryMappings = emptyList<TransactionCategoryCrossRef>()
+                    var deletedTransactions = emptyList<DeletedTransaction>()
 
                     try {
                         existingTransactionsCsv = bucket.downloadPublic("${userId}_transactions.csv")
@@ -145,10 +148,17 @@ class BackupRestoreScreenViewModel(
                         Log.e("FileNotFound", "Category Mappings CSV not found: ${e.message}")
                     }
 
+                    try {
+                        existingDeletedTransactionsCsv = bucket.downloadPublic("${userId}_deletedTransactions.csv")
+                        deletedTransactions = parseDeletedTransactionsCsv(existingDeletedTransactionsCsv)
+                    } catch (e: Exception) {
+                        Log.e("FileNotFound", "Deleted Transactions CSV not found: ${e.message}")
+                    }
+
                     // Update the total number of items to restore
                     _uiState.update {
                         it.copy(
-                            totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size
+                            totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size + deletedTransactions.size
                         )
                     }
 
@@ -199,6 +209,19 @@ class BackupRestoreScreenViewModel(
                             }
                         } catch (e: Exception) {
                             Log.e("insertException", "categoryMapping $e")
+                        }
+                    }
+
+                    for(deletedTransaction in deletedTransactions) {
+                        try {
+                            transactionService.insertDeletedTransaction(deletedTransaction)
+                            _uiState.update {
+                                it.copy(
+                                    totalItemsRestored = uiState.value.totalItemsRestored + 1
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("insertException", "deletedTransaction $e")
                         }
                     }
 
@@ -280,6 +303,21 @@ class BackupRestoreScreenViewModel(
             categories.add(category)
         }
         return categories
+    }
+
+    fun parseDeletedTransactionsCsv(csvData: ByteArray): List<DeletedTransaction> {
+        val deletedTransactions = mutableListOf<DeletedTransaction>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            val deletedTransaction = DeletedTransaction(
+                id = row[0].toInt(),
+                entity = row[1],
+            )
+            deletedTransactions.add(deletedTransaction)
+        }
+        return deletedTransactions
     }
 
 

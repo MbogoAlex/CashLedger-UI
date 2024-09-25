@@ -5,6 +5,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionWithCategories
@@ -29,7 +30,7 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
         categoryDao
     )
 
-    override fun getTransactionsByEntity(entity: String): Flow<List<Transaction>> = transactionsDao.getTransactionByEntity(entity = entity)
+    override fun getTransactionsByEntity(entity: String): Flow<List<Transaction>> = transactionsDao.getTransactionsByEntity(entity = entity)
 
     override fun getTransactionByCode(transactionCode: String): Flow<Transaction> = transactionsDao.getTransactionByCode(transactionCode)
     override fun getTransactionById(transactionId: Int): Flow<TransactionWithCategories> = transactionsDao.getTransactionById(transactionId)
@@ -167,5 +168,7 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
     override fun getUserTransactionsFilteredByMonthAndYear(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getUserTransactionsFilteredByMonthAndYear(query)
     override suspend fun insertTransaction(transaction: Transaction): Long = transactionsDao.insertTransaction(transaction)
     override suspend fun deleteTransaction(id: Int) = transactionsDao.deleteTransaction(id)
+    override suspend fun insertDeletedTransaction(deletedTransaction: DeletedTransaction) = transactionsDao.insertDeletedTransaction(deletedTransaction = deletedTransaction)
+    override fun getDeletedTransactionEntities(): List<DeletedTransaction> = transactionsDao.getDeletedTransactionEntities()
 
 }

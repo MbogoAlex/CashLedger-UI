@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -67,6 +68,7 @@ data class BackupScreenUiState(
     val transactions: List<Transaction> = emptyList(),
     val categories: List<TransactionCategory> = emptyList(),
     val categoryKeywords: List<CategoryKeyword> = emptyList(),
+    val deletedTransactions: List<DeletedTransaction> = emptyList(),
     val totalItems: Int = 0,
     val itemsInserted: Int = 0,
     val backupMessage: String = "",
@@ -114,6 +116,7 @@ class BackupScreenViewModel(
             getLocalCategories()
             getCategoryKeywords()
             getLocalTransactionCategoryMappings()
+            getDeletedTransactionItems()
         }
     }
 
@@ -133,7 +136,6 @@ class BackupScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val transactions = transactionService.getUserTransactions(query = query).first()
-                Log.d("addingBatchTransactions", "FROM 2845 to 2847: ${transactions.map { transaction -> transaction.toTransaction(userId = uiState.value.userDetails.userId).toSupabaseTransaction() }.reversed().subList(2845, 2847)}")
                 _uiState.update {
                     it.copy(
                         transactions = transactions.map { transaction -> transaction.toTransaction(userId = uiState.value.userDetails.userId) }
@@ -188,6 +190,7 @@ class BackupScreenViewModel(
         totalItems += uiState.value.categories.size
         totalItems += uiState.value.categoryKeywords.size
         totalItems += uiState.value.transactionWithCategoryMappings.size
+        totalItems += uiState.value.deletedTransactions.size
 
         Log.d("TOTAL_ITEMS", totalItems.toString())
         Log.d("TOTAL_ITEMS_NOT_BACKED_UP", "${totalItems - uiState.value.userDetails.backedUpItemsSize}")
@@ -218,6 +221,7 @@ class BackupScreenViewModel(
         val categoriesToBackup = uiState.value.categories
         val categoryKeywordsToBackup = uiState.value.categoryKeywords
         val categoryMappingsToBackup = uiState.value.transactionWithCategoryMappings
+        val deletedTransactions = uiState.value.deletedTransactions
 
         Log.d("categoriesToBackup", categoriesToBackup.toString())
 
@@ -257,7 +261,7 @@ class BackupScreenViewModel(
                 val categoriesCsv = backupCategoriesToCSV(context, "${userId}_categories.csv", categoriesToBackup)
                 val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context,"${userId}_categoryKeywords.csv", categoryKeywordsToBackup)
                 val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${userId}_transactionCategoryCrossRef.csv", categoryMappingsToBackup)
-
+                val deletedTransactionsCsv = backupDeletedTransactionsToCSV(context, "${userId}_deletedTransactions.csv", deletedTransactions)
 
 
                 if(transactionsCsv != null) {
@@ -296,12 +300,22 @@ class BackupScreenViewModel(
                     }
                 }
 
+                if(deletedTransactionsCsv != null) {
+                    bucket.upload("${userId}_deletedTransactions.csv", deletedTransactionsCsv, true)
+                    _uiState.update {
+                        it.copy(
+                            itemsInserted = uiState.value.itemsInserted + deletedTransactions.size
+                        )
+                    }
+                }
+
                 val lastBackup = LocalDateTime.now()
 
                 // Update user account with backup details
                 client.postgrest["userAccount"].update(user.copy(
                     lastBackup = lastBackup.toString(),
                     backedUpItemsSize = totalItems,
+                    backupSet = true,
                     transactions = transactionsToBackup.size,
                     categories = categoriesToBackup.size,
                     categoryKeywords = categoryKeywordsToBackup.size,
@@ -314,6 +328,7 @@ class BackupScreenViewModel(
                     user = uiState.value.userDetails.copy(
                         lastBackup = lastBackup,
                         backedUpItemsSize = totalItems,
+                        backupSet = true,
                         transactions = transactionsToBackup.size,
                         categories = categoriesToBackup.size,
                         categoryKeywords = categoryKeywordsToBackup.size,
@@ -338,6 +353,19 @@ class BackupScreenViewModel(
                     )
                 }
                 Log.e("backUpException", e.toString())
+            }
+        }
+    }
+
+    fun getDeletedTransactionItems() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val deletedTransactions = transactionService.getDeletedTransactionEntities()
+                _uiState.update {
+                    it.copy(
+                        deletedTransactions = deletedTransactions
+                    )
+                }
             }
         }
     }
@@ -543,6 +571,29 @@ class BackupScreenViewModel(
             return file
         } catch (e: Exception) {
             Log.e("backupCategoryMappingsToCSV", "Error saving transaction category mappings backup: ${e.message}")
+            return null
+        }
+    }
+
+    fun backupDeletedTransactionsToCSV(context: Context, fileName: String, deletedTransactions: List<DeletedTransaction>): File? {
+        try {
+            val file = getInternalStorageFile(context, fileName)
+            FileWriter(file).use { writer ->
+                val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                    "id", "entity"
+                ))
+
+                deletedTransactions.forEach { transaction ->
+                    csvPrinter.printRecord(
+                        transaction.id, transaction.entity
+                    )
+                }
+                csvPrinter.flush()
+            }
+            Log.d("backupDeletedTransactionsToCSV", "Transactions backup saved to ${file.absolutePath}")
+            return file
+        } catch (e: Exception) {
+            Log.e("backupDeletedTransactionsToCSV", "Error saving transactions backup: ${e.message}")
             return null
         }
     }

@@ -8,10 +8,10 @@ import androidx.room.TypeConverters
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.dao.UserDao
-import com.records.pesa.db.migration.MIGRATION_20_21
-import com.records.pesa.db.migration.MIGRATION_21_22
+import com.records.pesa.db.migration.MIGRATION_29_30
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -19,7 +19,7 @@ import com.records.pesa.db.models.UserAccount
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class], version = 29, exportSchema = false)
+@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class], version = 30, exportSchema = false)
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
@@ -39,6 +39,7 @@ abstract class AppDatabase: RoomDatabase() {
                         .fallbackToDestructiveMigration()
                 } else {
                     Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
+                        .addMigrations(MIGRATION_29_30)
                         .fallbackToDestructiveMigration()
                 }
 

@@ -281,11 +281,13 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             TransactionDetailsScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
                 savedStateHandle = this.createSavedStateHandle(),
-                transactionService = transactionService
+                transactionService = transactionService,
+                categoryService = categoryService
             )
         }
 

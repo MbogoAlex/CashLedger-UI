@@ -3,24 +3,38 @@ package com.records.pesa.service.transaction.function;
 import com.records.pesa.db.dao.CategoryDao;
 import com.records.pesa.db.dao.TransactionsDao;
 import com.records.pesa.db.models.CategoryKeyword;
+import com.records.pesa.db.models.DeletedTransaction;
 import com.records.pesa.db.models.Transaction;
 import com.records.pesa.db.models.TransactionCategory;
 import com.records.pesa.db.models.TransactionCategoryCrossRef;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class TransactionInsertion {
     public void addTransaction(Transaction transaction, TransactionsDao transactionsDao, List<TransactionCategory> categories, CategoryDao categoryDao) {
-        long transactionId = transactionsDao.insertTransactionBlocking(transaction);
 
-        Transaction transaction1 = transactionsDao.getStaticTransactionById((int) transactionId);
+        List<DeletedTransaction> deletedTransactions = transactionsDao.getDeletedTransactionEntities();
+        List<String> deletedItems = new ArrayList<>();
 
-        if(!categories.isEmpty()) {
-            for(TransactionCategory category : categories) {
-                addTransactionToCategory(transaction1, category, categoryDao);
+        if(!deletedTransactions.isEmpty()) {
+            for(DeletedTransaction deletedTransaction : deletedTransactions) {
+                deletedItems.add(deletedTransaction.getEntity().toLowerCase());
+            }
+        }
+
+        if(!deletedItems.contains(transaction.getEntity().toLowerCase())) {
+            long transactionId = transactionsDao.insertTransactionBlocking(transaction);
+
+            Transaction transaction1 = transactionsDao.getStaticTransactionById((int) transactionId);
+
+            if(!categories.isEmpty()) {
+                for(TransactionCategory category : categories) {
+                    addTransactionToCategory(transaction1, category, categoryDao);
+                }
             }
         }
     }

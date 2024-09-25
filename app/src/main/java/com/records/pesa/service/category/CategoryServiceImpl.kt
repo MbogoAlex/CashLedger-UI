@@ -29,4 +29,5 @@ class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService
     override suspend fun deleteCategoryKeyword(id: Int) = categoryDao.deleteCategoryKeyword(id)
 
     override suspend fun deleteCategoryMapping(categoryId: Int) = categoryDao.deleteCategoryMapping(categoryId)
+    override suspend fun deleteCategoryKeywordByKeyword(keyword: String) = categoryDao.deleteCategoryKeywordByKeyword(keyword = keyword)
 }

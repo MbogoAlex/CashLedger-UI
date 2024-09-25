@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.Transaction
 import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.mapper.toTransaction
 import com.records.pesa.models.CategoryEditPayload
@@ -254,7 +255,13 @@ class CategoryDetailsScreenViewModel(
 
         viewModelScope.launch {
             try {
-                dbRepository.deleteCategoryKeywordByCategoryId(categoryId = categoryId)
+                val keyword = categoryService.getCategoryKeyword(keywordId).first()
+                val transactions = transactionService.getTransactionsByEntity(entity = keyword.keyword).first()
+                Log.d("categoryTransactions", transactions.toString())
+                for(transaction in transactions) {
+                    dbRepository.deleteTransactionFromCategoryMapping(transaction.id)
+                }
+                dbRepository.deleteCategoryKeywordByKeywordId(keywordId = keywordId)
                 _uiState.update {
                     it.copy(
                         loadingStatus = LoadingStatus.SUCCESS
@@ -312,13 +319,14 @@ class CategoryDetailsScreenViewModel(
                             )
                         }
                     }
+
                 } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
-                    Log.e("CategoryDetailsException", "getCategory: $e")
+//                    Log.e("CategoryDetailsException", "getCategory: $e")
                 }
 
             }
