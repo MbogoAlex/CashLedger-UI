@@ -263,7 +263,7 @@ fun BackupScreen(
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
                 Text(
-                    text = "$transactionsNotBackedUp  transactions not backed up",
+                    text = "$transactionsNotBackedUp  items not backed up",
                     fontSize = screenFontSize(x = 14.0).sp
                 )
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
@@ -343,7 +343,7 @@ fun BackupScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
             Text(
-                text = "$transactionsNotBackedUp not backed up",
+                text = "$transactionsNotBackedUp items not backed up",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
