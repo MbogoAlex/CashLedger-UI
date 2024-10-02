@@ -19,7 +19,8 @@ enum class HomeScreenTab {
     CATEGORIES,
     BUDGETS,
     ACCOUNT_INFO,
-    BACK_UP
+    BACK_UP,
+    CONTACT_US
 }
 
 data class HomeScreenTabItem(

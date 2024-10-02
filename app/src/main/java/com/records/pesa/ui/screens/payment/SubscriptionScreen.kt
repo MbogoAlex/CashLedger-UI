@@ -87,13 +87,19 @@ fun SubscriptionScreenComposable(
         viewModel.checkConnectivity(context)
     }
 
+    var lipaStatusCheck by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
         Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
+        lipaStatusCheck = false
         navigateToHomeScreen()
         viewModel.resetPaymentStatus()
     } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
         Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
-        navigateToHomeScreen()
+        lipaStatusCheck = false
+//        navigateToHomeScreen()
         viewModel.resetPaymentStatus()
     }
 
@@ -109,9 +115,17 @@ fun SubscriptionScreenComposable(
         mutableStateOf(false)
     }
 
+
     val isConnected by viewModel.isConnected.observeAsState(false)
 
-
+    BackHandler(onBack = {
+        if(uiState.loadingStatus != LoadingStatus.LOADING) {
+            showPaymentScreen = !showPaymentScreen
+            viewModel.cancel()
+        } else {
+            Toast.makeText(context, "Payment in progress", Toast.LENGTH_SHORT).show()
+        }
+    })
 
     Box(
         modifier = Modifier
@@ -132,9 +146,20 @@ fun SubscriptionScreenComposable(
                     viewModel.lipa()
                 },
                 navigateToPreviousScreen = {
-                    showPaymentScreen = !showPaymentScreen
-                    viewModel.cancel()
+                    if(uiState.loadingStatus != LoadingStatus.LOADING) {
+                        showPaymentScreen = !showPaymentScreen
+                        viewModel.cancel()
+                    } else {
+                        Toast.makeText(context, "Payment in progress", Toast.LENGTH_SHORT).show()
+                    }
                 },
+                lipaStatus = {
+                    viewModel.lipaStatus()
+                },
+                onChangeLipaStatusCheck = {
+                    lipaStatusCheck = !lipaStatusCheck
+                },
+                lipaStatusCheck = lipaStatusCheck,
                 loadingStatus = uiState.loadingStatus,
             )
         } else {
@@ -296,6 +321,9 @@ fun PaymentScreen(
     onAmountChange: (String) -> Unit,
     onPhoneNumberChange: (String) -> Unit,
     buttonEnabled: Boolean,
+    lipaStatusCheck: Boolean,
+    onChangeLipaStatusCheck: () -> Unit,
+    lipaStatus: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     loadingStatus: LoadingStatus,
     onPay: () -> Unit
@@ -463,6 +491,42 @@ fun PaymentScreen(
                     fontSize = screenFontSize(x = 14.0).sp
                 )
             }
+            if(lipaStatusCheck) {
+                Button(
+                    enabled = false,
+                    onClick = {
+                        onChangeLipaStatusCheck()
+                        lipaStatus()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Checking payment...",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+            }
+            if(loadingStatus == LoadingStatus.FAIL) {
+                Text(
+                    text = "Already paid? ",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+                Button(
+                    enabled = loadingStatus != LoadingStatus.LOADING,
+                    onClick = {
+                        onChangeLipaStatusCheck()
+                        lipaStatus()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = "I have already paid",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+            }
         }
 
     }
@@ -494,6 +558,9 @@ fun PaymentScreenPreview() {
             onAmountChange = {},
             onPhoneNumberChange = {},
             buttonEnabled = false,
+            lipaStatus = {},
+            onChangeLipaStatusCheck = {},
+            lipaStatusCheck = false,
             navigateToPreviousScreen = {},
             loadingStatus = LoadingStatus.INITIAL
         ) {

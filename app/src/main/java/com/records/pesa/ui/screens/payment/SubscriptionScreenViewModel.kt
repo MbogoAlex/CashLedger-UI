@@ -154,7 +154,14 @@ class SubscriptionScreenViewModel(
         }
     }
 
-    private fun lipaStatus() {
+    fun lipaStatus() {
+        if(uiState.value.loadingStatus != LoadingStatus.LOADING) {
+            _uiState.update {
+                it.copy(
+                    loadingStatus = LoadingStatus.LOADING
+                )
+            }
+        }
         val lipaStatusPayload = IntasendPaymentStatusPayload(
             invoice_id = uiState.value.invoice_id
         )
@@ -244,6 +251,14 @@ class SubscriptionScreenViewModel(
                         Log.e("userUpdateFailure", e.toString())
                     }
 
+                }
+
+                if(uiState.value.state.lowercase().contains("fail")) {
+                    _uiState.update {
+                        it.copy(
+                            loadingStatus = LoadingStatus.FAIL
+                        )
+                    }
                 }
 
                 // save to local db
