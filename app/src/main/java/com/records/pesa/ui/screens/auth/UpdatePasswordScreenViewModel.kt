@@ -10,6 +10,7 @@ import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,19 +72,18 @@ class UpdatePasswordScreenViewModel(
             withContext(Dispatchers.IO) {
                 try {
                     val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
-                    val user = client.postgrest["userAccount"]
-                        .select {
-                            filter {
-                                eq("phoneNumber", uiState.value.phoneNumber)
-                            }
-                        }.decodeSingle<UserAccount>()
 
-                    client.postgrest["userAccount"]
-                        .update(user.copy(password = hashedPassword)) {
-                            filter {
-                                eq("phoneNumber", uiState.value.phoneNumber)
-                            }
+
+                    client.from("userAccount").update(
+                        {
+                            UserAccount::password setTo hashedPassword
                         }
+                    ) {
+                        filter {
+                            UserAccount::phoneNumber eq uiState.value.phoneNumber
+                        }
+                    }
+
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.SUCCESS,

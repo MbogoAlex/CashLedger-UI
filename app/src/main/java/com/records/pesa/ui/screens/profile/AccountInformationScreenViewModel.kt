@@ -11,6 +11,7 @@ import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,20 +70,19 @@ class AccountInformationScreenViewModel(
         }
         viewModelScope.launch {
             try {
-                val user = client.postgrest["userAccount"].select {
-                    filter {
-                        eq("id", uiState.value.userDetails.userId)
+
+                client.from("userAccount").update(
+                    {
+                        UserAccount::fname setTo uiState.value.firstName
+                        UserAccount::lname setTo uiState.value.lastName
+                        UserAccount::email setTo uiState.value.email
                     }
-                }.decodeSingle<UserAccount>()
-                client.postgrest["userAccount"].update(user.copy(
-                    fname = uiState.value.firstName,
-                    lname = uiState.value.lastName,
-                    email = uiState.value.email,
-                )) {
+                ) {
                     filter {
-                        eq("id", uiState.value.userDetails.userId)
+                        UserAccount::id eq uiState.value.userDetails.userId
                     }
                 }
+
                 dbRepository.updateUser(
                     uiState.value.userDetails.copy(
                         firstName = uiState.value.firstName,

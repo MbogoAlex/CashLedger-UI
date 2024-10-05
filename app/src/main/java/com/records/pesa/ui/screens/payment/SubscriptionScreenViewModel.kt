@@ -206,23 +206,20 @@ class SubscriptionScreenViewModel(
                             userId = uiState.value.userDetails.userId,
 
                             )
-                        val user = client.postgrest["userAccount"]
-                            .select {
-                                filter {
-                                    eq("phoneNumber", uiState.value.phoneNumber)
-                                }
-                            }.decodeSingle<UserAccount>()
 
-                        val savedPayment = client.from("payment").insert(payment) {
-                            select()
-                        }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
+                        client.from("payment").insert(payment)
 
-                        client.postgrest["userAccount"]
-                            .update(user.copy(permanent = true)) {
-                                filter {
-                                    eq("phoneNumber", uiState.value.phoneNumber)
-                                }
+
+                        client.from("userAccount").update(
+                            {
+                                UserAccount::permanent setTo true
                             }
+                        ) {
+                            filter {
+                                UserAccount::id eq uiState.value.userDetails.userId
+                            }
+                        }
+
                     } catch (e: Exception) {
                         Log.d("userUpdateFailure", e.toString())
                     }
@@ -241,11 +238,8 @@ class SubscriptionScreenViewModel(
                             userId = uiState.value.userDetails.userId,
 
                             )
-                        val savedPayment = client.from("payment").insert(payment) {
-                            select()
-                        }.decodeSingle<com.records.pesa.models.payment.supabase.PaymentData>()
 
-                        Log.d("paymentInserted", savedPayment.toString())
+                        client.from("payment").insert(payment)
 
                     } catch (e: Exception) {
                         Log.e("userUpdateFailure", e.toString())
