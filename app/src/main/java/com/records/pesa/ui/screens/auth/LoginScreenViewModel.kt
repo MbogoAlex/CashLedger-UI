@@ -201,7 +201,7 @@ class LoginScreenViewModel(
                                     it.copy(
                                         userDetails = dbRepository.getUser(userId = user.id!!).first(),
                                         loginStatus = LoginStatus.SUCCESS,
-                                        loginMessage = "Login Successfully"
+                                        loginMessage = "Logged in successfully"
                                     )
                                 }
                             }

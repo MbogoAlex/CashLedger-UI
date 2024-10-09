@@ -41,6 +41,7 @@ data class SubscriptionScreenUiState(
     val invoice_id: String = "",
     val state: String = "",
     val failedReason: String? = "",
+    val paymentStatusSaved: Boolean = false,
     val paymentToken: String = "",
     val orderTrackingId: String = "",
     val redirectUrl: String = "",
@@ -187,64 +188,99 @@ class SubscriptionScreenViewModel(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.d("failedToCheckPaymentStatus", "Failed to check payment status")
+                        Log.e("failedToCheckPaymentStatus", "Failed to check payment status")
                     }
                 }
 
-                if(uiState.value.amount == "1000" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
+                if(!uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
                     _uiState.update {
                         it.copy(
                             state = "REDIRECTING"
                         )
                     }
                     try {
-                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                            amount = uiState.value.amount.toDouble(),
-                            expiredAt = LocalDateTime.now().plusMonths(1).toString(),
-                            paidAt = LocalDateTime.now().toString(),
-                            month = LocalDateTime.now().month.value,
-                            userId = uiState.value.userDetails.userId,
+                        if(uiState.value.amount == "1000") {
+                            val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                                amount = uiState.value.amount.toDouble(),
+                                expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                                paidAt = LocalDateTime.now().toString(),
+                                month = LocalDateTime.now().month.value,
+                                userId = uiState.value.userDetails.userId,
+                                )
 
-                            )
-
-                        client.from("payment").insert(payment)
+                            client.from("payment").insert(payment)
 
 
-                        client.from("userAccount").update(
-                            {
-                                UserAccount::permanent setTo true
+                            client.from("userAccount").update(
+                                {
+                                    UserAccount::permanent setTo true
+                                }
+                            ) {
+                                filter {
+                                    UserAccount::id eq uiState.value.userDetails.userId
+                                }
                             }
-                        ) {
-                            filter {
-                                UserAccount::id eq uiState.value.userDetails.userId
+                        } else {
+                            val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                                amount = uiState.value.amount.toDouble(),
+                                expiredAt = expiredAt.toString(),
+                                paidAt = paidAt.toString(),
+                                month = LocalDateTime.now().month.value,
+                                userId = uiState.value.userDetails.userId,
+
+                                )
+
+                            client.from("payment").insert(payment)
+                        }
+                    } catch (e: Exception) {
+                        while (!uiState.value.paymentStatusSaved) {
+                            delay(3000)
+                            try {
+                                if(uiState.value.amount == "1000") {
+                                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                                        amount = uiState.value.amount.toDouble(),
+                                        expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                                        paidAt = LocalDateTime.now().toString(),
+                                        month = LocalDateTime.now().month.value,
+                                        userId = uiState.value.userDetails.userId,
+
+                                        )
+
+                                    client.from("payment").insert(payment)
+
+
+                                    client.from("userAccount").update(
+                                        {
+                                            UserAccount::permanent setTo true
+                                        }
+                                    ) {
+                                        filter {
+                                            UserAccount::id eq uiState.value.userDetails.userId
+                                        }
+                                    }
+                                } else {
+                                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                                        amount = uiState.value.amount.toDouble(),
+                                        expiredAt = expiredAt.toString(),
+                                        paidAt = paidAt.toString(),
+                                        month = LocalDateTime.now().month.value,
+                                        userId = uiState.value.userDetails.userId,
+
+                                        )
+
+                                    client.from("payment").insert(payment)
+                                }
+                                _uiState.update {
+                                    it.copy(
+                                        paymentStatusSaved = true
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("userUpdateFailure", e.toString())
                             }
                         }
-
-                    } catch (e: Exception) {
-                        Log.d("userUpdateFailure", e.toString())
-                    }
-                } else if(uiState.value.amount == "50" && !uiState.value.cancelled && uiState.value.state.lowercase() == "complete"){
-                    _uiState.update {
-                        it.copy(
-                            state = "REDIRECTING"
-                        )
-                    }
-                    try {
-                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                            amount = uiState.value.amount.toDouble(),
-                            expiredAt = expiredAt.toString(),
-                            paidAt = paidAt.toString(),
-                            month = LocalDateTime.now().month.value,
-                            userId = uiState.value.userDetails.userId,
-
-                            )
-
-                        client.from("payment").insert(payment)
-
-                    } catch (e: Exception) {
                         Log.e("userUpdateFailure", e.toString())
                     }
-
                 }
 
                 if(uiState.value.state.lowercase().contains("fail")) {
