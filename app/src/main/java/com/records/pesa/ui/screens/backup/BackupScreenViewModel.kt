@@ -324,11 +324,20 @@ class BackupScreenViewModel(
                     filter { eq("id", userId) }
                 }
 
+                if(!uiState.value.userDetails.backupSet) {
+                    workersRepository.fetchAndBackupTransactions(
+                        token = "dala",
+                        userId = uiState.value.userDetails.userId,
+                        paymentStatus = true
+                    )
+                }
+
                 dbRepository.updateUser(
                     user = uiState.value.userDetails.copy(
                         lastBackup = lastBackup,
                         backedUpItemsSize = totalItems,
                         backupSet = true,
+                        backupWorkerInitiated = true,
                         transactions = transactionsToBackup.size,
                         categories = categoriesToBackup.size,
                         categoryKeywords = categoryKeywordsToBackup.size,
@@ -346,6 +355,8 @@ class BackupScreenViewModel(
                         backupStatus = BackupStatus.SUCCESS,
                     )
                 }
+
+
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

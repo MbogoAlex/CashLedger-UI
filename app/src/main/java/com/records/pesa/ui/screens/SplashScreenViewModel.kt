@@ -119,11 +119,12 @@ class SplashScreenViewModel(
                             dbRepository.updateUser(
                                 userDetails.copy(
                                     paymentStatus = false,
+                                    darkThemeSet = false
                                 )
                             )
                             _uiState.update {
                                 it.copy(
-                                    paymentStatus = false
+                                    paymentStatus = false,
                                 )
                             }
                         } else if(expiredAt.isAfter(LocalDateTime.now())) {

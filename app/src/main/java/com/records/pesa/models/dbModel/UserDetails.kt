@@ -22,6 +22,7 @@ data class UserDetails(
     val supabaseLogin: Boolean = false,
     val permanent: Boolean = false,
     val backupSet: Boolean = false,
+    val backupWorkerInitiated: Boolean = false,
     val lastBackup: LocalDateTime? = null,
     val backedUpItemsSize: Int = 0,
     val transactions: Int = 0,

@@ -72,12 +72,14 @@ object AppViewModelFactory {
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
             DashboardScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
                 transactionService = transactionService,
                 dbRepository = cashLedgerApplication().container.dbRepository,
-                categoryService = categoryService
+                categoryService = categoryService,
+                workersRepository = workersRepository
             )
         }
 
@@ -254,9 +256,11 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             SubscriptionScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                transactionService = transactionService
             )
         }
 

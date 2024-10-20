@@ -13,7 +13,7 @@ android {
         applicationId = "com.records.pesa"
         minSdk = 26
         targetSdk = 34
-        versionCode = 117
+        versionCode = 118
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

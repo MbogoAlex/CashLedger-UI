@@ -473,6 +473,16 @@ val MIGRATION_29_30 = object : Migration(29, 30) {
     }
 }
 
+val MIGRATION_30_31 = object : Migration(30, 31) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add the new column `backupWorkerInitiated` to the `user` table
+        database.execSQL(
+            "ALTER TABLE `user` ADD COLUMN `backupWorkerInitiated` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+
 
 
 

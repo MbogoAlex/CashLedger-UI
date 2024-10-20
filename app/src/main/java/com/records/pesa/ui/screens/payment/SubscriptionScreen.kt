@@ -60,6 +60,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.utils.screenFontSize
@@ -67,6 +68,7 @@ import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 
 object SubscriptionScreenDestination: AppNavigation {
     override val title: String = "Subscription screen"
@@ -147,8 +149,13 @@ fun SubscriptionScreenComposable(
                 },
                 navigateToPreviousScreen = {
                     if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                        showPaymentScreen = !showPaymentScreen
-                        viewModel.cancel()
+                        if(showPaymentScreen) {
+                            showPaymentScreen = !showPaymentScreen
+                            viewModel.cancel()
+                        } else {
+                            navigateToPreviousScreen()
+                        }
+
                     } else {
                         Toast.makeText(context, "Payment in progress", Toast.LENGTH_SHORT).show()
                     }
@@ -164,6 +171,7 @@ fun SubscriptionScreenComposable(
             )
         } else {
             SubscriptionScreen(
+                firstTransactionDate = uiState.firstTransactionDate,
                 navigateToPreviousScreen = navigateToPreviousScreen,
                 navigateToPaymentScreen = {
                     monthly = it
@@ -176,6 +184,7 @@ fun SubscriptionScreenComposable(
 
 @Composable
 fun SubscriptionScreen(
+    firstTransactionDate: String,
     navigateToPaymentScreen: (monthly: Boolean) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
@@ -204,11 +213,17 @@ fun SubscriptionScreen(
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+//        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+        Text(
+            text = "Note: Transactions fetched are from $firstTransactionDate",
+            fontSize = screenFontSize(x = 14.0).sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
         Image(
             painter = painterResource(id = R.drawable.analyze_transactions),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
         )
@@ -540,6 +555,7 @@ fun PaymentScreen(
 fun SubscriptionScreenPreview() {
     CashLedgerTheme {
         SubscriptionScreen(
+            firstTransactionDate = formatLocalDate(LocalDate.now().minusMonths(6)),
             navigateToPaymentScreen = {},
             navigateToPreviousScreen = { /*TODO*/ }
         )

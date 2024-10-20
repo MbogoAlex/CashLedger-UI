@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
 import android.util.Log
-import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.NetworkType
@@ -12,7 +11,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.google.gson.Gson
 import com.records.pesa.CashLedger
 import com.records.pesa.container.AppContainerImpl
 import com.records.pesa.db.models.CategoryWithTransactions
@@ -20,16 +18,8 @@ import com.records.pesa.db.models.UserAccount
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.MessageData
 import com.records.pesa.models.SmsMessage
-import com.records.pesa.network.ApiService
-import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
-import com.records.pesa.service.userAccount.UserAccountService
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,45 +30,56 @@ class FetchMessagesWorker(
 ): CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
 
-        val appContext = context.applicationContext as? CashLedger
-            ?: return Result.failure() // appContext was not found
+        try {
+            val appContext = context.applicationContext as? CashLedger
+                ?: return Result.failure() // appContext was not found
 
-        // Ensure AppContainer is initialized
-        appContext.container = AppContainerImpl(appContext)
+            // Ensure AppContainer is initialized
+            appContext.container = AppContainerImpl(appContext)
 
-        val transactionService = appContext.container.transactionService
-        val categoryService = appContext.container.categoryService
-        val userAccountService = appContext.container.userAccountService
+            val transactionService = appContext.container.transactionService
+            val categoryService = appContext.container.categoryService
+            val userAccountService = appContext.container.userAccountService
 
-        val userId = inputData.getInt("userId", -1)
-        val token = inputData.getString("token")
-        if(userId == -1) {
+            val userId = inputData.getInt("userId", -1)
+            val token = inputData.getString("token")
+            val paymentStatus = inputData.getBoolean("paymentStatus", false)
+            if(userId == -1) {
+                return Result.failure()
+            }
+            val latestTransactionCode = transactionService.getLatestTransactionCode().first()
+
+            fetchSmsMessages(
+                context = context,
+                transactionService = transactionService,
+                userAccount = userAccountService.getUserAccount(userId = userId).first(),
+                categories = categoryService.getAllCategories().first(),
+                existing = latestTransactionCode
+            )
+
+            if(paymentStatus) {
+                // Once fetching is done, enqueue the posting work
+                val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
+                    .setInputData(workDataOf("userId" to userId, "token" to token))
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+
+                WorkManager.getInstance(context).enqueue(postMessagesRequest)
+
+            }
+            Log.e("backUpWork", "SUCCESS")
+
+            return Result.success()
+        } catch (e: Exception) {
+            Log.e("backUpWork", e.toString())
             return Result.failure()
         }
-        val latestTransactionCode = transactionService.getLatestTransactionCode().first()
-
-        fetchSmsMessages(
-            context = context,
-            transactionService = transactionService,
-            userAccount = userAccountService.getUserAccount(userId = userId).first(),
-            categories = categoryService.getAllCategories().first(),
-            existing = latestTransactionCode
-        )
 
 
-        // Once fetching is done, enqueue the posting work
-        val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
-            .setInputData(workDataOf("userId" to userId, "token" to token))
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-
-        WorkManager.getInstance(context).enqueue(postMessagesRequest)
-
-        return Result.success()
     }
 }
 

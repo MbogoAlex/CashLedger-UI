@@ -11,6 +11,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.PaymentData
 import com.records.pesa.models.payment.PaymentPayload
@@ -21,6 +22,7 @@ import com.records.pesa.models.user.UserAccount
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.service.transaction.TransactionService
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
@@ -46,13 +48,15 @@ data class SubscriptionScreenUiState(
     val orderTrackingId: String = "",
     val redirectUrl: String = "",
     val paymentMessage: String = "",
+    val firstTransactionDate: String = "",
     val cancelled: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
 class SubscriptionScreenViewModel(
     private val apiRepository: ApiRepository,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val transactionService: TransactionService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SubscriptionScreenUiState())
     val uiState: StateFlow<SubscriptionScreenUiState> = _uiState.asStateFlow()
@@ -102,6 +106,7 @@ class SubscriptionScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
+            getFirstTransactionDate()
         }
     }
 
@@ -110,6 +115,19 @@ class SubscriptionScreenViewModel(
             it.copy(
                 phoneNumber = number
             )
+        }
+    }
+
+    fun getFirstTransactionDate() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val firstTransaction = transactionService.getFirstTransaction().first()
+                _uiState.update {
+                    it.copy(
+                        firstTransactionDate = formatLocalDate(firstTransaction.date)
+                    )
+                }
+            }
         }
     }
 

@@ -20,6 +20,7 @@ import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -67,7 +68,8 @@ class DashboardScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val workersRepository: WorkersRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(DashboardScreenUiState())
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
@@ -91,6 +93,24 @@ class DashboardScreenViewModel(
                 year = currentDate.year.toString(),
                 selectableYears = years
             )
+        }
+    }
+
+    fun backUpWorker() {
+        viewModelScope.launch {
+            if(!uiState.value.userDetails.backupWorkerInitiated) {
+                Log.d("backUpWorker", "CAlling from dashboard")
+                workersRepository.fetchAndBackupTransactions(
+                    token = "dala",
+                    userId = uiState.value.userDetails.userId,
+                    paymentStatus = uiState.value.userDetails.paymentStatus
+                )
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(
+                        backupWorkerInitiated = true
+                    )
+                )
+            }
         }
     }
 
@@ -328,6 +348,7 @@ class DashboardScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
+            backUpWorker()
 //            getDashboardDetails()
             initializeValues()
             getLatestTransactions()
