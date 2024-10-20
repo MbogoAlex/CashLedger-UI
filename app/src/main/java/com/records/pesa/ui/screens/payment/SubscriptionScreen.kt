@@ -122,7 +122,11 @@ fun SubscriptionScreenComposable(
 
     BackHandler(onBack = {
         if(uiState.loadingStatus != LoadingStatus.LOADING) {
-            showPaymentScreen = !showPaymentScreen
+            if(showPaymentScreen) {
+                showPaymentScreen = !showPaymentScreen
+            } else {
+                navigateToHomeScreen()
+            }
             viewModel.cancel()
         } else {
             Toast.makeText(context, "Payment in progress", Toast.LENGTH_SHORT).show()
