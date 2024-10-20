@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.transactions
 
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,7 +103,8 @@ fun GroupedTransactionsScreen(
                         transaction = it,
                         modifier = Modifier
                             .clickable {
-                                navigateToEntityTransactionsScreen(it.transactionType, it.entity, it.times.toString())
+                                val encodedEntity = Uri.encode(it.entity)
+                                navigateToEntityTransactionsScreen(it.transactionType, encodedEntity, it.times.toString())
                             }
                     )
                     Divider()
