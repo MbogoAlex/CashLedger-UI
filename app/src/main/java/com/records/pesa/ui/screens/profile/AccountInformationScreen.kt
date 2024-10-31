@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,6 +60,7 @@ import kotlinx.coroutines.launch
 fun AccountInformationScreenComposable(
     navigateToHomeScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToBackupScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = navigateToHomeScreen)
@@ -77,6 +79,10 @@ fun AccountInformationScreenComposable(
     }
 
     var logoutLoading by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showLogoutDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -156,6 +162,32 @@ fun AccountInformationScreenComposable(
             loadingStatus = uiState.loadingStatus
         )
     }
+
+    if(showLogoutDialog) {
+        LogoutDialog(
+            navigateToBackupScreen = navigateToBackupScreen,
+            onConfirm = {
+                logoutLoading = true
+                val phoneNumber = uiState.userDetails.phoneNumber
+                val password = uiState.userDetails.password
+                showLogoutDialog = !showLogoutDialog
+                scope.launch {
+                    viewModel.logout()
+                    delay(2000)
+                    logoutLoading = !logoutLoading
+                    Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
+                    try {
+                        navigateToLoginScreenWithArgs(phoneNumber, password)
+                    } catch (e: Exception) {
+                        Log.e("failedToLogout", e.toString())
+                    }
+                }
+            },
+            onDismiss = {
+                showLogoutDialog = !showLogoutDialog
+            }
+        )
+    }
     
     Box(
         modifier = Modifier
@@ -177,20 +209,7 @@ fun AccountInformationScreenComposable(
             phoneNumber = uiState.userDetails.phoneNumber,
             logoutLoading = logoutLoading,
             onLogout = {
-                logoutLoading = true
-                val phoneNumber = uiState.userDetails.phoneNumber
-                val password = uiState.userDetails.password
-                scope.launch {
-                    viewModel.logout()
-                    delay(2000)
-                    logoutLoading = !logoutLoading
-                    Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
-                    try {
-                        navigateToLoginScreenWithArgs(phoneNumber, password)
-                    } catch (e: Exception) {
-                        Log.e("failedToLogout", e.toString())
-                    }
-                }
+                showLogoutDialog = !showLogoutDialog
             }
         )
     }
@@ -437,6 +456,58 @@ fun EditDialog(
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                 }
+            }
+        }
+    )
+}
+
+@Composable
+fun LogoutDialog(
+    navigateToBackupScreen: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Logout",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    color = MaterialTheme.colorScheme.error,
+                    text = "Ensure you backup your transactions before logging out",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 16.0).sp
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
+                TextButton(onClick = navigateToBackupScreen) {
+                    Text(
+                        text = "Go to Backup screen",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    text = "Dismiss",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm
+            ) {
+                Text(text = "Log out")
             }
         }
     )

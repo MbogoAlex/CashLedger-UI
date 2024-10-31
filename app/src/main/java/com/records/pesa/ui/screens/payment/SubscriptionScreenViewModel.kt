@@ -173,6 +173,14 @@ class SubscriptionScreenViewModel(
         }
     }
 
+    fun updateAmount(amount: String) {
+        _uiState.update {
+            it.copy(
+                amount = amount
+            )
+        }
+    }
+
     fun lipaStatus() {
         if(uiState.value.loadingStatus != LoadingStatus.LOADING) {
             _uiState.update {

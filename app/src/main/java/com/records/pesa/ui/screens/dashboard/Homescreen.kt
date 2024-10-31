@@ -273,6 +273,9 @@ fun HomeScreenComposable(
             navigateToAccountInfoScreen = {
                 currentTab = HomeScreenTab.ACCOUNT_INFO
             },
+            navigateToBackupScreen = {
+                currentTab = HomeScreenTab.BACK_UP
+            },
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
                 navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
@@ -303,6 +306,7 @@ fun HomeScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
+    navigateToBackupScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
     onReviewApp: () -> Unit,
@@ -549,7 +553,8 @@ fun HomeScreen(
                 HomeScreenTab.ACCOUNT_INFO -> {
                     AccountInformationScreenComposable(
                         navigateToHomeScreen = navigateToHomeScreen,
-                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
+                        navigateToBackupScreen = navigateToBackupScreen
                     )
                 }
                 HomeScreenTab.BACK_UP -> {
@@ -842,6 +847,7 @@ fun HomeScreenPreview() {
             navigateToSubscriptionScreen = {},
             navigateToAccountInfoScreen = {},
             navigateToTransactionDetailsScreen = {},
+            navigateToBackupScreen = {},
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->  }
         )
     }

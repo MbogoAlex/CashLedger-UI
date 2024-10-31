@@ -143,12 +143,15 @@ fun SubscriptionScreenComposable(
                 isConnected = isConnected,
                 status = uiState.state,
                 phoneNumber = uiState.phoneNumber,
-                onAmountChange = {},
+                onAmountChange = {
+                    viewModel.updateAmount(it)
+                },
                 onPhoneNumberChange = {
                     viewModel.updatePhoneNumber(it)
                 },
                 buttonEnabled = uiState.phoneNumber.isNotEmpty(),
                 onPay = {
+                    viewModel.updateAmount(it)
                     viewModel.lipa()
                 },
                 navigateToPreviousScreen = {
@@ -345,7 +348,7 @@ fun PaymentScreen(
     lipaStatus: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     loadingStatus: LoadingStatus,
-    onPay: () -> Unit
+    onPay: (amount: String) -> Unit
 ) {
     BackHandler(onBack = navigateToPreviousScreen)
     var payButtonClicked by rememberSaveable {
@@ -485,7 +488,12 @@ fun PaymentScreen(
                 enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected,
                 onClick = {
                     payButtonClicked = !payButtonClicked
-                    onPay()
+                    if(monthly) {
+                        onPay("50")
+                    } else {
+                        onPay("1000")
+                    }
+
                 },
                 modifier = Modifier
                     .fillMaxWidth()
