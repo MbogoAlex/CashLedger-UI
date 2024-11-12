@@ -17,6 +17,12 @@ fun formatIsoDateTime(dateTime: LocalDateTime): String {
     return dateTime.format(formatter)
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
+fun formatIsoDateTime2(dateTime: LocalDateTime): String {
+    val formatter = DateTimeFormatter.ofPattern("d'th' MMM, yyyy hh:mm a", Locale.ENGLISH)
+    return dateTime.format(formatter)
+}
+
 fun formatLocalDate(dateTime: LocalDate): String {
     val formatter = DateTimeFormatter.ofPattern("d'th' MMMM, yyyy", Locale.ENGLISH)
     return dateTime.format(formatter)

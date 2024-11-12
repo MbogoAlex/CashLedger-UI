@@ -472,25 +472,16 @@ fun LogoutDialog(
         title = {
             Text(
                 text = "Logout",
+                fontWeight = FontWeight.Bold,
                 fontSize = screenFontSize(x = 14.0).sp
             )
         },
         text = {
-            Column {
-                Text(
-                    color = MaterialTheme.colorScheme.error,
-                    text = "Ensure you backup your transactions before logging out",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 16.0).sp
-                )
-                Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
-                TextButton(onClick = navigateToBackupScreen) {
-                    Text(
-                        text = "Go to Backup screen",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            }
+            Text(
+                text = "Are you sure you want to log out?",
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 14.0).sp
+            )
         },
         onDismissRequest = onDismiss,
         dismissButton = {

@@ -1,6 +1,7 @@
 package com.records.pesa.ui.screens.dashboard
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -76,6 +77,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.functions.formatIsoDateTime
+import com.records.pesa.functions.formatIsoDateTime2
+import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.HomeScreenTab
 import com.records.pesa.reusables.HomeScreenTabItem
@@ -222,6 +226,8 @@ fun HomeScreenComposable(
             .safeDrawingPadding()
     ) {
         HomeScreen(
+            context = context,
+            lastBackup = if(uiState.userDetails.lastBackup != null) formatIsoDateTime2(uiState.userDetails.lastBackup!!) else "Never",
             freeTrialDays = uiState.freeTrialDays,
             scope = scope,
             drawerState = drawerState,
@@ -286,6 +292,8 @@ fun HomeScreenComposable(
 
 @Composable
 fun HomeScreen(
+    context: Context = LocalContext.current,
+    lastBackup: String,
     freeTrialDays: Int,
     scope: CoroutineScope?,
     drawerState: DrawerState?,
@@ -420,6 +428,33 @@ fun HomeScreen(
                         }
 
                         Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(
+                                    horizontal = screenWidth(x = 16.0)
+                                )
+                                .clickable {
+                                    Toast.makeText(context, "Last backup: $lastBackup", Toast.LENGTH_LONG).show()
+                                    scope!!.launch {
+                                        drawerState.close()
+                                    }
+                                }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.backup_icon),
+                                contentDescription = "Last backup",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+                            Text(
+                                text = lastBackup,
+                                fontSize = screenFontSize(x = 14.0).sp,
+                                color = MaterialTheme.colorScheme.surfaceTint
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
                         Row(
                             modifier = Modifier
                                 .clickable {
@@ -818,6 +853,7 @@ fun HomeScreenPreview() {
     }
     CashLedgerTheme {
         HomeScreen(
+            lastBackup = "",
             freeTrialDays = 0,
             scope = null,
             drawerState = null,
