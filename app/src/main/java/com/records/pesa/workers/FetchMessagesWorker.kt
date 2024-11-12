@@ -57,21 +57,18 @@ class FetchMessagesWorker(
                 existing = latestTransactionCode
             )
 
-            if(paymentStatus) {
-                // Once fetching is done, enqueue the posting work
-                val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
-                    .setInputData(workDataOf("userId" to userId, "token" to token))
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
-                    )
-                    .build()
+            // Once fetching is done, enqueue the posting work
+            val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
+                .setInputData(workDataOf("userId" to userId, "token" to token))
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
 
-                WorkManager.getInstance(context).enqueue(postMessagesRequest)
-
-            }
-            Log.e("backUpWork", "SUCCESS")
+            WorkManager.getInstance(context).enqueue(postMessagesRequest)
+            Log.d("backUpWork", "SUCCESS")
 
             return Result.success()
         } catch (e: Exception) {

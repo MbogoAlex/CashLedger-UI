@@ -156,11 +156,11 @@ fun HomeScreenComposable(
             icon = R.drawable.categories,
             tab = HomeScreenTab.CATEGORIES
         ),
-        HomeScreenTabItem(
-            name = "Backup & restore",
-            icon = R.drawable.backup_restore,
-            tab = HomeScreenTab.BACK_UP
-        ),
+//        HomeScreenTabItem(
+//            name = "Backup & restore",
+//            icon = R.drawable.backup_restore,
+//            tab = HomeScreenTab.BACK_UP
+//        ),
         HomeScreenTabItem(
             name = "Account information",
             icon = R.drawable.account_info,
