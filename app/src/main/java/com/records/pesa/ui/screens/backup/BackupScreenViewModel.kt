@@ -328,7 +328,8 @@ class BackupScreenViewModel(
                     workersRepository.fetchAndBackupTransactions(
                         token = "dala",
                         userId = uiState.value.userDetails.userId,
-                        paymentStatus = true
+                        paymentStatus = true,
+                        priorityHigh = true
                     )
                 }
 

@@ -14,13 +14,14 @@ interface WorkersRepository {
     suspend fun fetchAndBackupTransactions(
         token: String,
         userId: Int,
-        paymentStatus: Boolean
+        paymentStatus: Boolean,
+        priorityHigh: Boolean,
     )
 }
 
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
-    override suspend fun fetchAndBackupTransactions(token: String, userId: Int, paymentStatus: Boolean) {
+    override suspend fun fetchAndBackupTransactions(token: String, userId: Int, paymentStatus: Boolean, priorityHigh: Boolean,) {
 
         workManager.cancelUniqueWork("fetch_and_backup_transactions_periodic")
 
@@ -33,7 +34,7 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
                 .build()
             // Periodic work request for fetching messages
                 val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(4))
-                    .setInputData(workDataOf("userId" to userId, "token" to token, "paymentStatus" to paymentStatus))
+                    .setInputData(workDataOf("userId" to userId, "token" to token, "paymentStatus" to paymentStatus, "priorityHigh" to priorityHigh))
                     .setConstraints(constraints)
     //                .setInitialDelay(Duration.ofSeconds(10))
                     .build()

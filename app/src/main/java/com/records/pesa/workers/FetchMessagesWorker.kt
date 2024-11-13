@@ -68,7 +68,7 @@ class FetchMessagesWorker(
                 .build()
 
             WorkManager.getInstance(context).enqueue(postMessagesRequest)
-            Log.d("backUpWork", "SUCCESS")
+            Log.d("backUpWork", "POST-MESSAGES: SUCCESS")
 
             return Result.success()
         } catch (e: Exception) {

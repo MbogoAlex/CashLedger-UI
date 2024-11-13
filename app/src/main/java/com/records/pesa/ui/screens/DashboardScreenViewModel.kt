@@ -98,20 +98,18 @@ class DashboardScreenViewModel(
 
     fun backUpWorker() {
         viewModelScope.launch {
-            if(!uiState.value.userDetails.backupWorkerInitiated) {
-                Log.d("backUpWorker", "CAlling from dashboard")
-                workersRepository.fetchAndBackupTransactions(
-                    token = "dala",
-                    userId = uiState.value.userDetails.userId,
-                    paymentStatus = uiState.value.userDetails.paymentStatus
+            Log.d("backUpWorker", "CAlling from dashboard")
+            workersRepository.fetchAndBackupTransactions(
+                token = "dala",
+                userId = uiState.value.userDetails.userId,
+                paymentStatus = uiState.value.userDetails.paymentStatus,
+                priorityHigh = false
+            )
+            dbRepository.updateUser(
+                uiState.value.userDetails.copy(
+                    backupWorkerInitiated = true
                 )
-                dbRepository.updateUser(
-                    uiState.value.userDetails.copy(
-                        backupWorkerInitiated = true
-                    )
-                )
-
-            }
+            )
         }
     }
 

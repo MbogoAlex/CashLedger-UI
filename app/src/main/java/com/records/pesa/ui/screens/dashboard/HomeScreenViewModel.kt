@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,8 @@ data class HomeScreenUiState(
 class HomeScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val workersRepository: WorkersRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(value = HomeScreenUiState())
     val uiState: StateFlow<HomeScreenUiState> = _uiState.asStateFlow()
@@ -53,6 +55,23 @@ class HomeScreenViewModel(
                     user = user
                 )
             }
+        }
+    }
+
+    fun backUpWorker() {
+        viewModelScope.launch {
+            Log.d("backUpWorker", "CAlling from dashboard")
+            workersRepository.fetchAndBackupTransactions(
+                token = "dala",
+                userId = uiState.value.userDetails.userId,
+                paymentStatus = uiState.value.userDetails.paymentStatus,
+                priorityHigh = true
+            )
+            dbRepository.updateUser(
+                uiState.value.userDetails.copy(
+                    backupWorkerInitiated = true
+                )
+            )
         }
     }
 

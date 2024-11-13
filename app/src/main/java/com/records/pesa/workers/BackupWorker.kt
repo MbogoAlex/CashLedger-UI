@@ -45,8 +45,10 @@ class BackupWorker(
     }
 
     override suspend fun doWork(): Result {
+        Log.d("backUpWorker", "Uploading to server")
         val token = inputData.getString("token")
         val userId = inputData.getInt("userId", -1)
+        val priorityHigh = inputData.getBoolean("priorityHigh", false)
 
         val appContext = context.applicationContext as? CashLedger
             ?: return Result.failure() // appContext was not found
@@ -61,7 +63,7 @@ class BackupWorker(
         }
 
         // Set the worker as a foreground service with the initial notification
-        setForegroundAsync(createForegroundInfo("Starting backup..."))
+        setForegroundAsync(createForegroundInfo("Starting backup...", priorityHigh = priorityHigh))
 
         try {
             backup(
@@ -70,21 +72,22 @@ class BackupWorker(
                 dbRepository = dbRepository,
                 userId = userId,
                 transactionService = transactionService,
-                categoryService = categoryService
+                categoryService = categoryService,
+                priorityHigh = priorityHigh
             )
             // Update notification to indicate completion
-            updateNotification("Backup completed successfully.", true)
+            updateNotification("Backup completed successfully.", true, priorityHigh)
         } catch (e: Exception) {
             Log.e("backUpException", e.toString())
-            updateNotification("Backup failed: $e.", false)
+            updateNotification("Backup failed: $e.", false, priorityHigh)
         }
 
 
         return Result.success()
     }
 
-    fun createForegroundInfo(progressMessage: String, isFinal: Boolean = false): ForegroundInfo {
-        createNotificationChannel(NotificationManager.IMPORTANCE_LOW) // Set to low to remove sound
+    fun createForegroundInfo(progressMessage: String, isFinal: Boolean = false, priorityHigh: Boolean): ForegroundInfo {
+        createNotificationChannel(priorityHigh = priorityHigh) // Set to low to remove sound
 
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(if (isFinal) "Backup Completed" else "Backup in Progress")
@@ -94,33 +97,31 @@ class BackupWorker(
             .setOngoing(true) // Allow dismiss if final
             .setAutoCancel(true) // Allow user to swipe away only if final
             .setOnlyAlertOnce(true) // Prevent multiple alerts
-            .setSound(null) // Disable sound
-            .setVibrate(null) // Disable vibration
 
         return ForegroundInfo(NOTIFICATION_ID, notificationBuilder.build())
     }
 
-    private fun updateNotification(message: String, isSuccess: Boolean) {
+    private fun updateNotification(message: String, isSuccess: Boolean, priorityHigh: Boolean) {
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setPriority(if (priorityHigh) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
             .setContentTitle(if (isSuccess) "Backup Successful" else "Backup Failed")
             .setContentText(message)
             .setSmallIcon(R.drawable.cashledger_logo)
             .setOngoing(false) // Allow user to dismiss
             .setAutoCancel(true) // Notification can be swiped away by the user
-            .setSound(null) // Disable sound
-            .setVibrate(null) // Disable vibration
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    fun updateProgressNotification(message: String, currentStep: Int, totalSteps: Int) {
+    fun updateProgressNotification(message: String, currentStep: Int, totalSteps: Int, priorityHigh: Boolean) {
         val progress = (currentStep.toFloat() / totalSteps.toFloat() * 100).toInt()
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setPriority(if (priorityHigh) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
             .setContentTitle("Backup in Progress")
             .setContentText("$message ($progress%)")
             .setSmallIcon(R.drawable.cashledger_logo)
@@ -128,8 +129,6 @@ class BackupWorker(
             .setOngoing(true)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true) // Avoid multiple notification sounds
-            .setSound(null) // Disable sound
-            .setVibrate(null) // Disable vibration
             .build()
 
         val notificationManager =
@@ -137,15 +136,15 @@ class BackupWorker(
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun createNotificationChannel(importance: Int) {
+    private fun createNotificationChannel(priorityHigh: Boolean) {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Backup Worker Notifications",
-            importance // Use IMPORTANCE_LOW or IMPORTANCE_DEFAULT for no sound
+            if(priorityHigh) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Notification channel for backup worker"
-            setSound(null, null) // Disable sound
-            enableVibration(false) // Disable vibration
+//            setSound(null, null) // Disable sound
+//            enableVibration(false) // Disable vibration
         }
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -154,6 +153,7 @@ class BackupWorker(
 }
 
 suspend fun backup(
+    priorityHigh: Boolean,
     context: Context,
     worker: BackupWorker,
     dbRepository: DBRepository,
@@ -163,7 +163,7 @@ suspend fun backup(
 ) {
 
 
-    worker.setForegroundAsync(worker.createForegroundInfo("Initializing backup..."))
+    worker.setForegroundAsync(worker.createForegroundInfo("Initializing backup...", priorityHigh = priorityHigh))
 
     val query = transactionService.createUserTransactionQuery(
         userId = userId,
@@ -186,7 +186,7 @@ suspend fun backup(
     val deletedTransactions = transactionService.getDeletedTransactionEntities()
 
     try {
-        worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data..."))
+        worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
         val user = client.postgrest["userAccount"].select {
             filter { eq("id", userId) }
@@ -204,7 +204,7 @@ suspend fun backup(
             bucket.upload("${userId}_transactions.csv", transactionsCsv, true)
         }
         currentStep++
-        worker.updateProgressNotification("Backing up transactions...", currentStep, totalSteps)
+        worker.updateProgressNotification("Backing up transactions...", currentStep, totalSteps, priorityHigh)
 
         // Categories
         val categoriesCsv = backupCategoriesToCSV(context, "${userId}_categories.csv", categories.map { it.toTransactionCategory() })
@@ -212,7 +212,7 @@ suspend fun backup(
             bucket.upload("${userId}_categories.csv", categoriesCsv, true)
         }
         currentStep++
-        worker.updateProgressNotification("Backing up categories...", currentStep, totalSteps)
+        worker.updateProgressNotification("Backing up categories...", currentStep, totalSteps, priorityHigh)
 
         // Keywords
         val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context, "${userId}_categoryKeywords.csv", categoryKeywords)
@@ -220,7 +220,7 @@ suspend fun backup(
             bucket.upload("${userId}_categoryKeywords.csv", categoryKeywordsCsv, true)
         }
         currentStep++
-        worker.updateProgressNotification("Backing up category keywords...", currentStep, totalSteps)
+        worker.updateProgressNotification("Backing up category keywords...", currentStep, totalSteps, priorityHigh)
 
         // Mappings
         val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${userId}_transactionCategoryCrossRef.csv", transactionCategoryMappings)
@@ -228,7 +228,7 @@ suspend fun backup(
             bucket.upload("${userId}_transactionCategoryCrossRef.csv", categoryMappingsCsv, true)
         }
         currentStep++
-        worker.updateProgressNotification("Backing up mappings...", currentStep, totalSteps)
+        worker.updateProgressNotification("Backing up mappings...", currentStep, totalSteps, priorityHigh)
 
         // Deleted Transactions
         val deletedTransactionsCsv = backupDeletedTransactionsToCSV(context, "${userId}_deletedTransactions.csv", deletedTransactions)
@@ -236,7 +236,7 @@ suspend fun backup(
             bucket.upload("${userId}_deletedTransactions.csv", deletedTransactionsCsv, true)
         }
         currentStep++
-        worker.updateProgressNotification("Finalizing backup...", currentStep, totalSteps)
+        worker.updateProgressNotification("Finalizing backup...", currentStep, totalSteps, priorityHigh)
 
         // Final Step: Update User Account
         val lastBackup = LocalDateTime.now()
@@ -268,8 +268,9 @@ suspend fun backup(
         )
 
         Log.d("backUpSuccess", "SUCCESS")
-        worker.updateProgressNotification("Back up successful", currentStep, totalSteps)
+        worker.updateProgressNotification("Back up successful", currentStep, totalSteps, priorityHigh)
     } catch (e: Exception) {
+        worker.updateProgressNotification("Back failed. Try again later", 0, 0, priorityHigh)
         Log.e("backUpException", e.toString())
     }
 }

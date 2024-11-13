@@ -185,6 +185,10 @@ fun HomeScreenComposable(
         mutableStateOf(false)
     }
 
+    var showBackupDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var currentTab by rememberSaveable {
         mutableStateOf(HomeScreenTab.HOME)
     }
@@ -217,6 +221,20 @@ fun HomeScreenComposable(
                 showSubscribeDialog = false
                 onSwitchTheme()
                 navigateToSubscriptionScreen()
+            }
+        )
+    }
+
+    if(showBackupDialog) {
+        BackupDialog(
+            lastBackup = if(uiState.userDetails.lastBackup != null) formatIsoDateTime2(uiState.userDetails.lastBackup!!) else "Never",
+            onBackup = {
+                showBackupDialog = !showBackupDialog
+                viewModel.backUpWorker()
+                Toast.makeText(context, "Backup initiated - Check notification bar for progress", Toast.LENGTH_LONG).show()
+            },
+            onDismiss = {
+                showBackupDialog = !showBackupDialog
             }
         )
     }
@@ -264,6 +282,9 @@ fun HomeScreenComposable(
                 } else {
                     showSubscribeDialog = true
                 }
+            },
+            onBackup = {
+                showBackupDialog = !showBackupDialog
             },
             onReviewApp = {
                 val intent = Intent(
@@ -317,6 +338,7 @@ fun HomeScreen(
     navigateToBackupScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
+    onBackup: () -> Unit,
     onReviewApp: () -> Unit,
     onShowFreeTrialDetails: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
@@ -434,11 +456,9 @@ fun HomeScreen(
                                 .padding(
                                     horizontal = screenWidth(x = 16.0)
                                 )
+                                .fillMaxWidth()
                                 .clickable {
-                                    Toast.makeText(context, "Last backup: $lastBackup", Toast.LENGTH_LONG).show()
-                                    scope!!.launch {
-                                        drawerState.close()
-                                    }
+                                    onBackup()
                                 }
                         ) {
                             Icon(
@@ -822,6 +842,54 @@ fun SubscriptionDialog(
     )
 }
 
+@Composable
+fun BackupDialog(
+    lastBackup: String,
+    onBackup: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Backup",
+                fontSize = screenFontSize(x = 16.0).sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Backup your transactions to avoid losing them",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Text(
+                    text = "Last backup: $lastBackup",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        },
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onBackup) {
+                Text(
+                    text = "Backup",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Dismiss",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                )
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
@@ -879,6 +947,7 @@ fun HomeScreenPreview() {
             darkTheme = false,
             onSwitchTheme = {},
             onReviewApp = {},
+            onBackup = {},
             onShowFreeTrialDetails = {},
             navigateToSubscriptionScreen = {},
             navigateToAccountInfoScreen = {},

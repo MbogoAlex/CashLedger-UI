@@ -267,10 +267,12 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
             HomeScreenViewModel(
                 dbRepository = dbRepository,
                 apiRepository = apiRepository,
-                savedStateHandle = this.createSavedStateHandle()
+                savedStateHandle = this.createSavedStateHandle(),
+                workersRepository = workersRepository
             )
         }
 
