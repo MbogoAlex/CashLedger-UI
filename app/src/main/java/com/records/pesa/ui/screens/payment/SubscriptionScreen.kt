@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -257,6 +259,12 @@ fun SubscriptionScreen(
                 Row(
                     verticalAlignment = Alignment.Bottom
                 ) {
+                    Text(
+                        text = "Ksh100",
+                        textDecoration = TextDecoration.LineThrough,
+                        fontSize = screenFontSize(x = 24.0).sp
+                    )
+                    Spacer(modifier = Modifier.width(screenWidth(x = 2.0)))
                     Text(
                         text = "Ksh50",
                         fontWeight = FontWeight.Bold,
