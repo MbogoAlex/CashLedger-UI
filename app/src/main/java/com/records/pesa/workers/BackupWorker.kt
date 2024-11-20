@@ -3,6 +3,7 @@ package com.records.pesa.workers
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -62,6 +63,8 @@ class BackupWorker(
             return Result.failure()
         }
 
+        createNotificationChannel(priorityHigh)
+
         // Set the worker as a foreground service with the initial notification
         setForegroundAsync(createForegroundInfo("Starting backup...", priorityHigh = priorityHigh))
 
@@ -87,19 +90,24 @@ class BackupWorker(
     }
 
     fun createForegroundInfo(progressMessage: String, isFinal: Boolean = false, priorityHigh: Boolean): ForegroundInfo {
-        createNotificationChannel(priorityHigh = priorityHigh) // Set to low to remove sound
-
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(if (isFinal) "Backup Completed" else "Backup in Progress")
             .setContentText(progressMessage)
             .setSmallIcon(R.drawable.cashledger_logo)
-            .setProgress(0, 0, true) // Indeterminate progress for ongoing tasks
-            .setOngoing(true) // Allow dismiss if final
-            .setAutoCancel(true) // Allow user to swipe away only if final
-            .setOnlyAlertOnce(true) // Prevent multiple alerts
+            .setOngoing(!isFinal) // Mark ongoing for non-final notifications
+            .setAutoCancel(isFinal) // Allow dismiss only if final
+            .setPriority(if (priorityHigh) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
+            .setOnlyAlertOnce(true)
 
-        return ForegroundInfo(NOTIFICATION_ID, notificationBuilder.build())
+        // Include the foreground service type
+        return ForegroundInfo(
+            NOTIFICATION_ID,
+            notificationBuilder.build(),
+            FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        )
     }
+
+
 
     private fun updateNotification(message: String, isSuccess: Boolean, priorityHigh: Boolean) {
         val notificationManager =
@@ -140,17 +148,19 @@ class BackupWorker(
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Backup Worker Notifications",
-            if(priorityHigh) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
+            if (priorityHigh) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Notification channel for backup worker"
-//            setSound(null, null) // Disable sound
-//            enableVibration(false) // Disable vibration
+            importance = if (priorityHigh) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         }
+
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
+
 }
+
 
 suspend fun backup(
     priorityHigh: Boolean,

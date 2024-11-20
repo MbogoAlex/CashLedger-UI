@@ -196,7 +196,11 @@ class SubscriptionScreenViewModel(
             withContext(Dispatchers.IO) {
                 delay(5000)
                 val paidAt = LocalDateTime.now()
-                val expiredAt = paidAt.plusMonths(1)
+                var expiredAt = paidAt.plusMonths(1)
+                if(uiState.value.amount == "1000") {
+                    expiredAt = paidAt.plusYears(100)
+                }
+
                 while(uiState.value.state.lowercase() != "complete" && uiState.value.state.lowercase() != "redirecting" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
                     Log.d("CHECKING_STATUS, INVOICE ", uiState.value.invoice_id)
                     delay(2000)

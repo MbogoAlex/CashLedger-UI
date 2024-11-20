@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.dashboard
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,8 @@ import android.util.Log
 import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -75,6 +78,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.yml.charts.common.extensions.isNotNull
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatIsoDateTime
@@ -106,6 +112,7 @@ object HomeScreenDestination: AppNavigation {
     val screen: String = "screen"
     val routeWithArgs: String = "$route/{$screen}"
 }
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalPermissionsApi::class)
 @Composable
 fun HomeScreenComposable(
     navigateToTransactionsScreen: () -> Unit,
@@ -126,7 +133,7 @@ fun HomeScreenComposable(
 ) {
     val context = LocalContext.current
     val activity = (LocalContext.current as? Activity)
-    BackHandler(onBack = {activity?.finish()})
+    BackHandler(onBack = { activity?.finish() })
 
     val viewModel: HomeScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
@@ -134,89 +141,40 @@ fun HomeScreenComposable(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    val tabs = listOf(
-        HomeScreenTabItem(
-            name = "Home",
-            icon = R.drawable.home,
-            tab = HomeScreenTab.HOME
-        ),
-        HomeScreenTabItem(
-            name = "All transactions",
-            icon = R.drawable.transactions,
-            tab = HomeScreenTab.ALL_TRANSACTIONS
-        ),
-        HomeScreenTabItem(
-            name = "Sorted transactions",
-            icon = R.drawable.sorted,
-            tab = HomeScreenTab.SORTED_TRANSACTIONS
-        ),
-        HomeScreenTabItem(
-            name = "Transaction types",
-            icon = R.drawable.types,
-            tab = HomeScreenTab.TRANSACTION_TYPES
-        ),
-        HomeScreenTabItem(
-            name = "Categories",
-            icon = R.drawable.categories,
-            tab = HomeScreenTab.CATEGORIES
-        ),
-//        HomeScreenTabItem(
-//            name = "Backup & restore",
-//            icon = R.drawable.backup_restore,
-//            tab = HomeScreenTab.BACK_UP
-//        ),
-        HomeScreenTabItem(
-            name = "Account information",
-            icon = R.drawable.account_info,
-            tab = HomeScreenTab.ACCOUNT_INFO
-        ),
-        HomeScreenTabItem(
-            name = "Contact us",
-            icon = R.drawable.contact,
-            tab = HomeScreenTab.CONTACT_US
-        ),
-    )
-
-    var showSubscribeDialog by rememberSaveable {
-        mutableStateOf(false)
+    val notificationPermissionState = rememberPermissionState(permission = Manifest.permission.POST_NOTIFICATIONS)
+    val notificationRequestHandler = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(context, "Notification permission granted!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Notification permission denied!", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    var showFreeTrialDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var showSubscribeDialog by rememberSaveable { mutableStateOf(false) }
+    var showFreeTrialDialog by rememberSaveable { mutableStateOf(false) }
+    var showBackupDialog by rememberSaveable { mutableStateOf(false) }
 
-    var showBackupDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var currentTab by rememberSaveable {
-        mutableStateOf(HomeScreenTab.HOME)
-    }
+    var currentTab by rememberSaveable { mutableStateOf(HomeScreenTab.HOME) }
 
     LaunchedEffect(Unit) {
-        Log.d("current_screen", uiState.screen.toString())
-        if(uiState.screen == "backup-screen") {
-            Log.d("current_screen", uiState.screen.toString())
+        if (uiState.screen == "backup-screen") {
             currentTab = HomeScreenTab.BACK_UP
             viewModel.resetNavigationScreen()
         }
     }
 
-    if(showFreeTrialDialog) {
+    if (showFreeTrialDialog) {
         FreeTrialDialog(
             days = uiState.freeTrialDays,
-            onDismiss = {
-                showFreeTrialDialog = false
-            }
+            onDismiss = { showFreeTrialDialog = false }
         )
     }
 
-    if(showSubscribeDialog) {
+    if (showSubscribeDialog) {
         SubscriptionDialog(
-            onDismiss = {
-                showSubscribeDialog = false
-                onSwitchTheme()
-            },
+            onDismiss = { showSubscribeDialog = false; onSwitchTheme() },
             onConfirm = {
                 showSubscribeDialog = false
                 onSwitchTheme()
@@ -225,27 +183,27 @@ fun HomeScreenComposable(
         )
     }
 
-    if(showBackupDialog) {
+    if (showBackupDialog) {
         BackupDialog(
-            lastBackup = if(uiState.userDetails.lastBackup != null) formatIsoDateTime2(uiState.userDetails.lastBackup!!) else "Never",
+            lastBackup = uiState.userDetails.lastBackup?.let { formatIsoDateTime2(it) } ?: "Never",
             onBackup = {
-                showBackupDialog = !showBackupDialog
+                showBackupDialog = false
                 viewModel.backUpWorker()
+                if (!notificationPermissionState.status.isGranted) {
+                    notificationRequestHandler.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
                 Toast.makeText(context, "Backup initiated - Check notification bar for progress", Toast.LENGTH_LONG).show()
             },
-            onDismiss = {
-                showBackupDialog = !showBackupDialog
-            }
+            onDismiss = { showBackupDialog = false }
         )
     }
 
     Box(
-        modifier = Modifier
-            .safeDrawingPadding()
+        modifier = Modifier.safeDrawingPadding()
     ) {
         HomeScreen(
             context = context,
-            lastBackup = if(uiState.userDetails.lastBackup != null) formatIsoDateTime2(uiState.userDetails.lastBackup!!) else "Never",
+            lastBackup = uiState.userDetails.lastBackup?.let { formatIsoDateTime2(it) } ?: "Never",
             freeTrialDays = uiState.freeTrialDays,
             scope = scope,
             drawerState = drawerState,
@@ -254,10 +212,16 @@ fun HomeScreenComposable(
             phoneNumber = uiState.userDetails.phoneNumber,
             darkTheme = uiState.userDetails.darkThemeSet,
             currentTab = currentTab,
-            onTabChange = {
-                currentTab = it
-            },
-            tabs = tabs,
+            onTabChange = { currentTab = it },
+            tabs = listOf(
+                HomeScreenTabItem("Home", R.drawable.home, HomeScreenTab.HOME),
+                HomeScreenTabItem("All transactions", R.drawable.transactions, HomeScreenTab.ALL_TRANSACTIONS),
+                HomeScreenTabItem("Sorted transactions", R.drawable.sorted, HomeScreenTab.SORTED_TRANSACTIONS),
+                HomeScreenTabItem("Transaction types", R.drawable.types, HomeScreenTab.TRANSACTION_TYPES),
+                HomeScreenTabItem("Categories", R.drawable.categories, HomeScreenTab.CATEGORIES),
+                HomeScreenTabItem("Account information", R.drawable.account_info, HomeScreenTab.ACCOUNT_INFO),
+                HomeScreenTabItem("Contact us", R.drawable.contact, HomeScreenTab.CONTACT_US),
+            ),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToCategoriesScreen = navigateToCategoriesScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
@@ -266,43 +230,27 @@ fun HomeScreenComposable(
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
             navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
             navigateToPreviousScreen = navigateToPreviousScreen,
-            navigateToHomeScreen = {
-                currentTab = HomeScreenTab.HOME
-            },
+            navigateToHomeScreen = { currentTab = HomeScreenTab.HOME },
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
             onSwitchTheme = {
                 onSwitchTheme()
-                scope.launch {
-                    delay(1000)
-                    drawerState.close()
-                }
-                if(uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199") {
+                scope.launch { drawerState.close() }
+                if (uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199") {
                     Toast.makeText(context, "Theme switched", Toast.LENGTH_SHORT).show()
                 } else {
                     showSubscribeDialog = true
                 }
             },
-            onBackup = {
-                showBackupDialog = !showBackupDialog
-            },
+            onBackup = { showBackupDialog = true },
             onReviewApp = {
-                val intent = Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse("https://play.google.com/store/apps/details?id=com.records.pesa")
-                )
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.records.pesa"))
                 context.startActivity(intent)
             },
-            onShowFreeTrialDetails = {
-                showFreeTrialDialog = !showFreeTrialDialog
-            },
+            onShowFreeTrialDetails = { showFreeTrialDialog = true },
             navigateToSubscriptionScreen = navigateToSubscriptionScreen,
-            navigateToAccountInfoScreen = {
-                currentTab = HomeScreenTab.ACCOUNT_INFO
-            },
-            navigateToBackupScreen = {
-                currentTab = HomeScreenTab.BACK_UP
-            },
+            navigateToAccountInfoScreen = { currentTab = HomeScreenTab.ACCOUNT_INFO },
+            navigateToBackupScreen = { currentTab = HomeScreenTab.BACK_UP },
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
                 navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
@@ -310,6 +258,7 @@ fun HomeScreenComposable(
         )
     }
 }
+
 
 @Composable
 fun HomeScreen(

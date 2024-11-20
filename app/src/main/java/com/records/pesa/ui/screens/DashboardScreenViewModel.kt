@@ -10,14 +10,13 @@ import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.BudgetDt
-import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
-import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.models.transaction.SortedTransactionItem
+import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.workers.WorkersRepository
@@ -27,13 +26,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.time.LocalDateTime
 import kotlin.math.absoluteValue
 
 data class DashboardScreenUiState(
@@ -99,19 +96,28 @@ class DashboardScreenViewModel(
     fun backUpWorker() {
         viewModelScope.launch {
             Log.d("backUpWorker", "CAlling from dashboard")
-            workersRepository.fetchAndBackupTransactions(
-                token = "dala",
-                userId = uiState.value.userDetails.userId,
-                paymentStatus = uiState.value.userDetails.paymentStatus,
-                priorityHigh = false
-            )
-            dbRepository.updateUser(
-                uiState.value.userDetails.copy(
-                    backupWorkerInitiated = true
+            try {
+                workersRepository.fetchAndBackupTransactions(
+                    token = "dala",
+                    userId = uiState.value.userDetails.userId,
+                    paymentStatus = uiState.value.userDetails.paymentStatus,
+                    priorityHigh = false
                 )
-            )
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(
+                        backupWorkerInitiated = true
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("backUpWorkerException", e.toString())
+
+            }
+
         }
     }
+
+
+
 
     fun initializeValues() {
         viewModelScope.launch {

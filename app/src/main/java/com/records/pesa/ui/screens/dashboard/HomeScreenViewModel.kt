@@ -8,7 +8,6 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.workers.WorkersRepository
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,17 +60,22 @@ class HomeScreenViewModel(
     fun backUpWorker() {
         viewModelScope.launch {
             Log.d("backUpWorker", "CAlling from dashboard")
-            workersRepository.fetchAndBackupTransactions(
-                token = "dala",
-                userId = uiState.value.userDetails.userId,
-                paymentStatus = uiState.value.userDetails.paymentStatus,
-                priorityHigh = true
-            )
-            dbRepository.updateUser(
-                uiState.value.userDetails.copy(
-                    backupWorkerInitiated = true
+            try {
+                workersRepository.fetchAndBackupTransactions(
+                    token = "dala",
+                    userId = uiState.value.userDetails.userId,
+                    paymentStatus = uiState.value.userDetails.paymentStatus,
+                    priorityHigh = false
                 )
-            )
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(
+                        backupWorkerInitiated = true
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("backUpWorkerException", e.toString())
+            }
+
         }
     }
 

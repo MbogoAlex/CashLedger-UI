@@ -80,7 +80,7 @@ class UpdatePasswordScreenViewModel(
                         }
                     ) {
                         filter {
-                            UserAccount::phoneNumber eq uiState.value.phoneNumber
+                            eq("phoneNumber", uiState.value.phoneNumber)
                         }
                     }
 

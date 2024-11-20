@@ -13,7 +13,7 @@ android {
         applicationId = "com.records.pesa"
         minSdk = 26
         targetSdk = 34
-        versionCode = 125
+        versionCode = 132
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -57,6 +57,7 @@ android {
 }
 
 dependencies {
+
 
     // https://mvnrepository.com/artifact/com.opencsv/opencsv
     implementation("com.opencsv:opencsv:5.9")
