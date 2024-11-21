@@ -187,7 +187,7 @@ public class ReportGeneration {
         PdfDocument pdfDocument = new PdfDocument(writer);
         Document document = new Document(pdfDocument);
 
-        Drawable d = getDrawable(context, R.drawable.cashledger_logo);
+        Drawable d = getDrawable(context, R.drawable.mpesa_ledge_playstore_logo_no_bg);
         Bitmap bitmap = ((BitmapDrawable)d).getBitmap();
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -250,7 +250,7 @@ public class ReportGeneration {
 
 
         document.add(image);
-        document.add(new Paragraph("Cash Ledger").setFontSize(22).setFontColor(new DeviceRgb(31, 140, 49)));
+        document.add(new Paragraph("Mpesa Ledger").setFontSize(22).setFontColor(new DeviceRgb(31, 140, 49)));
         document.add(new Paragraph("MPESA transactions report"));
         document.add(new Paragraph());
         document.add(paragraph1);

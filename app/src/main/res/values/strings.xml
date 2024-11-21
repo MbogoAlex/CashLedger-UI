@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">CashLedger</string>
+    <string name="app_name">Mpesa Ledger</string>
     <string name="y_axis">Amount</string>
     <string name="x_axis">Days</string>
 </resources>

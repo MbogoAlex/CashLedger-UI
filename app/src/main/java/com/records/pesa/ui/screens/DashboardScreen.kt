@@ -104,7 +104,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 132.0
+    val appVersion = 134.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {

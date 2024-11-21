@@ -161,7 +161,7 @@ fun LoginScreen(
             .verticalScroll(rememberScrollState())
     ) {
         Image(
-            painter = painterResource(id = R.drawable.cashledger_logo),
+            painter = painterResource(id = R.drawable.mpesa_ledge_playstore_logo_no_bg),
             contentDescription = null,
             modifier = Modifier.aspectRatio(16f / 9f)
         )

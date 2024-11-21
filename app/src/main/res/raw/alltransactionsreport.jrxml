@@ -52,7 +52,7 @@
         <element kind="frame" uuid="1a871d9f-2e48-4129-a0f0-602b25efbe89" x="-10" y="10" width="570" height="230">
             <property name="com.jaspersoft.studio.unit.height" value="px"/>
             <element kind="staticText" uuid="8baf863e-0208-4c0c-bf80-ac799d80061f" x="20" y="10" width="150" height="30" forecolor="#1F8C31" markup="none" fontName="Times New Roman" fontSize="22.0">
-                <text><![CDATA[Cash Ledger]]></text>
+                <text><![CDATA[Mpesa Ledger]]></text>
             </element>
             <element kind="staticText" uuid="a6cff16e-1655-4fd6-8650-f7d81364a7a8" x="20" y="40" width="200" height="20" fontName="Times New Roman" fontSize="16.0">
                 <text><![CDATA[MPESA transactions report]]></text>

@@ -76,7 +76,7 @@ fun SplashScreen(
             .fillMaxSize()
     ) {
         Image(
-            painter = painterResource(id = R.drawable.cashledger_logo),
+            painter = painterResource(id = R.drawable.mpesa_ledge_playstore_logo_no_bg),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
