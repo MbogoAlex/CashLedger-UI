@@ -364,31 +364,53 @@ public class TransactionsExtraction {
                     sender = "You";
                     recipient = "KCB M-PESA loan";
                 }
-            } else if(message.contains("transfered to Lock Savings")) {
-                String patternAmount = "Ksh([\\d ,]+\\.\\d{2})+ transfered";
+            } else if (message.contains("transfered to Lock Savings") ||
+                    message.contains("transferred to Lock Savings") ||
+                    message.contains("transferred to M-Shwari Lock Savings") ||
+                    message.contains("transfered to M-Shwari Lock Savings") ||
+                    message.contains("Lock Savings Account")) {
+
+                // Adjust patterns to match variations in wording
+                String patternAmount = "Ksh([\\d,]+\\.\\d{2}) (?:transfered|transferred)";
                 String patternDateTime = "on (\\d{1,2}/\\d{1,2}/\\d{2,4}) at (\\d{1,2}:\\d{2} [AP]M)";
-                String patternBalance = "M-PESA balance is Ksh([\\d ,]+\\.\\d{2})";
+                String patternBalance = "M-PESA balance is Ksh([\\d,]+\\.\\d{2})";
+                String patternTransactionCost = "Transaction cost Ksh\\.([\\d,]+\\.\\d{2})";
 
                 // Extract transaction amount
                 Matcher amountMatcher = Pattern.compile(patternAmount).matcher(message);
-                amountMatcher.find();
-                transactionAmount = -1 * Double.parseDouble(amountMatcher.group(1).replace(",", "").replace(" ", ""));
+                if (amountMatcher.find()) {
+                    transactionAmount = -1 * Double.parseDouble(amountMatcher.group(1).replace(",", ""));
+                }
 
                 // Extract transaction date and time
-//                Matcher dateTimeMatcher = Pattern.compile(patternDateTime).matcher(message);
-//                dateTimeMatcher.find();
-                transactionDate = realDate;
-                transactionTime = realTime;
+                Matcher dateTimeMatcher = Pattern.compile(patternDateTime).matcher(message);
+                if (dateTimeMatcher.find()) {
+                    transactionDate = dateTimeMatcher.group(1);
+                    transactionTime = dateTimeMatcher.group(2);
+                } else {
+                    // Fallback to realDate and realTime if date/time is missing
+                    transactionDate = realDate;
+                    transactionTime = realTime;
+                }
 
                 // Extract balance
                 Matcher balanceMatcher = Pattern.compile(patternBalance).matcher(message);
-                balanceMatcher.find();
-                balance = Double.parseDouble(balanceMatcher.group(1).replace(",", "").replace(" ", ""));
+                if (balanceMatcher.find()) {
+                    balance = Double.parseDouble(balanceMatcher.group(1).replace(",", ""));
+                }
 
+                // Extract transaction cost (optional, default to 0 if not present)
+                Matcher transactionCostMatcher = Pattern.compile(patternTransactionCost).matcher(message);
+                if (transactionCostMatcher.find()) {
+                    transactionCost = Double.parseDouble(transactionCostMatcher.group(1).replace(",", ""));
+                } else {
+                    transactionCost = 0.00;
+                }
+
+                // Set transaction details
                 transactionType = "Mshwari";
-                transactionCost = 0.00;
                 sender = "You";
-                recipient = "Lock Savings Account";
+                recipient = "M-Shwari Lock Savings Account";
             } else if(message.contains("transferred to M-Shwari account")) {
                 String patternAmount = "Ksh([\\d ,]+\\.\\d{2})+ transferred to";
                 String patternCost = "Transaction cost  ?Ksh\\.?\\s*([\\d,]+(?:\\.\\d{2})?)";
