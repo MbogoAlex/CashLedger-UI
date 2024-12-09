@@ -60,7 +60,9 @@ fun BackupRestoreScreenComposable(
 ) {
     val activity = (LocalContext.current as? Activity)
     val context = LocalContext.current
-    BackHandler(onBack = {activity?.finish()})
+    BackHandler(onBack = {
+        Toast.makeText(context, "You can't go back! Don't interrupt at this point", Toast.LENGTH_SHORT).show()
+    })
     val viewModel: BackupRestoreScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 

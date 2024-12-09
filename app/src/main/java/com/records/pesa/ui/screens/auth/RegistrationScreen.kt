@@ -102,14 +102,18 @@ fun RegistrationScreenComposable(
             },
             registerButtonEnabled = uiState.registerButtonEnabled,
             onRegister = {
-                if(!uiState.phoneNumber.startsWith("0")) {
-                    Toast.makeText(context, "Phone number must start with '0'", Toast.LENGTH_SHORT).show()
-                } else if(uiState.password.length < 5) {
-                    Toast.makeText(context, "Password must be at least 5 characters", Toast.LENGTH_SHORT).show()
-                } else if(uiState.password != uiState.passwordConfirmation) {
-                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                if(uiState.phoneNumber.length > 10) {
+                    Toast.makeText(context, "Phone number must be 10 digits", Toast.LENGTH_SHORT).show()
                 } else {
-                    viewModel.registerUser()
+                    if(!uiState.phoneNumber.startsWith("0")) {
+                        Toast.makeText(context, "Phone number must start with '0'", Toast.LENGTH_SHORT).show()
+                    } else if(uiState.password.length < 5) {
+                        Toast.makeText(context, "Password must be at least 5 characters", Toast.LENGTH_SHORT).show()
+                    } else if(uiState.password != uiState.passwordConfirmation) {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.registerUser()
+                    }
                 }
             },
             registrationStatus = uiState.registrationStatus,

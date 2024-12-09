@@ -423,38 +423,38 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.surfaceTint
                             )
                         }
-                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-                        Row(
-                            modifier = Modifier
-                                .clickable {
-                                    onReviewApp()
-                                }
-                                .padding(
-                                    horizontal = screenWidth(x = 16.0)
-                                )
-                                .fillMaxWidth()
-                        ) {
-                            Icon(
-                                tint = Color.Yellow,
-                                painter = painterResource(id = R.drawable.star),
-                                contentDescription = "Review app",
-                                modifier = Modifier
-                                    .padding(
-                                        vertical = screenWidth(x = 8.0)
-                                    )
-                                    .size(screenWidth(x = 24.0))
-                            )
-                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-                            Text(
-                                color = MaterialTheme.colorScheme.surfaceTint,
-                                text = "Review app",
-                                fontSize = screenFontSize(x = 14.0).sp,
-                                modifier = Modifier
-                                    .padding(
-                                        vertical = screenWidth(x = 8.0)
-                                    )
-                            )
-                        }
+//                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+//                        Row(
+//                            modifier = Modifier
+//                                .clickable {
+//                                    onReviewApp()
+//                                }
+//                                .padding(
+//                                    horizontal = screenWidth(x = 16.0)
+//                                )
+//                                .fillMaxWidth()
+//                        ) {
+//                            Icon(
+//                                tint = Color.Yellow,
+//                                painter = painterResource(id = R.drawable.star),
+//                                contentDescription = "Review app",
+//                                modifier = Modifier
+//                                    .padding(
+//                                        vertical = screenWidth(x = 8.0)
+//                                    )
+//                                    .size(screenWidth(x = 24.0))
+//                            )
+//                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
+//                            Text(
+//                                color = MaterialTheme.colorScheme.surfaceTint,
+//                                text = "Review app",
+//                                fontSize = screenFontSize(x = 14.0).sp,
+//                                modifier = Modifier
+//                                    .padding(
+//                                        vertical = screenWidth(x = 8.0)
+//                                    )
+//                            )
+//                        }
                     }
                 }
             }
@@ -608,10 +608,10 @@ private fun BottomNavBar(
 @Composable
 fun ThemeSwitcher(
     darkTheme: Boolean = false,
-    size: Dp = 150.dp,
+    size: Dp = screenWidth(x = 150.0),
     iconSize: Dp = size / 3,
-    padding: Dp = 10.dp,
-    borderWidth: Dp = 1.dp,
+    padding: Dp = screenWidth(x = 10.0),
+    borderWidth: Dp = screenWidth(x = 1.0),
     parentShape: Shape = CircleShape,
     toggleShape: Shape = CircleShape,
     animationSpec: AnimationSpec<Dp> = tween(durationMillis = 300),

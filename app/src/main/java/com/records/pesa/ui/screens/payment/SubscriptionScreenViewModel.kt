@@ -232,7 +232,7 @@ class SubscriptionScreenViewModel(
                         if(uiState.value.amount == "1000") {
                             val payment = com.records.pesa.models.payment.supabase.PaymentData(
                                 amount = uiState.value.amount.toDouble(),
-                                expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                                expiredAt = expiredAt.toString(),
                                 paidAt = LocalDateTime.now().toString(),
                                 month = LocalDateTime.now().month.value,
                                 userId = uiState.value.userDetails.userId,
@@ -269,7 +269,7 @@ class SubscriptionScreenViewModel(
                                 if(uiState.value.amount == "1000") {
                                     val payment = com.records.pesa.models.payment.supabase.PaymentData(
                                         amount = uiState.value.amount.toDouble(),
-                                        expiredAt = LocalDateTime.now().plusMonths(1).toString(),
+                                        expiredAt = expiredAt.toString(),
                                         paidAt = LocalDateTime.now().toString(),
                                         month = LocalDateTime.now().month.value,
                                         userId = uiState.value.userDetails.userId,
