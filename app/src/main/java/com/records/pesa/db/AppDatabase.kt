@@ -17,10 +17,11 @@ import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.db.models.UserAccount
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class], version = 31, exportSchema = false)
+@Database(entities = [UserDetails::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class, UserPreferences::class], version = 36, exportSchema = false)
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao

@@ -4,14 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.user.UserAccount
-import com.records.pesa.models.user.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient
 import com.records.pesa.network.SupabaseClient.client
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.LocalDate
 import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDateTime
 
@@ -85,8 +82,21 @@ class RegistrationScreenViewModel(
                     val user = client.from("userAccount").insert(userAccount) {
                         select()
                     }.decodeSingle<UserAccount>()
-                    Log.d("RgistrationDetails", user.toString())
+                    Log.d("RegistrationDetails", user.toString())
                     dbRepository.deleteAllFromUser()
+                    dbRepository.deleteUserPreferences()
+
+                    val userPreferences = UserPreferences(
+                        loggedIn = false,
+                        darkMode = false,
+                        paid = false,
+                        permanent = false,
+                        paidAt = null,
+                        expiryDate = null,
+                    )
+
+                    dbRepository.insertUserPreferences(userPreferences)
+
                     val userDetails = UserDetails(
                         userId = user.id ?: 0,
                         firstName = user.fname,

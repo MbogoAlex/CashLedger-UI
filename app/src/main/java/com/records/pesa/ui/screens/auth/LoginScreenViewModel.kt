@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserAccount
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.supabase.PaymentData
 import com.records.pesa.models.user.UserLoginPayload
@@ -82,6 +83,9 @@ class LoginScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
 
+                var userPreferences = dbRepository.getUserPreferences().first()
+
+
                 try {
                     val user = client.postgrest["userAccount"]
                         .select {
@@ -136,6 +140,10 @@ class LoginScreenViewModel(
                             dbRepository.insertUser(userDetails)
                             var users = emptyList<UserDetails>()
 
+                            userPreferences = userPreferences!!.copy(
+                                loggedIn = true
+                            )
+
                             while (users.isEmpty()) {
                                 delay(1000)
                                 users = dbRepository.getUsers().first()
@@ -150,6 +158,15 @@ class LoginScreenViewModel(
                                 }.decodeList<PaymentData>()
 
                             if(user.permanent) {
+                                val sortedPayments = payments.sortedByDescending {
+                                    it.id
+                                }
+                                userPreferences = userPreferences.copy(
+                                    paid = true,
+                                    permanent = true,
+                                    paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
+                                    expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                )
                                 dbRepository.updateUser(
                                     userData.copy(
                                         paymentStatus = true,
@@ -172,7 +189,19 @@ class LoginScreenViewModel(
                                             expiredAt = payment.expiredAt
                                         )
                                     )
+
+                                    userPreferences = userPreferences.copy(
+                                        paid = false,
+                                        paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
+                                        expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                    )
+
                                 } else {
+                                    userPreferences = userPreferences.copy(
+                                        paid = true,
+                                        paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
+                                        expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                    )
                                     dbRepository.updateUser(
                                         userData.copy(
                                             paymentStatus = true,
@@ -188,6 +217,8 @@ class LoginScreenViewModel(
                                     )
                                 )
                             }
+
+                            dbRepository.updateUserPreferences(userPreferences)
 
                             if(users.isNotEmpty()) {
                                 _uiState.update {

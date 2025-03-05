@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.models.UserAccount
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -87,6 +88,18 @@ interface AppDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUserAccount(userAccount: UserAccount): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserPreferences(userReferences: UserPreferences)
+
+    @Update
+    suspend fun updateUserPreferences(userReferences: UserPreferences)
+
+    @Query("SELECT * FROM userPreferences LIMIT 1")
+    fun getUserPreferences(): Flow<UserPreferences?>
+
+    @Query("DELETE FROM userPreferences")
+    suspend fun deleteUserPreferences();
 
     @Query("select * from userAccount where id = :id")
     fun getUserAccountById(id: Long): Flow<UserAccount>

@@ -1,6 +1,10 @@
 package com.records.pesa.db
 
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +19,13 @@ interface DBRepository {
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
     fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
     suspend fun deleteAllFromUser()
+    suspend fun deleteUserPreferences();
+
+    suspend fun insertUserPreferences(userReferences: UserPreferences)
+
+    suspend fun updateUserPreferences(userReferences: UserPreferences)
+
+    fun getUserPreferences(): Flow<UserPreferences?>
 
     suspend fun deleteCategoryMappings()
 
@@ -65,6 +76,14 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
 
     override fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus> = appDao.getAppLaunchStatus(id)
     override suspend fun deleteAllFromUser() = appDao.deleteAllFromUser()
+    override suspend fun deleteUserPreferences() = appDao.deleteUserPreferences()
+
+    override suspend fun insertUserPreferences(userReferences: UserPreferences) = appDao.insertUserPreferences(userReferences)
+
+    override suspend fun updateUserPreferences(userReferences: UserPreferences) = appDao.updateUserPreferences(userReferences)
+
+    override fun getUserPreferences(): Flow<UserPreferences?> = appDao.getUserPreferences()
+
     override suspend fun deleteCategoryMappings() = appDao.deleteCategoryMappings()
 
     override suspend fun deleteCategoryKeywords() = appDao.deleteCategoryKeywords()
