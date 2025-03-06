@@ -45,7 +45,8 @@ class MainActivityViewModel(
                             paid = false,
                             permanent = false,
                             paidAt = null,
-                            expiryDate = null
+                            expiryDate = null,
+                            showBalance = false
                         )
                     )
                     val userDetailsList = dbRepository.getUsers().firstOrNull()
@@ -63,7 +64,8 @@ class MainActivityViewModel(
                             paidAt = userDetails?.paidAt?.let { LocalDateTime.parse(it) },
                             expiryDate = userDetails?.expiredAt?.let { LocalDateTime.parse(it) },
                             paid = userDetails?.paymentStatus ?: false,
-                            permanent = userDetails?.permanent ?: false
+                            permanent = userDetails?.permanent ?: false,
+                            showBalance = userPreferences.showBalance
                         )
                     )
 

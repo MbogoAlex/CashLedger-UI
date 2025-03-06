@@ -14,5 +14,6 @@ data class UserPreferences(
     val paid: Boolean,
     val permanent: Boolean,
     val paidAt: LocalDateTime?,
-    val expiryDate: LocalDateTime?
+    val expiryDate: LocalDateTime?,
+    val showBalance: Boolean
 )

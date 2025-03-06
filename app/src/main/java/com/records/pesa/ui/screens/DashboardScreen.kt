@@ -6,7 +6,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -34,7 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,16 +43,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,8 +63,8 @@ import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.composables.TransactionItemCell
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
@@ -75,7 +72,7 @@ import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.groupedTransactions
 import com.records.pesa.reusables.transactionCategories
 import com.records.pesa.reusables.transactions
-import com.records.pesa.ui.screens.dashboard.chart.BarWithLineChart
+import com.records.pesa.ui.screens.auth.PasswordInputField
 import com.records.pesa.ui.screens.transactions.Chart6
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
@@ -98,6 +95,7 @@ fun DashboardScreenComposable(
     navigateToCategoryAdditionScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
+    navigateToUpdatePasswordScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -122,8 +120,41 @@ fun DashboardScreenComposable(
         mutableStateOf(false)
     }
 
-    var showBalance by rememberSaveable {
-        mutableStateOf(true)
+
+    var showPasswordDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showIncorrectPasswordText by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showPasswordDialog) {
+        PasswordDialog(
+            password = uiState.userPassword,
+            showIncorrectPasswordText = showIncorrectPasswordText,
+            onEnterPassword = viewModel::updatePassword,
+            onConfirm = {
+                if(uiState.userPassword == uiState.userDetails.password) {
+                    viewModel.changeBalanceVisibility()
+                    showPasswordDialog = false
+                    showIncorrectPasswordText = false
+                    viewModel.updatePassword("")
+                } else {
+                    showIncorrectPasswordText = true
+                }
+            },
+            onDismiss = {
+                showPasswordDialog = false
+                showIncorrectPasswordText = false
+                viewModel.updatePassword("")
+            },
+            navigateToUpdatePasswordScreen = {
+                showIncorrectPasswordText = false
+                viewModel.updatePassword("")
+                navigateToUpdatePasswordScreen()
+            }
+        )
     }
 
     if(showSubscriptionDialog) {
@@ -176,9 +207,13 @@ fun DashboardScreenComposable(
                 showSubscriptionDialog = true
             },
             onToggleBalanceVisibility = {
-                showBalance = !showBalance
+                if(uiState.preferences.showBalance) {
+                    viewModel.changeBalanceVisibility()
+                } else {
+                    showPasswordDialog = true
+                }
             },
-            showBalance = showBalance,
+            showBalance = uiState.preferences.showBalance,
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
         )
     }
@@ -568,19 +603,9 @@ fun HeaderSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = currentBalance,
+                text = if (showBalance) currentBalance else "*".repeat(currentBalance.length),
                 fontSize = screenFontSize(x = 20.0).sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .graphicsLayer {
-                        if (!showBalance) {
-                            alpha =
-                                0.0f // Adjust the alpha to make the text semi-transparent
-                            shape = RectangleShape
-                            clip = true
-                        }
-                    }
-                    .blur(if (!showBalance) 4.dp else 0.dp) // Apply blur only when showBalance is false
+                fontWeight = FontWeight.Bold
             )
             IconButton(
                 onClick = onToggleBalanceVisibility
@@ -732,6 +757,84 @@ fun SubscriptionDialog(
             Button(onClick = onConfirm) {
                 Text(
                     text = "Subscribe",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun PasswordDialog(
+    password: String,
+    showIncorrectPasswordText: Boolean,
+    onEnterPassword: (value: String) -> Unit,
+    onConfirm: () -> Unit,
+    navigateToUpdatePasswordScreen: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var passwordVisibility by rememberSaveable {
+        mutableStateOf(false)
+    }
+    AlertDialog(
+        title = {
+            Text(
+                text = "Enter password to show balance",
+                fontWeight = FontWeight.Bold,
+                fontSize = screenFontSize(x = 16.0).sp
+            )
+        },
+        text = {
+            Column {
+                PasswordInputField(
+                    heading = "Password",
+                    value = password,
+                    trailingIcon = R.drawable.visibility_on,
+                    onValueChange = onEnterPassword,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                        keyboardType = KeyboardType.Password
+                    ),
+                    visibility = passwordVisibility,
+                    onChangeVisibility = { passwordVisibility = !passwordVisibility }
+                )
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                if(showIncorrectPasswordText) {
+                    Text(
+                        text = "Incorrect password",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                TextButton(
+                    onClick = navigateToUpdatePasswordScreen,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                ) {
+                    Text(
+                        text = "Forgot password?",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+            }
+        },
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+            ) {
+                Text(
+                    text = "Dismiss",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(
+                    text = "Done",
                     fontSize = screenFontSize(x = 14.0).sp
                 )
             }

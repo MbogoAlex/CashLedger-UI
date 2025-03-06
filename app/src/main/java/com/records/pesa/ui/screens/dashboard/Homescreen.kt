@@ -130,6 +130,7 @@ fun HomeScreenComposable(
     navigateToSubscriptionScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToTransactionsScreenWithTransactionType: (comment: String, transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
+    navigateToUpdatePasswordScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -256,7 +257,8 @@ fun HomeScreenComposable(
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
                 navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
-            }
+            },
+            navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen
         )
     }
 }
@@ -297,6 +299,7 @@ fun HomeScreen(
     navigateToAccountInfoScreen: () -> Unit,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToTransactionsScreenWithTransactionType: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
+    navigateToUpdatePasswordScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ModalNavigationDrawer(
@@ -507,6 +510,7 @@ fun HomeScreen(
                         navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
+                        navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
                         modifier = Modifier
                             .weight(1f)
                     )
@@ -907,7 +911,8 @@ fun HomeScreenPreview() {
             navigateToTransactionDetailsScreen = {},
             navigateToBackupScreen = {},
             navigateToLoginScreen = {},
-            navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->  }
+            navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->  },
+            navigateToUpdatePasswordScreen = {}
         )
     }
 }

@@ -8,5 +8,6 @@ val userPreferences = UserPreferences(
     paid = false,
     permanent = false,
     paidAt = null,
-    expiryDate = null
+    expiryDate = null,
+    showBalance = false
 )

@@ -244,6 +244,9 @@ fun NavigationGraph(
                 },
                 navigateToLoginScreen = {
                     navController.navigate(LoginScreenDestination.route)
+                },
+                navigateToUpdatePasswordScreen = {
+                    navController.navigate(UpdatePasswordScreenDestination.route)
                 }
             )
         }
@@ -306,6 +309,9 @@ fun NavigationGraph(
                 },
                 navigateToLoginScreen = {
                     navController.navigate(LoginScreenDestination.route)
+                },
+                navigateToUpdatePasswordScreen = {
+                    navController.navigate(UpdatePasswordScreenDestination.route)
                 }
             )
         }

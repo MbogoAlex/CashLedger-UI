@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.mapper.toTransactionItem
@@ -35,6 +37,8 @@ import kotlin.math.absoluteValue
 
 data class DashboardScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
+    val userPassword: String = "",
     val currentBalance: Double = 0.0,
     val month: String = "June",
     val year: String = "2024",
@@ -73,7 +77,15 @@ class DashboardScreenViewModel(
 
     private var filterJob: Job? = null
 
-    fun setInitialDates() {
+    fun updatePassword(password: String) {
+        _uiState.update {
+            it.copy(
+                userPassword = password
+            )
+        }
+    }
+
+    private fun setInitialDates() {
         val currentDate = LocalDate.now()
         val firstDayOfMonth = currentDate.withDayOfMonth(1)
         val currentYear = currentDate.year
@@ -469,6 +481,36 @@ class DashboardScreenViewModel(
 
     }
 
+    fun changeBalanceVisibility() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.updateUserPreferences(
+                    uiState.value.preferences.copy(
+                        showBalance = !uiState.value.preferences.showBalance
+                    )
+                )
+            }
+        }
+    }
+
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                   dbRepository.getUserPreferences().collect { preferences ->
+                       _uiState.update {
+                           it.copy(
+                               preferences = preferences ?: userPreferences
+                           )
+                       }
+                   }
+                } catch (e: Exception) {
+
+                }
+            }
+        }
+    }
+
     private fun initialzeApp() {
         viewModelScope.launch {
             while (uiState.value.userDetails.userId == 0) {
@@ -483,6 +525,7 @@ class DashboardScreenViewModel(
         setInitialDates()
         getUserDetails()
         initialzeApp()
+        getUserPreferences()
 //        checkAppVersion()
     }
 }
