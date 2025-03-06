@@ -46,7 +46,7 @@ class MainActivityViewModel(
                             permanent = false,
                             paidAt = null,
                             expiryDate = null,
-                            showBalance = false
+                            showBalance = true
                         )
                     )
                     val userDetailsList = dbRepository.getUsers().firstOrNull()
@@ -58,7 +58,7 @@ class MainActivityViewModel(
                     dbRepository.updateUserPreferences(
                         userPreferences!!.copy(
                             loggedIn = userPreferences.loggedIn,
-                            darkMode = userDetails?.darkThemeSet ?: false,
+                            darkMode = userPreferences.darkMode,
                             restoredData = true,
                             lastRestore = null,
                             paidAt = userDetails?.paidAt?.let { LocalDateTime.parse(it) },
@@ -81,6 +81,7 @@ class MainActivityViewModel(
                     }
 
                     getUserPreferences()
+                    getSubscriptionStatus(userPrefs)
 
                     _uiState.update {
                         it.copy(
@@ -100,6 +101,48 @@ class MainActivityViewModel(
             it.copy(
                 navigate = false
             )
+        }
+    }
+
+    private fun getSubscriptionStatus(userPrefs: UserPreferences) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if(userPrefs.paidAt != null) {
+                    val paidAt = userPrefs.paidAt
+                    val expiredAt = userPrefs.expiryDate
+                    val permanent = userPrefs.permanent
+
+                    if(!permanent) {
+                        if(expiredAt!!.isAfter(LocalDateTime.now())) {
+                            dbRepository.updateUserPreferences(
+                                userPrefs.copy(
+                                    paid = true
+                                )
+                            )
+                        } else if(expiredAt.isBefore(LocalDateTime.now())) {
+                            dbRepository.updateUserPreferences(
+                                userPrefs.copy(
+                                    paid = false
+                                )
+                            )
+                        }
+                    } else {
+                        dbRepository.updateUserPreferences(
+                            userPrefs.copy(
+                                paid = true,
+                                permanent = true
+                            )
+                        )
+                    }
+
+                } else {
+                    dbRepository.updateUserPreferences(
+                        userPrefs.copy(
+                            paid = false
+                        )
+                    )
+                }
+            }
         }
     }
 

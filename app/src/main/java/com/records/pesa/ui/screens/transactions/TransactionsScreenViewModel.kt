@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.SortedTransactionItem
@@ -33,6 +35,7 @@ import kotlin.math.absoluteValue
 
 data class TransactionsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val transactions: List<TransactionItem> = emptyList(),
     val moneyInTransactions: List<TransactionItem> = emptyList(),
     val moneyOutTransactions: List<TransactionItem> = emptyList(),
@@ -600,10 +603,25 @@ class TransactionsScreenViewModel(
 
     }
 
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUserPreferences().collect() { preferences ->
+                    _uiState.update {
+                        it.copy(
+                            preferences = preferences!!
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 
     init {
         setInitialDates()
         getUserDetails()
+        getUserPreferences()
 
         val selectableTypes = when(moneyDirection) {
             "in" -> {
@@ -652,6 +670,9 @@ class TransactionsScreenViewModel(
                 )
             }
         }
+
+
+
         _uiState.update {
             it.copy(
                 defaultTransactionType = transactionType,

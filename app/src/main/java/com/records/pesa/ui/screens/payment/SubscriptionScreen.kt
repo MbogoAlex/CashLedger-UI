@@ -1,11 +1,5 @@
 package com.records.pesa.ui.screens.payment
 
-import android.graphics.Bitmap
-import android.util.Log
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -19,19 +13,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -54,11 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -69,7 +64,6 @@ import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
-import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 object SubscriptionScreenDestination: AppNavigation {
@@ -80,6 +74,7 @@ object SubscriptionScreenDestination: AppNavigation {
 @Composable
 fun SubscriptionScreenComposable(
     navigateToHomeScreen: () -> Unit,
+    navigateToSmsFetchScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -95,10 +90,34 @@ fun SubscriptionScreenComposable(
         mutableStateOf(false)
     }
 
+    var showSuccessDialogue by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(showSuccessDialogue) {
+        PaymentSuccessDialogue(
+            paymentPlan = when(uiState.amount) {
+                "100" -> "Monthly"
+                "400" -> "6 Months"
+                "700" -> "12 Months"
+                "2000" -> "Lifetime"
+                else -> "Monthly"
+            },
+            onConfirm = {
+                showSuccessDialogue = !showSuccessDialogue
+                navigateToSmsFetchScreen()
+            },
+            onDismiss = {
+                showSuccessDialogue = !showSuccessDialogue
+                navigateToSmsFetchScreen()
+            }
+        )
+    }
+
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
         Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
         lipaStatusCheck = false
-        navigateToHomeScreen()
+        showSuccessDialogue = true
         viewModel.resetPaymentStatus()
     } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
         Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
@@ -122,6 +141,7 @@ fun SubscriptionScreenComposable(
 
     val isConnected by viewModel.isConnected.observeAsState(false)
 
+
     BackHandler(onBack = {
         if(uiState.loadingStatus != LoadingStatus.LOADING) {
             if(showPaymentScreen) {
@@ -141,7 +161,8 @@ fun SubscriptionScreenComposable(
     ) {
         if(showPaymentScreen) {
             PaymentScreen(
-                monthly = monthly,
+                firstTransactionDate = uiState.firstTransactionDate,
+                amount = uiState.amount,
                 isConnected = isConnected,
                 status = uiState.state,
                 phoneNumber = uiState.phoneNumber,
@@ -183,7 +204,7 @@ fun SubscriptionScreenComposable(
                 firstTransactionDate = uiState.firstTransactionDate,
                 navigateToPreviousScreen = navigateToPreviousScreen,
                 navigateToPaymentScreen = {
-                    monthly = it
+                    viewModel.updateAmount(it)
                     showPaymentScreen = !showPaymentScreen
                 }
             )
@@ -194,17 +215,18 @@ fun SubscriptionScreenComposable(
 @Composable
 fun SubscriptionScreen(
     firstTransactionDate: String,
-    navigateToPaymentScreen: (monthly: Boolean) -> Unit,
+    navigateToPaymentScreen: (amount: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     val isLoading = remember { mutableStateOf(false) }  // State to track loading
 
+    val subscriptionTypes = listOf("Monthly", "6 Months", "12 Months", "Lifetime")
+
     Column(
         modifier = Modifier
             .padding(horizontal = screenWidth(x = 16.0), vertical = screenHeight(x = 8.0))
-            .verticalScroll(rememberScrollState())
             .fillMaxSize()
     ) {
         Row(
@@ -229,113 +251,260 @@ fun SubscriptionScreen(
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Image(
-            painter = painterResource(id = R.drawable.analyze_transactions),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Text(
-            text = "Get unlimited access to all features",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 24.0)))
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
+//                .verticalScroll(rememberScrollState())
         ) {
-            Column(
+            Image(
+                painter = painterResource(id = R.drawable.analyze_transactions),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .padding(screenWidth(x = 16.0))
+                    .fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            Text(
+                text = "Get unlimited access to all features",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 24.0)))
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                verticalArrangement = Arrangement.spacedBy(screenHeight(x = 8.0)),
+                horizontalArrangement = Arrangement.spacedBy(screenWidth(x = 8.0)),
             ) {
-                Text(
-                    text = "Monthly Plan +",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Row(
-                    verticalAlignment = Alignment.Bottom
+                items(subscriptionTypes) {
+                    SubscriptionOptionCard(
+                        subscriptionType = it,
+                        navigateToPaymentScreen = navigateToPaymentScreen
+                    )
+                }
+            }
+
+
+
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+
+
+
+            // Display loading indicator while loading
+            if (isLoading.value) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SubscriptionOptionCard(
+    subscriptionType: String,
+    navigateToPaymentScreen: (amount: String) -> Unit,
+) {
+    when(subscriptionType) {
+        "Monthly" -> {
+            Card(
+                onClick = {
+                    navigateToPaymentScreen("100")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+//                    .heightIn(min = screenHeight(x = 150.0))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 16.0))
+                ) {
+                    Text(
+                        text = "Monthly Plan +",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                     Text(
                         text = "Ksh100",
-                        textDecoration = TextDecoration.LineThrough,
-                        fontSize = screenFontSize(x = 24.0).sp
-                    )
-                    Spacer(modifier = Modifier.width(screenWidth(x = 2.0)))
-                    Text(
-                        text = "Ksh50",
                         fontWeight = FontWeight.Bold,
                         fontSize = screenFontSize(x = 24.0).sp
                     )
-                    Text(
-                        text = "/month",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Button(onClick = {
-                    navigateToPaymentScreen(true)
-                }) {
-                    Text(
-                        text = "Subscribe",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Row(
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "Save",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Text(
+                            text = "Ksh0",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Button(onClick = {
+                        navigateToPaymentScreen("100")
+                    }) {
+                        Text(
+                            text = "Subscribe",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
 
+                }
             }
         }
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Column(
+
+        "6 Months" -> {
+            Card(
+                onClick = {
+                    navigateToPaymentScreen("400")
+                },
                 modifier = Modifier
-                    .padding(screenWidth(x = 16.0))
+                    .fillMaxWidth()
+//                    .heightIn(min = screenHeight(x = 150.0))
             ) {
-                Text(
-                    text = "Lifetime Access",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Row(
-                    verticalAlignment = Alignment.Bottom
+                Column(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 16.0))
                 ) {
                     Text(
-                        text = "Ksh1000",
+                        text = "6 months Plan +",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Text(
+                        text = "Ksh400",
                         fontWeight = FontWeight.Bold,
                         fontSize = screenFontSize(x = 24.0).sp
                     )
-                    Text(
-                        text = "one-time purchase",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Button(onClick = { navigateToPaymentScreen(false) }) {
-                    Text(
-                        text = "Subscribe",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Row(
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "Save",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Text(
+                            text = "Ksh200",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Button(onClick = {
+                        navigateToPaymentScreen("400")
+                    }) {
+                        Text(
+                            text = "Subscribe",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
 
+                }
             }
         }
 
-
-        // Display loading indicator while loading
-        if (isLoading.value) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        "12 Months" -> {
+            Card(
+                onClick = {
+                    navigateToPaymentScreen("700")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+//                    .heightIn(min = screenHeight(x = 150.0))
             ) {
-                CircularProgressIndicator()
+                Column(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 16.0))
+                ) {
+                    Text(
+                        text = "Annual Plan +",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Text(
+                        text = "Ksh700",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 24.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Row(
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "Save",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                        Text(
+                            text = "Ksh500",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Button(onClick = {
+                        navigateToPaymentScreen("700")
+                    }) {
+                        Text(
+                            text = "Subscribe",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+
+                }
+            }
+        }
+
+        "Lifetime" -> {
+            Card(
+                onClick = {
+                    navigateToPaymentScreen("2000")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+//                    .heightIn(min = screenHeight(x = 150.0))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 16.0))
+                ) {
+                    Text(
+                        text = "Lifetime Access +",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Text(
+                        text = "Ksh2000",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 24.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Text(
+                        text = "Save a lot!",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Button(onClick = { navigateToPaymentScreen("2000") }) {
+                        Text(
+                            text = "Purchase",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+
+                }
             }
         }
     }
@@ -344,7 +513,8 @@ fun SubscriptionScreen(
 
 @Composable
 fun PaymentScreen(
-    monthly: Boolean,
+    firstTransactionDate: String,
+    amount: String,
     isConnected: Boolean,
     status: String,
     phoneNumber: String,
@@ -358,6 +528,10 @@ fun PaymentScreen(
     loadingStatus: LoadingStatus,
     onPay: (amount: String) -> Unit
 ) {
+    var understood by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     BackHandler(onBack = navigateToPreviousScreen)
     var payButtonClicked by rememberSaveable {
         mutableStateOf(false)
@@ -380,7 +554,13 @@ fun PaymentScreen(
             }
         }
         Text(
-            text = if(monthly) "Monthly subscription fee" else "Lifetime subscription fee",
+            text = when(amount) {
+                "100" -> "Monthly subscription fee"
+                "400" -> "6 months subscription fee"
+                "700" -> "12 months subscription fee"
+                "2000" -> "Lifetime subscription fee"
+                else -> "Monthly subscription fee"
+            },
             fontSize = screenFontSize(x = 22.0).sp,
             fontWeight = FontWeight.Bold
         )
@@ -391,7 +571,7 @@ fun PaymentScreen(
         ) {
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Deposit Amount",
+                text = "Fee payment",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
@@ -403,7 +583,7 @@ fun PaymentScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextField(
-                value = if(monthly) "50" else "1000",
+                value = amount,
                 readOnly = true,
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -475,6 +655,52 @@ fun PaymentScreen(
                     .fillMaxWidth()
             )
             Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "Note: Transactions fetched are from $firstTransactionDate",
+                fontSize = screenFontSize(x = 14.0).sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+//                    modifier = Modifier
+//                        .padding(screenWidth(x = 10.0))
+            ) {
+                if(understood) {
+                    IconButton(
+                        enabled = loadingStatus != LoadingStatus.LOADING,
+                        onClick = {
+                        understood = !understood
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.check_box_filled),
+                            contentDescription = "I understand",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                } else {
+                    IconButton(
+                        enabled = loadingStatus != LoadingStatus.LOADING,
+                        onClick = {
+                        understood = !understood
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.check_box_blank),
+                            contentDescription = "I understand",
+                            modifier = Modifier
+                                .size(screenWidth(x = 24.0))
+                        )
+                    }
+                }
+//                    Spacer(modifier = Modifier.width(screenWidth(x = 4.0)))
+                Text(
+                    text = "I understand",
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
             if(!isConnected) {
                 Text(
                     text = "Connect to the internet",
@@ -493,14 +719,10 @@ fun PaymentScreen(
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
             }
             Button(
-                enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected,
+                enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected && understood,
                 onClick = {
                     payButtonClicked = !payButtonClicked
-                    if(monthly) {
-                        onPay("50")
-                    } else {
-                        onPay("1000")
-                    }
+                    onPay(amount)
 
                 },
                 modifier = Modifier
@@ -567,7 +789,37 @@ fun PaymentScreen(
     }
 }
 
-
+@Composable
+fun PaymentSuccessDialogue(
+    paymentPlan: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        title = {
+            Text(
+                text = "Payment Successful",
+                fontSize = screenFontSize(x = 16.0).sp
+            )
+        },
+        text = {
+            Text(
+                text = "You have successfully subscribed to $paymentPlan",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+        },
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(
+                    text = "Exit",
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+            }
+        }
+    )
+}
 
 
 @Preview(showBackground = true, showSystemUi = true)
@@ -587,7 +839,7 @@ fun SubscriptionScreenPreview() {
 fun PaymentScreenPreview() {
     CashLedgerTheme {
         PaymentScreen(
-            monthly = true,
+            firstTransactionDate = "",
             isConnected = false,
             status = "PROCESSING",
             phoneNumber = "254794649026",
@@ -598,6 +850,7 @@ fun PaymentScreenPreview() {
             onChangeLipaStatusCheck = {},
             lipaStatusCheck = false,
             navigateToPreviousScreen = {},
+            amount = "",
             loadingStatus = LoadingStatus.INITIAL
         ) {
             

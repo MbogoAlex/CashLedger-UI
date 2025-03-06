@@ -212,7 +212,7 @@ fun HomeScreenComposable(
             firstName = uiState.userDetails.firstName,
             lastName = uiState.userDetails.lastName,
             phoneNumber = uiState.userDetails.phoneNumber,
-            darkTheme = uiState.userDetails.darkThemeSet,
+            darkTheme = uiState.preferences.darkMode,
             currentTab = currentTab,
             onTabChange = { currentTab = it },
             tabs = listOf(
@@ -238,8 +238,11 @@ fun HomeScreenComposable(
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
             onSwitchTheme = {
                 onSwitchTheme()
-                scope.launch { drawerState.close() }
-                if (uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199") {
+                scope.launch {
+                    delay(1000)
+                    drawerState.close()
+                }
+                if (uiState.preferences.paid || uiState.userDetails.phoneNumber == "0179189199") {
                     Toast.makeText(context, "Theme switched", Toast.LENGTH_SHORT).show()
                 } else {
                     showSubscribeDialog = true
@@ -566,7 +569,8 @@ fun HomeScreen(
                         navigateToHomeScreen = navigateToHomeScreen,
                         navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
                         navigateToLoginScreen = navigateToLoginScreen,
-                        navigateToBackupScreen = navigateToBackupScreen
+                        navigateToBackupScreen = navigateToBackupScreen,
+                        navigateToSubscriptionPaymentScreen = navigateToSubscriptionScreen
                     )
                 }
                 HomeScreenTab.BACK_UP -> {

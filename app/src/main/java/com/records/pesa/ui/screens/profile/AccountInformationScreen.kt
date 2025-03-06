@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.functions.formatIsoDateTime2
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
@@ -57,6 +61,7 @@ import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 
 @Composable
 fun AccountInformationScreenComposable(
@@ -64,6 +69,7 @@ fun AccountInformationScreenComposable(
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
     navigateToLoginScreen: () -> Unit,
     navigateToBackupScreen: () -> Unit,
+    navigateToSubscriptionPaymentScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = navigateToHomeScreen)
@@ -206,6 +212,10 @@ fun AccountInformationScreenComposable(
             .safeDrawingPadding()
     ) {
         AccountInformationScreen(
+            lastPaymentDate = uiState.preferences.paidAt,
+            expiryDate = uiState.preferences.expiryDate,
+            paid = uiState.preferences.expiryDate?.isAfter(uiState.preferences.paidAt) ?: false,
+            permanent = uiState.preferences.permanent,
             onEditFirstName = {
                 showEditFirstNameDialog = !showEditFirstNameDialog
             },
@@ -222,13 +232,18 @@ fun AccountInformationScreenComposable(
             logoutLoading = logoutLoading,
             onLogout = {
                 showLogoutDialog = !showLogoutDialog
-            }
+            },
+            navigateToSubscriptionPaymentScreen = navigateToSubscriptionPaymentScreen
         )
     }
 }
 
 @Composable
 fun AccountInformationScreen(
+    lastPaymentDate: LocalDateTime?,
+    expiryDate: LocalDateTime?,
+    permanent: Boolean,
+    paid: Boolean,
     onEditFirstName: () -> Unit,
     onEditLastName: () -> Unit,
     onEditEmail: () -> Unit,
@@ -238,6 +253,7 @@ fun AccountInformationScreen(
     phoneNumber: String,
     onLogout: () -> Unit,
     logoutLoading: Boolean,
+    navigateToSubscriptionPaymentScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -269,136 +285,241 @@ fun AccountInformationScreen(
             )
         }
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        Text(
-            text = "First name",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        ElevatedCard {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(screenWidth(x = 20.0))
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = firstName,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    tint = MaterialTheme.colorScheme.surfaceTint,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .clickable {
-                            onEditFirstName()
-                        }
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Text(
-            text = "Surname",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        ElevatedCard {
-            Row(
-                modifier = Modifier
-                    .padding(screenWidth(x = 20.0))
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = lastName,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    tint = MaterialTheme.colorScheme.surfaceTint,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .clickable {
-                            onEditLastName()
-                        }
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Text(
-            text = "Email",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        ElevatedCard {
-            Row(
-                modifier = Modifier
-                    .padding(screenHeight(x = 20.0))
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = email,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    tint = MaterialTheme.colorScheme.surfaceTint,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .clickable {
-                            onEditEmail()
-                        }
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Text(
-            text = "Phone number",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        ElevatedCard {
-            Row(
-                modifier = Modifier
-                    .padding(screenWidth(x = 20.0))
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = phoneNumber,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    tint = Color.LightGray,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        OutlinedButton(
-            enabled = !logoutLoading,
-            onClick = onLogout,
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
         ) {
-            if(logoutLoading) {
-                Text(
-                    text = "Logging out...",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            } else {
-                Text(
-                    text = "Log out",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+            Text(
+                text = "First name",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            ElevatedCard {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(screenWidth(x = 20.0))
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = firstName,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .clickable {
+                                onEditFirstName()
+                            }
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+            Text(
+                text = "Surname",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            ElevatedCard {
+                Row(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 20.0))
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = lastName,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .clickable {
+                                onEditLastName()
+                            }
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+            Text(
+                text = "Email",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            ElevatedCard {
+                Row(
+                    modifier = Modifier
+                        .padding(screenHeight(x = 20.0))
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = email,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        tint = MaterialTheme.colorScheme.surfaceTint,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .clickable {
+                                onEditEmail()
+                            }
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+            Text(
+                text = "Phone number",
+                fontSize = screenFontSize(x = 14.0).sp
+            )
+            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
+            ElevatedCard {
+                Row(
+                    modifier = Modifier
+                        .padding(screenWidth(x = 20.0))
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = phoneNumber,
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        tint = Color.LightGray,
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(screenWidth(x = 24.0))
+                    )
+                }
+            }
+            if(phoneNumber != "0179189199") {
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+                Column {
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(screenWidth(x = 16.0))
+                        ) {
+                            Text(
+                                text = "My subscription",
+                                fontSize = screenFontSize(x = 18.0).sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                            if(permanent) {
+                                Text(
+                                    text = "Lifetime, No expiry",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = screenFontSize(x = 14.0).sp
+                                )
+                                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                Text(text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}")
+                            } else {
+                                if(expiryDate?.isBefore(LocalDateTime.now()) == true) {
+                                    Text(
+                                        text = "Expired",
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Text(
+                                        text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}",
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Text(
+                                        text = "Expired on: ${if(expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Button(
+                                        onClick = navigateToSubscriptionPaymentScreen,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "Renew",
+                                            fontSize = screenFontSize(x = 14.0).sp
+                                        )
+                                    }
+                                } else if(expiryDate?.isAfter(LocalDateTime.now()) == true) {
+                                    Text(
+                                        text = "Active",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Text(
+                                        text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}",
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Text(
+                                        text = "Expires on: ${if(expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                    )
+
+                                } else {
+                                    Text(
+                                        text = "Limited access",
+                                        fontSize = screenFontSize(x = 14.0).sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                                    Button(
+                                        onClick = navigateToSubscriptionPaymentScreen,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "Upgrade",
+                                            fontSize = screenFontSize(x = 14.0).sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            OutlinedButton(
+                enabled = !logoutLoading,
+                onClick = onLogout,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                if(logoutLoading) {
+                    Text(
+                        text = "Logging out...",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                } else {
+                    Text(
+                        text = "Log out",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
             }
         }
     }
@@ -570,6 +691,10 @@ fun LogoutDialog(
 fun AccountInformationScreenPreview() {
     CashLedgerTheme {
         AccountInformationScreen(
+            lastPaymentDate = null,
+            expiryDate = null,
+            permanent = false,
+            paid = false,
             onEditFirstName = { /*TODO*/ },
             onEditLastName = { /*TODO*/ },
             onEditEmail = { /*TODO*/ },
@@ -578,7 +703,8 @@ fun AccountInformationScreenPreview() {
             phoneNumber = "",
             email = "",
             logoutLoading = false,
-            onLogout = {}
+            onLogout = {},
+            navigateToSubscriptionPaymentScreen = {}
         )
     }
 }

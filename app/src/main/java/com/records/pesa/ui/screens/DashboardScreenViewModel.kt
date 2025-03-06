@@ -511,6 +511,7 @@ class DashboardScreenViewModel(
         }
     }
 
+
     private fun initialzeApp() {
         viewModelScope.launch {
             while (uiState.value.userDetails.userId == 0) {

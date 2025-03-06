@@ -11,6 +11,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.PaymentData
@@ -38,8 +40,9 @@ import java.time.LocalDateTime
 
 data class SubscriptionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val phoneNumber: String = "",
-    val amount: String = "50",
+    val amount: String = "100",
     val invoice_id: String = "",
     val state: String = "",
     val failedReason: String? = "",
@@ -196,10 +199,16 @@ class SubscriptionScreenViewModel(
             withContext(Dispatchers.IO) {
                 delay(5000)
                 val paidAt = LocalDateTime.now()
-                var expiredAt = paidAt.plusMonths(1)
-                if(uiState.value.amount == "1000") {
-                    expiredAt = paidAt.plusYears(100)
+                val expiredAt = when(uiState.value.amount) {
+                    "100" -> paidAt.plusMonths(1)
+                    "400" -> paidAt.plusMonths(6)
+                    "700" -> paidAt.plusYears(1)
+                    "2000" -> paidAt.plusYears(1)
+                    else -> paidAt.plusMonths(1)
                 }
+
+                val permanent = uiState.value.amount == "2000"
+
 
                 while(uiState.value.state.lowercase() != "complete" && uiState.value.state.lowercase() != "redirecting" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
                     Log.d("CHECKING_STATUS, INVOICE ", uiState.value.invoice_id)
@@ -229,76 +238,49 @@ class SubscriptionScreenViewModel(
                         )
                     }
                     try {
-                        if(uiState.value.amount == "1000") {
-                            val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                                amount = uiState.value.amount.toDouble(),
-                                expiredAt = expiredAt.toString(),
-                                paidAt = LocalDateTime.now().toString(),
-                                month = LocalDateTime.now().month.value,
-                                userId = uiState.value.userDetails.userId,
-                                )
+                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                            amount = uiState.value.amount.toDouble(),
+                            expiredAt = expiredAt.toString(),
+                            paidAt = LocalDateTime.now().toString(),
+                            month = LocalDateTime.now().month.value,
+                            userId = uiState.value.userDetails.userId,
+                        )
 
-                            client.from("payment").insert(payment)
+                        client.from("payment").insert(payment)
 
 
-                            client.from("userAccount").update(
-                                {
-                                    UserAccount::permanent setTo true
-                                }
-                            ) {
-                                filter {
-                                    UserAccount::id eq uiState.value.userDetails.userId
-                                }
+                        client.from("userAccount").update(
+                            {
+                                UserAccount::permanent setTo permanent
                             }
-                        } else {
-                            val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                                amount = uiState.value.amount.toDouble(),
-                                expiredAt = expiredAt.toString(),
-                                paidAt = paidAt.toString(),
-                                month = LocalDateTime.now().month.value,
-                                userId = uiState.value.userDetails.userId,
-
-                                )
-
-                            client.from("payment").insert(payment)
+                        ) {
+                            filter {
+                                UserAccount::id eq uiState.value.userDetails.userId
+                            }
                         }
                     } catch (e: Exception) {
                         while (!uiState.value.paymentStatusSaved) {
                             delay(3000)
                             try {
-                                if(uiState.value.amount == "1000") {
-                                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                                        amount = uiState.value.amount.toDouble(),
-                                        expiredAt = expiredAt.toString(),
-                                        paidAt = LocalDateTime.now().toString(),
-                                        month = LocalDateTime.now().month.value,
-                                        userId = uiState.value.userDetails.userId,
+                                val payment = com.records.pesa.models.payment.supabase.PaymentData(
+                                    amount = uiState.value.amount.toDouble(),
+                                    expiredAt = expiredAt.toString(),
+                                    paidAt = LocalDateTime.now().toString(),
+                                    month = LocalDateTime.now().month.value,
+                                    userId = uiState.value.userDetails.userId,
+                                )
 
-                                        )
-
-                                    client.from("payment").insert(payment)
+                                client.from("payment").insert(payment)
 
 
-                                    client.from("userAccount").update(
-                                        {
-                                            UserAccount::permanent setTo true
-                                        }
-                                    ) {
-                                        filter {
-                                            UserAccount::id eq uiState.value.userDetails.userId
-                                        }
+                                client.from("userAccount").update(
+                                    {
+                                        UserAccount::permanent setTo permanent
                                     }
-                                } else {
-                                    val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                                        amount = uiState.value.amount.toDouble(),
-                                        expiredAt = expiredAt.toString(),
-                                        paidAt = paidAt.toString(),
-                                        month = LocalDateTime.now().month.value,
-                                        userId = uiState.value.userDetails.userId,
-
-                                        )
-
-                                    client.from("payment").insert(payment)
+                                ) {
+                                    filter {
+                                        UserAccount::id eq uiState.value.userDetails.userId
+                                    }
                                 }
                                 _uiState.update {
                                     it.copy(
@@ -323,57 +305,41 @@ class SubscriptionScreenViewModel(
 
                 // save to local db
                 if(uiState.value.state.lowercase() == "redirecting") {
-                    Log.d("SAVING_TO_DB", "SAVING")
-                    if(uiState.value.amount == "50") {
-                        Log.d("SAVING_TO_DB", "SAVING KES 50")
-                        withContext(Dispatchers.IO) {
-                            var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-                            Log.d("SAVING_TO_DB", user.toString())
-                            dbRepository.updateUser(
-                                user.copy(
-                                    paymentStatus = true,
-                                    paidAt = paidAt.toString(),
-                                    expiredAt = expiredAt.toString()
-                                )
+                    withContext(Dispatchers.IO) {
+
+                        dbRepository.updateUser(
+                            _uiState.value.userDetails.copy(
+                                paymentStatus = true,
+                                paidAt = paidAt.toString(),
+                                permanent = permanent,
+                                expiredAt = expiredAt.toString()
+
                             )
 
-                            while(!user.paymentStatus) {
-                                user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-                            }
+                        )
 
-                            Log.d("SAVING_TO_DB", "UPDATED USER: $user")
+                        dbRepository.updateUserPreferences(
+                            _uiState.value.preferences.copy(
+                                paid = true,
+                                paidAt = paidAt,
+                                expiryDate = expiredAt,
+                                permanent = permanent
+                            )
+                        )
 
-                            _uiState.update {
-                                it.copy(
-                                    paymentMessage = "Payment received",
-                                    loadingStatus = LoadingStatus.SUCCESS
-                                )
-                            }
+                        while(!uiState.value.preferences.paid) {
+                            delay(1000)
                         }
-                    } else if(uiState.value.amount == "1000") {
-                        withContext(Dispatchers.IO) {
-                            var user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-                            dbRepository.updateUser(
-                                user.copy(
-                                    paymentStatus = true,
-                                    permanent = true,
-                                    paidAt = paidAt.toString(),
-                                    expiredAt = null
-                                )
+
+
+                        _uiState.update {
+                            it.copy(
+                                paymentMessage = "Payment received",
+                                loadingStatus = LoadingStatus.SUCCESS
                             )
-
-                            while(!user.paymentStatus) {
-                                user = dbRepository.getUser(userId = uiState.value.userDetails.userId).first()
-                            }
-
-                            _uiState.update {
-                                it.copy(
-                                    paymentMessage = "Payment received",
-                                    loadingStatus = LoadingStatus.SUCCESS
-                                )
-                            }
                         }
                     }
+
                 } else if(uiState.value.failedReason?.lowercase() == "request cancelled by user" || uiState.value.failedReason?.lowercase() == "ds timeout user cannot be reached") {
                     _uiState.update {
                         it.copy(
@@ -393,51 +359,29 @@ class SubscriptionScreenViewModel(
     }
 
 
-
-    fun checkPaymentStatus() {
-        Log.d("CKECK_STATUS", "CHECKING_PAYMENT_STATUS")
-        val paymentStatusPayload = SubscriptionPaymentStatusPayload(
-            token = uiState.value.paymentToken,
-            userId = uiState.value.userDetails.userId,
-            orderId = uiState.value.orderTrackingId
-        )
-        viewModelScope.launch {
-            try {
-               val response = apiRepository.subscriptionPaymentStatus(
-                   token = uiState.value.userDetails.token,
-                   subscriptionPaymentStatusPayload = paymentStatusPayload
-               )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            paymentMessage = "Payment successful",
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            paymentMessage = "Payment not successful. Contact KIWITECH if you are sure you have paid",
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        paymentMessage = "Payment not successful. Try again later",
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-            }
-        }
-    }
-
     fun resetPaymentStatus() {
         _uiState.update {
             it.copy(
                 loadingStatus = LoadingStatus.INITIAL
             )
+        }
+    }
+
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    dbRepository.getUserPreferences().collect { preferences ->
+                        _uiState.update {
+                            it.copy(
+                                preferences = preferences ?: userPreferences
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+
+                }
+            }
         }
     }
 
@@ -451,5 +395,6 @@ class SubscriptionScreenViewModel(
 
     init {
         getUserDetails()
+        getUserPreferences()
     }
 }

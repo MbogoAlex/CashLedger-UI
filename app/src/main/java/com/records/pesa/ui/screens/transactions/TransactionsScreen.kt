@@ -15,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
@@ -48,6 +46,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -328,7 +327,7 @@ fun TransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionsScreen(
-            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
+            premium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0179189199",
             transactions = uiState.transactions,
             groupedTransactionItems = uiState.groupedTransactionItems,
             moneyOutsortedTransactionItems = uiState.moneyOutSorted,
@@ -473,20 +472,6 @@ fun TransactionsScreen(
     ) {
         Scaffold(
             backgroundColor = MaterialTheme.colorScheme.background,
-//            floatingActionButton = {
-//                Button(
-//                    onClick = { /*TODO*/ },
-//                    modifier = Modifier
-//                ) {
-//                    Row(
-//                        verticalAlignment = Alignment.CenterVertically
-//                    ) {
-//                        Text(text = "Statement")
-//                        Icon(painter = painterResource(id = R.drawable.download), contentDescription = null)
-//                    }
-//
-//                }
-//            },
             modifier = Modifier
                 .weight(1f)
         ) {
@@ -1287,7 +1272,7 @@ fun DateRangePicker(
         ) {
             IconButton(onClick = { showDatePicker(true) }) {
                 Icon(
-                    tint = Color(0xFF405189),
+                    tint = MaterialTheme.colorScheme.surfaceTint,
                     painter = painterResource(id = R.drawable.calendar),
                     contentDescription = null,
                     modifier = Modifier
@@ -1309,7 +1294,7 @@ fun DateRangePicker(
             )
             IconButton(onClick = { showDatePicker(false) }) {
                 Icon(
-                    tint = Color(0xFF405189),
+                    tint = MaterialTheme.colorScheme.surfaceTint,
                     painter = painterResource(id = R.drawable.calendar),
                     contentDescription = null,
                     modifier = Modifier

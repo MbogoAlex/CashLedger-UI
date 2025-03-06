@@ -5,19 +5,24 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.workers.WorkersRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class HomeScreenUiState(
     val darkMode: Boolean = false,
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val freeTrialDays: Int = 0,
     val screen: String? = null,
     val user: UserDetails = UserDetails()
@@ -79,6 +84,24 @@ class HomeScreenViewModel(
         }
     }
 
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    dbRepository.getUserPreferences().collect { preferences ->
+                        _uiState.update {
+                            it.copy(
+                                preferences = preferences ?: userPreferences
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+
+                }
+            }
+        }
+    }
+
     fun resetNavigationScreen() {
         _uiState.update {
             it.copy(
@@ -89,6 +112,7 @@ class HomeScreenViewModel(
 
     init {
         getUserDetails()
+        getUserPreferences()
         _uiState.update {
             it.copy(
                 screen = screen

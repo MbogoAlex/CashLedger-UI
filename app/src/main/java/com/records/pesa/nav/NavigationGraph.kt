@@ -629,7 +629,8 @@ fun NavigationGraph(
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
-                }
+                },
+                navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) },
             )
         }
         composable(BudgetCreationScreenDestination.route) {
