@@ -9,6 +9,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.MessageData
 import com.records.pesa.models.SmsMessage
@@ -31,6 +33,7 @@ import java.util.Date
 import java.util.Locale
 
 data class SmsFetchScreenUiState(
+    val preferences: UserPreferences = userPreferences,
     val messagesSize: Float = 0.0f,
     val messagesSent: Float = 0.0f,
     val existingTransactionCodes: List<String> = emptyList(),

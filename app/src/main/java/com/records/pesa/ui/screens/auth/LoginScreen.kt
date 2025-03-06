@@ -90,7 +90,15 @@ fun LoginScreenComposable(
     
     if(uiState.loginStatus == LoginStatus.SUCCESS) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-        navigateToBackupRestoreScreen()
+        if(uiState.preferences.restoredData) {
+            if(uiState.transactions.isEmpty()) {
+                navigateToBackupRestoreScreen()
+            } else {
+                navigateToSmsFetchScreen()
+            }
+        } else {
+            navigateToBackupRestoreScreen()
+        }
         viewModel.resetLoginStatus()
     } else if(uiState.loginStatus == LoginStatus.FAIL) {
         Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()

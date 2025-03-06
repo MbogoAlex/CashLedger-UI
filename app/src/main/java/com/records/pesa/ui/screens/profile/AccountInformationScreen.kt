@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
+import com.records.pesa.R
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
@@ -60,6 +62,7 @@ import kotlinx.coroutines.launch
 fun AccountInformationScreenComposable(
     navigateToHomeScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToLoginScreen: () -> Unit,
     navigateToBackupScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -165,6 +168,8 @@ fun AccountInformationScreenComposable(
 
     if(showLogoutDialog) {
         LogoutDialog(
+            clearLoginDetails = uiState.clearLoginDetails,
+            onClearLoginDetails = viewModel::updateClearLoginDetails,
             navigateToBackupScreen = navigateToBackupScreen,
             onConfirm = {
                 logoutLoading = true
@@ -176,10 +181,17 @@ fun AccountInformationScreenComposable(
                     delay(2000)
                     logoutLoading = !logoutLoading
                     Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
-                    try {
-                        navigateToLoginScreenWithArgs(phoneNumber, password)
-                    } catch (e: Exception) {
-                        Log.e("failedToLogout", e.toString())
+                    if(uiState.clearLoginDetails) {
+                        while(uiState.userDetails.phoneNumber.isNotEmpty() || uiState.userDetails.password.isNotEmpty()) {
+                            delay(1000)
+                        }
+                        navigateToLoginScreen()
+                    } else {
+                        try {
+                            navigateToLoginScreenWithArgs(phoneNumber, password)
+                        } catch (e: Exception) {
+                            Log.e("failedToLogout", e.toString())
+                        }
                     }
                 }
             },
@@ -463,6 +475,8 @@ fun EditDialog(
 
 @Composable
 fun LogoutDialog(
+    clearLoginDetails: Boolean,
+    onClearLoginDetails: () -> Unit,
     navigateToBackupScreen: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -477,11 +491,58 @@ fun LogoutDialog(
             )
         },
         text = {
-            Text(
-                text = "Are you sure you want to log out?",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 14.0).sp
-            )
+            Column {
+                Text(
+                    text = "Are you sure you want to log out?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = screenFontSize(x = 14.0).sp
+                )
+
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                if(clearLoginDetails) {
+                    Text(
+                        text = "Your login details will be cleared",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                } else {
+                    Text(
+                        text = "Your login details will be retained",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+//                    modifier = Modifier
+//                        .padding(screenWidth(x = 10.0))
+                ) {
+                    if(clearLoginDetails) {
+                        IconButton(onClick = onClearLoginDetails) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.check_box_filled),
+                                contentDescription = "Clear login details: true",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onClearLoginDetails) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.check_box_blank),
+                                contentDescription = "Clear login details: false",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
+                    }
+//                    Spacer(modifier = Modifier.width(screenWidth(x = 4.0)))
+                    Text(
+                        text = "Clear your login details",
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         },
         onDismissRequest = onDismiss,
         dismissButton = {

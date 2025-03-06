@@ -16,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
@@ -32,9 +31,10 @@ object SplashScreenDestination: AppNavigation {
 }
 @Composable
 fun SplashScreenComposable(
-    navigateToSmsFetchScreen: () -> Unit,
     navigateToRegistrationScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToLoginScreen: () -> Unit,
+    navigateToSmsFetchScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -43,17 +43,21 @@ fun SplashScreenComposable(
 
     LaunchedEffect(Unit) {
         delay(2000L)
-        while(uiState.paymentStatus == null && uiState.appLaunchStatus.user_id != null) {
+        while(uiState.preferences == null) {
             delay(1000)
         }
-        if(uiState.appLaunchStatus.user_id != null && uiState.userDetails != null) {
-            if(!uiState.userDetails!!.supabaseLogin) {
-                navigateToLoginScreenWithArgs(uiState.userDetails!!.phoneNumber, uiState.userDetails!!.password)
-            } else {
-                navigateToSmsFetchScreen()
-            }
+        if(uiState.preferences!!.loggedIn) {
+            navigateToSmsFetchScreen()
         } else {
-            navigateToRegistrationScreen()
+            if(uiState.userDetails.phoneNumber.isNotEmpty() && uiState.userDetails.password.isNotEmpty()) {
+                navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
+            } else {
+                if(uiState.userDetails.userId != 0) {
+                    navigateToLoginScreen()
+                } else {
+                    navigateToRegistrationScreen()
+                }
+            }
         }
 
     }

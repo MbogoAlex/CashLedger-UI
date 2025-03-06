@@ -1,6 +1,5 @@
 package com.records.pesa.ui.screens.backup
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,19 +10,16 @@ import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.payment.supabase.SupabaseCategoryKeyword
 import com.records.pesa.models.payment.supabase.SupabaseTransaction
 import com.records.pesa.models.payment.supabase.SupabaseTransactionCategory
 import com.records.pesa.models.payment.supabase.SupabaseTransactionCategoryCrossRef
-import com.records.pesa.models.payment.supabase.mapper.toCategoryKeyword
-import com.records.pesa.models.payment.supabase.mapper.toTransaction
-import com.records.pesa.models.payment.supabase.mapper.toTransactionCategory
-import com.records.pesa.models.payment.supabase.mapper.toTransactionCategoryCrossRef
 import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
-import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -40,6 +36,7 @@ import java.time.LocalTime
 
 data class BackupRestoreScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val transactions: List<SupabaseTransaction> = emptyList(),
     val categories: List<SupabaseTransactionCategory> = emptyList(),
     val categoryKeywords: List<SupabaseCategoryKeyword> = emptyList(),
@@ -227,6 +224,14 @@ class BackupRestoreScreenViewModel(
 
                     // Update restore status on completion
                     if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
+
+                        dbRepository.updateUserPreferences(
+                            userReferences = uiState.value.preferences.copy(
+                                restoredData = true,
+                                lastRestore = LocalDateTime.now()
+                            )
+                        )
+
                         _uiState.update {
                             it.copy(
                                 restoreStatus = RestoreStatus.SUCCESS
@@ -358,6 +363,20 @@ class BackupRestoreScreenViewModel(
         return crossRefs
     }
 
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUserPreferences().collect() { preferences ->
+                    _uiState.update {
+                        it.copy(
+                            preferences = preferences!!
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 
     fun resetStatus() {
         _uiState.update {
@@ -370,5 +389,6 @@ class BackupRestoreScreenViewModel(
 
     init {
         initializeData()
+        getUserPreferences()
     }
 }

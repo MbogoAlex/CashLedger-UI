@@ -83,19 +83,14 @@ class RegistrationScreenViewModel(
                         select()
                     }.decodeSingle<UserAccount>()
                     Log.d("RegistrationDetails", user.toString())
-                    dbRepository.deleteAllFromUser()
-                    dbRepository.deleteUserPreferences()
 
-                    val userPreferences = UserPreferences(
-                        loggedIn = false,
-                        darkMode = false,
-                        paid = false,
-                        permanent = false,
-                        paidAt = null,
-                        expiryDate = null,
+                    val userPreferences = dbRepository.getUserPreferences().first()
+                    dbRepository.updateUserPreferences(
+                        userPreferences!!.copy(
+                            restoredData = false,
+                            lastRestore = null
+                        )
                     )
-
-                    dbRepository.insertUserPreferences(userPreferences)
 
                     val userDetails = UserDetails(
                         userId = user.id ?: 0,

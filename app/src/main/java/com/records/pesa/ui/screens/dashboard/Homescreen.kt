@@ -124,6 +124,7 @@ fun HomeScreenComposable(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToLoginScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     onSwitchTheme: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
@@ -232,6 +233,7 @@ fun HomeScreenComposable(
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToHomeScreen = { currentTab = HomeScreenTab.HOME },
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
+            navigateToLoginScreen = navigateToLoginScreen,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
             onSwitchTheme = {
                 onSwitchTheme()
@@ -283,6 +285,7 @@ fun HomeScreen(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToLoginScreenWithArgs: (phoneNumber: String, password: String) -> Unit,
+    navigateToLoginScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
     navigateToBackupScreen: () -> Unit,
     navigateToEntityTransactionsScreen: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
@@ -558,6 +561,7 @@ fun HomeScreen(
                     AccountInformationScreenComposable(
                         navigateToHomeScreen = navigateToHomeScreen,
                         navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
+                        navigateToLoginScreen = navigateToLoginScreen,
                         navigateToBackupScreen = navigateToBackupScreen
                     )
                 }
@@ -902,6 +906,7 @@ fun HomeScreenPreview() {
             navigateToAccountInfoScreen = {},
             navigateToTransactionDetailsScreen = {},
             navigateToBackupScreen = {},
+            navigateToLoginScreen = {},
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->  }
         )
     }

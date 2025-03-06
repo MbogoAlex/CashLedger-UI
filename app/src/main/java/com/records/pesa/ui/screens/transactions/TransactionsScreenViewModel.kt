@@ -247,46 +247,6 @@ class TransactionsScreenViewModel(
                     Log.e("GetTransactionsException", e.toString())
                 }
             }
-//            try {
-//                val response = apiRepository.getTransactions(
-//                    token = uiState.value.userDetails.token,
-//                    userId = uiState.value.userDetails.userId,
-//                    entity = uiState.value.entity,
-//                    categoryId = uiState.value.categoryId,
-//                    budgetId = uiState.value.budgetId,
-//                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-//                    moneyDirection = uiState.value.moneyDirection,
-//                    latest = true,
-//                    startDate = if(uiState.value.defaultStartDate.isNullOrEmpty()) uiState.value.startDate else uiState.value.defaultStartDate,
-//                    endDate = if(uiState.value.defaultEndDate.isNullOrEmpty()) uiState.value.endDate else uiState.value.defaultEndDate
-//                )
-//                if(response.isSuccessful) {
-//                    _uiState.update {
-//                        it.copy(
-//                            transactions = response.body()?.data?.transaction?.transactions!!,
-//                            totalMoneyIn = response.body()?.data?.transaction?.totalMoneyIn!!,
-//                            totalMoneyOut = response.body()?.data?.transaction?.totalMoneyOut!!,
-//                            loadingStatus = LoadingStatus.SUCCESS
-//                        )
-//                    }
-//                } else {
-//                    _uiState.update {
-//                        it.copy(
-//                            loadingStatus = LoadingStatus.FAIL,
-//                            errorCode = response.code()
-//                        )
-//                    }
-//                    Log.e("GetTransactionsResponseError", response.toString())
-//                }
-//
-//            } catch (e: Exception) {
-//                _uiState.update {
-//                    it.copy(
-//                        loadingStatus = LoadingStatus.FAIL
-//                    )
-//                }
-//                Log.e("GetTransactionsException", e.toString())
-//            }
         }
     }
 

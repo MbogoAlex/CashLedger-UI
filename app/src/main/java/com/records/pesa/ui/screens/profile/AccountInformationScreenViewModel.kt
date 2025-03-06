@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.user.UserAccount
@@ -13,21 +15,25 @@ import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class AccountInformationScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val appLaunchStatus: AppLaunchStatus = AppLaunchStatus(),
     val firstName: String = "",
     val lastName: String = "",
     val email: String = "",
     val successMessage: String = "",
     val saveButtonEnabled: Boolean = false,
+    val clearLoginDetails: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
@@ -50,6 +56,14 @@ class AccountInformationScreenViewModel(
         _uiState.update {
             it.copy(
                 lastName = lastName
+            )
+        }
+    }
+
+    fun updateClearLoginDetails() {
+        _uiState.update {
+            it.copy(
+                clearLoginDetails = !uiState.value.clearLoginDetails
             )
         }
     }
@@ -119,42 +133,67 @@ class AccountInformationScreenViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            dbRepository.deleteUser(uiState.value.userDetails.userId)
-            dbRepository.deleteCategoryMappings()
-            dbRepository.deleteCategoryKeywords()
-            dbRepository.deleteCategories()
-            dbRepository.deleteTransactions()
-            dbRepository.resetTransactionPK()
-            dbRepository.resetCategoryMappingsPK()
-            dbRepository.resetCategoryKeywordPK()
-            dbRepository.resetCategoryPK()
-            dbRepository.updateAppLaunchStatus(
-                uiState.value.appLaunchStatus.copy(
-                    user_id = null
+
+            if(uiState.value.clearLoginDetails) {
+                dbRepository.updateUser(
+                    uiState.value.userDetails.copy(
+                        phoneNumber = "",
+                        password = ""
+                    )
                 )
-            )
+
+                dbRepository.updateUserPreferences(
+                    uiState.value.preferences.copy(
+                        loggedIn = false
+                    )
+                )
+            } else {
+                dbRepository.updateUserPreferences(
+                    uiState.value.preferences.copy(
+                        loggedIn = false
+                    )
+                )
+            }
         }
     }
 
     private fun getUserDetails() {
         viewModelScope.launch {
-            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            withContext(Dispatchers.IO) {
+                val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
 
-            val userDetails = dbRepository.getUsers().first()
-            _uiState.update {
-                it.copy(
-                    userDetails = userDetails[0],
-                    appLaunchStatus = appLaunchStatus,
-                    firstName = userDetails[0].firstName ?: "",
-                    lastName = userDetails[0].lastName ?: "",
-                    email = userDetails[0].email ?: ""
-                )
+                dbRepository.getUsers().collect {userDetails ->
+                    _uiState.update {
+                        it.copy(
+                            userDetails = userDetails[0],
+                            appLaunchStatus = appLaunchStatus,
+                            firstName = userDetails[0].firstName ?: "",
+                            lastName = userDetails[0].lastName ?: "",
+                            email = userDetails[0].email ?: ""
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUserPreferences().collect() { preferences ->
+                    _uiState.update {
+                        it.copy(
+                            preferences = preferences!!
+                        )
+                    }
+                }
             }
         }
     }
 
     init {
         getUserDetails()
+        getUserPreferences()
     }
 
 }

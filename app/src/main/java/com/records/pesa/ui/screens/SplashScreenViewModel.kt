@@ -4,14 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.db.models.UserAccount
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.payment.supabase.PaymentData
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.service.userAccount.UserAccountService
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,16 +17,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.time.delay
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 
 data class SplashScreenUiState(
     val appLaunchStatus: AppLaunchStatus = AppLaunchStatus(),
-    val userDetails: UserDetails? = null,
-    val paymentStatus: Boolean? = null,
-    val subscriptionStatus: Boolean = false
+    val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences? = userPreferences,
+    val loggedIn: Boolean = false,
+    val paid: Boolean = false,
 )
 
 class SplashScreenViewModel(
@@ -63,7 +60,6 @@ class SplashScreenViewModel(
             _uiState.update {
                 it.copy(
                     appLaunchStatus = appLaunchStatus,
-                    userDetails = user
                 )
             }
 
@@ -76,83 +72,42 @@ class SplashScreenViewModel(
             }
 
             if (uiState.value.appLaunchStatus.user_id != null) {
-                Log.d("gettingUserData", "GETTING USER DATA")
-                val userAccount = dbRepository.getUser(uiState.value.appLaunchStatus.user_id!!).first()
-                _uiState.update {
-                    it.copy(
-                        userDetails = userAccount
-                    )
-                }
-                Log.d("USER_ACCOUNT", userAccount.toString())
-                getSubscriptionStatus(userAccount)
+
             }
         }
     }
 
-
-    fun getSubscriptionStatus(userDetails: UserDetails) {
-        Log.d("subscriptionStatusCheckMessage", "getting subscription status")
+    private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                if(userDetails.permanent) {
-                    dbRepository.updateUser(
-                        userDetails.copy(
-                            paymentStatus = true,
-                        )
-                    )
+                dbRepository.getUserPreferences().collect() { preferences ->
                     _uiState.update {
                         it.copy(
-                            paymentStatus = true
+                            preferences = preferences
                         )
                     }
-                } else {
-                    if(userDetails.paidAt == null) {
-                        _uiState.update {
-                            it.copy(
-                                paymentStatus = false
-                            )
-                        }
-                    } else {
-                        val paidAt = LocalDateTime.parse(userDetails.paidAt)
-                        val expiredAt = LocalDateTime.parse(userDetails.expiredAt)
-                        if(expiredAt.isBefore(LocalDateTime.now())) {
-                            dbRepository.updateUser(
-                                userDetails.copy(
-                                    paymentStatus = false,
-                                    darkThemeSet = false
-                                )
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    paymentStatus = false,
-                                )
-                            }
-                        } else if(expiredAt.isAfter(LocalDateTime.now())) {
-                            dbRepository.updateUser(
-                                userDetails.copy(
-                                    paymentStatus = true,
-                                )
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    paymentStatus = false
-                                )
-                            }
-                        }
+                }
+            }
+        }
+    }
+
+    fun getUserDetails() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUsers().collect(){userDetails->
+                    _uiState.update {
+                        it.copy(
+                            userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
+                        )
                     }
                 }
-
-                _uiState.update {
-                    it.copy(
-                        paymentStatus = false
-                    )
-                }
-
             }
         }
     }
 
     init {
         getAppLaunchState()
+        getUserPreferences()
+        getUserDetails()
     }
 }

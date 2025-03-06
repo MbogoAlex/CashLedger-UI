@@ -89,7 +89,7 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUserAccount(userAccount: UserAccount): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertUserPreferences(userReferences: UserPreferences)
 
     @Update

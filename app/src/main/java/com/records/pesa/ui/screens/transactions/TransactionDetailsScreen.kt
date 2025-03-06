@@ -731,7 +731,7 @@ fun DeleteTransactionDialog(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "Delete all intances of this transaction",
+                        text = "Delete all instances of this transaction",
                         fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -739,7 +739,7 @@ fun DeleteTransactionDialog(
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                 if(deleteAllInstanceOffThisTransaction) {
                     Text(
-                        text = "Existing transactions with the same entity will also be deleted",
+                        text = "Existing transactions with the same entity name will also be deleted",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))

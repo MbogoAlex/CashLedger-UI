@@ -69,6 +69,9 @@ fun NavigationGraph(
                 },
                 navigateToLoginScreenWithArgs = {phoneNumber, password ->
                     navController.navigate("${LoginScreenDestination.route}/${phoneNumber}/${password}")
+                },
+                navigateToLoginScreen = {
+                    navController.navigate(LoginScreenDestination.route)
                 }
             )
         }
@@ -238,6 +241,9 @@ fun NavigationGraph(
                 },
                 navigateToTransactionsScreenWithTransactionType = {comment, transactionType, moneyDirection, startDate, endDate ->
                     navController.navigate("${TransactionsScreenDestination.route}/${comment}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
+                },
+                navigateToLoginScreen = {
+                    navController.navigate(LoginScreenDestination.route)
                 }
             )
         }
@@ -297,6 +303,9 @@ fun NavigationGraph(
                 },
                 navigateToTransactionsScreenWithTransactionType = {comment, transactionType, moneyDirection, startDate, endDate ->
                     navController.navigate("${TransactionsScreenDestination.route}/${comment}/${transactionType}/${moneyDirection}/${startDate}/${endDate}")
+                },
+                navigateToLoginScreen = {
+                    navController.navigate(LoginScreenDestination.route)
                 }
             )
         }
