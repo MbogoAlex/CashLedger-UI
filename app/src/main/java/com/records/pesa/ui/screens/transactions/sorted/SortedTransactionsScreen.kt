@@ -699,7 +699,7 @@ fun SubscriptionDialog(
                         .padding(10.dp)
                 ) {
                     Text(
-                        text = "Ksh50.0 premium monthly fee",
+                        text = "Ksh100.0 premium monthly fee",
                         fontSize = screenFontSize(x = 14.0).sp,
                         fontWeight = FontWeight.Bold,
                         textDecoration = TextDecoration.Underline

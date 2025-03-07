@@ -169,7 +169,6 @@ fun ContactFormScreen(
         }, modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Send Email",
-                modifier = Modifier.padding(screenWidth(x = 10.0)),
                 fontSize = screenFontSize(x = 14.0).sp
             )
         }
