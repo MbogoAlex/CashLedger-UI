@@ -127,7 +127,7 @@ fun BackupScreenComposable(
         BackupScreen(
             backupSet = uiState.userDetails.backupSet,
             lastBackup = uiState.userDetails.lastBackup,
-            paymentStatus = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
+            paymentStatus = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0888888888",
             transactionsNotBackedUp = uiState.itemsNotBackedUp,
             onBackup = {
                 viewModel.backup(context = context)

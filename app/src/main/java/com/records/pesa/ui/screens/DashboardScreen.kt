@@ -102,7 +102,7 @@ fun DashboardScreenComposable(
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val appVersion = 137.0
+    val appVersion = 138.0
 
     if (uiState.appVersion.isNotNull() && appVersion != uiState.appVersion) {
         LaunchedEffect(Unit) {
@@ -174,7 +174,7 @@ fun DashboardScreenComposable(
             .safeDrawingPadding()
     ) {
         DashboardScreen(
-            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
+            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0888888888",
             totalInToday = formatMoneyValue(uiState.todayTotalIn),
             totalOutToday = formatMoneyValue(uiState.todayTotalOut),
             monthlyTotalIn = formatMoneyValue(uiState.monthlyInTotal),

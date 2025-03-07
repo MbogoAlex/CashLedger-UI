@@ -287,7 +287,8 @@ fun AccountInformationScreen(
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
 
         Column(
-            modifier = Modifier
+            modifier = if(phoneNumber == "0888888888") modifier
+                 else Modifier
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
@@ -403,7 +404,7 @@ fun AccountInformationScreen(
                     )
                 }
             }
-            if(phoneNumber != "0179189199") {
+            if(phoneNumber != "0888888888") {
                 Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
                 Column {
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
@@ -700,7 +701,7 @@ fun AccountInformationScreenPreview() {
             onEditEmail = { /*TODO*/ },
             firstName = "",
             lastName = "",
-            phoneNumber = "",
+            phoneNumber = "0888888888",
             email = "",
             logoutLoading = false,
             onLogout = {},

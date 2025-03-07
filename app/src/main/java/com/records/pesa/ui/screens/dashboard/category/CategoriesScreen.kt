@@ -233,7 +233,7 @@ fun CategoriesScreenComposable(
         CategoriesScreen(
             pullRefreshState = pullRefreshState,
             loadingStatus = uiState.loadingStatus,
-            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0179189199",
+            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0888888888",
             searchQuery = uiState.name,
             startDate = LocalDate.parse(uiState.startDate),
             endDate = LocalDate.parse(uiState.endDate),

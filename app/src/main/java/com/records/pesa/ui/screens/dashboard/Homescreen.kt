@@ -242,7 +242,7 @@ fun HomeScreenComposable(
                     delay(1000)
                     drawerState.close()
                 }
-                if (uiState.preferences.paid || uiState.userDetails.phoneNumber == "0179189199") {
+                if (uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888") {
                     Toast.makeText(context, "Theme switched", Toast.LENGTH_SHORT).show()
                 } else {
                     showSubscribeDialog = true
