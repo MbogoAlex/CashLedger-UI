@@ -11,16 +11,11 @@ import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.payment.supabase.PaymentData
 import com.records.pesa.models.transaction.TransactionItem
-import com.records.pesa.models.user.UserLoginPayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
-import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.workers.WorkersRepository
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +28,6 @@ import kotlinx.coroutines.withContext
 import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDate
 import java.time.LocalDateTime
-import kotlin.math.absoluteValue
 
 data class LoginScreenUiState(
     val phoneNumber: String = "",
@@ -84,35 +78,31 @@ class LoginScreenViewModel(
                 loginStatus = LoginStatus.LOADING
             )
         }
-        val loginPayload = UserLoginPayload(
-            phoneNumber = uiState.value.phoneNumber,
-            password = uiState.value.password
-        )
+
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
 
                 var userPreferences = dbRepository.getUserPreferences().first()
 
-
                 try {
-                    val user = client.postgrest["userAccount"]
-                        .select {
-                            filter {
-                                eq("phoneNumber", loginPayload.phoneNumber)
-                            }
-                        }.decodeSingle<com.records.pesa.models.user.UserAccount>()
 
-                    if(user.isNotNull()) {
-                        if(BCrypt.checkpw(uiState.value.password, user.password)) {
+                    val response = apiRepository.getUserByPhoneNumber(uiState.value.phoneNumber)
+
+                    if(response.isSuccessful) {
+
+                        if(BCrypt.checkpw(uiState.value.password, response.body()?.data?.password)) {
+
+                            val user = response.body()?.data!!
+
                             var userAccount = try {
-                                userAccountService.getUserAccount(user.id!!).first()
+                                userAccountService.getUserAccount(user.id.toInt()).first()
                             } catch (e: Exception) {
                                 null
                             }
 
                             if(userAccount == null) {
                                 userAccount = UserAccount(
-                                    id = user.id ?: 0,
+                                    id = user.id!!.toInt(),
                                     fname = user.fname,
                                     lname = user.lname,
                                     email = user.email,
@@ -126,7 +116,7 @@ class LoginScreenViewModel(
                             } else {
                                 userAccountService.updateUserAccount(
                                     userAccount.copy(
-                                        id = user.id ?: 0,
+                                        id = user.id!!.toInt(),
                                         fname = user.fname,
                                         lname = user.lname,
                                         email = user.email,
@@ -140,7 +130,7 @@ class LoginScreenViewModel(
                             }
 
                             var userDetails = try {
-                                dbRepository.getUser(user.id!!).first()
+                                dbRepository.getUser(user.id.toInt()).first()
                             } catch (e: Exception) {
                                 Log.e("gettingUser", e.toString())
                                 null
@@ -148,7 +138,7 @@ class LoginScreenViewModel(
 
                             if(userDetails == null) {
                                 userDetails = UserDetails(
-                                    userId = user.id ?: 0,
+                                    userId = user.id.toInt(),
                                     firstName = user.fname,
                                     lastName = user.lname,
                                     email = user.email,
@@ -160,16 +150,16 @@ class LoginScreenViewModel(
                                     supabaseLogin = true,
                                     backupSet = user.backupSet,
                                     lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup) else null,
-                                    backedUpItemsSize = user.backedUpItemsSize,
-                                    transactions = user.transactions,
-                                    categories = user.categories,
-                                    categoryKeywords = user.categoryKeywords,
-                                    categoryMappings = user.categoryMappings
+                                    backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
+                                    transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
+                                    categories = if(user.categories == null) 0 else user.categories.toInt(),
+                                    categoryKeywords = if(user.categoryKeywords == null) 0 else user.categoryKeywords.toInt(),
+                                    categoryMappings = if(user.categoryMappings == null) 0 else user.categoryMappings.toInt()
                                 )
                                 dbRepository.insertUser(userDetails)
                             } else {
                                 userDetails = userDetails.copy(
-                                    userId = user.id ?: 0,
+                                    userId = user.id.toInt(),
                                     firstName = user.fname,
                                     lastName = user.lname,
                                     email = user.email,
@@ -181,11 +171,11 @@ class LoginScreenViewModel(
                                     supabaseLogin = true,
                                     backupSet = user.backupSet,
                                     lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup) else null,
-                                    backedUpItemsSize = user.backedUpItemsSize,
-                                    transactions = user.transactions,
-                                    categories = user.categories,
-                                    categoryKeywords = user.categoryKeywords,
-                                    categoryMappings = user.categoryMappings
+                                    backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
+                                    transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
+                                    categories = if(user.categories == null) 0 else user.categories.toInt(),
+                                    categoryKeywords = if(user.categoryKeywords == null) 0 else user.categoryKeywords.toInt(),
+                                    categoryMappings = if(user.categoryMappings == null) 0 else user.categoryMappings.toInt()
                                 )
                                 Log.d("updatingUser", userDetails.toString())
                                 dbRepository.updateUser(userDetails)
@@ -194,7 +184,7 @@ class LoginScreenViewModel(
                             val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
                             dbRepository.updateAppLaunchStatus(
                                 appLaunchStatus.copy(
-                                    user_id = user.id ?: 0
+                                    user_id = user.id.toInt()
                                 )
                             )
                             dbRepository.insertUser(userDetails)
@@ -206,71 +196,83 @@ class LoginScreenViewModel(
 
                             while (users.isEmpty() || userDetails!!.phoneNumber.isEmpty() || userDetails.password.isEmpty()) {
                                 delay(1000)
-                                userDetails = dbRepository.getUser(userId = user.id!!).first()
+                                userDetails = dbRepository.getUser(userId = user.id.toInt()).first()
                                 users = dbRepository.getUsers().first()
                             }
 
                             val userData = dbRepository.getUser(userId = userAccount.id).first()
-                            val payments = client.postgrest["payment"]
-                                .select {
-                                    filter{
-                                        eq("userId", userAccount.id)
-                                    }
-                                }.decodeList<PaymentData>()
+
+                            val paymentsResponse = apiRepository.getUserPayments(user.id)
+
+                            val payments = paymentsResponse.body()?.data!!
+
 
                             if(user.permanent) {
                                 val sortedPayments = payments.sortedByDescending {
-                                    it.id
+                                    it.paidAt?.let { date -> LocalDateTime.parse(date) } ?: LocalDateTime.MIN
                                 }
+
+                                val latestPayment = sortedPayments.firstOrNull()
+
                                 userPreferences = userPreferences.copy(
                                     paid = true,
                                     permanent = true,
-                                    paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
-                                    expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                    paidAt = latestPayment?.paidAt?.let { LocalDateTime.parse(it) } ?: LocalDateTime.MIN,
+                                    expiryDate = latestPayment?.expiredAt?.let { LocalDateTime.parse(it) } ?: LocalDateTime.MIN
                                 )
+
                                 dbRepository.updateUser(
                                     userData.copy(
                                         paymentStatus = true,
                                     )
                                 )
+
                             } else if(payments.isNotEmpty()) {
                                 val sortedPayments = payments.sortedByDescending {
-                                    it.id
+                                    it.paidAt?.let { date -> LocalDateTime.parse(date) } ?: LocalDateTime.MIN
                                 }
+
                                 Log.d("sortedPayments", sortedPayments.toString())
-                                val payment = sortedPayments.first()
-                                val paidAt = if(payment.paidAt != null) LocalDateTime.parse(payment.paidAt) else null
-                                val expiredAt = if(payment.expiredAt != null) LocalDateTime.parse(payment.expiredAt) else LocalDateTime.parse(payment.freeTrialEndedOn)
-                                if(expiredAt!!.isBefore(LocalDateTime.now())) {
-                                    Log.d("paymentStatus", expiredAt!!.isBefore(LocalDateTime.now()).toString())
+
+                                val payment = sortedPayments.firstOrNull()
+
+                                val paidAt = payment?.paidAt?.let { LocalDateTime.parse(it) }
+                                val expiredAt = payment?.expiredAt?.let { LocalDateTime.parse(it) }
+                                    ?: payment?.freeTrialEndedOn?.let { LocalDateTime.parse(it) }
+                                    ?: LocalDateTime.MIN  // Fallback if both are null
+
+                                if (expiredAt.isBefore(LocalDateTime.now())) {
+                                    Log.d("paymentStatus", expiredAt.isBefore(LocalDateTime.now()).toString())
+
                                     dbRepository.updateUser(
                                         userData.copy(
                                             paymentStatus = false,
-                                            paidAt = payment.paidAt,
-                                            expiredAt = payment.expiredAt
+                                            paidAt = payment?.paidAt,
+                                            expiredAt = payment?.expiredAt
                                         )
                                     )
 
                                     userPreferences = userPreferences.copy(
                                         paid = false,
-                                        paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
-                                        expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                        paidAt = paidAt ?: LocalDateTime.MIN,
+                                        expiryDate = expiredAt
                                     )
-
                                 } else {
                                     userPreferences = userPreferences.copy(
                                         paid = true,
-                                        paidAt = LocalDateTime.parse(sortedPayments[0].paidAt),
-                                        expiryDate = LocalDateTime.parse(sortedPayments[0].expiredAt)
+                                        paidAt = paidAt ?: LocalDateTime.MIN,
+                                        expiryDate = expiredAt
                                     )
+
                                     dbRepository.updateUser(
                                         userData.copy(
                                             paymentStatus = true,
-                                            paidAt = payment.paidAt,
-                                            expiredAt = payment.expiredAt
+                                            paidAt = payment?.paidAt,
+                                            expiredAt = payment?.expiredAt
                                         )
                                     )
                                 }
+
                             } else {
                                 dbRepository.updateUser(
                                     userData.copy(
@@ -284,12 +286,13 @@ class LoginScreenViewModel(
                             if(users.isNotEmpty()) {
                                 _uiState.update {
                                     it.copy(
-                                        userDetails = dbRepository.getUser(userId = user.id!!).first(),
+                                        userDetails = dbRepository.getUser(userId = user.id.toInt()).first(),
                                         loginStatus = LoginStatus.SUCCESS,
                                         loginMessage = "Logged in successfully"
                                     )
                                 }
                             }
+
                         } else {
                             _uiState.update {
                                 it.copy(
@@ -298,14 +301,23 @@ class LoginScreenViewModel(
                                 )
                             }
                         }
+
                     } else {
+                        if(response.code() == 404) {
+                            _uiState.update {
+                                it.copy(
+                                    loginMessage = "Invalid credentials"
+                                )
+                            }
+                        }
+
                         _uiState.update {
                             it.copy(
-                                loginStatus = LoginStatus.FAIL,
-                                loginMessage = "Invalid credentials"
+                                loginStatus = LoginStatus.FAIL
                             )
                         }
                     }
+
                 } catch (e: Exception) {
                     Log.e("UserLoginException", e.toString())
                     _uiState.update {

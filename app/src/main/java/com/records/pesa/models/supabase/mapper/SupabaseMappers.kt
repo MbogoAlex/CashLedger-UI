@@ -1,13 +1,13 @@
-package com.records.pesa.models.payment.supabase.mapper
+package com.records.pesa.models.supabase.mapper
 
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
-import com.records.pesa.models.payment.supabase.SupabaseCategoryKeyword
-import com.records.pesa.models.payment.supabase.SupabaseTransaction
-import com.records.pesa.models.payment.supabase.SupabaseTransactionCategory
-import com.records.pesa.models.payment.supabase.SupabaseTransactionCategoryCrossRef
+import com.records.pesa.models.supabase.SupabaseCategoryKeyword
+import com.records.pesa.models.supabase.SupabaseTransaction
+import com.records.pesa.models.supabase.SupabaseTransactionCategory
+import com.records.pesa.models.supabase.SupabaseTransactionCategoryCrossRef
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime

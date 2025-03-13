@@ -13,11 +13,12 @@ import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.payment.supabase.SupabaseCategoryKeyword
-import com.records.pesa.models.payment.supabase.SupabaseTransaction
-import com.records.pesa.models.payment.supabase.SupabaseTransactionCategory
-import com.records.pesa.models.payment.supabase.SupabaseTransactionCategoryCrossRef
-import com.records.pesa.network.SupabaseClient.client
+import com.records.pesa.models.supabase.SupabaseCategoryKeyword
+import com.records.pesa.models.supabase.SupabaseTransaction
+import com.records.pesa.models.supabase.SupabaseTransactionCategory
+import com.records.pesa.models.supabase.SupabaseTransactionCategoryCrossRef
+import com.records.pesa.network.ApiRepository
+
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import io.github.jan.supabase.storage.storage
@@ -56,6 +57,7 @@ data class BackupRestoreScreenUiState(
 )
 
 class BackupRestoreScreenViewModel(
+    private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
     private val categoryService: CategoryService,
@@ -99,8 +101,7 @@ class BackupRestoreScreenViewModel(
             withContext(Dispatchers.IO) {
                 try {
                     val userId = uiState.value.userDetails.userId
-                    val bucketName = "cashLedgerBackup"
-                    val bucket = client.storage[bucketName]
+
 
                     // Download CSV files from Supabase
 
@@ -117,37 +118,39 @@ class BackupRestoreScreenViewModel(
                     var deletedTransactions = emptyList<DeletedTransaction>()
 
                     try {
-                        existingTransactionsCsv = bucket.downloadPublic("${userId}_transactions.csv")
-                        transactions = parseTransactionsCsv(existingTransactionsCsv)
+                        existingTransactionsCsv = apiRepository.getFile("${userId}_transactions.csv").body()?.bytes()
+
+                        transactions = parseTransactionsCsv(existingTransactionsCsv!!)
                     } catch (e: Exception) {
                         Log.e("FileNotFound", "Transactions CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoriesCsv = bucket.downloadPublic("${userId}_categories.csv")
-                        categories = parseTransactionCategoriesCsv(existingCategoriesCsv)
+                        existingCategoriesCsv = apiRepository.getFile("${userId}_categories.csv").body()?.bytes()
+                        categories = parseTransactionCategoriesCsv(existingCategoriesCsv!!)
                         Log.d("found_categories", categories.toString())
                     } catch (e: Exception) {
                         Log.e("FileNotFound", "Categories CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoryKeywordsCsv = bucket.downloadPublic("${userId}_categoryKeywords.csv")
-                        categoryKeywords = parseCategoryKeywordsCsv(existingCategoryKeywordsCsv)
+                        existingCategoryKeywordsCsv = apiRepository.getFile("${userId}_categoryKeywords.csv").body()?.bytes()
+
+                        categoryKeywords = parseCategoryKeywordsCsv(existingCategoryKeywordsCsv!!)
                     } catch (e: Exception) {
                         Log.e("FileNotFound", "Category Keywords CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoryMappingsCsv = bucket.downloadPublic("${userId}_transactionCategoryCrossRef.csv")
-                        categoryMappings = parseTransactionCategoryCrossRefCsv(existingCategoryMappingsCsv)
+                        existingCategoryMappingsCsv = apiRepository.getFile("${userId}_transactionCategoryCrossRef.csv").body()?.bytes()
+                        categoryMappings = parseTransactionCategoryCrossRefCsv(existingCategoryMappingsCsv!!)
                     } catch (e: Exception) {
                         Log.e("FileNotFound", "Category Mappings CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingDeletedTransactionsCsv = bucket.downloadPublic("${userId}_deletedTransactions.csv")
-                        deletedTransactions = parseDeletedTransactionsCsv(existingDeletedTransactionsCsv)
+                        existingDeletedTransactionsCsv = apiRepository.getFile("${userId}_deletedTransactions.csv").body()?.bytes()
+                        deletedTransactions = parseDeletedTransactionsCsv(existingDeletedTransactionsCsv!!)
                     } catch (e: Exception) {
                         Log.e("FileNotFound", "Deleted Transactions CSV not found: ${e.message}")
                     }
@@ -251,7 +254,7 @@ class BackupRestoreScreenViewModel(
         }
     }
 
-    fun parseTransactionsCsv(csvData: ByteArray): List<Transaction> {
+    private fun parseTransactionsCsv(csvData: ByteArray): List<Transaction> {
         val transactions = mutableListOf<Transaction>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()
@@ -278,7 +281,7 @@ class BackupRestoreScreenViewModel(
         return transactions
     }
 
-    fun parseTransactionCategoriesCsv(csvData: ByteArray): List<TransactionCategory> {
+    private fun parseTransactionCategoriesCsv(csvData: ByteArray): List<TransactionCategory> {
         val categories = mutableListOf<TransactionCategory>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()
@@ -310,7 +313,7 @@ class BackupRestoreScreenViewModel(
         return categories
     }
 
-    fun parseDeletedTransactionsCsv(csvData: ByteArray): List<DeletedTransaction> {
+    private fun parseDeletedTransactionsCsv(csvData: ByteArray): List<DeletedTransaction> {
         val deletedTransactions = mutableListOf<DeletedTransaction>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()
@@ -326,7 +329,7 @@ class BackupRestoreScreenViewModel(
     }
 
 
-    fun parseCategoryKeywordsCsv(csvData: ByteArray): List<CategoryKeyword> {
+    private fun parseCategoryKeywordsCsv(csvData: ByteArray): List<CategoryKeyword> {
         val keywords = mutableListOf<CategoryKeyword>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()
@@ -343,7 +346,7 @@ class BackupRestoreScreenViewModel(
         return keywords
     }
 
-    fun parseTransactionCategoryCrossRefCsv(csvData: ByteArray): List<TransactionCategoryCrossRef> {
+    private fun parseTransactionCategoryCrossRefCsv(csvData: ByteArray): List<TransactionCategoryCrossRef> {
         val crossRefs = mutableListOf<TransactionCategoryCrossRef>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()

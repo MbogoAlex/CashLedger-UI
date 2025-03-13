@@ -73,77 +73,6 @@ class BudgetCreationScreenViewModel(
         }
     }
 
-    fun  getCategories() {
-        Log.i("CATEGORY_ID:", uiState.value.categoryId.toString())
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getUserCategories(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    categoryId = uiState.value.categoryId?.toInt(),
-                    name = null,
-                    orderBy = "latest"
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            categories = response.body()?.data?.category!!
-                        )
-                    }
-                } else {
-                    Log.e("GetCategoriesResponseError", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("GetCategoriesException", e.toString())
-            }
-        }
-    }
-
-    fun createBudget() {
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.LOADING
-            )
-        }
-        val budget = BudgetEditPayLoad(
-            name = uiState.value.budgetName,
-            budgetLimit = uiState.value.budgetLimit.toDouble(),
-            limitDate = uiState.value.limitDate.toString(),
-            limitExceeded = false
-        )
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.createBudget(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    categoryId = uiState.value.selectedCategory.id,
-                    budget = budget
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            budgetId = response.body()?.data?.budget?.id!!.toString(),
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("CreateBudgetResponseError", response.toString())
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("CreateBudgetException", e.toString())
-            }
-        }
-    }
 
     fun checkIfFieldsAreFilled() {
         _uiState.update {
@@ -175,7 +104,6 @@ class BudgetCreationScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
-            getCategories()
         }
     }
 

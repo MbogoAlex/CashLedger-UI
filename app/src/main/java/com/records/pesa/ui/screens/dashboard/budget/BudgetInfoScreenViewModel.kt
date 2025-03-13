@@ -65,110 +65,6 @@ class BudgetInfoScreenViewModel(
         }
     }
 
-    fun updateBudget() {
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.LOADING
-            )
-        }
-        val budget = BudgetEditPayLoad(
-            name = uiState.value.budgetName.ifEmpty { uiState.value.budget.name!! },
-            budgetLimit = uiState.value.budgetLimit.ifEmpty { uiState.value.budget.budgetLimit.toString() }.toDouble(),
-            limitDate = uiState.value.budgetLimitDate.ifEmpty { uiState.value.budget.limitDate },
-            limitExceeded = uiState.value.budget.limitReached
-        )
-        Log.i("UPDATING_BUDGET", budget.toString())
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.updateBudget(
-                    token = uiState.value.userDetails.token,
-                    budget = budget,
-                    budgetId = uiState.value.budget.id
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("budgetUpdateErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("budgetUpdateException", e.toString())
-            }
-        }
-    }
-
-    fun deleteBudget() {
-        _uiState.update {
-            it.copy(
-                executionStatus = ExecutionStatus.LOADING
-            )
-        }
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.deleteBudget(
-                    token = uiState.value.userDetails.token,
-                    budgetId = uiState.value.budget.id
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            executionStatus = ExecutionStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            executionStatus = ExecutionStatus.FAIL
-                        )
-                    }
-                    Log.e("deleteBudgetErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        executionStatus = ExecutionStatus.FAIL
-                    )
-                }
-                Log.e("deleteBudgetErrorException", e.toString())
-            }
-        }
-    }
-
-    fun getBudget() {
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getBudget(
-                    token = uiState.value.userDetails.token,
-                    budgetId = uiState.value.budgetId!!.toInt()
-                )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            budget = response.body()?.data?.budget!!,
-                        )
-                    }
-                } else {
-                    Log.e("getBudgetErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("getBudgetException", e.toString())
-            }
-        }
-    }
-
     fun resetLoadingStatus() {
         _uiState.update {
             it.copy(
@@ -188,7 +84,6 @@ class BudgetInfoScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
-            getBudget()
         }
     }
 

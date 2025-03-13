@@ -1,10 +1,9 @@
-package com.records.pesa.models.payment.supabase
+package com.records.pesa.models.supabase.payload
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SupabaseTransaction(
-    val id: Int,
+data class SupabaseTransactionPayload(
     val transactionCode: String,
     val transactionType: String,
     val transactionAmount: Double,

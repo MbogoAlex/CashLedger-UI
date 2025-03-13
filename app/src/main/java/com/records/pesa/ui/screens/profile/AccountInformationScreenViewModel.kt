@@ -8,13 +8,9 @@ import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.user.UserAccount
-import com.records.pesa.models.user.UserRegistrationPayload
+import com.records.pesa.models.user.update.UserProfileUpdatePayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,35 +78,48 @@ class AccountInformationScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
+
+        val userProfileUpdatePayload = UserProfileUpdatePayload(
+            userId = uiState.value.userDetails.userId.toString(),
+            fname = uiState.value.firstName.ifEmpty { null },
+            lname = uiState.value.lastName.ifEmpty { null },
+            email = uiState.value.email.ifEmpty { null },
+            phoneNumber = null,
+            password = null
+        )
+
         viewModelScope.launch {
             try {
 
-                client.from("userAccount").update(
-                    {
-                        UserAccount::fname setTo uiState.value.firstName
-                        UserAccount::lname setTo uiState.value.lastName
-                        UserAccount::email setTo uiState.value.email
+                val response = apiRepository.updateUserProfile(
+                    userProfileUpdatePayload = userProfileUpdatePayload
+                )
+
+                if(response.isSuccessful) {
+                    dbRepository.updateUser(
+                        uiState.value.userDetails.copy(
+                            firstName = uiState.value.firstName.ifEmpty { uiState.value.userDetails.firstName },
+                            lastName = uiState.value.lastName.ifEmpty { uiState.value.userDetails.lastName },
+                            email = uiState.value.email.ifEmpty { uiState.value.userDetails.email }
+                        )
+                    )
+                    _uiState.update {
+                        it.copy(
+                            successMessage = "Successfully updated details",
+                            userDetails = dbRepository.getUser(uiState.value.userDetails.userId).first(),
+                            loadingStatus = LoadingStatus.SUCCESS
+                        )
                     }
-                ) {
-                    filter {
-                        UserAccount::id eq uiState.value.userDetails.userId
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            successMessage = "Failed to update details. Check your connection or try later",
+                            loadingStatus = LoadingStatus.FAIL
+                        )
                     }
                 }
 
-                dbRepository.updateUser(
-                    uiState.value.userDetails.copy(
-                        firstName = uiState.value.firstName,
-                        lastName = uiState.value.lastName,
-                        email = uiState.value.email
-                    )
-                )
-                _uiState.update {
-                    it.copy(
-                        successMessage = "Successfully updated details",
-                        userDetails = dbRepository.getUser(uiState.value.userDetails.userId).first(),
-                        loadingStatus = LoadingStatus.SUCCESS
-                    )
-                }
+
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

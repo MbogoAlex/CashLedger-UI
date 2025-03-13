@@ -15,18 +15,12 @@ import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.payment.PaymentData
-import com.records.pesa.models.payment.PaymentPayload
-import com.records.pesa.models.payment.SubscriptionPaymentStatusPayload
 import com.records.pesa.models.payment.intasend.IntasendPaymentPayload
 import com.records.pesa.models.payment.intasend.IntasendPaymentStatusPayload
-import com.records.pesa.models.user.UserAccount
+import com.records.pesa.models.payment.intasend.PaymentSavePayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.transaction.TransactionService
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -154,19 +148,21 @@ class SubscriptionScreenViewModel(
         viewModelScope.launch {
             try {
                val response = apiRepository.lipa(
-                   payload = paymentPayload
+                   paymentPayload = paymentPayload
                )
                 if(response.isSuccessful) {
                     _uiState.update {
                         it.copy(
-                            invoice_id = response.body()?.invoice?.invoice_id!!,
-                            state = response.body()?.invoice?.state!!
+                            invoice_id = response.body()?.data?.invoice?.invoice_id!!,
+                            state = response.body()?.data?.invoice?.state!!
                         )
                     }
+
                     lipaStatus()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                Log.e("paymentDetails", "exception: $e")
                 _uiState.update {
                     it.copy(
                         loadingStatus = LoadingStatus.FAIL
@@ -203,26 +199,25 @@ class SubscriptionScreenViewModel(
                     "100" -> paidAt.plusMonths(1)
                     "400" -> paidAt.plusMonths(6)
                     "700" -> paidAt.plusYears(1)
-                    "2000" -> paidAt.plusYears(1)
+                    "2000" -> paidAt.plusYears(100)
                     else -> paidAt.plusMonths(1)
                 }
 
                 val permanent = uiState.value.amount == "2000"
 
-
-                while(uiState.value.state.lowercase() != "complete" && uiState.value.state.lowercase() != "redirecting" && !uiState.value.cancelled && uiState.value.failedReason?.lowercase() != "request cancelled by user" && uiState.value.failedReason?.lowercase() != "ds timeout user cannot be reached") {
+                while(uiState.value.state.lowercase() == "starting" || uiState.value.state.lowercase() == "processing" || uiState.value.state.lowercase() == "pending") {
                     Log.d("CHECKING_STATUS, INVOICE ", uiState.value.invoice_id)
                     delay(2000)
                     try {
                         val response = apiRepository.lipaStatus(
-                            payload = lipaStatusPayload
+                            paymentStatusPayload = lipaStatusPayload
                         )
                         if(response.isSuccessful) {
                             Log.d("STATUS_CHECKED:", uiState.value.state)
                             _uiState.update {
                                 it.copy(
-                                    failedReason = response.body()?.invoice?.failed_reason,
-                                    state = response.body()?.invoice?.state ?: ""
+                                    failedReason = response.body()?.data!!.invoice.failed_reason,
+                                    state = response.body()?.data!!.invoice.state
                                 )
                             }
                         }
@@ -232,87 +227,55 @@ class SubscriptionScreenViewModel(
                 }
 
                 if(!uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
-                    _uiState.update {
-                        it.copy(
-                            state = "REDIRECTING"
-                        )
-                    }
-                    try {
-                        val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                            amount = uiState.value.amount.toDouble(),
-                            expiredAt = expiredAt.toString(),
-                            paidAt = LocalDateTime.now().toString(),
-                            month = LocalDateTime.now().month.value,
-                            userId = uiState.value.userDetails.userId,
-                        )
+                    lipaSave(
+                        permanent = permanent,
+                        paidAt = paidAt.toString(),
+                        expiredAt = expiredAt.toString(),
+                        month = paidAt.monthValue
+                    )
 
-                        client.from("payment").insert(payment)
-
-
-                        client.from("userAccount").update(
-                            {
-                                UserAccount::permanent setTo permanent
-                            }
-                        ) {
-                            filter {
-                                UserAccount::id eq uiState.value.userDetails.userId
-                            }
-                        }
-                    } catch (e: Exception) {
-                        while (!uiState.value.paymentStatusSaved) {
-                            delay(3000)
-                            try {
-                                val payment = com.records.pesa.models.payment.supabase.PaymentData(
-                                    amount = uiState.value.amount.toDouble(),
-                                    expiredAt = expiredAt.toString(),
-                                    paidAt = LocalDateTime.now().toString(),
-                                    month = LocalDateTime.now().month.value,
-                                    userId = uiState.value.userDetails.userId,
-                                )
-
-                                client.from("payment").insert(payment)
-
-
-                                client.from("userAccount").update(
-                                    {
-                                        UserAccount::permanent setTo permanent
-                                    }
-                                ) {
-                                    filter {
-                                        UserAccount::id eq uiState.value.userDetails.userId
-                                    }
-                                }
-                                _uiState.update {
-                                    it.copy(
-                                        paymentStatusSaved = true
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e("userUpdateFailure", e.toString())
-                            }
-                        }
-                        Log.e("userUpdateFailure", e.toString())
-                    }
                 }
 
-                if(uiState.value.state.lowercase().contains("fail")) {
+                if(uiState.value.state.lowercase() == "failed") {
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }
                 }
+            }
+        }
+    }
 
-                // save to local db
-                if(uiState.value.state.lowercase() == "redirecting") {
-                    withContext(Dispatchers.IO) {
+    fun lipaSave(permanent: Boolean, paidAt: String, expiredAt: String, month: Int) {
+        _uiState.update {
+            it.copy(
+                state = "SAVING"
+            )
+        }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val paymentSavePayload = PaymentSavePayload(
+                        userId = uiState.value.userDetails.userId.toString(),
+                        amount = uiState.value.amount,
+                        paidAt = paidAt,
+                        expiredAt = expiredAt,
+                        month = month,
+                        permanent = permanent
+                    )
 
+                    val response = apiRepository.savePayment(
+                        paymentSavePayload = paymentSavePayload
+                    )
+
+                    if(response.isSuccessful) {
                         dbRepository.updateUser(
                             _uiState.value.userDetails.copy(
                                 paymentStatus = true,
-                                paidAt = paidAt.toString(),
+                                paidAt = paidAt,
                                 permanent = permanent,
-                                expiredAt = expiredAt.toString()
+                                expiredAt = expiredAt
 
                             )
 
@@ -321,8 +284,8 @@ class SubscriptionScreenViewModel(
                         dbRepository.updateUserPreferences(
                             _uiState.value.preferences.copy(
                                 paid = true,
-                                paidAt = paidAt,
-                                expiryDate = expiredAt,
+                                paidAt = LocalDateTime.parse(paidAt),
+                                expiryDate = LocalDateTime.parse(expiredAt),
                                 permanent = permanent
                             )
                         )
@@ -340,16 +303,10 @@ class SubscriptionScreenViewModel(
                         }
                     }
 
-                } else if(uiState.value.failedReason?.lowercase() == "request cancelled by user" || uiState.value.failedReason?.lowercase() == "ds timeout user cannot be reached") {
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            failedReason = "Something went wrong. Contact CashLedger team if this persists",
+                            paymentMessage = "Failed to save payment",
                             loadingStatus = LoadingStatus.FAIL
                         )
                     }

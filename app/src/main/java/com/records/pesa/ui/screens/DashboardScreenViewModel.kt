@@ -226,60 +226,6 @@ class DashboardScreenViewModel(
         }
     }
 
-    fun getCurrentBalance() {
-
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getCurrentBalance(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId
-                )
-                if(response.isSuccessful) {
-                    Log.d("CUR_BALANCE", response.body()?.data?.balance.toString())
-                    _uiState.update {
-                        it.copy(
-                            currentBalance = response.body()?.data?.balance!!
-                        )
-                    }
-                } else {
-                    Log.e("BALANCE_FETCH_ERROR_RESPONSE", response.toString())
-                }
-
-            } catch (e: Exception) {
-                Log.e("BALANCE_FETCH_ERROR_EXCEPTION", e.toString())
-            }
-        }
-    }
-
-    fun getDashboardDetails() {
-        viewModelScope.launch {
-            try {
-               val response = apiRepository.getDashboardDetails(
-                   token = uiState.value.userDetails.token,
-                   userId = uiState.value.userDetails.userId,
-                   date = LocalDate.now().toString()
-               )
-               if(response.isSuccessful) {
-                   _uiState.update {
-                       it.copy(
-                           todayTotalIn = response.body()?.data?.transaction?.todayExpenditure?.totalIn!!,
-                           todayTotalOut = response.body()?.data?.transaction?.todayExpenditure?.totalOut!!,
-                           transactions = response.body()?.data?.transaction?.latestTransactions!!,
-                           categories = response.body()?.data?.transaction?.categories!!,
-                           budgetList = response.body()?.data?.transaction?.budgets!!,
-                           currentBalance = response.body()?.data?.transaction?.accountBalance!!,
-                           firstTransactionDate = formatLocalDate(LocalDate.parse(response.body()?.data?.transaction?.firstTransactionDate!!))
-                       )
-                   }
-               } else {
-                   Log.e("DASHBOARD_DETAILS_RESPONSE_ERROR", response.toString())
-               }
-            } catch (e: Exception) {
-                Log.e("DASHBOARD_DETAILS_EXCEPTION", e.toString())
-            }
-        }
-    }
-
     fun updateMonth(month: String) {
         _uiState.update {
             it.copy(
@@ -303,55 +249,6 @@ class DashboardScreenViewModel(
         filterJob = viewModelScope.launch {
             getGroupedTransactions()
 //            getGroupedByMonthTransactions()
-        }
-    }
-
-    private fun getGroupedByMonthTransactions() {
-        viewModelScope.launch {
-            try {
-               val response = apiRepository.getGroupedByMonthTransactions(
-                   token = uiState.value.userDetails.token,
-                   userId = uiState.value.userDetails.userId,
-                   entity = null,
-                   categoryId = null,
-                   budgetId = null,
-                   transactionType = null,
-                   month = uiState.value.month,
-                   year = uiState.value.year
-               )
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            monthlyTransactions = response.body()?.data?.transaction?.transactions!!,
-                            monthlyInTotal = response.body()?.data?.transaction?.totalMoneyIn!!,
-                            monthlyOutTotal = response.body()?.data?.transaction?.totalMoneyOut!!
-                        )
-                    }
-                    Log.d("groupedByMonthFetched", response.toString())
-                } else {
-                    Log.e("fetchGroupedByMonthTransactionsErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                Log.e("fetchGroupedByMonthTransactionsException", e.toString())
-            }
-        }
-    }
-
-    fun checkAppVersion() {
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.checkAppVersion()
-                if(response.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            appVersion = response.body()?.data?.version
-                        )
-                    }
-                }
-
-            } catch (e: Exception) {
-
-            }
         }
     }
 

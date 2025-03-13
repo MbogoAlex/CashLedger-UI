@@ -42,7 +42,6 @@ class BudgetListScreenViewModel(
                 searchQuery = query
             )
         }
-        getBudgets()
     }
 
     fun clearSearch() {
@@ -51,53 +50,8 @@ class BudgetListScreenViewModel(
                 searchQuery = ""
             )
         }
-        getBudgets()
     }
 
-    fun getBudgets() {
-        Log.d("TOKEN:", uiState.value.userDetails.token)
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.LOADING
-            )
-        }
-        viewModelScope.launch {
-            try {
-                val response = if(uiState.value.categoryId != null) apiRepository.getCategoryBudgets(
-                    token = uiState.value.userDetails.token,
-                    categoryId = uiState.value.categoryId!!.toInt(),
-                    name = uiState.value.searchQuery
-                ) else apiRepository.getUserBudgets(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    name = uiState.value.searchQuery
-                )
-                if(response.isSuccessful) {
-                    Log.d("getBudgetsSuccess", response.body().toString())
-                    _uiState.update {
-                        it.copy(
-                            budgetList = response.body()?.data?.budget!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("getBudgetsErrorResponse", response.toString())
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("getBudgetsException", e.toString())
-            }
-        }
-    }
 
     private fun getUserDetails() {
         viewModelScope.launch {
@@ -109,7 +63,6 @@ class BudgetListScreenViewModel(
             while (uiState.value.userDetails.userId == 0 || uiState.value.userDetails.token.isEmpty()) {
                 delay(1000)
             }
-            getBudgets()
         }
     }
 

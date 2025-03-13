@@ -1,10 +1,9 @@
-package com.records.pesa.models.payment.supabase
+package com.records.pesa.models.supabase.payload
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SupabaseCategoryKeyword(
-    val id: Int,
+data class SupabaseCategoryKeywordPayload(
     val keyword: String,
     val nickName: String?,
     val categoryId: Int,

@@ -4,14 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.user.PasswordUpdatePayload
-import com.records.pesa.models.user.UserAccount
-import com.records.pesa.models.user.UserRegistrationPayload
+import com.records.pesa.models.user.update.UserProfileUpdatePayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
 import com.records.pesa.reusables.LoadingStatus
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +15,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mindrot.jbcrypt.BCrypt
-import java.time.LocalDateTime
 
 data class UpdatePasswordScreenUiState(
     val phoneNumber: String = "",
@@ -68,30 +62,55 @@ class UpdatePasswordScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
+
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
                     val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
 
+                    val userAccountResponse = apiRepository.getUserByPhoneNumber(uiState.value.phoneNumber)
 
-                    client.from("userAccount").update(
-                        {
-                            UserAccount::password setTo hashedPassword
-                        }
-                    ) {
-                        filter {
-                            eq("phoneNumber", uiState.value.phoneNumber)
-                        }
-                    }
+                    if(userAccountResponse.isSuccessful) {
+                        val userAccount = userAccountResponse.body()?.data!!
 
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.SUCCESS,
-                            resetMessage = "Password reset successfully"
+                        val userProfileUpdatePayload = UserProfileUpdatePayload(
+                            userId = userAccount.id,
+                            fname = null,
+                            lname = null,
+                            email = null,
+                            phoneNumber = null,
+                            password = hashedPassword
                         )
+
+                        val userProfileUpdateResponse = apiRepository.updateUserProfile(userProfileUpdatePayload)
+
+                        if(userProfileUpdateResponse.isSuccessful) {
+                            _uiState.update {
+                                it.copy(
+                                    loadingStatus = LoadingStatus.SUCCESS,
+                                    resetMessage = "Password reset successfully"
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    loadingStatus = LoadingStatus.FAIL,
+                                    resetMessage = "Password reset failed. Check your internet or try later"
+                                )
+                            }
+                        }
+
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                loadingStatus = LoadingStatus.FAIL,
+                                resetMessage = "User with the phone number not found"
+                            )
+                        }
                     }
+
                 } catch (e: Exception) {
-                    Log.e("ResetPasswordException", e.message.toString())
+                    Log.e("ResetPasswordException", e.toString())
                     _uiState.update {
                         it.copy(
                             loadingStatus = LoadingStatus.FAIL,

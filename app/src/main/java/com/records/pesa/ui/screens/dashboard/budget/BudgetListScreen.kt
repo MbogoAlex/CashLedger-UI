@@ -113,9 +113,7 @@ fun BudgetListScreenComposable(
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
-        onRefresh = {
-            viewModel.getBudgets()
-        }
+        onRefresh = {}
     )
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -124,7 +122,7 @@ fun BudgetListScreenComposable(
     LaunchedEffect(lifecycleState) {
         Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
         if(lifecycleState.name.lowercase() == "started") {
-            viewModel.getBudgets()
+
         }
     }
 
@@ -149,9 +147,7 @@ fun BudgetListScreenComposable(
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
             navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
             navigateToPreviousScreen = navigateToPreviousScreen,
-            getBudgets = {
-                viewModel.getBudgets()
-            },
+            getBudgets = {},
             showBackArrow = showBackArrow
         )
     }

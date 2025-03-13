@@ -4,12 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.models.dbModel.UserDetails
-import com.records.pesa.models.user.UserAccount
+import com.records.pesa.models.user.registration.UserRegistrationPayload
 import com.records.pesa.network.ApiRepository
-import com.records.pesa.network.SupabaseClient.client
-import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,60 +66,81 @@ class RegistrationScreenViewModel(
             )
         }
         val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
-        val userAccount = UserAccount(
+
+        val userRegistrationPayload = UserRegistrationPayload(
             phoneNumber = uiState.value.phoneNumber,
             password = hashedPassword,
             month = LocalDateTime.now().monthValue,
             createdAt = LocalDateTime.now().toString(),
-            role = 0,
+            role = 0
         )
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val user = client.from("userAccount").insert(userAccount) {
-                        select()
-                    }.decodeSingle<UserAccount>()
-                    Log.d("RegistrationDetails", user.toString())
 
-                    val userPreferences = dbRepository.getUserPreferences().first()
-                    dbRepository.updateUserPreferences(
-                        userPreferences!!.copy(
-                            restoredData = false,
-                            lastRestore = null
+                    val response = apiRepository.registerUser(
+                        userRegistrationPayload = userRegistrationPayload
+                    )
+
+                    if(response.isSuccessful) {
+
+                        val userPreferences = dbRepository.getUserPreferences().first()
+                        dbRepository.updateUserPreferences(
+                            userPreferences!!.copy(
+                                restoredData = false,
+                                lastRestore = null
+                            )
                         )
-                    )
 
-                    val userDetails = UserDetails(
-                        userId = user.id ?: 0,
-                        firstName = user.fname,
-                        lastName = user.lname,
-                        email = user.email,
-                        phoneNumber = user.phoneNumber,
-                        password = uiState.value.password,
-                        token = "",
-                        paymentStatus = false
-                    )
-                    val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
-                    dbRepository.updateAppLaunchStatus(
-                        appLaunchStatus.copy(
-                            user_id = user.id ?: 0
+                        val userDetails = UserDetails(
+                            userId = response.body()?.data?.id!!.toInt(),
+                            firstName = response.body()?.data?.fname,
+                            lastName = response.body()?.data?.lname,
+                            email = response.body()?.data?.email,
+                            phoneNumber = response.body()?.data?.phoneNumber!!,
+                            password = uiState.value.password,
+                            token = "",
+                            paymentStatus = false
                         )
-                    )
-                    dbRepository.insertUser(userDetails)
-                    var users = emptyList<UserDetails>()
+                        val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+                        dbRepository.updateAppLaunchStatus(
+                            appLaunchStatus.copy(
+                                user_id = response.body()?.data?.id!!.toInt()
+                            )
+                        )
+                        dbRepository.insertUser(userDetails)
+                        var users = emptyList<UserDetails>()
 
-                    while (users.isEmpty()) {
-                        delay(1000)
-                        users = dbRepository.getUsers().first()
-                    }
-                    if(users.isNotEmpty()) {
+                        while (users.isEmpty()) {
+                            delay(1000)
+                            users = dbRepository.getUsers().first()
+                        }
+                        if(users.isNotEmpty()) {
+                            _uiState.update {
+                                it.copy(
+                                    registrationStatus = RegistrationStatus.SUCCESS,
+                                    registrationMessage = "Registration Success"
+                                )
+                            }
+                        }
+
+                    } else {
+                        if(response.code() == 400) {
+                            _uiState.update {
+                                it.copy(
+                                    registrationMessage = "User with phone number ${uiState.value.phoneNumber} already exists"
+                                )
+                            }
+                        }
+
                         _uiState.update {
                             it.copy(
-                                registrationStatus = RegistrationStatus.SUCCESS,
-                                registrationMessage = "Registration Success"
+                                registrationStatus = RegistrationStatus.FAIL,
                             )
                         }
                     }
+
+
                 } catch (e: Exception) {
                     Log.e("UserRegistrationException", e.message.toString())
                     _uiState.update {

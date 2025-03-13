@@ -119,9 +119,7 @@ fun BudgetCreationScreenComposable(
             },
             saveButtonEnabled = uiState.saveButtonEnabled,
             loadingStatus = uiState.loadingStatus,
-            onCreateBudget = {
-                viewModel.createBudget()
-            },
+            onCreateBudget = {},
             navigateToPreviousScreen = navigateToPreviousScreen
         )
     }

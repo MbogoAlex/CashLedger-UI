@@ -338,10 +338,12 @@ object AppViewModelFactory {
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             BackupRestoreScreenViewModel(
                 dbRepository = dbRepository,
                 transactionService = transactionService,
-                categoryService = categoryService
+                categoryService = categoryService,
+                apiRepository = apiRepository
             )
         }
     }

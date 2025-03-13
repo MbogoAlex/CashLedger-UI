@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
@@ -20,14 +19,14 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.mapper.toTransaction
 import com.records.pesa.mapper.toTransactionCategory
-import com.records.pesa.models.user.UserAccount
-import com.records.pesa.network.SupabaseClient.client
+import com.records.pesa.models.user.update.UserBackupDataUpdatePayload
+import com.records.pesa.network.ApiRepository
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.storage.storage
-import io.github.jan.supabase.storage.upload
 import kotlinx.coroutines.flow.first
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
 import java.io.File
@@ -58,6 +57,7 @@ class BackupWorker(
         val dbRepository = appContext.container.dbRepository
         val transactionService = appContext.container.transactionService
         val categoryService = appContext.container.categoryService
+        val apiRepository = appContext.container.apiRepository
 
         if (userId == -1) {
             return Result.failure()
@@ -76,7 +76,8 @@ class BackupWorker(
                 userId = userId,
                 transactionService = transactionService,
                 categoryService = categoryService,
-                priorityHigh = priorityHigh
+                priorityHigh = priorityHigh,
+                apiRepository = apiRepository
             )
             // Update notification to indicate completion
             updateNotification("Backup completed successfully.", true, priorityHigh)
@@ -169,7 +170,8 @@ suspend fun backup(
     dbRepository: DBRepository,
     userId: Int,
     transactionService: TransactionService,
-    categoryService: CategoryService
+    categoryService: CategoryService,
+    apiRepository: ApiRepository
 ) {
 
 
@@ -198,52 +200,71 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val user = client.postgrest["userAccount"].select {
-            filter { eq("id", userId) }
-        }.decodeSingle<UserAccount>()
-
-        val bucketName = "cashLedgerBackup"
-        val bucket = client.storage[bucketName]
-
         val totalSteps = 5 // Define the total number of tasks
         var currentStep = 0
 
+        val transactionsFileParts = mutableListOf<MultipartBody.Part>()
+        val categoriesFileParts = mutableListOf<MultipartBody.Part>()
+        val categoryKeywordsFileParts = mutableListOf<MultipartBody.Part>()
+        val categoryMappingsFileParts = mutableListOf<MultipartBody.Part>()
+        val deletedTransactionsFileParts = mutableListOf<MultipartBody.Part>()
+
         // Transactions
         val transactionsCsv = backupTransactionsToCSV(context, "${userId}_transactions.csv", transactions.map { it.toTransaction(userId) })
-        if (transactionsCsv != null) {
-            bucket.upload("${userId}_transactions.csv", transactionsCsv, true)
+        transactionsCsv?.let {
+            transactionsFileParts.add(it.toMultipartBody("file"))
         }
+
+        if(transactionsCsv != null) {
+            apiRepository.uploadFiles(transactionsFileParts)
+        }
+
         currentStep++
         worker.updateProgressNotification("Backing up transactions...", currentStep, totalSteps, priorityHigh)
 
         // Categories
         val categoriesCsv = backupCategoriesToCSV(context, "${userId}_categories.csv", categories.map { it.toTransactionCategory() })
-        if (categoriesCsv != null) {
-            bucket.upload("${userId}_categories.csv", categoriesCsv, true)
+        categoriesCsv?.let {
+            categoriesFileParts.add(it.toMultipartBody("file"))
         }
+
+        if (categoriesCsv != null) {
+            apiRepository.uploadFiles(categoriesFileParts)
+        }
+
         currentStep++
         worker.updateProgressNotification("Backing up categories...", currentStep, totalSteps, priorityHigh)
 
         // Keywords
         val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context, "${userId}_categoryKeywords.csv", categoryKeywords)
+        categoryKeywordsCsv?.let {
+            categoryKeywordsFileParts.add(it.toMultipartBody("file"))
+        }
         if (categoryKeywordsCsv != null) {
-            bucket.upload("${userId}_categoryKeywords.csv", categoryKeywordsCsv, true)
+            apiRepository.uploadFiles(categoryKeywordsFileParts)
         }
         currentStep++
         worker.updateProgressNotification("Backing up category keywords...", currentStep, totalSteps, priorityHigh)
 
         // Mappings
         val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${userId}_transactionCategoryCrossRef.csv", transactionCategoryMappings)
+        categoryMappingsCsv?.let {
+            categoryMappingsFileParts.add(it.toMultipartBody("file"))
+        }
         if (categoryMappingsCsv != null) {
-            bucket.upload("${userId}_transactionCategoryCrossRef.csv", categoryMappingsCsv, true)
+            apiRepository.uploadFiles(categoryMappingsFileParts)
         }
         currentStep++
         worker.updateProgressNotification("Backing up mappings...", currentStep, totalSteps, priorityHigh)
 
         // Deleted Transactions
         val deletedTransactionsCsv = backupDeletedTransactionsToCSV(context, "${userId}_deletedTransactions.csv", deletedTransactions)
+        deletedTransactionsCsv?.let {
+            deletedTransactionsFileParts.add(it.toMultipartBody("file"))
+        }
         if (deletedTransactionsCsv != null) {
-            bucket.upload("${userId}_deletedTransactions.csv", deletedTransactionsCsv, true)
+            apiRepository.uploadFiles(deletedTransactionsFileParts)
+
         }
         currentStep++
         worker.updateProgressNotification("Finalizing backup...", currentStep, totalSteps, priorityHigh)
@@ -252,17 +273,20 @@ suspend fun backup(
         val lastBackup = LocalDateTime.now()
         val totalItems = transactions.size + categories.size + categoryKeywords.size + transactionCategoryMappings.size
 
-        client.postgrest["userAccount"].update(user.copy(
+
+        val userBackupDataUpdatePayload = UserBackupDataUpdatePayload(
+            userId = userId.toString(),
             lastBackup = lastBackup.toString(),
-            backedUpItemsSize = totalItems,
-            backupSet = true,
-            transactions = transactions.size,
-            categories = categories.size,
-            categoryKeywords = categoryKeywords.size,
-            categoryMappings = transactionCategoryMappings.size
-        )) {
-            filter { eq("id", userId) }
-        }
+            backupItemsSize = totalItems.toString(),
+            transactions = transactions.size.toString(),
+            categories = categories.size.toString(),
+            categoryKeywords = categoryKeywords.size.toString(),
+            categoryMappings = transactionCategoryMappings.size.toString()
+        )
+
+        apiRepository.updateUserProfileBackupData(
+            userBackupDataUpdatePayload = userBackupDataUpdatePayload
+        )
 
         dbRepository.updateUser(
             user = userDetails.copy(
@@ -284,6 +308,12 @@ suspend fun backup(
         Log.e("backUpException", e.toString())
     }
 }
+
+fun File.toMultipartBody(partName: String): MultipartBody.Part {
+    val requestBody = this.asRequestBody("text/csv".toMediaTypeOrNull())
+    return MultipartBody.Part.createFormData(partName, this.name, requestBody)
+}
+
 
 
 fun getInternalStorageFile(context: Context, fileName: String): File {

@@ -1,4 +1,4 @@
-package com.records.pesa.models.payment.supabase
+package com.records.pesa.models.supabase
 
 import kotlinx.serialization.Serializable
 

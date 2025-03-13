@@ -223,51 +223,11 @@ class SmsFetchScreenViewModel(
                         messagesSent = messagesSent.toFloat()
                     )
                 }
-                postMessages(batch)
             }
             allMessagesSent.value = true
         }
     }
 
-    private fun postMessages(messages: List<SmsMessage>) {
-        Log.i("SENDING", " ${messages.size} messages")
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.postMessages(
-                    token = uiState.value.userDetails.token,
-                    messages = messages,
-                    id = uiState.value.userDetails.userId
-                )
-
-                if (response.isSuccessful) {
-                    if(allMessagesSent.value) {
-                        _uiState.update {
-                            it.copy(
-                                loadingStatus = LoadingStatus.SUCCESS
-                            )
-                        }
-                        Log.i("SUCCESS", "SUCCESS")
-                    }
-
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.FAIL
-                        )
-                    }
-                    Log.e("FAILURE_RESPONSE", response.toString())
-                }
-
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.FAIL
-                    )
-                }
-                Log.e("FAILURE_EXCEPTION", e.toString())
-            }
-        }
-    }
 
 //    fun getLatestTransactionCodes(context: Context) {
 //        Log.d("USERS_WHEN_GETTING_LATEST_CODE", uiState.value.userDetails.toString())

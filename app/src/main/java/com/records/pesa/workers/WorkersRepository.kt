@@ -33,7 +33,7 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
                 .setRequiredNetworkType(NetworkType.CONNECTED) // Allows work on any network type
                 .build()
             // Periodic work request for fetching messages
-                val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(4))
+                val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(12))
                     .setInputData(workDataOf("userId" to userId, "token" to token, "paymentStatus" to paymentStatus, "priorityHigh" to priorityHigh))
                     .setConstraints(constraints)
     //                .setInitialDelay(Duration.ofSeconds(10))

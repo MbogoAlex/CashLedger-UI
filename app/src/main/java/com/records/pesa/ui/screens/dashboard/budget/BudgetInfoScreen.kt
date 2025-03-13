@@ -97,9 +97,7 @@ fun BudgetInfoScreenComposable(
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
-        onRefresh = {
-            viewModel.getBudget()
-        }
+        onRefresh = {}
     )
 
     var showEditBudgetNameDialog by rememberSaveable {
@@ -132,7 +130,6 @@ fun BudgetInfoScreenComposable(
 
     if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
         Toast.makeText(context, "Budget updated", Toast.LENGTH_SHORT).show()
-        viewModel.getBudget()
         showEditBudgetNameDialog = false
         showEditBudgetLimitDialog = false
         showEditLimitDateDialog = false
@@ -162,9 +159,7 @@ fun BudgetInfoScreenComposable(
                 budgetName = it
                 viewModel.updateBudgetName(it)
             },
-            onConfirm = {
-                viewModel.updateBudget()
-            },
+            onConfirm = {},
             onDismiss = {
                 if(uiState.loadingStatus != LoadingStatus.LOADING) {
                     viewModel.updateBudgetName("")
@@ -185,9 +180,7 @@ fun BudgetInfoScreenComposable(
                 budgetLimit = filteredAmount
                 viewModel.updateBudgetLimit(budgetLimit)
             },
-            onConfirm = {
-                viewModel.updateBudget()
-            },
+            onConfirm = {},
             onDismiss = {
                 if(uiState.loadingStatus != LoadingStatus.LOADING) {
                     viewModel.updateBudgetLimit("")
@@ -208,9 +201,7 @@ fun BudgetInfoScreenComposable(
                 endDate = it.toString()
                 viewModel.updateLimitDate(endDate)
             },
-            onConfirm = {
-                viewModel.updateBudget()
-            },
+            onConfirm = {},
             onDismiss = {
                 if(uiState.loadingStatus != LoadingStatus.LOADING) {
                     viewModel.updateLimitDate("")
@@ -225,9 +216,7 @@ fun BudgetInfoScreenComposable(
     if(showRemoveBudgetDialog) {
         DeleteDialog(
             name = uiState.budget.name!!,
-            onConfirm = {
-                viewModel.deleteBudget()
-            },
+            onConfirm = {},
             onDismiss = {
                 if(uiState.executionStatus != ExecutionStatus.LOADING) {
                     showRemoveBudgetDialog = !showRemoveBudgetDialog

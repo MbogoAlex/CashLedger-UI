@@ -1,9 +1,10 @@
-package com.records.pesa.models.payment.supabase.payload
+package com.records.pesa.models.supabase
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SupabaseTransactionCategoryCrossRefPayload(
+data class SupabaseTransactionCategoryCrossRef(
+    val id: Int,
     val transactionId: Int,
     val categoryId: Int,
     val userId: Int

@@ -197,6 +197,8 @@ fun SubscriptionScreenComposable(
                     lipaStatusCheck = !lipaStatusCheck
                 },
                 lipaStatusCheck = lipaStatusCheck,
+                failedReason = uiState.failedReason ?: "",
+                lipaSave = viewModel::lipa,
                 loadingStatus = uiState.loadingStatus,
             )
         } else {
@@ -513,6 +515,7 @@ fun SubscriptionOptionCard(
 
 @Composable
 fun PaymentScreen(
+    failedReason: String,
     firstTransactionDate: String,
     amount: String,
     isConnected: Boolean,
@@ -524,6 +527,7 @@ fun PaymentScreen(
     lipaStatusCheck: Boolean,
     onChangeLipaStatusCheck: () -> Unit,
     lipaStatus: () -> Unit,
+    lipaSave: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     loadingStatus: LoadingStatus,
     onPay: (amount: String) -> Unit
@@ -722,7 +726,12 @@ fun PaymentScreen(
                 enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected && understood,
                 onClick = {
                     payButtonClicked = !payButtonClicked
-                    onPay(amount)
+
+                    if(failedReason == "Failed to save payment") {
+                        lipaSave()
+                    } else {
+                        onPay(amount)
+                    }
 
                 },
                 modifier = Modifier
@@ -733,7 +742,21 @@ fun PaymentScreen(
                         text = "$status...",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
-                } else {
+                } else if(loadingStatus == LoadingStatus.FAIL) {
+
+                    if(failedReason == "Failed to save payment") {
+                        Text(
+                            text = "Click to save payment",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    } else {
+                        Text(
+                            text = "Pay now",
+                            fontSize = screenFontSize(x = 14.0).sp
+                        )
+                    }
+
+                }  else {
                     Text(
                         text = "Pay now",
                         fontSize = screenFontSize(x = 14.0).sp
@@ -741,49 +764,7 @@ fun PaymentScreen(
                 }
 
             }
-            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-            if(payButtonClicked) {
-                Text(
-                    text = "Don't exit the screen or the transaction will be cancelled. You will be redirected from the screen when the transaction is complete",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-            if(lipaStatusCheck) {
-                Button(
-                    enabled = false,
-                    onClick = {
-                        onChangeLipaStatusCheck()
-                        lipaStatus()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Checking payment...",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            }
-            if(loadingStatus == LoadingStatus.FAIL) {
-                Text(
-                    text = "Already paid? ",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-                Button(
-                    enabled = loadingStatus != LoadingStatus.LOADING,
-                    onClick = {
-                        onChangeLipaStatusCheck()
-                        lipaStatus()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = "I have already paid",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            }
+
         }
 
     }
@@ -851,9 +832,10 @@ fun PaymentScreenPreview() {
             lipaStatusCheck = false,
             navigateToPreviousScreen = {},
             amount = "",
+            failedReason = "",
+            onPay = {},
+            lipaSave = {},
             loadingStatus = LoadingStatus.INITIAL
-        ) {
-            
-        }
+        )
     }
 }

@@ -56,7 +56,6 @@ class CombinedChartScreenViewModel(
                 searchText = name
             )
         }
-        getGroupedTransactions()
     }
 
     fun updateStartDate(startDate: LocalDate) {
@@ -65,7 +64,6 @@ class CombinedChartScreenViewModel(
                 startDate = startDate.toString()
             )
         }
-        getGroupedTransactions()
     }
 
     fun updateEndDate(endDate: LocalDate) {
@@ -74,7 +72,6 @@ class CombinedChartScreenViewModel(
                 startDate = endDate.toString()
             )
         }
-        getGroupedTransactions()
     }
 
     fun updateTransactionType(transactionType: String) {
@@ -104,63 +101,8 @@ class CombinedChartScreenViewModel(
             while (uiState.value.userDetails.userId == 0) {
                 delay(1000)
             }
-            getGroupedTransactions()
         }
 
-    }
-    fun getGroupedTransactions() {
-        viewModelScope.launch {
-            try {
-                val response = apiRepository.getGroupedTransactions(
-                    token = uiState.value.userDetails.token,
-                    userId = uiState.value.userDetails.userId,
-                    entity = uiState.value.searchText,
-                    categoryId = uiState.value.categoryId?.toInt(),
-                    budgetId = uiState.value.budgetId?.toInt(),
-                    transactionType = if(uiState.value.transactionType.lowercase() != "all types") uiState.value.transactionType else null,
-                    startDate = uiState.value.startDate,
-                    endDate = uiState.value.endDate
-                )
-                if(response.isSuccessful) {
-                    // Calculate the maximum value for moneyIn and moneyOut dynamically
-                    val maxAmount = response.body()?.data?.transaction?.transactions!!.maxOf { maxOf(it.moneyIn, it.moneyOut) }
-                    Log.i("MAX_VALUE", maxAmount.toString())
-
-                    // Prepare data points for moneyIn and moneyOut
-                    val moneyInPointsData: List<Point> = response.body()?.data?.transaction?.transactions!!.mapIndexed { index, transaction ->
-                        Point(index.toFloat(), transaction.moneyIn)
-                    }
-
-                    val moneyOutPointsData: List<Point> = response.body()?.data?.transaction?.transactions!!.mapIndexed { index, transaction ->
-                        Point(index.toFloat(), transaction.moneyOut)
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            moneyInPointsData = moneyInPointsData,
-                            moneyOutPointsData = moneyOutPointsData,
-                            maxAmount = maxAmount,
-                            transactions = response.body()?.data?.transaction?.transactions!!,
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            loadingStatus = LoadingStatus.SUCCESS
-                        )
-                    }
-                    Log.e("dataFetchFailResponseError", response.toString())
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        loadingStatus = LoadingStatus.SUCCESS
-                    )
-                }
-                Log.e("dataFetchFailException", e.toString())
-            }
-        }
     }
     fun getUserDetails() {
         viewModelScope.launch {
