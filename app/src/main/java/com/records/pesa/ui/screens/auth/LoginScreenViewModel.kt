@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 data class LoginScreenUiState(
     val phoneNumber: String = "",
@@ -109,7 +110,7 @@ class LoginScreenViewModel(
                                     phoneNumber = user.phoneNumber,
                                     password = uiState.value.password,
                                     createdAt = user.createdAt?.let {
-                                        LocalDateTime.parse(it)
+                                        LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                                     } ?: LocalDateTime.now(),
                                 )
                                 userAccountService.insertUserAccount(userAccount)
@@ -123,7 +124,7 @@ class LoginScreenViewModel(
                                         phoneNumber = user.phoneNumber,
                                         password = uiState.value.password,
                                         createdAt = user.createdAt?.let {
-                                            LocalDateTime.parse(it)
+                                            LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                                         } ?: LocalDateTime.now(),
                                     )
                                 )
@@ -149,7 +150,7 @@ class LoginScreenViewModel(
                                     permanent = user.permanent,
                                     supabaseLogin = true,
                                     backupSet = user.backupSet,
-                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup) else null,
+                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) else null,
                                     backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
                                     transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
                                     categories = if(user.categories == null) 0 else user.categories.toInt(),
@@ -170,7 +171,7 @@ class LoginScreenViewModel(
                                     permanent = user.permanent,
                                     supabaseLogin = true,
                                     backupSet = user.backupSet,
-                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup) else null,
+                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) else null,
                                     backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
                                     transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
                                     categories = if(user.categories == null) 0 else user.categories.toInt(),
@@ -209,7 +210,7 @@ class LoginScreenViewModel(
 
                             if(user.permanent) {
                                 val sortedPayments = payments.sortedByDescending {
-                                    it.paidAt?.let { date -> LocalDateTime.parse(date) } ?: LocalDateTime.MIN
+                                    it.paidAt?.let { date -> LocalDateTime.parse(date.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
                                 }
 
                                 val latestPayment = sortedPayments.firstOrNull()
@@ -217,8 +218,8 @@ class LoginScreenViewModel(
                                 userPreferences = userPreferences.copy(
                                     paid = true,
                                     permanent = true,
-                                    paidAt = latestPayment?.paidAt?.let { LocalDateTime.parse(it) } ?: LocalDateTime.MIN,
-                                    expiryDate = latestPayment?.expiredAt?.let { LocalDateTime.parse(it) } ?: LocalDateTime.MIN
+                                    paidAt = latestPayment?.paidAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN,
+                                    expiryDate = latestPayment?.expiredAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
                                 )
 
                                 dbRepository.updateUser(
@@ -229,16 +230,16 @@ class LoginScreenViewModel(
 
                             } else if(payments.isNotEmpty()) {
                                 val sortedPayments = payments.sortedByDescending {
-                                    it.paidAt?.let { date -> LocalDateTime.parse(date) } ?: LocalDateTime.MIN
+                                    it.paidAt?.let { date -> LocalDateTime.parse(date.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
                                 }
 
                                 Log.d("sortedPayments", sortedPayments.toString())
 
                                 val payment = sortedPayments.firstOrNull()
 
-                                val paidAt = payment?.paidAt?.let { LocalDateTime.parse(it) }
-                                val expiredAt = payment?.expiredAt?.let { LocalDateTime.parse(it) }
-                                    ?: payment?.freeTrialEndedOn?.let { LocalDateTime.parse(it) }
+                                val paidAt = payment?.paidAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
+                                val expiredAt = payment?.expiredAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
+                                    ?: payment?.freeTrialEndedOn?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
                                     ?: LocalDateTime.MIN  // Fallback if both are null
 
                                 if (expiredAt.isBefore(LocalDateTime.now())) {

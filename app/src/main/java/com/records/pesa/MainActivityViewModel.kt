@@ -33,6 +33,7 @@ class MainActivityViewModel(
     val uiState: StateFlow<MainActivityUiState> = _uiState.asStateFlow()
 
     private fun setUserPreferences() {
+        Log.d("MainActivityViewModel", "setUserPreferences called")
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
@@ -61,8 +62,8 @@ class MainActivityViewModel(
                             darkMode = userPreferences.darkMode,
                             restoredData = true,
                             lastRestore = null,
-                            paidAt = userDetails?.paidAt?.let { LocalDateTime.parse(it) },
-                            expiryDate = userDetails?.expiredAt?.let { LocalDateTime.parse(it) },
+                            paidAt = userDetails?.paidAt?.let { LocalDateTime.parse(it.replace(" ", "T")) },
+                            expiryDate = userDetails?.expiredAt?.let { LocalDateTime.parse(it.replace(" ", "T")) },
                             paid = userDetails?.paymentStatus ?: false,
                             permanent = userDetails?.permanent ?: false,
                             showBalance = userPreferences.showBalance
@@ -151,12 +152,16 @@ class MainActivityViewModel(
     fun getUserDetails() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUsers().collect(){userDetails->
-                    _uiState.update {
-                        it.copy(
-                            userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
-                        )
+                try {
+                    dbRepository.getUsers().collect(){userDetails->
+                        _uiState.update {
+                            it.copy(
+                                userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
+                            )
+                        }
                     }
+                } catch (e: Exception) {
+
                 }
             }
         }

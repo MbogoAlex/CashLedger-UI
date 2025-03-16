@@ -26,7 +26,7 @@ class AppContainerImpl(context: Context): AppContainer {
         coerceInputValues = true
     }
     //    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
-    private val baseUrl = "http://192.168.100.5:8000/api/"
+    private val baseUrl = "https://mledger-a110f0487fa8.herokuapp.com/api/"
 //      private val baseUrl = "https://example.com/"
 
 //    private val baseUrl = "https://8d1b-102-211-145-169.ngrok-free.app/api/"
