@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.TransactionItem
@@ -26,6 +28,7 @@ import kotlin.math.absoluteValue
 
 data class TransactionTypesScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val allMoneyIn: Double = 0.0,
     val allMoneyOut: Double = 0.0,
     val startDate: String = "",
@@ -572,9 +575,24 @@ class TransactionTypesScreenViewModel(
         }
     }
 
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUserPreferences().collect() { preferences ->
+                    _uiState.update {
+                        it.copy(
+                            preferences = preferences!!
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 
     init {
         getUserDetails()
+        getUserPreferences()
         initializeDate()
         viewModelScope.launch {
             while (uiState.value.userDetails.userId == 0) {

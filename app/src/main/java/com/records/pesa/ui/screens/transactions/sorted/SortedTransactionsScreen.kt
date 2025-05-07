@@ -142,7 +142,7 @@ fun SortedTransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         SortedTransactionsScreen(
-            premium = uiState.userDetails.paymentStatus,
+            premium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888" || uiState.preferences.permanent,
             pullRefreshState = pullRefreshState,
             moneyInTransactions = uiState.moneyInTransactions,
             moneyOutTransactions = uiState.moneyOutTransactions,

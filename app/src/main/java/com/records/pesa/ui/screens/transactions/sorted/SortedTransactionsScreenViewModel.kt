@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toIndividualSortedTransactionItem
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.dbModel.UserDetails
@@ -27,6 +29,7 @@ import kotlin.math.abs
 
 data class SortedTransactionsScreenUiState(
     val userDetails: UserDetails = UserDetails(),
+    val preferences: UserPreferences = userPreferences,
     val moneyInTransactions: List<IndividualSortedTransactionItem> = emptyList(),
     val moneyOutTransactions: List<IndividualSortedTransactionItem> = emptyList(),
     val startDate: String = "",
@@ -291,9 +294,24 @@ class SortedTransactionsScreenViewModel(
 
     }
 
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getUserPreferences().collect() { preferences ->
+                    _uiState.update {
+                        it.copy(
+                            preferences = preferences!!
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 
     init {
         getUserDetails()
+        getUserPreferences()
         initializeDate()
         viewModelScope.launch {
             while(uiState.value.userDetails.userId == 0){

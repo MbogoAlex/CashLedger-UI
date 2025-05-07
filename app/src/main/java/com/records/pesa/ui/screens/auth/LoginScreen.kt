@@ -80,12 +80,43 @@ fun LoginScreenComposable(
     val viewModel: LoginScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
+
+
     LaunchedEffect(Unit) {
         viewModel.buttonEnabled()
     }
     
     var showAlert by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    var showLoginFailDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if(uiState.loginStatus == LoginStatus.FAIL) {
+        showLoginFailDialog = true
+    }
+
+    if(showLoginFailDialog) {
+        AlertDialog(
+            title = {
+                Text(text = "Login failure message")
+            },
+            text = {
+                Text(text = uiState.exception)
+            },
+            onDismissRequest = { showLoginFailDialog = !showLoginFailDialog },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLoginFailDialog = !showLoginFailDialog
+                    }
+                ) {
+                    Text(text = "Dismiss")
+                }
+            }
+        )
     }
     
     if(uiState.loginStatus == LoginStatus.SUCCESS) {

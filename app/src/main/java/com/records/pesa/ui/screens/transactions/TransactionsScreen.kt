@@ -327,7 +327,7 @@ fun TransactionsScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionsScreen(
-            premium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888",
+            premium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888" || uiState.preferences.permanent,
             transactions = uiState.transactions,
             groupedTransactionItems = uiState.groupedTransactionItems,
             moneyOutsortedTransactionItems = uiState.moneyOutSorted,

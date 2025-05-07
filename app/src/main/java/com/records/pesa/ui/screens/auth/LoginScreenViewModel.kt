@@ -224,6 +224,7 @@ class LoginScreenViewModel(
 
                                 dbRepository.updateUser(
                                     userData.copy(
+                                        permanent = true,
                                         paymentStatus = true,
                                     )
                                 )

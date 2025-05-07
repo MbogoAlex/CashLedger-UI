@@ -96,7 +96,7 @@ fun TransactionTypesScreenComposable(
             .safeDrawingPadding()
     ) {
         TransactionTypesScreen(
-            premium = uiState.userDetails.paymentStatus,
+            premium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888" || uiState.preferences.permanent,
             allMoneyIn = formatMoneyValue(uiState.allMoneyIn),
             fromMshwari = formatMoneyValue(uiState.fromMshwari),
             fromSendMoney = formatMoneyValue(uiState.fromSendMoney),

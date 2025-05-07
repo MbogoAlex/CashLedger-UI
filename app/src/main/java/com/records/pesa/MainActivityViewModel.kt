@@ -123,7 +123,8 @@ class MainActivityViewModel(
                         } else if(expiredAt.isBefore(LocalDateTime.now())) {
                             dbRepository.updateUserPreferences(
                                 userPrefs.copy(
-                                    paid = false
+                                    paid = false,
+                                    darkMode = false,
                                 )
                             )
                         }
