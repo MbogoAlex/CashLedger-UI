@@ -224,7 +224,7 @@ class SubscriptionScreenViewModel(
                val response = authenticationManager.executeWithAuth { token ->
                    apiRepository.getSubscriptionPackageContainer(
                        token = token,
-                       id = 3
+                       id = 1
                    )
                }
 

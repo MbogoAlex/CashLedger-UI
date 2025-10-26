@@ -505,6 +505,37 @@ val MIGRATION_40_41 = object : Migration(40, 41) {
     }
 }
 
+val MIGRATION_48_49 = object : Migration(48, 49) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create the UserPreferences table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `userPreferences` (
+                `id` INTEGER PRIMARY KEY NOT NULL,
+                `loggedIn` INTEGER NOT NULL,
+                `darkMode` INTEGER NOT NULL,
+                `restoredData` INTEGER NOT NULL,
+                `lastRestore` TEXT,
+                `paid` INTEGER NOT NULL,
+                `permanent` INTEGER NOT NULL,
+                `paidAt` TEXT,
+                `expiryDate` TEXT,
+                `showBalance` INTEGER NOT NULL,
+                `hasSubmittedMessages` INTEGER NOT NULL
+            )
+        """)
+
+        // Insert default preferences with id = 1
+        database.execSQL("""
+            INSERT OR IGNORE INTO `userPreferences` (
+                `id`, `loggedIn`, `darkMode`, `restoredData`, `lastRestore`,
+                `paid`, `permanent`, `paidAt`, `expiryDate`, `showBalance`, `hasSubmittedMessages`
+            ) VALUES (
+                1, 0, 0, 0, NULL, 0, 0, NULL, NULL, 1, 0
+            )
+        """)
+    }
+}
+
 
 
 

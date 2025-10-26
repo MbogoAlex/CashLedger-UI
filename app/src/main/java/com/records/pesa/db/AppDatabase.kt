@@ -5,12 +5,14 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.dao.UserDao
 import com.records.pesa.db.migration.MIGRATION_29_30
 import com.records.pesa.db.migration.MIGRATION_30_31
 import com.records.pesa.db.migration.MIGRATION_40_41
+import com.records.pesa.db.migration.MIGRATION_48_49
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
@@ -37,15 +39,25 @@ abstract class AppDatabase: RoomDatabase() {
         fun getDatabase(context: Context): AppDatabase {
             return Instance ?: synchronized(this) {
                 val dbFile = context.getDatabasePath("CashLedger_db")
-                val builder = if (!dbFile.exists()) {
-                    Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
-                        .createFromAsset("database/app_launch.db")
-                        .fallbackToDestructiveMigration()
-                } else {
-                    Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
-                        .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41)
-                        .fallbackToDestructiveMigration()
+                val callback = object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        // Insert default preferences for new databases
+                        db.execSQL("""
+                            INSERT INTO `userPreferences` (
+                                `id`, `loggedIn`, `darkMode`, `restoredData`, `lastRestore`,
+                                `paid`, `permanent`, `paidAt`, `expiryDate`, `showBalance`, `hasSubmittedMessages`
+                            ) VALUES (
+                                1, 0, 0, 0, NULL, 0, 0, NULL, NULL, 1, 0
+                            )
+                        """)
+                    }
                 }
+
+                val builder = Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
+                    .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41, MIGRATION_48_49)
+                    .addCallback(callback)
+                    .fallbackToDestructiveMigration()
 
                 builder.build().also { Instance = it }
             }

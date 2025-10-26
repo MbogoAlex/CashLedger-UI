@@ -101,10 +101,10 @@ fun LoginScreenComposable(
     if(showLoginFailDialog) {
         AlertDialog(
             title = {
-                Text(text = "Login failure message")
+                Text(text = "Failed")
             },
             text = {
-                Text(text = uiState.exception)
+                Text(text = uiState.loginMessage)
             },
             onDismissRequest = { showLoginFailDialog = !showLoginFailDialog },
             confirmButton = {

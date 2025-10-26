@@ -78,6 +78,7 @@ class UpdatePasswordScreenViewModel(
                         _uiState.update {
                             it.copy(
                                 loadingStatus = LoadingStatus.SUCCESS,
+                                resetMessage = "Password reset successful. You can now log in with your new password."
                             )
                         }
                     }
