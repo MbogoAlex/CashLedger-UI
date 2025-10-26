@@ -6,7 +6,12 @@ import kotlinx.serialization.Serializable
 data class SmsMessage(
     val body: String,
     val date: String,
-    val time: String
+    val time: String,
+    val receivingPhoneNumber: String? = null,
+    val carrierName: String? = null,
+    val simSlotIndex: Int = -1,
+    val subscriptionId: Int = -1,
+    val senderAddress: String? = null
 )
 
 @Serializable

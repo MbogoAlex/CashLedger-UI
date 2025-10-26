@@ -2,15 +2,15 @@
 buildscript {
     extra.apply {
         set("lifecycle_version", "2.6.2")
-        set("room_version", "2.6.1")
+        set("room_version", "2.7.1")
     }
 }
 
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.jetbrains.kotlin.android) apply false
+    alias(libs.plugins.kotlin.android) apply false
 }
 
 tasks.register("clean", Delete::class) {
-    delete(rootProject.buildDir)
+    delete(rootProject.layout.buildDirectory)
 }

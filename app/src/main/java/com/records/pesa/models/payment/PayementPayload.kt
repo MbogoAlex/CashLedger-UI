@@ -4,6 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PaymentPayload(
-    val userId: Int,
-    val phoneNumber: String
+    val packageId: Int,
+    val phoneNumber: String,
+    val transactionMethodId: Int,
+    val transactionTypeId: Int
 )

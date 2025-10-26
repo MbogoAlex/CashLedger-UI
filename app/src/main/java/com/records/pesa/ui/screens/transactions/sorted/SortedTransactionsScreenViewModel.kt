@@ -160,7 +160,7 @@ class SortedTransactionsScreenViewModel(
         }
         viewModelScope.launch {
             val query = transactionService.createUserTransactionQuery(
-                userId = uiState.value.userDetails.userId,
+                userId = uiState.value.userDetails.backUpUserId.toInt(),
                 entity = uiState.value.entity,
                 categoryId = null,
                 budgetId = null,
@@ -297,7 +297,7 @@ class SortedTransactionsScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences!!

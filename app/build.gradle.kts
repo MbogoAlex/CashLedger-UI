@@ -1,20 +1,21 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10"
-    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.20"
+    id("com.google.devtools.ksp") version "2.1.20-2.0.1"
 }
 
 android {
     namespace = "com.records.pesa"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.records.pesa"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 144
-        versionName = "1.0"
+        targetSdk = 36
+        versionCode = 145
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -40,9 +41,6 @@ android {
     }
     buildFeatures {
         compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
     }
     packaging {
         resources {
@@ -136,6 +134,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation ("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.3")
 
     //Gson
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")

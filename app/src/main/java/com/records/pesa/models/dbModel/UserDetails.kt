@@ -10,6 +10,8 @@ data class UserDetails(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val userId: Int = 0,
+    val backUpUserId: Long = 0,
+    val dynamoUserId: Long? = null,
     val firstName: String? = null,
     val lastName: String? = null,
     val email: String? = null,

@@ -18,7 +18,7 @@ import com.records.pesa.models.supabase.SupabaseTransaction
 import com.records.pesa.models.supabase.SupabaseTransactionCategory
 import com.records.pesa.models.supabase.SupabaseTransactionCategoryCrossRef
 import com.records.pesa.network.ApiRepository
-
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import io.github.jan.supabase.storage.storage
@@ -37,7 +37,7 @@ import java.time.LocalTime
 
 data class BackupRestoreScreenUiState(
     val userDetails: UserDetails = UserDetails(),
-    val preferences: UserPreferences = userPreferences,
+    val preferences: UserPreferences? = null,
     val transactions: List<SupabaseTransaction> = emptyList(),
     val categories: List<SupabaseTransactionCategory> = emptyList(),
     val categoryKeywords: List<SupabaseCategoryKeyword> = emptyList(),
@@ -61,6 +61,7 @@ class BackupRestoreScreenViewModel(
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
     private val categoryService: CategoryService,
+    private val authenticationManager: AuthenticationManager,
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupRestoreScreenUiState())
@@ -92,6 +93,7 @@ class BackupRestoreScreenViewModel(
     }
 
     fun restore() {
+        Log.d("filesRestore", "Starting restore process")
         _uiState.update {
             it.copy(
                 restoreStatus = RestoreStatus.LOADING
@@ -100,7 +102,7 @@ class BackupRestoreScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val userId = uiState.value.userDetails.userId
+                    val userId = uiState.value.userDetails.dynamoUserId ?: uiState.value.userDetails.phoneNumber.replaceFirstChar { "" }
 
 
                     // Download CSV files from Supabase
@@ -118,41 +120,64 @@ class BackupRestoreScreenViewModel(
                     var deletedTransactions = emptyList<DeletedTransaction>()
 
                     try {
-                        existingTransactionsCsv = apiRepository.getFile("${userId}_transactions.csv").body()?.bytes()
-
-                        transactions = parseTransactionsCsv(existingTransactionsCsv!!)
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_transactions.csv")
+                        }
+                        existingTransactionsCsv = response?.body()?.bytes()
+                        if (existingTransactionsCsv != null) {
+                            transactions = parseTransactionsCsv(existingTransactionsCsv!!)
+                        }
                     } catch (e: Exception) {
-                        Log.e("FileNotFound", "Transactions CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Transactions CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoriesCsv = apiRepository.getFile("${userId}_categories.csv").body()?.bytes()
-                        categories = parseTransactionCategoriesCsv(existingCategoriesCsv!!)
-                        Log.d("found_categories", categories.toString())
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_categories.csv")
+                        }
+                        existingCategoriesCsv = response?.body()?.bytes()
+                        if (existingCategoriesCsv != null) {
+                            categories = parseTransactionCategoriesCsv(existingCategoriesCsv!!)
+                            Log.d("filesRestore", categories.toString())
+                        }
                     } catch (e: Exception) {
-                        Log.e("FileNotFound", "Categories CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Categories CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoryKeywordsCsv = apiRepository.getFile("${userId}_categoryKeywords.csv").body()?.bytes()
-
-                        categoryKeywords = parseCategoryKeywordsCsv(existingCategoryKeywordsCsv!!)
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_categoryKeywords.csv")
+                        }
+                        existingCategoryKeywordsCsv = response?.body()?.bytes()
+                        if (existingCategoryKeywordsCsv != null) {
+                            categoryKeywords = parseCategoryKeywordsCsv(existingCategoryKeywordsCsv!!)
+                        }
                     } catch (e: Exception) {
-                        Log.e("FileNotFound", "Category Keywords CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Category Keywords CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingCategoryMappingsCsv = apiRepository.getFile("${userId}_transactionCategoryCrossRef.csv").body()?.bytes()
-                        categoryMappings = parseTransactionCategoryCrossRefCsv(existingCategoryMappingsCsv!!)
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_transactionCategoryCrossRef.csv")
+                        }
+                        existingCategoryMappingsCsv = response?.body()?.bytes()
+                        if (existingCategoryMappingsCsv != null) {
+                            categoryMappings = parseTransactionCategoryCrossRefCsv(existingCategoryMappingsCsv!!)
+                        }
                     } catch (e: Exception) {
-                        Log.e("FileNotFound", "Category Mappings CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Category Mappings CSV not found: ${e.message}")
                     }
 
                     try {
-                        existingDeletedTransactionsCsv = apiRepository.getFile("${userId}_deletedTransactions.csv").body()?.bytes()
-                        deletedTransactions = parseDeletedTransactionsCsv(existingDeletedTransactionsCsv!!)
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_deletedTransactions.csv")
+                        }
+                        existingDeletedTransactionsCsv = response?.body()?.bytes()
+                        if (existingDeletedTransactionsCsv != null) {
+                            deletedTransactions = parseDeletedTransactionsCsv(existingDeletedTransactionsCsv!!)
+                        }
                     } catch (e: Exception) {
-                        Log.e("FileNotFound", "Deleted Transactions CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Deleted Transactions CSV not found: ${e.message}")
                     }
 
                     // Update the total number of items to restore
@@ -163,9 +188,9 @@ class BackupRestoreScreenViewModel(
                     }
 
                     // Insert Transactions into Room
-                    Log.d("Restoring_data_size: ", transactions.size.toString())
+                    Log.d("filesRestore: ", transactions.size.toString())
                     for (transaction in transactions) {
-                        Log.d("Restoring_data: ", "Transaction ID: ${transaction.id}")
+                        Log.d("filesRestore: ", "Transaction ID: ${transaction.id}")
 
                         transactionService.insertTransaction(transaction)
                         _uiState.update {
@@ -177,7 +202,7 @@ class BackupRestoreScreenViewModel(
 
                     // Insert Categories into Room
                     for (category in categories) {
-                        Log.d("Restoring_data_category: ", category.toString())
+                        Log.d("filesRestore, Restoring_data_category: ", category.toString())
                         categoryService.insertTransactionCategory(category)
                         _uiState.update {
                             it.copy(
@@ -188,7 +213,7 @@ class BackupRestoreScreenViewModel(
 
                     // Insert Category Keywords into Room
                     for (categoryKeyword in categoryKeywords) {
-                        Log.d("Restoring_data: ", "categoryKeyword")
+                        Log.d("filesRestore: ", "categoryKeyword")
                         categoryService.insertCategoryKeyword(categoryKeyword)
                         _uiState.update {
                             it.copy(
@@ -199,7 +224,7 @@ class BackupRestoreScreenViewModel(
 
                     // Insert TransactionCategoryCrossRef into Room
                     for (categoryMapping in categoryMappings) {
-                        Log.d("Restoring_data: ", "categoryMapping")
+                        Log.d("filesRestore: ", "categoryMapping")
                         try {
                             categoryService.insertTransactionCategoryCrossRef(categoryMapping)
                             _uiState.update {
@@ -208,7 +233,7 @@ class BackupRestoreScreenViewModel(
                                 )
                             }
                         } catch (e: Exception) {
-                            Log.e("insertException", "categoryMapping $e")
+                            Log.e("filesRestore, insertException", "categoryMapping $e")
                         }
                     }
 
@@ -221,15 +246,18 @@ class BackupRestoreScreenViewModel(
                                 )
                             }
                         } catch (e: Exception) {
-                            Log.e("insertException", "deletedTransaction $e")
+                            Log.e("filesRestore, insertException", "deletedTransaction $e")
                         }
                     }
 
                     // Update restore status on completion
                     if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
 
+                        while(uiState.value.preferences == null) {
+                            delay(1000)
+                        }
                         dbRepository.updateUserPreferences(
-                            userReferences = uiState.value.preferences.copy(
+                            userReferences = uiState.value.preferences!!.copy(
                                 restoredData = true,
                                 lastRestore = LocalDateTime.now()
                             )
@@ -248,7 +276,7 @@ class BackupRestoreScreenViewModel(
                             restoreStatus = RestoreStatus.FAIL
                         )
                     }
-                    Log.e("itemsRestoreException", e.toString())
+                    Log.e("filesRestore, itemsRestoreException", e.toString())
                 }
             }
         }
@@ -274,7 +302,7 @@ class BackupRestoreScreenViewModel(
                 comment = row.getOrNull(10),
                 balance = row[11].toDouble(),
                 entity = row[12],
-                userId = row[13].toInt()
+                userId = row[13].toLong()
             )
             transactions.add(transaction)
         }
@@ -369,10 +397,10 @@ class BackupRestoreScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
-                            preferences = preferences!!
+                            preferences = preferences
                         )
                     }
                 }

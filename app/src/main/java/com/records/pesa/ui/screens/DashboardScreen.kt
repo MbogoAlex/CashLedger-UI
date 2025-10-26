@@ -135,7 +135,7 @@ fun DashboardScreenComposable(
             showIncorrectPasswordText = showIncorrectPasswordText,
             onEnterPassword = viewModel::updatePassword,
             onConfirm = {
-                if(uiState.userPassword == uiState.userDetails.password) {
+                if(uiState.userPassword == uiState.userDetails!!.password) {
                     viewModel.changeBalanceVisibility()
                     showPasswordDialog = false
                     showIncorrectPasswordText = false
@@ -174,7 +174,7 @@ fun DashboardScreenComposable(
             .safeDrawingPadding()
     ) {
         DashboardScreen(
-            premium = uiState.userDetails.paymentStatus || uiState.userDetails.phoneNumber == "0888888888",
+            premium = uiState.userDetails?.paymentStatus == true || uiState.userDetails?.phoneNumber == "0888888888",
             totalInToday = formatMoneyValue(uiState.todayTotalIn),
             totalOutToday = formatMoneyValue(uiState.todayTotalOut),
             monthlyTotalIn = formatMoneyValue(uiState.monthlyInTotal),

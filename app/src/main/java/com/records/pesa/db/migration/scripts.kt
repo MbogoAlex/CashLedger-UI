@@ -482,6 +482,29 @@ val MIGRATION_30_31 = object : Migration(30, 31) {
     }
 }
 
+val MIGRATION_40_41 = object : Migration(40, 41) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create the new UserSession table for authentication token management
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `userSession` (
+                `id` INTEGER PRIMARY KEY NOT NULL,
+                `userId` INTEGER,
+                `accessToken` TEXT,
+                `refreshToken` TEXT,
+                `tokenType` TEXT,
+                `accessTokenExpiresIn` INTEGER,
+                `refreshTokenExpiresIn` INTEGER
+            )
+        """)
+
+        // Insert a default row with id = 1 for the session
+        // This table is designed to hold a single row for the current user session
+        database.execSQL("""
+            INSERT OR IGNORE INTO `userSession` (`id`) VALUES (1)
+        """)
+    }
+}
+
 
 
 

@@ -6,7 +6,4 @@ import kotlinx.serialization.Serializable
 data class UserRegistrationPayload(
     val phoneNumber: String,
     val password: String,
-    val month: Int,
-    val createdAt: String,
-    val role: Int,
 )

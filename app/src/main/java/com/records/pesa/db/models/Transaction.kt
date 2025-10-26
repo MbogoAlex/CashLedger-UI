@@ -9,7 +9,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 @Entity(tableName = "transaction", foreignKeys = [
-    ForeignKey(entity = UserAccount::class, parentColumns = ["id"], childColumns = ["userId"], onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE),
+    ForeignKey(entity = UserAccount::class, parentColumns = ["backupUserId"], childColumns = ["userId"], onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE),
 ], indices = [
     Index(value = ["transactionCode"], unique = true),
     Index(value = ["entity"]),
@@ -36,5 +36,5 @@ data class Transaction(
     var comment: String?,
     var balance: Double,
     var entity: String,
-    var userId: Int,
+    var userId: Long,
 )

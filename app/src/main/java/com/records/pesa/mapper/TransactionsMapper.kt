@@ -55,7 +55,7 @@ fun TransactionItem.toTransaction(userId: Int): Transaction = Transaction(
     comment = comment,
     balance = balance,
     entity = entity,
-    userId = userId
+    userId = userId.toLong()
 )
 
 fun TransactionWithCategories.toTransaction(userId: Int): Transaction = Transaction(
@@ -72,7 +72,7 @@ fun TransactionWithCategories.toTransaction(userId: Int): Transaction = Transact
     comment = transaction.comment,
     balance = transaction.balance,
     entity = transaction.entity,
-    userId = userId
+    userId = userId.toLong()
 )
 
 fun Transaction.toTransactionItem(): TransactionItem = TransactionItem(

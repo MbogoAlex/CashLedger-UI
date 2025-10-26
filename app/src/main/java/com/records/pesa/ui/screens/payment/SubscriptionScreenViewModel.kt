@@ -12,15 +12,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.UserSession
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.payment.PaymentPayload
 import com.records.pesa.models.payment.intasend.IntasendPaymentPayload
 import com.records.pesa.models.payment.intasend.IntasendPaymentStatusPayload
 import com.records.pesa.models.payment.intasend.PaymentSavePayload
+import com.records.pesa.models.subscription.SubscriptionPackageDt
+import com.records.pesa.models.user.login.UserLoginPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.ui.screens.auth.LoginStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,9 +41,12 @@ import java.time.LocalDateTime
 data class SubscriptionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val preferences: UserPreferences = userPreferences,
+    val subscriptionPackages: List<SubscriptionPackageDt> = emptyList(),
+    val selectedPackageId: Int? = null,
     val phoneNumber: String = "",
     val amount: String = "100",
     val invoice_id: String = "",
+    val transactionId: Long? = null,
     val state: String = "",
     val failedReason: String? = "",
     val paymentStatusSaved: Boolean = false,
@@ -47,13 +56,15 @@ data class SubscriptionScreenUiState(
     val paymentMessage: String = "",
     val firstTransactionDate: String = "",
     val cancelled: Boolean = false,
+    val fetchingStatus: LoadingStatus = LoadingStatus.LOADING,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
 class SubscriptionScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
-    private val transactionService: TransactionService
+    private val transactionService: TransactionService,
+    private val authenticationManager: AuthenticationManager
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SubscriptionScreenUiState())
     val uiState: StateFlow<SubscriptionScreenUiState> = _uiState.asStateFlow()
@@ -140,21 +151,27 @@ class SubscriptionScreenViewModel(
                 state = "STARTING..."
             )
         }
-        val paymentPayload = IntasendPaymentPayload(
-            amount = uiState.value.amount,
-            phone_number = phoneNumber
+        val paymentPayload = PaymentPayload(
+            packageId = uiState.value.selectedPackageId!!,
+            phoneNumber = phoneNumber,
+            transactionMethodId = 1,
+            transactionTypeId = 1
         )
 
         viewModelScope.launch {
             try {
-               val response = apiRepository.lipa(
-                   paymentPayload = paymentPayload
-               )
-                if(response.isSuccessful) {
+                Log.d("paymentDetails", "lipa: $paymentPayload")
+               val response = authenticationManager.executeWithAuth { token ->
+                   apiRepository.lipa(
+                       token = token,
+                       paymentPayload = paymentPayload
+                   )}
+                if(response?.isSuccessful == true) {
+                    Log.d("paymentDetails", "lipa response: ${response.body()?.data}")
                     _uiState.update {
                         it.copy(
-                            invoice_id = response.body()?.data?.invoice?.invoice_id!!,
-                            state = response.body()?.data?.invoice?.state!!
+                            transactionId = response.body()?.data?.id,
+                            state = response.body()?.data?.status!!
                         )
                     }
 
@@ -177,6 +194,66 @@ class SubscriptionScreenViewModel(
             it.copy(
                 amount = amount
             )
+        }
+    }
+
+    fun updatePackageId(packageId: Int) {
+        _uiState.update {
+            it.copy(
+                selectedPackageId = packageId,
+                amount = when(packageId) {
+                    1 -> "100"
+                    2 -> "400"
+                    3 -> "700"
+                    4 -> "2000"
+                    else -> "100"
+                }
+            )
+        }
+    }
+
+    fun getSubscriptionContainer() {
+        _uiState.update {
+            it.copy(
+                fetchingStatus = LoadingStatus.LOADING
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+               val response = authenticationManager.executeWithAuth { token ->
+                   apiRepository.getSubscriptionPackageContainer(
+                       token = token,
+                       id = 3
+                   )
+               }
+
+               if (response?.isSuccessful == true) {
+                   val subscriptionPackages = response.body()?.data?.subscriptionPackages ?: emptyList()
+                   _uiState.update {
+                       it.copy(
+                           subscriptionPackages = subscriptionPackages,
+                           fetchingStatus = LoadingStatus.SUCCESS
+                       )
+                   }
+                   Log.d("SubscriptionContainer", "Successfully fetched ${subscriptionPackages.size} subscription packages")
+               } else {
+                   Log.e("SubscriptionContainer", "API call failed: ${response?.code()}")
+                   _uiState.update {
+                       it.copy(
+                           fetchingStatus = LoadingStatus.FAIL
+                       )
+                   }
+               }
+
+            } catch (e: Exception) {
+                Log.e("SubscriptionContainer", "Exception fetching subscription packages", e)
+                _uiState.update {
+                    it.copy(
+                        fetchingStatus = LoadingStatus.FAIL
+                    )
+                }
+            }
         }
     }
 
@@ -209,15 +286,18 @@ class SubscriptionScreenViewModel(
                     Log.d("CHECKING_STATUS, INVOICE ", uiState.value.invoice_id)
                     delay(2000)
                     try {
-                        val response = apiRepository.lipaStatus(
-                            paymentStatusPayload = lipaStatusPayload
-                        )
-                        if(response.isSuccessful) {
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getTransaction(
+                                token = token,
+                                id = uiState.value.transactionId!!,
+                            )
+                        }
+                        if(response?.isSuccessful == true) {
                             Log.d("STATUS_CHECKED:", uiState.value.state)
                             _uiState.update {
                                 it.copy(
-                                    failedReason = response.body()?.data!!.invoice.failed_reason,
-                                    state = response.body()?.data!!.invoice.state
+                                    failedReason = response.body()?.data!!.failedReason,
+                                    state = response.body()?.data!!.status
                                 )
                             }
                         }
@@ -226,7 +306,7 @@ class SubscriptionScreenViewModel(
                     }
                 }
 
-                if(!uiState.value.cancelled && uiState.value.state.lowercase() == "complete") {
+                if(!uiState.value.cancelled && uiState.value.state.lowercase() == "completed") {
                     lipaSave(
                         permanent = permanent,
                         paidAt = paidAt.toString(),
@@ -256,51 +336,25 @@ class SubscriptionScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val paymentSavePayload = PaymentSavePayload(
-                        userId = uiState.value.userDetails.userId.toString(),
-                        amount = uiState.value.amount,
-                        paidAt = paidAt,
-                        expiredAt = expiredAt,
-                        month = month,
-                        permanent = permanent
+                    dbRepository.updateUserPreferences(
+                        _uiState.value.preferences.copy(
+                            paid = true,
+                            paidAt = LocalDateTime.parse(paidAt),
+                            expiryDate = LocalDateTime.parse(expiredAt),
+                            permanent = permanent
+                        )
                     )
 
-                    val response = apiRepository.savePayment(
-                        paymentSavePayload = paymentSavePayload
-                    )
+                    while(!uiState.value.preferences.paid) {
+                        delay(1000)
+                    }
 
-                    if(response.isSuccessful) {
-                        dbRepository.updateUser(
-                            _uiState.value.userDetails.copy(
-                                paymentStatus = true,
-                                paidAt = paidAt,
-                                permanent = permanent,
-                                expiredAt = expiredAt
 
-                            )
-
+                    _uiState.update {
+                        it.copy(
+                            paymentMessage = "Payment received",
+                            loadingStatus = LoadingStatus.SUCCESS
                         )
-
-                        dbRepository.updateUserPreferences(
-                            _uiState.value.preferences.copy(
-                                paid = true,
-                                paidAt = LocalDateTime.parse(paidAt),
-                                expiryDate = LocalDateTime.parse(expiredAt),
-                                permanent = permanent
-                            )
-                        )
-
-                        while(!uiState.value.preferences.paid) {
-                            delay(1000)
-                        }
-
-
-                        _uiState.update {
-                            it.copy(
-                                paymentMessage = "Payment received",
-                                loadingStatus = LoadingStatus.SUCCESS
-                            )
-                        }
                     }
 
                 } catch (e: Exception) {
@@ -328,7 +382,7 @@ class SubscriptionScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    dbRepository.getUserPreferences().collect { preferences ->
+                    dbRepository.getUserPreferences()?.collect { preferences ->
                         _uiState.update {
                             it.copy(
                                 preferences = preferences ?: userPreferences
@@ -353,5 +407,6 @@ class SubscriptionScreenViewModel(
     init {
         getUserDetails()
         getUserPreferences()
+        getSubscriptionContainer()
     }
 }

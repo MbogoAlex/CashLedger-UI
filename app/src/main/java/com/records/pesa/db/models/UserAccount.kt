@@ -5,10 +5,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDateTime
 
-@Entity(tableName = "userAccount")
+@Entity(tableName = "userAccount", indices = [
+    Index(value = ["backupUserId"], unique = true)
+])
 data class UserAccount(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val backupUserId: Long = 0,
     val fname: String?,
     val lname: String?,
     val email: String?,

@@ -9,23 +9,26 @@ import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.userAccount.UserAccountService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 data class SplashScreenUiState(
-    val appLaunchStatus: AppLaunchStatus = AppLaunchStatus(),
-    val userDetails: UserDetails = UserDetails(),
-    val preferences: UserPreferences? = userPreferences,
+    val appLaunchStatus: AppLaunchStatus? = null,
+    val userDetails: UserDetails? = null,
+    val preferences: UserPreferences? = null,
     val loggedIn: Boolean = false,
     val paid: Boolean = false,
+    val launchStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
 class SplashScreenViewModel(
@@ -37,9 +40,14 @@ class SplashScreenViewModel(
     val uiState: StateFlow<SplashScreenUiState> = _uiState.asStateFlow()
 
     fun getAppLaunchState() {
+        _uiState.update {
+            it.copy(
+                launchStatus = LoadingStatus.LOADING
+            )
+        }
         viewModelScope.launch {
             // Fetch the app launch status or handle null by inserting a default value
-            var appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
+            var appLaunchStatus = dbRepository.getAppLaunchStatus(1)?.firstOrNull()
 
             if (appLaunchStatus == null) {
                 // Create a default AppLaunchStatus if it doesn't exist
@@ -48,13 +56,6 @@ class SplashScreenViewModel(
                 appLaunchStatus = defaultAppLaunchStatus
             }
 
-            val userId: Int? = appLaunchStatus.user_id
-            var user: UserDetails? = null
-            val users = dbRepository.getUsers().first()
-
-            if (userId != null) {
-                user = if (users.isNotEmpty()) users[0] else null
-            }
             Log.d("appLaunchStatus", appLaunchStatus.toString())
 
             _uiState.update {
@@ -63,16 +64,18 @@ class SplashScreenViewModel(
                 )
             }
 
-            if (uiState.value.appLaunchStatus.launched == 0) {
+            if (uiState.value.appLaunchStatus != null && uiState.value.appLaunchStatus?.launched == 0) {
                 dbRepository.updateAppLaunchStatus(
-                    uiState.value.appLaunchStatus.copy(
+                    uiState.value.appLaunchStatus!!.copy(
                         launched = 1
                     )
                 )
             }
 
-            if (uiState.value.appLaunchStatus.user_id != null) {
-
+            _uiState.update {
+                it.copy(
+                    launchStatus = LoadingStatus.SUCCESS
+                )
             }
         }
     }
@@ -80,7 +83,7 @@ class SplashScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences
@@ -94,10 +97,10 @@ class SplashScreenViewModel(
     fun getUserDetails() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUsers().collect(){userDetails->
+                dbRepository.getUser()?.collect(){userDetails->
                     _uiState.update {
                         it.copy(
-                            userDetails = if(userDetails.isNotEmpty()) userDetails[0] else UserDetails()
+                            userDetails = userDetails
                         )
                     }
                 }
@@ -106,8 +109,8 @@ class SplashScreenViewModel(
     }
 
     init {
-        getAppLaunchState()
         getUserPreferences()
         getUserDetails()
+        getAppLaunchState()
     }
 }

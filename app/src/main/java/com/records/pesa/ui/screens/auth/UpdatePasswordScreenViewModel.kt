@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.user.update.UserProfileUpdatePayload
+import com.records.pesa.models.user.update.PasswordResetPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.mindrot.jbcrypt.BCrypt
 
 data class UpdatePasswordScreenUiState(
     val phoneNumber: String = "",
@@ -66,45 +65,19 @@ class UpdatePasswordScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val hashedPassword = BCrypt.hashpw(uiState.value.password, BCrypt.gensalt())
+                    val passwordResetPayload = PasswordResetPayload(
+                        phoneNumber = uiState.value.phoneNumber,
+                        password = uiState.value.password
+                    )
 
-                    val userAccountResponse = apiRepository.getUserByPhoneNumber(uiState.value.phoneNumber)
+                    val response = apiRepository.resetPassword(
+                        passwordResetPayload = passwordResetPayload
+                    )
 
-                    if(userAccountResponse.isSuccessful) {
-                        val userAccount = userAccountResponse.body()?.data!!
-
-                        val userProfileUpdatePayload = UserProfileUpdatePayload(
-                            userId = userAccount.id,
-                            fname = null,
-                            lname = null,
-                            email = null,
-                            phoneNumber = null,
-                            password = hashedPassword
-                        )
-
-                        val userProfileUpdateResponse = apiRepository.updateUserProfile(userProfileUpdatePayload)
-
-                        if(userProfileUpdateResponse.isSuccessful) {
-                            _uiState.update {
-                                it.copy(
-                                    loadingStatus = LoadingStatus.SUCCESS,
-                                    resetMessage = "Password reset successfully"
-                                )
-                            }
-                        } else {
-                            _uiState.update {
-                                it.copy(
-                                    loadingStatus = LoadingStatus.FAIL,
-                                    resetMessage = "Password reset failed. Check your internet or try later"
-                                )
-                            }
-                        }
-
-                    } else {
+                    if(response.isSuccessful) {
                         _uiState.update {
                             it.copy(
-                                loadingStatus = LoadingStatus.FAIL,
-                                resetMessage = "User with the phone number not found"
+                                loadingStatus = LoadingStatus.SUCCESS,
                             )
                         }
                     }

@@ -26,7 +26,7 @@ fun Transaction.toSupabaseTransaction(): SupabaseTransaction = SupabaseTransacti
     comment = comment,
     balance = balance,
     entity = entity,
-    userId = userId
+    userId = userId.toLong()
 )
 
 fun SupabaseTransaction.toTransaction(): Transaction = Transaction (
@@ -43,7 +43,7 @@ fun SupabaseTransaction.toTransaction(): Transaction = Transaction (
     comment = comment,
     balance = balance,
     entity = entity,
-    userId = userId
+    userId = userId.toLong()
 )
 
 fun List<Transaction>.toSupabaseTransactions(): List<SupabaseTransaction> = map { it.toSupabaseTransaction() }

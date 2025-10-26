@@ -82,7 +82,7 @@ class SingleEntityTransactionsScreenViewModel(
             )
         }
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.entity,
             categoryId = uiState.value.categoryId,
             budgetId = uiState.value.budgetId,
@@ -172,7 +172,7 @@ class SingleEntityTransactionsScreenViewModel(
         }
         viewModelScope.launch {
             val query = transactionService.createUserTransactionQuery(
-                userId = uiState.value.userDetails.userId,
+                userId = uiState.value.userDetails.backUpUserId.toInt(),
                 entity = uiState.value.entity,
                 categoryId = uiState.value.categoryId,
                 budgetId = uiState.value.budgetId,

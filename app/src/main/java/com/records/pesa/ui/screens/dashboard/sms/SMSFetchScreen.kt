@@ -79,27 +79,18 @@ fun SmsFetchScreenComposable(
 
     val smsReadPermissionState = rememberPermissionState(permission = Manifest.permission.READ_SMS)
     val smsReceivePermissionState = rememberPermissionState(permission = Manifest.permission.RECEIVE_SMS)
+    val phoneStatePermissionState = rememberPermissionState(permission = Manifest.permission.READ_PHONE_STATE)
+    val phoneNumbersPermissionState = rememberPermissionState(permission = Manifest.permission.READ_PHONE_NUMBERS)
     val scope = rememberCoroutineScope()
 
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-        navigateToHomeScreen()
-        viewModel.resetLoadingStatus()
-    } else if(uiState.errorCode == 401) {
-        navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
-        viewModel.resetLoadingStatus()
-    }
-
-
-    val smsReadRequestPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
-        if(isGranted) {
-            scope.launch {
-                while (uiState.userDetails.userId == 0) {
-                    delay(1000)
-                }
-                viewModel.fetchSmsMessages(context)
-
-            }
+    LaunchedEffect(uiState.loadingStatus) {
+        if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+            navigateToHomeScreen()
+            viewModel.resetLoadingStatus()
+        } else if(uiState.errorCode == 401) {
+            navigateToLoginScreenWithArgs(uiState.userDetails.phoneNumber, uiState.userDetails.password)
+            viewModel.resetLoadingStatus()
         }
     }
 
@@ -111,19 +102,131 @@ fun SmsFetchScreenComposable(
         }
     }
 
-    LaunchedEffect(smsReadPermissionState, smsReceivePermissionState) {
-
-        if(!smsReadPermissionState.status.isGranted) {
-//            Todo: Show rationale if needed
-            smsReadRequestPermissionHandler.launch(Manifest.permission.READ_SMS)
-        } else {
-            while (uiState.userDetails.userId == 0) {
-                delay(1000)
+    val phoneStatePermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+        Log.d("SMSFetchScreen", "READ_PHONE_STATE permission granted: $isGranted")
+        if (isGranted) {
+            // Check if all permissions are now granted and start SMS fetch if ready
+            if (smsReadPermissionState.status.isGranted &&
+                phoneNumbersPermissionState.status.isGranted) {
+//                scope.launch {
+//                    while (uiState.userDetails.userId == 0) {
+//                        delay(1000)
+//                    }
+//                    Log.d("SMSFetchScreen", "Called 1st Time")
+//                    viewModel.fetchSmsMessages(context)
+//                }
             }
-            viewModel.fetchSmsMessages(context)
+        } else {
+            // Phone state permission denied - continue with SMS fetching anyway
+            Log.d("SMSFetchScreen", "READ_PHONE_STATE permission denied, continuing with SMS fetch")
+            if (smsReadPermissionState.status.isGranted) {
+//                scope.launch {
+//                    while (uiState.userDetails.userId == 0) {
+//                        delay(1000)
+//                    }
+//                    viewModel.fetchSmsMessages(context)
+//                }
+            }
         }
-
     }
+
+    val phoneNumbersPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+        Log.d("SMSFetchScreen", "READ_PHONE_NUMBERS permission granted: $isGranted")
+        if (isGranted) {
+            // Check if all permissions are now granted and start SMS fetch if ready
+            if (smsReadPermissionState.status.isGranted &&
+                phoneStatePermissionState.status.isGranted) {
+//                scope.launch {
+//                    while (uiState.userDetails.userId == 0) {
+//                        delay(1000)
+//                    }
+//                    viewModel.fetchSmsMessages(context)
+//                }
+            }
+        } else {
+            // Phone numbers permission denied - continue with SMS fetching anyway
+            Log.d("SMSFetchScreen", "READ_PHONE_NUMBERS permission denied, continuing with SMS fetch")
+            if (smsReadPermissionState.status.isGranted) {
+//                scope.launch {
+//                    while (uiState.userDetails.userId == 0) {
+//                        delay(1000)
+//                    }
+//                    viewModel.fetchSmsMessages(context)
+//                }
+            }
+        }
+    }
+
+    val smsReadRequestPermissionHandler = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+        if(isGranted) {
+            Log.d("SMSFetchScreen", "READ_SMS permission granted, checking other permissions")
+            // After SMS permission is granted, check and request phone permissions
+//            scope.launch {
+//                while (uiState.userDetails.userId == 0) {
+//                    delay(1000)
+//                }
+//                viewModel.fetchSmsMessages(context)
+//            }
+        }
+    }
+
+    // Request SMS permission first
+    LaunchedEffect(smsReadPermissionState.status.isGranted) {
+        if (!smsReadPermissionState.status.isGranted) {
+            Log.d("SMSFetchScreen", "Requesting READ_SMS permission")
+            smsReadRequestPermissionHandler.launch(Manifest.permission.READ_SMS)
+        }
+    }
+
+    // After SMS permission is granted, request phone state permission
+    LaunchedEffect(smsReadPermissionState.status.isGranted, phoneStatePermissionState.status.isGranted) {
+        if (smsReadPermissionState.status.isGranted && !phoneStatePermissionState.status.isGranted) {
+            Log.d("SMSFetchScreen", "Requesting READ_PHONE_STATE permission")
+            phoneStatePermissionHandler.launch(Manifest.permission.READ_PHONE_STATE)
+        }
+    }
+
+    // After phone state permission is granted, request phone numbers permission
+    LaunchedEffect(phoneStatePermissionState.status.isGranted, phoneNumbersPermissionState.status.isGranted) {
+        if (phoneStatePermissionState.status.isGranted && !phoneNumbersPermissionState.status.isGranted) {
+            Log.d("SMSFetchScreen", "Requesting READ_PHONE_NUMBERS permission")
+            phoneNumbersPermissionHandler.launch(Manifest.permission.READ_PHONE_NUMBERS)
+        }
+    }
+
+
+
+
+
+    // Fallback: Start SMS fetching if SMS permission is granted, regardless of phone permissions
+    LaunchedEffect(smsReadPermissionState.status.isGranted) {
+        if (smsReadPermissionState.status.isGranted) {
+            // Wait a bit for phone permissions to be requested
+            delay(5000) // 5 second grace period for phone permissions
+
+            // If we reach here and haven't started SMS fetching yet, start it anyway
+            if (uiState.loadingStatus != LoadingStatus.LOADING) {
+                Log.d("SMSFetchScreen", "Starting SMS fetch after timeout (phone permissions may be denied)")
+                while (uiState.userDetails.userId == 0) {
+                    delay(1000)
+                }
+                viewModel.fetchSmsMessages(context)
+            }
+        }
+    }
+
+    // When all permissions are granted, start SMS fetching immediately
+//    LaunchedEffect(smsReadPermissionState.status.isGranted, phoneStatePermissionState.status.isGranted, phoneNumbersPermissionState.status.isGranted) {
+//        if (smsReadPermissionState.status.isGranted &&
+//            phoneStatePermissionState.status.isGranted &&
+//            phoneNumbersPermissionState.status.isGranted) {
+//            Log.d("SMSFetchScreen", "All permissions granted, starting SMS fetch")
+//            while (uiState.userDetails.userId == 0) {
+//                delay(1000)
+//            }
+//            viewModel.fetchSmsMessages(context)
+//        }
+//    }
 
     Box(
         modifier = Modifier

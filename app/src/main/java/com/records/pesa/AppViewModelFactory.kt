@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.records.pesa.db.DBRepository
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
@@ -191,13 +192,15 @@ object AppViewModelFactory {
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             val userService: UserAccountService = cashLedgerApplication().container.userAccountService
+            val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
             SmsFetchScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
                 categoryService = categoryService,
                 transactionsService = transactionService,
                 userAccountService = userService,
-                savedStateHandle = this.createSavedStateHandle()
+                savedStateHandle = this.createSavedStateHandle(),
+                workersRepository = workersRepository
             )
         }
 
@@ -240,9 +243,11 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val authenticationManager: AuthenticationManager = cashLedgerApplication().container.authenticationManager
             AccountInformationScreenViewModel(
                 apiRepository = apiRepository,
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                authenticationManager = authenticationManager
             )
         }
 
@@ -259,10 +264,12 @@ object AppViewModelFactory {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            val authenticationManager: AuthenticationManager = cashLedgerApplication().container.authenticationManager
             SubscriptionScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
-                transactionService = transactionService
+                transactionService = transactionService,
+                authenticationManager = authenticationManager
             )
         }
 
@@ -339,11 +346,13 @@ object AppViewModelFactory {
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
+            val authenticationManager = cashLedgerApplication().container.authenticationManager
             BackupRestoreScreenViewModel(
                 dbRepository = dbRepository,
                 transactionService = transactionService,
                 categoryService = categoryService,
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                authenticationManager = authenticationManager
             )
         }
     }

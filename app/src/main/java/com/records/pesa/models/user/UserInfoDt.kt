@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UserInfoDt(
-    val userInfo: UserDetailsData,
+    val userInfo: UserProfileData,
     val token: String
 )

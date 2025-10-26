@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,7 +26,7 @@ data class HomeScreenUiState(
     val preferences: UserPreferences = userPreferences,
     val freeTrialDays: Int = 0,
     val screen: String? = null,
-    val user: UserDetails = UserDetails()
+    val user: UserDetails? = null
 )
 
 class HomeScreenViewModel(
@@ -52,7 +53,7 @@ class HomeScreenViewModel(
         }
 
         viewModelScope.launch {
-            val user = dbRepository.getUsers().first()[0]
+            val user = dbRepository.getUsers().firstOrNull()?.get(0)
             Log.d("DB_USER", user.toString())
             _uiState.update {
                 it.copy(
@@ -68,7 +69,7 @@ class HomeScreenViewModel(
             try {
                 workersRepository.fetchAndBackupTransactions(
                     token = "dala",
-                    userId = uiState.value.userDetails.userId,
+                    userId = uiState.value.userDetails.backUpUserId.toInt(),
                     paymentStatus = uiState.value.userDetails.paymentStatus,
                     priorityHigh = false
                 )
@@ -88,7 +89,7 @@ class HomeScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    dbRepository.getUserPreferences().collect { preferences ->
+                    dbRepository.getUserPreferences()?.collect { preferences ->
                         _uiState.update {
                             it.copy(
                                 preferences = preferences ?: userPreferences

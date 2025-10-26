@@ -16,6 +16,9 @@ interface UserDao {
     @Query("select * from userAccount where id = :id")
     fun getUserAccountById(id: Int): Flow<UserAccount>
 
+    @Query("select * from userAccount where backupUserId = :id")
+    fun getUserAccountByBackupId(id: Long): Flow<UserAccount>
+
     @Update
     suspend fun updateUser(userAccount: UserAccount)
 }

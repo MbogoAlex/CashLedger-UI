@@ -8,10 +8,13 @@ import co.yml.charts.common.extensions.isNotNull
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.UserSession
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionItem
+import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.models.user.login.UserLoginPayload
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
@@ -22,23 +25,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.mindrot.jbcrypt.BCrypt
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 data class LoginScreenUiState(
     val phoneNumber: String = "",
-    val preferences: UserPreferences = userPreferences,
+    val preferences: UserPreferences? = null,
+    val appLaunchStatus: AppLaunchStatus? = null,
     val transactions: List<TransactionItem> = emptyList(),
     val password: String = "",
     val loginButtonEnabled: Boolean = false,
     val loginMessage: String = "",
     val exception: String = "",
-    val userDetails: UserDetails = UserDetails(),
+    val userDetails: UserDetails? = null,
     val loginStatus: LoginStatus = LoginStatus.INITIAL
 )
 
@@ -83,241 +87,41 @@ class LoginScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
 
-                var userPreferences = dbRepository.getUserPreferences().first()
-
                 try {
 
-                    val response = apiRepository.getUserByPhoneNumber(uiState.value.phoneNumber)
+                    val loginPayload = UserLoginPayload(
+                        phoneNumber = uiState.value.phoneNumber.trim(),
+                        password = uiState.value.password.trim()
+                    )
+
+                    val response = apiRepository.login(
+                        userLoginPayload = loginPayload
+                    )
 
                     if(response.isSuccessful) {
 
-                        if(BCrypt.checkpw(uiState.value.password, response.body()?.data?.password)) {
+                        val session = UserSession(
+                            userId = response.body()?.data?.user?.userId,
+                            accessToken = response.body()?.data?.user?.accessToken,
+                            refreshToken = response.body()?.data?.user?.refreshToken,
+                            tokenType = response.body()?.data?.user?.tokenType,
+                            accessTokenExpiresIn = response.body()?.data?.user?.accessTokenExpiresIn,
+                            refreshTokenExpiresIn = response.body()?.data?.user?.refreshTokenExpiresIn
+                        )
+                        dbRepository.insertSession(session)
 
-                            val user = response.body()?.data!!
-
-                            var userAccount = try {
-                                userAccountService.getUserAccount(user.id.toInt()).first()
-                            } catch (e: Exception) {
-                                null
-                            }
-
-                            if(userAccount == null) {
-                                userAccount = UserAccount(
-                                    id = user.id!!.toInt(),
-                                    fname = user.fname,
-                                    lname = user.lname,
-                                    email = user.email,
-                                    phoneNumber = user.phoneNumber,
-                                    password = uiState.value.password,
-                                    createdAt = user.createdAt?.let {
-                                        LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                                    } ?: LocalDateTime.now(),
-                                )
-                                userAccountService.insertUserAccount(userAccount)
-                            } else {
-                                userAccountService.updateUserAccount(
-                                    userAccount.copy(
-                                        id = user.id!!.toInt(),
-                                        fname = user.fname,
-                                        lname = user.lname,
-                                        email = user.email,
-                                        phoneNumber = user.phoneNumber,
-                                        password = uiState.value.password,
-                                        createdAt = user.createdAt?.let {
-                                            LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                                        } ?: LocalDateTime.now(),
-                                    )
-                                )
-                            }
-
-                            var userDetails = try {
-                                dbRepository.getUser(user.id.toInt()).first()
-                            } catch (e: Exception) {
-                                Log.e("gettingUser", e.toString())
-                                null
-                            }
-
-                            if(userDetails == null) {
-                                userDetails = UserDetails(
-                                    userId = user.id.toInt(),
-                                    firstName = user.fname,
-                                    lastName = user.lname,
-                                    email = user.email,
-                                    phoneNumber = user.phoneNumber,
-                                    password = uiState.value.password,
-                                    token = "",
-                                    paymentStatus = user.permanent,
-                                    permanent = user.permanent,
-                                    supabaseLogin = true,
-                                    backupSet = user.backupSet,
-                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) else null,
-                                    backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
-                                    transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
-                                    categories = if(user.categories == null) 0 else user.categories.toInt(),
-                                    categoryKeywords = if(user.categoryKeywords == null) 0 else user.categoryKeywords.toInt(),
-                                    categoryMappings = if(user.categoryMappings == null) 0 else user.categoryMappings.toInt()
-                                )
-                                dbRepository.insertUser(userDetails)
-                            } else {
-                                userDetails = userDetails.copy(
-                                    userId = user.id.toInt(),
-                                    firstName = user.fname,
-                                    lastName = user.lname,
-                                    email = user.email,
-                                    phoneNumber = user.phoneNumber,
-                                    password = uiState.value.password,
-                                    token = "",
-                                    paymentStatus = user.permanent,
-                                    permanent = user.permanent,
-                                    supabaseLogin = true,
-                                    backupSet = user.backupSet,
-                                    lastBackup = if(user.lastBackup != null) LocalDateTime.parse(user.lastBackup.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) else null,
-                                    backedUpItemsSize = if(user.backupItemsSize == null) 0 else user.backupItemsSize.toInt(),
-                                    transactions = if(user.transactions == null) 0 else user.transactions.toInt(),
-                                    categories = if(user.categories == null) 0 else user.categories.toInt(),
-                                    categoryKeywords = if(user.categoryKeywords == null) 0 else user.categoryKeywords.toInt(),
-                                    categoryMappings = if(user.categoryMappings == null) 0 else user.categoryMappings.toInt()
-                                )
-                                Log.d("updatingUser", userDetails.toString())
-                                dbRepository.updateUser(userDetails)
-                            }
-
-                            val appLaunchStatus = dbRepository.getAppLaunchStatus(1).first()
-                            dbRepository.updateAppLaunchStatus(
-                                appLaunchStatus.copy(
-                                    user_id = user.id.toInt()
-                                )
-                            )
-                            dbRepository.insertUser(userDetails)
-                            var users = emptyList<UserDetails>()
-
-                            userPreferences = userPreferences!!.copy(
-                                loggedIn = true
-                            )
-
-                            while (users.isEmpty() || userDetails!!.phoneNumber.isEmpty() || userDetails.password.isEmpty()) {
-                                delay(1000)
-                                userDetails = dbRepository.getUser(userId = user.id.toInt()).first()
-                                users = dbRepository.getUsers().first()
-                            }
-
-                            val userData = dbRepository.getUser(userId = userAccount.id).first()
-
-                            val paymentsResponse = apiRepository.getUserPayments(user.id)
-
-                            val payments = paymentsResponse.body()?.data!!
-
-
-                            if(user.permanent) {
-                                val sortedPayments = payments.sortedByDescending {
-                                    it.paidAt?.let { date -> LocalDateTime.parse(date.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
-                                }
-
-                                val latestPayment = sortedPayments.firstOrNull()
-
-                                userPreferences = userPreferences.copy(
-                                    paid = true,
-                                    permanent = true,
-                                    paidAt = latestPayment?.paidAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN,
-                                    expiryDate = latestPayment?.expiredAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
-                                )
-
-                                dbRepository.updateUser(
-                                    userData.copy(
-                                        permanent = true,
-                                        paymentStatus = true,
-                                    )
-                                )
-
-                            } else if(payments.isNotEmpty()) {
-                                val sortedPayments = payments.sortedByDescending {
-                                    it.paidAt?.let { date -> LocalDateTime.parse(date.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) } ?: LocalDateTime.MIN
-                                }
-
-                                Log.d("sortedPayments", sortedPayments.toString())
-
-                                val payment = sortedPayments.firstOrNull()
-
-                                val paidAt = payment?.paidAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
-                                val expiredAt = payment?.expiredAt?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
-                                    ?: payment?.freeTrialEndedOn?.let { LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME) }
-                                    ?: LocalDateTime.MIN  // Fallback if both are null
-
-                                if (expiredAt.isBefore(LocalDateTime.now())) {
-                                    Log.d("paymentStatus", expiredAt.isBefore(LocalDateTime.now()).toString())
-
-                                    dbRepository.updateUser(
-                                        userData.copy(
-                                            paymentStatus = false,
-                                            paidAt = payment?.paidAt,
-                                            expiredAt = payment?.expiredAt
-                                        )
-                                    )
-
-                                    userPreferences = userPreferences.copy(
-                                        paid = false,
-                                        paidAt = paidAt ?: LocalDateTime.MIN,
-                                        expiryDate = expiredAt
-                                    )
-                                } else {
-                                    userPreferences = userPreferences.copy(
-                                        paid = true,
-                                        paidAt = paidAt ?: LocalDateTime.MIN,
-                                        expiryDate = expiredAt
-                                    )
-
-                                    dbRepository.updateUser(
-                                        userData.copy(
-                                            paymentStatus = true,
-                                            paidAt = payment?.paidAt,
-                                            expiredAt = payment?.expiredAt
-                                        )
-                                    )
-                                }
-
-                            } else {
-                                dbRepository.updateUser(
-                                    userData.copy(
-                                        paymentStatus = false
-                                    )
-                                )
-                            }
-
-                            dbRepository.updateUserPreferences(userPreferences)
-
-                            if(users.isNotEmpty()) {
-                                _uiState.update {
-                                    it.copy(
-                                        userDetails = dbRepository.getUser(userId = user.id.toInt()).first(),
-                                        loginStatus = LoginStatus.SUCCESS,
-                                        loginMessage = "Logged in successfully"
-                                    )
-                                }
-                            }
-
-                        } else {
-                            _uiState.update {
-                                it.copy(
-                                    loginStatus = LoginStatus.FAIL,
-                                    loginMessage = "Invalid credentials"
-                                )
-                            }
-                        }
+                        getUserProfile(
+                            token = response.body()?.data?.user?.accessToken!!
+                        )
 
                     } else {
-                        if(response.code() == 404) {
-                            _uiState.update {
-                                it.copy(
-                                    loginMessage = "Invalid credentials"
-                                )
-                            }
-                        }
-
                         _uiState.update {
                             it.copy(
-                                loginStatus = LoginStatus.FAIL
+                                loginStatus = LoginStatus.FAIL,
+                                loginMessage = "Invalid credentials"
                             )
                         }
+
                     }
 
                 } catch (e: Exception) {
@@ -335,32 +139,248 @@ class LoginScreenViewModel(
         }
     }
 
-    private fun getTransactions() {
+    private fun getUserProfile(token: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val response = apiRepository.getMe(
+                    token = token
+                )
 
-        Log.d("gettingTransactions", "Transactions are being fetched at login screen")
+                if(response.isSuccessful) {
+                    val user = response.body()?.data!!
 
-        val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
-            entity = null,
-            categoryId = null,
-            budgetId = null,
-            transactionType = null,
-            moneyDirection = null,
-            startDate = LocalDate.now().minusYears(100),
-            endDate = LocalDate.now(),
-            latest = true
-        )
+                    var userAccount = try {
+                        userAccountService.getUserAccount(user.userId.toInt()).firstOrNull()
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if(userAccount == null) {
+                        userAccount = UserAccount(
+                            id = user.userId.toInt(),
+                            backupUserId = user.dynamoUserId ?: user.phoneNumber.replaceFirstChar { "" }.toLong(),
+                            fname = user.fname,
+                            lname = user.lname,
+                            email = user.email,
+                            phoneNumber = user.phoneNumber,
+                            password = uiState.value.password,
+                            createdAt = user.createdAt?.let {
+                                LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                            } ?: LocalDateTime.now(),
+                        )
+                        userAccountService.insertUserAccount(userAccount)
+                    } else {
+                        userAccountService.updateUserAccount(
+                            userAccount.copy(
+                                id = user.userId.toInt(),
+                                backupUserId = user.dynamoUserId ?: user.phoneNumber.replaceFirstChar { "" }.toLong(),
+                                fname = user.fname,
+                                lname = user.lname,
+                                email = user.email,
+                                phoneNumber = user.phoneNumber,
+                                password = uiState.value.password,
+                                createdAt = user.createdAt?.let {
+                                    LocalDateTime.parse(it.replace(" ", "T"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                                } ?: LocalDateTime.now(),
+                            )
+                        )
+                    }
+
+                    var userDetails: UserDetails? = null
+
+                    if(uiState.value.userDetails == null) {
+                        userDetails = UserDetails(
+                            userId = user.userId.toInt(),
+                            dynamoUserId = user.dynamoUserId,
+                            backUpUserId = user.dynamoUserId ?: user.phoneNumber.replaceFirstChar { "" }.toLong(),
+                            firstName = user.fname,
+                            lastName = user.lname,
+                            email = user.email,
+                            phoneNumber = user.phoneNumber,
+                            password = uiState.value.password,
+                            token = "",
+                            paymentStatus = user.permanent,
+                            permanent = user.permanent,
+                            supabaseLogin = true,
+                            backupSet = true,
+                            lastBackup =  null,
+                            backedUpItemsSize = 0,
+                            transactions = 0,
+                            categories = 0,
+                            categoryKeywords = 0,
+                            categoryMappings = 0
+                        )
+                        getUserSubscription(
+                            token = token,
+                            userDetails = userDetails,
+                            permanent = user.permanent,
+                            isInsert = true
+                        )
+                    } else {
+                        userDetails = uiState.value.userDetails!!.copy(
+                            userId = user.userId.toInt(),
+                            dynamoUserId = user.dynamoUserId,
+                            backUpUserId = user.dynamoUserId ?: user.phoneNumber.replaceFirstChar { "" }.toLong(),
+                            firstName = user.fname,
+                            lastName = user.lname,
+                            email = user.email,
+                            phoneNumber = user.phoneNumber,
+                            password = uiState.value.password,
+                            token = "",
+                            paymentStatus = user.permanent,
+                            permanent = user.permanent,
+                            supabaseLogin = true,
+                            backupSet = true,
+                            lastBackup =  null,
+                            backedUpItemsSize = 0,
+                            transactions = 0,
+                            categories = 0,
+                            categoryKeywords = 0,
+                            categoryMappings = 0
+                        )
+                        Log.d("updatingUser", userDetails.toString())
+                        getUserSubscription(
+                            token = token,
+                            userDetails = userDetails,
+                            permanent = user.permanent,
+                            isInsert = false
+                        )
+                    }
+
+                }
+
+                Log.d("UserProfile", response.toString())
+            } catch (e: Exception) {
+                Log.e("UserProfileException", e.toString())
+            }
+        }
+    }
+
+    private fun getUserSubscription(
+        token: String,
+        userDetails: UserDetails,
+        permanent: Boolean,
+        isInsert: Boolean
+    ) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val transactions = transactionService.getUserTransactions(query).first()
-                    _uiState.update {
-                        it.copy(
-                            transactions = transactions.map { transactionWithCategories ->  transactionWithCategories.toTransactionItem() },
+                    val response = apiRepository.getUserSubscription(
+                        token = token,
+                        containerId = 1
+                    )
+
+                    if(response.isSuccessful) {
+                        val subscription = response.body()?.data
+                        Log.d("UserSubscription", subscription.toString())
+                        val user = userDetails.copy(
+                            permanent = subscription?.subscriptionPackageId == 7,
+                            paymentStatus = subscription != null,
+                            paidAt = subscription?.paidAt,
+                            expiredAt = subscription?.expiredAt
                         )
+
+                        if(isInsert) {
+                            dbRepository.insertUser(user)
+                        } else {
+                            dbRepository.updateUser(user)
+                        }
+
+                        if(uiState.value.preferences != null) {
+                            val prefs = uiState.value.preferences!!.copy(
+                                paid = subscription != null,
+                                paidAt = if (subscription?.paidAt != null) LocalDateTime.parse(
+                                    subscription?.paidAt
+                                ) else null,
+                                expiryDate = if (subscription?.expiredAt != null) LocalDateTime.parse(
+                                    subscription?.expiredAt
+                                ) else null,
+                                permanent = permanent,
+                                showBalance = true,
+                                loggedIn = true,
+                                hasSubmittedMessages = false
+                            )
+                            dbRepository.updateUserPreferences(prefs)
+                        } else {
+                            val prefs = UserPreferences(
+                                paid = subscription != null,
+                                paidAt = if (subscription?.paidAt != null) LocalDateTime.parse(
+                                    subscription?.paidAt
+                                ) else null,
+                                expiryDate = if (subscription?.expiredAt != null) LocalDateTime.parse(
+                                    subscription?.expiredAt
+                                ) else null,
+                                loggedIn = true,
+                                darkMode = false,
+                                restoredData = false,
+                                lastRestore = null,
+                                permanent = permanent,
+                                showBalance = true,
+                                hasSubmittedMessages = false
+                            )
+
+                            dbRepository.insertUserPreferences(prefs)
+                        }
+
+
+
+                        dbRepository.updateAppLaunchStatus(
+                            uiState.value.appLaunchStatus!!.copy(
+                                user_id = user.userId.toInt()
+                            )
+                        )
+
+
+                        _uiState.update {
+                            it.copy(
+                                userDetails = user,
+                                loginStatus = LoginStatus.SUCCESS,
+                                loginMessage = "Logged in successfully"
+                            )
+                        }
+
                     }
-                    Log.d("TRANSACTIONS_SIZE", transactions.size.toString())
-                    Log.d("gettingTransactions", "transactions: $transactions")
+
+                } catch (e: Exception) {
+                    Log.e("UserSubscriptionsException", e.toString())
+                }
+            }
+        }
+    }
+
+    private fun getTransactions() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                while(uiState.value.userDetails == null) {
+                    delay(1000)
+                }
+
+                Log.d("gettingTransactions", "Transactions are being fetched at login screen")
+
+                val query = transactionService.createUserTransactionQuery(
+                    userId = uiState.value.userDetails!!.backUpUserId.toInt(),
+                    entity = null,
+                    categoryId = null,
+                    budgetId = null,
+                    transactionType = null,
+                    moneyDirection = null,
+                    startDate = LocalDate.now().minusYears(100),
+                    endDate = LocalDate.now(),
+                    latest = true
+                )
+
+                try {
+                    val transactions = transactionService.getUserTransactions(query).firstOrNull()
+                    if (transactions != null) {
+                        _uiState.update {
+                            it.copy(
+                                transactions = transactions.map { transactionWithCategories ->  transactionWithCategories.toTransactionItem() },
+                            )
+                        }
+                        Log.d("TRANSACTIONS_SIZE", transactions.size.toString())
+                        Log.d("gettingTransactions", "transactions: $transactions")
+                    }
+
                 } catch (e: Exception) {
                     Log.e("GetTransactionsException", e.toString())
                 }
@@ -388,10 +408,10 @@ class LoginScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
-                            preferences = preferences!!
+                            preferences = preferences
                         )
                     }
                 }
@@ -402,19 +422,31 @@ class LoginScreenViewModel(
     fun getUserDetails() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val users = dbRepository.getUsers().first()
-                _uiState.update {
-                    it.copy(
-                        userDetails = if(users.isEmpty()) UserDetails() else users[0]
-                    )
+                dbRepository.getUser()?.collect { user ->
+                    _uiState.update {
+                        it.copy(
+                            userDetails = user
+                        )
+                    }
                 }
             }
-            while(uiState.value.userDetails.userId == 0) {
-                delay(1000)
-            }
-            getTransactions()
         }
     }
+
+    fun getAppLaunchStatus() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dbRepository.getAppLaunchStatus(id = 1)?.collect { appLaunchStatus ->
+                    _uiState.update {
+                        it.copy(
+                            appLaunchStatus = appLaunchStatus
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 
     init {
         if(phoneNumber.isNotNull() && password.isNotNull()) {
@@ -425,7 +457,9 @@ class LoginScreenViewModel(
                 )
             }
         }
-        getUserPreferences()
         getUserDetails()
+        getTransactions()
+        getAppLaunchStatus()
+        getUserPreferences()
     }
 }

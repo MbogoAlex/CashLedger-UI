@@ -217,7 +217,7 @@ class TransactionsScreenViewModel(
         }
 
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.entity,
             categoryId = uiState.value.categoryId,
             budgetId = uiState.value.budgetId,
@@ -261,7 +261,7 @@ class TransactionsScreenViewModel(
             )
         }
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.entity,
             categoryId = uiState.value.categoryId,
             budgetId = uiState.value.budgetId,
@@ -338,7 +338,7 @@ class TransactionsScreenViewModel(
         }
         viewModelScope.launch {
             val query = transactionService.createUserTransactionQuery(
-                userId = uiState.value.userDetails.userId,
+                userId = uiState.value.userDetails.backUpUserId.toInt(),
                 entity = uiState.value.entity,
                 categoryId = uiState.value.categoryId,
                 budgetId = uiState.value.budgetId,
@@ -505,7 +505,7 @@ class TransactionsScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences!!

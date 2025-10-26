@@ -650,7 +650,7 @@ public class TransactionsExtraction {
                 transaction.setSender(sender);
                 transaction.setRecipient(recipient);
                 transaction.setBalance(balance);
-                transaction.setUserId(userAccount.getId());
+                transaction.setUserId(userAccount.getBackupUserId());
                 if(transactionAmount > 0) {
                     transaction.setEntity(transaction.getSender());
                 } else if(transactionAmount < 0) {

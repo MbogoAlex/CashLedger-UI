@@ -18,6 +18,7 @@ import com.records.pesa.db.models.UserAccount
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.MessageData
 import com.records.pesa.models.SmsMessage
+import com.records.pesa.reusables.SmsProviders
 import com.records.pesa.service.transaction.TransactionService
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
@@ -52,7 +53,7 @@ class FetchMessagesWorker(
             fetchSmsMessages(
                 context = context,
                 transactionService = transactionService,
-                userAccount = userAccountService.getUserAccount(userId = userId).first(),
+                userAccount = userAccountService.getUserAccountByBackupId(backupId = userId.toLong()).first(),
                 categories = categoryService.getAllCategories().first(),
                 existing = latestTransactionCode
             )
@@ -83,12 +84,13 @@ class FetchMessagesWorker(
 fun fetchSmsMessages(context: Context, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?) {
     val messages = mutableListOf<SmsMessage>()
     val uri = Uri.parse("content://sms/inbox")
-    val projection = arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE)
-    val selection = "${Telephony.Sms.ADDRESS} LIKE ?"
-    val selectionArgs = arrayOf("%MPESA%")
+    val projection = arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.ADDRESS)
+
+    // Use comprehensive provider patterns for filtering
+    val (whereClause, whereArgs) = SmsProviders.createSmsFilterQuery()
     val sortOrder = "${Telephony.Sms.DATE} DESC"
 
-    val cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+    val cursor = context.contentResolver.query(uri, projection, whereClause, whereArgs, sortOrder)
 
     cursor?.use {
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -96,10 +98,16 @@ fun fetchSmsMessages(context: Context, transactionService: TransactionService, u
         while (it.moveToNext()) {
             val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY))
             val dateMillis = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
+            val senderAddress = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS))
+
             val date = Date(dateMillis)
             val formattedDate = dateFormat.format(date)
             val formattedTime = timeFormat.format(date)
-            messages.add(SmsMessage(body, formattedDate, formattedTime))
+
+            // Verify this is a financial provider before adding
+            if (SmsProviders.isFinancialProvider(senderAddress)) {
+                messages.add(SmsMessage(body, formattedDate, formattedTime, senderAddress = senderAddress))
+            }
         }
     }
 

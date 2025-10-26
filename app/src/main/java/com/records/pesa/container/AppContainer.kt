@@ -2,6 +2,7 @@ package com.records.pesa.container
 
 import com.records.pesa.db.DBRepository
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
@@ -14,4 +15,5 @@ interface AppContainer {
     val transactionService: TransactionService
     val userAccountService: UserAccountService
     val categoryService: CategoryService
+    val authenticationManager: AuthenticationManager
 }

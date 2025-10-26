@@ -10,4 +10,5 @@ class UserAccountServiceImpl(private val userDao: UserDao): UserAccountService {
     override suspend fun updateUserAccount(userAccount: UserAccount) = userDao.updateUser(userAccount)
 
     override suspend fun getUserAccount(userId: Int): Flow<UserAccount> = userDao.getUserAccountById(userId)
+    override suspend fun getUserAccountByBackupId(backupId: Long): Flow<UserAccount> = userDao.getUserAccountByBackupId(backupId)
 }

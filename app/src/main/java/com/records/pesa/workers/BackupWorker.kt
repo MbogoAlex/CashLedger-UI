@@ -21,6 +21,7 @@ import com.records.pesa.mapper.toTransaction
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.user.update.UserBackupDataUpdatePayload
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import kotlinx.coroutines.flow.first
@@ -58,6 +59,7 @@ class BackupWorker(
         val transactionService = appContext.container.transactionService
         val categoryService = appContext.container.categoryService
         val apiRepository = appContext.container.apiRepository
+        val authenticationManager = appContext.container.authenticationManager
 
         if (userId == -1) {
             return Result.failure()
@@ -73,11 +75,12 @@ class BackupWorker(
                 context = context,
                 worker = this,
                 dbRepository = dbRepository,
-                userId = userId,
+                backUpId = userId,
                 transactionService = transactionService,
                 categoryService = categoryService,
                 priorityHigh = priorityHigh,
-                apiRepository = apiRepository
+                apiRepository = apiRepository,
+                authenticationManager = authenticationManager
             )
             // Update notification to indicate completion
             updateNotification("Backup completed successfully.", true, priorityHigh)
@@ -124,6 +127,11 @@ class BackupWorker(
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
+
+        // Auto-dismiss the notification after 3 seconds
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            notificationManager.cancel(NOTIFICATION_ID)
+        }, 3000) // 3 seconds
     }
 
     fun updateProgressNotification(message: String, currentStep: Int, totalSteps: Int, priorityHigh: Boolean) {
@@ -168,17 +176,19 @@ suspend fun backup(
     context: Context,
     worker: BackupWorker,
     dbRepository: DBRepository,
-    userId: Int,
+    backUpId: Int,
     transactionService: TransactionService,
     categoryService: CategoryService,
-    apiRepository: ApiRepository
+    apiRepository: ApiRepository,
+    authenticationManager: AuthenticationManager
 ) {
 
 
+    val userAccount = dbRepository.getUser()?.first()
     worker.setForegroundAsync(worker.createForegroundInfo("Initializing backup...", priorityHigh = priorityHigh))
 
     val query = transactionService.createUserTransactionQuery(
-        userId = userId,
+        userId = backUpId,
         entity = null,
         categoryId = null,
         budgetId = null,
@@ -190,8 +200,9 @@ suspend fun backup(
     )
 
     Log.d("backingUpInProcess", "LOADING...")
-    val userDetails = dbRepository.getUser(userId = userId).first()
+    val userDetails = dbRepository.getUser()?.first()
     val transactions = transactionService.getUserTransactions(query).first()
+    Log.d("transactionsSize", "${transactions.size}, BackupId: $backUpId")
     val categories = categoryService.getAllCategories().first()
     val categoryKeywords = categoryService.getAllCategoryKeywords()
     val transactionCategoryMappings = categoryService.getTransactionCategoryCrossRefs().first()
@@ -210,61 +221,70 @@ suspend fun backup(
         val deletedTransactionsFileParts = mutableListOf<MultipartBody.Part>()
 
         // Transactions
-        val transactionsCsv = backupTransactionsToCSV(context, "${userId}_transactions.csv", transactions.map { it.toTransaction(userId) })
+        val transactionsCsv = backupTransactionsToCSV(context, "${backUpId}_transactions.csv", transactions.map { it.toTransaction(backUpId) })
         transactionsCsv?.let {
             transactionsFileParts.add(it.toMultipartBody("file"))
         }
 
         if(transactionsCsv != null) {
-            apiRepository.uploadFiles(transactionsFileParts)
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, transactionsFileParts)
+            }
         }
 
         currentStep++
         worker.updateProgressNotification("Backing up transactions...", currentStep, totalSteps, priorityHigh)
 
         // Categories
-        val categoriesCsv = backupCategoriesToCSV(context, "${userId}_categories.csv", categories.map { it.toTransactionCategory() })
+        val categoriesCsv = backupCategoriesToCSV(context, "${backUpId}_categories.csv", categories.map { it.toTransactionCategory() })
         categoriesCsv?.let {
             categoriesFileParts.add(it.toMultipartBody("file"))
         }
 
         if (categoriesCsv != null) {
-            apiRepository.uploadFiles(categoriesFileParts)
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, categoriesFileParts)
+            }
         }
 
         currentStep++
         worker.updateProgressNotification("Backing up categories...", currentStep, totalSteps, priorityHigh)
 
         // Keywords
-        val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context, "${userId}_categoryKeywords.csv", categoryKeywords)
+        val categoryKeywordsCsv = backupCategoryKeywordsToCSV(context, "${backUpId}_categoryKeywords.csv", categoryKeywords)
         categoryKeywordsCsv?.let {
             categoryKeywordsFileParts.add(it.toMultipartBody("file"))
         }
         if (categoryKeywordsCsv != null) {
-            apiRepository.uploadFiles(categoryKeywordsFileParts)
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, categoryKeywordsFileParts)
+            }
         }
         currentStep++
         worker.updateProgressNotification("Backing up category keywords...", currentStep, totalSteps, priorityHigh)
 
         // Mappings
-        val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${userId}_transactionCategoryCrossRef.csv", transactionCategoryMappings)
+        val categoryMappingsCsv = backupCategoryMappingsToCSV(context, "${backUpId}_transactionCategoryCrossRef.csv", transactionCategoryMappings)
         categoryMappingsCsv?.let {
             categoryMappingsFileParts.add(it.toMultipartBody("file"))
         }
         if (categoryMappingsCsv != null) {
-            apiRepository.uploadFiles(categoryMappingsFileParts)
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, categoryMappingsFileParts)
+            }
         }
         currentStep++
         worker.updateProgressNotification("Backing up mappings...", currentStep, totalSteps, priorityHigh)
 
         // Deleted Transactions
-        val deletedTransactionsCsv = backupDeletedTransactionsToCSV(context, "${userId}_deletedTransactions.csv", deletedTransactions)
+        val deletedTransactionsCsv = backupDeletedTransactionsToCSV(context, "${backUpId}_deletedTransactions.csv", deletedTransactions)
         deletedTransactionsCsv?.let {
             deletedTransactionsFileParts.add(it.toMultipartBody("file"))
         }
         if (deletedTransactionsCsv != null) {
-            apiRepository.uploadFiles(deletedTransactionsFileParts)
-
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, deletedTransactionsFileParts)
+            }
         }
         currentStep++
         worker.updateProgressNotification("Finalizing backup...", currentStep, totalSteps, priorityHigh)
@@ -274,22 +294,25 @@ suspend fun backup(
         val totalItems = transactions.size + categories.size + categoryKeywords.size + transactionCategoryMappings.size
 
 
-        val userBackupDataUpdatePayload = UserBackupDataUpdatePayload(
-            userId = userId.toString(),
-            lastBackup = lastBackup.toString(),
-            backupItemsSize = totalItems.toString(),
-            transactions = transactions.size.toString(),
-            categories = categories.size.toString(),
-            categoryKeywords = categoryKeywords.size.toString(),
-            categoryMappings = transactionCategoryMappings.size.toString()
-        )
-
-        apiRepository.updateUserProfileBackupData(
-            userBackupDataUpdatePayload = userBackupDataUpdatePayload
-        )
+//        val userBackupDataUpdatePayload = UserBackupDataUpdatePayload(
+//            userId = userId.toString(),
+//            lastBackup = lastBackup.toString(),
+//            backupItemsSize = totalItems.toString(),
+//            transactions = transactions.size.toString(),
+//            categories = categories.size.toString(),
+//            categoryKeywords = categoryKeywords.size.toString(),
+//            categoryMappings = transactionCategoryMappings.size.toString()
+//        )
+//
+//        authenticationManager.executeWithAuth { token ->
+//            apiRepository.updateUserProfileBackupData(
+//                token = token,
+//                userBackupDataUpdatePayload = userBackupDataUpdatePayload
+//            )
+//        }
 
         dbRepository.updateUser(
-            user = userDetails.copy(
+            user = userDetails!!.copy(
                 lastBackup = lastBackup,
                 backedUpItemsSize = totalItems,
                 backupSet = true,

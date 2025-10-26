@@ -7,4 +7,5 @@ interface UserAccountService {
     suspend fun insertUserAccount(userAccount: UserAccount)
     suspend fun updateUserAccount(userAccount: UserAccount)
     suspend fun getUserAccount(userId: Int): Flow<UserAccount>
+    suspend fun getUserAccountByBackupId(backupId: Long): Flow<UserAccount>
 }

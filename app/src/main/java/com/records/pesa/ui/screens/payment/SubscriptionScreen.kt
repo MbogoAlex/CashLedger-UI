@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatLocalDate
+import com.records.pesa.models.subscription.SubscriptionPackageDt
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.utils.screenFontSize
@@ -114,16 +115,18 @@ fun SubscriptionScreenComposable(
         )
     }
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-        Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
-        lipaStatusCheck = false
-        showSuccessDialogue = true
-        viewModel.resetPaymentStatus()
-    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
-        Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
-        lipaStatusCheck = false
+    LaunchedEffect(uiState.loadingStatus) {
+        if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+            Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
+            lipaStatusCheck = false
+            showSuccessDialogue = true
+            viewModel.resetPaymentStatus()
+        } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+            Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
+            lipaStatusCheck = false
 //        navigateToHomeScreen()
-        viewModel.resetPaymentStatus()
+            viewModel.resetPaymentStatus()
+        }
     }
 
     var showPage by rememberSaveable {
@@ -174,7 +177,6 @@ fun SubscriptionScreenComposable(
                 },
                 buttonEnabled = uiState.phoneNumber.isNotEmpty(),
                 onPay = {
-                    viewModel.updateAmount(it)
                     viewModel.lipa()
                 },
                 navigateToPreviousScreen = {
@@ -199,15 +201,18 @@ fun SubscriptionScreenComposable(
                 lipaStatusCheck = lipaStatusCheck,
                 failedReason = uiState.failedReason ?: "",
                 lipaSave = viewModel::lipa,
+                packageId = uiState.selectedPackageId,
                 loadingStatus = uiState.loadingStatus,
             )
         } else {
             SubscriptionScreen(
                 firstTransactionDate = uiState.firstTransactionDate,
+                subscriptionPackages = uiState.subscriptionPackages,
+                fetchingStatus = uiState.fetchingStatus,
                 navigateToPreviousScreen = navigateToPreviousScreen,
                 navigateToPaymentScreen = {
-                    viewModel.updateAmount(it)
-                    showPaymentScreen = !showPaymentScreen
+                    viewModel.updatePackageId(it.toInt())
+                    showPaymentScreen = true
                 }
             )
         }
@@ -217,14 +222,14 @@ fun SubscriptionScreenComposable(
 @Composable
 fun SubscriptionScreen(
     firstTransactionDate: String,
+    subscriptionPackages: List<SubscriptionPackageDt>,
+    fetchingStatus: LoadingStatus,
     navigateToPaymentScreen: (amount: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     val isLoading = remember { mutableStateOf(false) }  // State to track loading
-
-    val subscriptionTypes = listOf("Monthly", "6 Months", "12 Months", "Lifetime")
 
     Column(
         modifier = Modifier
@@ -271,16 +276,25 @@ fun SubscriptionScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 24.0)))
             Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                verticalArrangement = Arrangement.spacedBy(screenHeight(x = 8.0)),
-                horizontalArrangement = Arrangement.spacedBy(screenWidth(x = 8.0)),
-            ) {
-                items(subscriptionTypes) {
-                    SubscriptionOptionCard(
-                        subscriptionType = it,
-                        navigateToPaymentScreen = navigateToPaymentScreen
-                    )
+            if(fetchingStatus == LoadingStatus.LOADING) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    verticalArrangement = Arrangement.spacedBy(screenHeight(x = 8.0)),
+                    horizontalArrangement = Arrangement.spacedBy(screenWidth(x = 8.0)),
+                ) {
+                    items(subscriptionPackages) {
+                        SubscriptionOptionCard(
+                            subscriptionPackage = it,
+                            navigateToPaymentScreen = navigateToPaymentScreen
+                        )
+                    }
                 }
             }
 
@@ -305,14 +319,21 @@ fun SubscriptionScreen(
 
 @Composable
 fun SubscriptionOptionCard(
-    subscriptionType: String,
+    subscriptionPackage: SubscriptionPackageDt,
     navigateToPaymentScreen: (amount: String) -> Unit,
 ) {
+    val subscriptionType = when(subscriptionPackage.amount) {
+        100.0 -> "Monthly"
+        400.0 -> "6 Months"
+        700.0 -> "12 Months"
+        2000.0 -> "Lifetime"
+        else -> "Monthly"
+    }
     when(subscriptionType) {
         "Monthly" -> {
             Card(
                 onClick = {
-                    navigateToPaymentScreen("100")
+                    navigateToPaymentScreen(subscriptionPackage.id.toString())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -350,7 +371,7 @@ fun SubscriptionOptionCard(
                     }
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                     Button(onClick = {
-                        navigateToPaymentScreen("100")
+                        navigateToPaymentScreen(subscriptionPackage.id.toString())
                     }) {
                         Text(
                             text = "Subscribe",
@@ -365,7 +386,7 @@ fun SubscriptionOptionCard(
         "6 Months" -> {
             Card(
                 onClick = {
-                    navigateToPaymentScreen("400")
+                    navigateToPaymentScreen(subscriptionPackage.id.toString())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -403,7 +424,7 @@ fun SubscriptionOptionCard(
                     }
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                     Button(onClick = {
-                        navigateToPaymentScreen("400")
+                        navigateToPaymentScreen(subscriptionPackage.id.toString())
                     }) {
                         Text(
                             text = "Subscribe",
@@ -418,7 +439,7 @@ fun SubscriptionOptionCard(
         "12 Months" -> {
             Card(
                 onClick = {
-                    navigateToPaymentScreen("700")
+                    navigateToPaymentScreen(subscriptionPackage.id.toString())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -456,7 +477,7 @@ fun SubscriptionOptionCard(
                     }
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
                     Button(onClick = {
-                        navigateToPaymentScreen("700")
+                        navigateToPaymentScreen(subscriptionPackage.id.toString())
                     }) {
                         Text(
                             text = "Subscribe",
@@ -471,7 +492,7 @@ fun SubscriptionOptionCard(
         "Lifetime" -> {
             Card(
                 onClick = {
-                    navigateToPaymentScreen("2000")
+                    navigateToPaymentScreen(subscriptionPackage.id.toString())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -499,7 +520,7 @@ fun SubscriptionOptionCard(
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Button(onClick = { navigateToPaymentScreen("2000") }) {
+                    Button(onClick = { navigateToPaymentScreen(subscriptionPackage.id.toString()) }) {
                         Text(
                             text = "Purchase",
                             fontSize = screenFontSize(x = 14.0).sp
@@ -518,6 +539,7 @@ fun PaymentScreen(
     failedReason: String,
     firstTransactionDate: String,
     amount: String,
+    packageId: Int?,
     isConnected: Boolean,
     status: String,
     phoneNumber: String,
@@ -530,7 +552,7 @@ fun PaymentScreen(
     lipaSave: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     loadingStatus: LoadingStatus,
-    onPay: (amount: String) -> Unit
+    onPay: () -> Unit
 ) {
     var understood by rememberSaveable {
         mutableStateOf(false)
@@ -543,9 +565,9 @@ fun PaymentScreen(
     Column(
         modifier = Modifier
             .padding(
-                start = 20.dp,
-                end = 20.dp,
-                bottom = 20.dp
+                start = screenWidth(20.0),
+                end = screenWidth(20.0),
+                bottom = screenHeight(20.0)
             )
             .fillMaxSize()
 
@@ -730,7 +752,7 @@ fun PaymentScreen(
                     if(failedReason == "Failed to save payment") {
                         lipaSave()
                     } else {
-                        onPay(amount)
+                        onPay()
                     }
 
                 },
@@ -809,8 +831,10 @@ fun SubscriptionScreenPreview() {
     CashLedgerTheme {
         SubscriptionScreen(
             firstTransactionDate = formatLocalDate(LocalDate.now().minusMonths(6)),
+            fetchingStatus = LoadingStatus.INITIAL,
             navigateToPaymentScreen = {},
-            navigateToPreviousScreen = { /*TODO*/ }
+            navigateToPreviousScreen = { /*TODO*/ },
+            subscriptionPackages = emptyList()
         )
     }
 }
@@ -835,7 +859,8 @@ fun PaymentScreenPreview() {
             failedReason = "",
             onPay = {},
             lipaSave = {},
-            loadingStatus = LoadingStatus.INITIAL
+            loadingStatus = LoadingStatus.INITIAL,
+            packageId = 1
         )
     }
 }

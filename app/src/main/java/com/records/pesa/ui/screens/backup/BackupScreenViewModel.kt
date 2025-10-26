@@ -327,7 +327,7 @@ class BackupScreenViewModel(
                 if(!uiState.value.userDetails.backupSet) {
                     workersRepository.fetchAndBackupTransactions(
                         token = "dala",
-                        userId = uiState.value.userDetails.userId,
+                        userId = uiState.value.userDetails.dynamoUserId?.toInt() ?: uiState.value.userDetails.phoneNumber.toInt(),
                         paymentStatus = true,
                         priorityHigh = true
                     )
@@ -402,7 +402,7 @@ class BackupScreenViewModel(
                 comment = row.getOrNull(10),
                 balance = row[11].toDouble(),
                 entity = row[12],
-                userId = row[13].toInt()
+                userId = row[13].toLong()
             )
             transactions.add(transaction)
         }

@@ -36,7 +36,7 @@ import java.time.LocalDate
 import kotlin.math.absoluteValue
 
 data class DashboardScreenUiState(
-    val userDetails: UserDetails = UserDetails(),
+    val userDetails: UserDetails? = null,
     val preferences: UserPreferences = userPreferences,
     val userPassword: String = "",
     val currentBalance: Double = 0.0,
@@ -111,12 +111,12 @@ class DashboardScreenViewModel(
             try {
                 workersRepository.fetchAndBackupTransactions(
                     token = "dala",
-                    userId = uiState.value.userDetails.userId,
-                    paymentStatus = uiState.value.userDetails.paymentStatus,
+                    userId = uiState.value.userDetails!!.dynamoUserId?.toInt() ?: uiState.value.userDetails!!.phoneNumber.toInt(),
+                    paymentStatus = uiState.value.userDetails!!.paymentStatus,
                     priorityHigh = false
                 )
                 dbRepository.updateUser(
-                    uiState.value.userDetails.copy(
+                    uiState.value.userDetails!!.copy(
                         backupWorkerInitiated = true
                     )
                 )
@@ -155,7 +155,7 @@ class DashboardScreenViewModel(
 
     fun getMoneyInAndOutToday() {
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails!!.backUpUserId.toInt(),
             entity = null,
             categoryId = null,
             budgetId = null,
@@ -181,7 +181,7 @@ class DashboardScreenViewModel(
 
     fun getLatestTransactions() {
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails!!.backUpUserId.toInt(),
             entity = null,
             categoryId = null,
             budgetId = null,
@@ -253,13 +253,21 @@ class DashboardScreenViewModel(
     }
 
     fun getUserDetails() {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    userDetails = dbRepository.getUsers().first()[0]
-                )
+        viewModelScope.launch(Dispatchers.IO) {
+            dbRepository.getUser()?.collect { user ->
+                _uiState.update {
+                    it.copy(
+                        userDetails = user
+                    )
+                }
             }
-            while (uiState.value.userDetails.userId == 0) {
+
+        }
+    }
+
+    private fun loadStartupData() {
+        viewModelScope.launch {
+            while (uiState.value.userDetails == null) {
                 delay(1000)
             }
             backUpWorker()
@@ -270,14 +278,13 @@ class DashboardScreenViewModel(
 //            getGroupedByMonthTransactions()
             getGroupedTransactions()
 //            apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
-
         }
     }
 
     fun getGroupedTransactions() {
         viewModelScope.launch {
             val query = transactionService.createUserTransactionQueryByMonthAndYear(
-                userId = uiState.value.userDetails.userId,
+                userId = uiState.value.userDetails!!.backUpUserId.toInt(),
                 entity = null,
                 categoryId = null,
                 budgetId = null,
@@ -394,7 +401,7 @@ class DashboardScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                   dbRepository.getUserPreferences().collect { preferences ->
+                   dbRepository.getUserPreferences()?.collect { preferences ->
                        _uiState.update {
                            it.copy(
                                preferences = preferences ?: userPreferences
@@ -411,7 +418,7 @@ class DashboardScreenViewModel(
 
     private fun initialzeApp() {
         viewModelScope.launch {
-            while (uiState.value.userDetails.userId == 0) {
+            while (uiState.value.userDetails == null) {
                 delay(2000)
             }
             getLatestTransactions()
@@ -422,6 +429,7 @@ class DashboardScreenViewModel(
     init {
         setInitialDates()
         getUserDetails()
+        loadStartupData()
         initialzeApp()
         getUserPreferences()
 //        checkAppVersion()

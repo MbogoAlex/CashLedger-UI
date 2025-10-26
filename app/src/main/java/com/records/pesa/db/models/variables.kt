@@ -9,5 +9,6 @@ val userPreferences = UserPreferences(
     permanent = false,
     paidAt = null,
     expiryDate = null,
-    showBalance = false
+    showBalance = false,
+    hasSubmittedMessages = false
 )

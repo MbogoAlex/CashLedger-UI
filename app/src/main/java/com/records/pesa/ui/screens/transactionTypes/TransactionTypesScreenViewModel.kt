@@ -113,7 +113,7 @@ class TransactionTypesScreenViewModel(
 
     fun getTransactionTypes() {
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = null,
             categoryId = null,
             budgetId = null,
@@ -578,7 +578,7 @@ class TransactionTypesScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences().collect() { preferences ->
+                dbRepository.getUserPreferences()?.collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences!!

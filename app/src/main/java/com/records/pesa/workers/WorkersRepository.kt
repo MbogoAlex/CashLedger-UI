@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -16,6 +18,11 @@ interface WorkersRepository {
         userId: Int,
         paymentStatus: Boolean,
         priorityHigh: Boolean,
+    )
+
+    suspend fun submitSmsMessages(
+        userId: Long,
+        userPhone: String
     )
 }
 
@@ -48,6 +55,40 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
             Log.d("backUpWork", "Backup initiated")
         } catch (e: Exception) {
             Log.e("backUpWork", e.toString())
+        }
+    }
+
+    override suspend fun submitSmsMessages(userId: Long, userPhone: String) {
+        try {
+            Log.d("SmsSubmissionWork", "Starting SMS submission for user $userId")
+
+            // Define constraints for network availability
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            // Create one-time work request for SMS submission
+            val smsSubmissionRequest = OneTimeWorkRequestBuilder<SmsSubmissionWorker>()
+                .setInputData(
+                    workDataOf(
+                        SmsSubmissionWorker.KEY_USER_ID to userId,
+                        SmsSubmissionWorker.KEY_USER_PHONE to userPhone
+                    )
+                )
+                .setConstraints(constraints)
+                .build()
+
+            // Enqueue the work request
+            workManager.enqueueUniqueWork(
+                "sms_submission_${userId}",
+                ExistingWorkPolicy.REPLACE,
+                smsSubmissionRequest
+            )
+
+            Log.d("SmsSubmissionWork", "SMS submission work enqueued for user $userId")
+
+        } catch (e: Exception) {
+            Log.e("SmsSubmissionWork", "Error enqueueing SMS submission work", e)
         }
     }
 

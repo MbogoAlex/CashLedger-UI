@@ -17,5 +17,5 @@ data class SupabaseTransaction(
     val comment: String?,
     val balance: Double,
     val entity: String,
-    val userId: Int
+    val userId: Long
 )

@@ -118,23 +118,21 @@ fun LoginScreenComposable(
             }
         )
     }
-    
-    if(uiState.loginStatus == LoginStatus.SUCCESS) {
-        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-        if(uiState.preferences.restoredData) {
+
+    LaunchedEffect(uiState.loginStatus) {
+        if(uiState.loginStatus == LoginStatus.SUCCESS) {
+            Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
             if(uiState.transactions.isEmpty()) {
                 navigateToBackupRestoreScreen()
             } else {
                 navigateToSmsFetchScreen()
             }
-        } else {
-            navigateToBackupRestoreScreen()
-        }
-        viewModel.resetLoginStatus()
-    } else if(uiState.loginStatus == LoginStatus.FAIL) {
-        Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
+            viewModel.resetLoginStatus()
+        } else if(uiState.loginStatus == LoginStatus.FAIL) {
+            Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
 //        showAlert = true
-        viewModel.resetLoginStatus()
+            viewModel.resetLoginStatus()
+        }
     }
 
     if(showAlert) {

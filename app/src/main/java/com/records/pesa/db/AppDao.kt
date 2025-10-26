@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,9 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserDetails)
 
+    @Query("SELECT * FROM user LIMIT 1")
+    fun getUser(): Flow<UserDetails?>
+
     @Update
     suspend fun updateUser(user: UserDetails)
 
@@ -24,6 +28,18 @@ interface AppDao {
 
     @Query("delete from user")
     suspend fun deleteAllFromUser()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(userSession: UserSession)
+
+    @Update
+    suspend fun updateSession(userSession: UserSession)
+
+    @Query("SELECT * FROM UserSession LIMIT 1")
+    fun getSession(): Flow<UserSession?>
+
+    @Query("DELETE FROM UserSession")
+    suspend fun deleteSessions();
 
     @Query("delete from transactionCategoryCrossRef")
     suspend fun deleteCategoryMappings()
@@ -71,9 +87,6 @@ interface AppDao {
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
 
 
-    @Query("select * from user where userId = :userId")
-    fun getUser(userId: Int): Flow<UserDetails>
-
     @Query("select * from user")
     fun getUsers(): Flow<List<UserDetails>>
 
@@ -84,7 +97,7 @@ interface AppDao {
     suspend fun updateAppLaunchStatus(appLaunchStatus: AppLaunchStatus)
 
     @Query("select * from app_launch_state where id = :id")
-    fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus>
+    fun getAppLaunchStatus(id: Int): Flow<AppLaunchStatus?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUserAccount(userAccount: UserAccount): Long
@@ -96,7 +109,7 @@ interface AppDao {
     suspend fun updateUserPreferences(userReferences: UserPreferences)
 
     @Query("SELECT * FROM userPreferences LIMIT 1")
-    fun getUserPreferences(): Flow<UserPreferences?>
+    fun getUserPreferences(): Flow<UserPreferences?>?
 
     @Query("DELETE FROM userPreferences")
     suspend fun deleteUserPreferences();

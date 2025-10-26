@@ -15,5 +15,6 @@ data class UserPreferences(
     val permanent: Boolean,
     val paidAt: LocalDateTime?,
     val expiryDate: LocalDateTime?,
-    val showBalance: Boolean
+    val showBalance: Boolean,
+    val hasSubmittedMessages: Boolean,
 )

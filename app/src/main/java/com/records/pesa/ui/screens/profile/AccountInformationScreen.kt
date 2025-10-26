@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,7 +47,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
@@ -179,8 +177,8 @@ fun AccountInformationScreenComposable(
             navigateToBackupScreen = navigateToBackupScreen,
             onConfirm = {
                 logoutLoading = true
-                val phoneNumber = uiState.userDetails.phoneNumber
-                val password = uiState.userDetails.password
+                val phoneNumber = uiState.userDetails!!.phoneNumber
+                val password = uiState.userDetails!!.password
                 showLogoutDialog = !showLogoutDialog
                 scope.launch {
                     viewModel.logout()
@@ -188,7 +186,7 @@ fun AccountInformationScreenComposable(
                     logoutLoading = !logoutLoading
                     Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
                     if(uiState.clearLoginDetails) {
-                        while(uiState.userDetails.phoneNumber.isNotEmpty() || uiState.userDetails.password.isNotEmpty()) {
+                        while(uiState.userDetails?.phoneNumber?.isNotEmpty() == true || uiState.userDetails?.password?.isNotEmpty() == true) {
                             delay(1000)
                         }
                         navigateToLoginScreen()
@@ -225,10 +223,10 @@ fun AccountInformationScreenComposable(
             onEditEmail = {
                 showEditEmailDialog = !showEditEmailDialog
             },
-            firstName = uiState.userDetails.firstName ?: "Enter first name",
-            lastName = uiState.userDetails.lastName ?: "Enter surname",
-            email = uiState.userDetails.email ?: "Enter email",
-            phoneNumber = uiState.userDetails.phoneNumber,
+            firstName = uiState.userDetails?.firstName ?: "Enter first name",
+            lastName = uiState.userDetails?.lastName ?: "Enter surname",
+            email = uiState.userDetails?.email ?: "Enter email",
+            phoneNumber = uiState.userDetails?.phoneNumber ?: "Enter phone number",
             logoutLoading = logoutLoading,
             onLogout = {
                 showLogoutDialog = !showLogoutDialog
