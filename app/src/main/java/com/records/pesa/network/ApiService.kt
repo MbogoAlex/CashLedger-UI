@@ -64,7 +64,7 @@ interface ApiService {
     suspend fun updateUserProfile(
         @Header("Authorization") token: String,
         @Body userProfileUpdatePayload: UserProfileUpdatePayload
-    ): Response<UserProfileResponseBody>
+    ): Response<GeneralResponseBody>
 
     @PUT("user-backup-update")
     suspend fun updateUserProfileBackupData(

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 
 data class MainActivityUiState(
     val userDetails: UserDetails? = null,
@@ -69,9 +70,11 @@ class MainActivityViewModel(
                 val preferences = dbRepository.getUserPreferences()?.firstOrNull()
 
                 if(preferences != null) {
+                    val paid = preferences.expiryDate?.isAfter(LocalDateTime.now()) == true
                     dbRepository.updateUserPreferences(
                         preferences.copy(
-                            darkMode = preferences.darkMode && preferences.paid,
+                            darkMode = preferences.darkMode && paid,
+                            paid = paid,
                         )
                     )
                 }

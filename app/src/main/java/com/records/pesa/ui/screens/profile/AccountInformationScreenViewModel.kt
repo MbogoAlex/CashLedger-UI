@@ -137,7 +137,7 @@ class AccountInformationScreenViewModel(
                         val response = result.response
                         if (response.isSuccessful) {
                             val responseBody = response.body()
-                            Log.d("AccountInfoVM", "Profile update successful: ${responseBody?.data}")
+                            Log.d("AccountInfoVM", "Profile update successful: ${responseBody}")
 
                             // Update local database with new values
                             val updatedUserDetails = currentUserDetails.copy(

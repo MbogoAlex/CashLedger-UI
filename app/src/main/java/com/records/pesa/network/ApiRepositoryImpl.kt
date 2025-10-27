@@ -58,7 +58,7 @@ class ApiRepositoryImpl(private val apiService: ApiService): ApiRepository {
     override suspend fun updateUserProfile(
         token: String,
         userProfileUpdatePayload: UserProfileUpdatePayload
-    ): Response<UserProfileResponseBody> =
+    ): Response<GeneralResponseBody> =
         apiService.updateUserProfile(
             token = "Bearer $token",
             userProfileUpdatePayload = userProfileUpdatePayload

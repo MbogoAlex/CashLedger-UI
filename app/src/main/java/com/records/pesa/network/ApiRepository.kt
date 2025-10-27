@@ -56,7 +56,7 @@ interface ApiRepository {
     suspend fun updateUserProfile(
         token: String,
         userProfileUpdatePayload: UserProfileUpdatePayload
-    ): Response<UserProfileResponseBody>
+    ): Response<GeneralResponseBody>
 
     suspend fun updateUserProfileBackupData(
         token: String,
