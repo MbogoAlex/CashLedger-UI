@@ -209,7 +209,7 @@ class MembersAdditionScreenViewModel(
 
                 for(transaction in uiState.value.membersToAdd) {
                     val query = transactionService.createUserTransactionQuery(
-                        userId = uiState.value.userDetails.userId,
+                        userId = uiState.value.userDetails.backUpUserId.toInt(),
                         entity = transaction.entity,
                         categoryId = null,
                         budgetId = null,
@@ -293,7 +293,7 @@ class MembersAdditionScreenViewModel(
     fun getTransactions() {
         Log.i("CALLED", "SEARCHING FOR ${uiState.value.entity}")
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.entity,
             categoryId = null,
             budgetId = null,

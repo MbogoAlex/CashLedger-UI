@@ -362,52 +362,78 @@ fun CategoryDetailsScreen(
                 }
             }
         }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
-            items(category.keywords) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+        if(category.keywords.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                TextButton(
+                    onClick = { navigateToMembersAdditionScreen(category.id.toString()) },
                 ) {
-                    Text(
-                        text = if(it.nickName.isNullOrEmpty()) it.keyWord else it.keyWord,
-//                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        modifier = Modifier
-                            .weight(0.8f)
-                    )
-//                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(
-                        modifier = Modifier.weight(0.1f),
-                        onClick = {
-                        onEditMemberName(it)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit member",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
+                        Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
+                        Text(
+                            text = "No members yet. Tap to add",
+                            fontSize = screenFontSize(x = 14.0).sp
                         )
                     }
-                    IconButton(
-                        modifier = Modifier.weight(0.1f),
-                        onClick = {
-                        onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
-                    }) {
-                        Icon(
-                            tint = MaterialTheme.colorScheme.error,
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove member",
+                }
+
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
+                items(category.keywords) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if(it.nickName.isNullOrEmpty()) it.keyWord else it.keyWord,
+//                        fontWeight = FontWeight.Bold,
+                            fontSize = screenFontSize(x = 14.0).sp,
                             modifier = Modifier
-                                .size(screenWidth(x = 24.0))
+                                .weight(0.8f)
                         )
+//                    Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            modifier = Modifier.weight(0.1f),
+                            onClick = {
+                                onEditMemberName(it)
+                            }) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.surfaceTint,
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit member",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
+                        IconButton(
+                            modifier = Modifier.weight(0.1f),
+                            onClick = {
+                                onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
+                            }) {
+                            Icon(
+                                tint = MaterialTheme.colorScheme.error,
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Remove member",
+                                modifier = Modifier
+                                    .size(screenWidth(x = 24.0))
+                            )
+                        }
                     }
                 }
             }
         }
+
         if(loadingStatus == LoadingStatus.LOADING) {
             Box(
                 contentAlignment = Alignment.TopCenter,

@@ -1,8 +1,17 @@
 package com.records.pesa.ui.screens.payment
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +23,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -43,6 +60,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -194,6 +213,9 @@ fun SubscriptionScreenComposable(
                 },
                 lipaStatus = {
                     viewModel.lipaStatus()
+                },
+                onCheckSubscriptionStatus = {
+                    viewModel.checkSubscriptionStatus()
                 },
                 onChangeLipaStatusCheck = {
                     lipaStatusCheck = !lipaStatusCheck
@@ -549,11 +571,13 @@ fun PaymentScreen(
     lipaStatusCheck: Boolean,
     onChangeLipaStatusCheck: () -> Unit,
     lipaStatus: () -> Unit,
+    onCheckSubscriptionStatus: () -> Unit,
     lipaSave: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     loadingStatus: LoadingStatus,
     onPay: () -> Unit
 ) {
+    val context = LocalContext.current
     var understood by rememberSaveable {
         mutableStateOf(false)
     }
@@ -562,7 +586,14 @@ fun PaymentScreen(
     var payButtonClicked by rememberSaveable {
         mutableStateOf(false)
     }
-    Column(
+    
+    var showCheckingStatus by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    // Main content with overlay
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
         modifier = Modifier
             .padding(
                 start = screenWidth(20.0),
@@ -744,6 +775,27 @@ fun PaymentScreen(
                 )
                 Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
             }
+            
+            // Check Payment Status Button
+            if (status.isNotEmpty() && 
+                status.lowercase() !in listOf("completed", "failed", "cancelled") &&
+                loadingStatus != LoadingStatus.FAIL) {
+                OutlinedButton(
+                    onClick = {
+                        showCheckingStatus = true
+                        onCheckSubscriptionStatus()  // Call the new persistent check
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = loadingStatus != LoadingStatus.LOADING && isConnected
+                ) {
+                    Text(
+                        text = "Check Payment Status",
+                        fontSize = screenFontSize(x = 14.0).sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+            }
+            
             Button(
                 enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected && understood,
                 onClick = {
@@ -786,9 +838,197 @@ fun PaymentScreen(
                 }
 
             }
+            
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+            
+            // Support Section - Moved below all buttons
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                shape = RoundedCornerShape(screenWidth(x = 8.0))
+            ) {
+                Column(
+                    modifier = Modifier.padding(screenWidth(x = 12.0))
+                ) {
+                    Text(
+                        text = "Need help?",
+                        fontSize = screenFontSize(x = 12.0).sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
+                    Text(
+                        text = "If you experience any payment issues, our support team is here to assist you.",
+                        fontSize = screenFontSize(x = 11.0).sp,
+                        lineHeight = screenFontSize(x = 16.0).sp
+                    )
+                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    OutlinedButton(
+                        onClick = {
+                            val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:")
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("hubkiwitech@gmail.com"))
+                                putExtra(Intent.EXTRA_SUBJECT, "Payment Support Request - Mpesa Ledger")
+                                putExtra(Intent.EXTRA_TEXT, 
+                                    "Hello Support Team,\n\n" +
+                                    "I am experiencing issues with my payment for the ${when(amount) {
+                                        "100" -> "Monthly"
+                                        "400" -> "6 Months"
+                                        "700" -> "Annual"
+                                        "2000" -> "Lifetime"
+                                        else -> "subscription"
+                                    }} plan (Ksh $amount).\n\n" +
+                                    "Issue Details:\n" +
+                                    "Phone Number: $phoneNumber\n" +
+                                    "Transaction Status: $status\n" +
+                                    "${if (failedReason.isNotEmpty()) "Error: $failedReason\n" else ""}" +
+                                    "\nPlease assist me to resolve this issue.\n\n" +
+                                    "Thank you."
+                                )
+                            }
+                            try {
+                                context.startActivity(emailIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = "Contact Support",
+                            modifier = Modifier.size(screenWidth(x = 18.0))
+                        )
+                        Spacer(modifier = Modifier.width(screenWidth(x = 8.0)))
+                        Text(
+                            text = "Contact Support",
+                            fontSize = screenFontSize(x = 12.0).sp
+                        )
+                    }
+                }
+            }
 
         }
 
+    }
+        
+        // Loading overlay - appears on top when loading or checking status
+        if (loadingStatus == LoadingStatus.LOADING) {
+            PaymentLoadingOverlay(
+                isCheckingStatus = showCheckingStatus,
+                onComplete = { showCheckingStatus = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaymentLoadingOverlay(
+    isCheckingStatus: Boolean,
+    onComplete: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "payment_loading")
+    
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    
+    LaunchedEffect(isCheckingStatus) {
+        if (!isCheckingStatus) {
+            onComplete()
+        }
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.Black.copy(alpha = 0.7f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.85f),
+            elevation = CardDefaults.cardElevation(defaultElevation = screenHeight(12.0)),
+            shape = RoundedCornerShape(screenWidth(20.0)),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(screenWidth(24.0)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(screenHeight(24.0))
+            ) {
+                // Animated loading rings
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { 0.75f },
+                        modifier = Modifier
+                            .size(screenWidth(80.0))
+                            .rotate(rotationAngle),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        strokeWidth = screenWidth(3.0)
+                    )
+                    
+                    CircularProgressIndicator(
+                        progress = { 0.5f },
+                        modifier = Modifier
+                            .size(screenWidth(60.0))
+                            .rotate(-rotationAngle * 0.8f),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        strokeWidth = screenWidth(4.0)
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(screenWidth(32.0))
+                            .scale(pulseScale)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape
+                            )
+                    )
+                }
+                
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(screenHeight(8.0))
+                ) {
+                    Text(
+                        text = if (isCheckingStatus) "Checking Payment Status" else "Processing Payment",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        text = if (isCheckingStatus) {
+                            "Verifying payment completion..."
+                        } else {
+                            "Sending payment request to M-Pesa..."
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -852,6 +1092,7 @@ fun PaymentScreenPreview() {
             onPhoneNumberChange = {},
             buttonEnabled = false,
             lipaStatus = {},
+            onCheckSubscriptionStatus = {},
             onChangeLipaStatusCheck = {},
             lipaStatusCheck = false,
             navigateToPreviousScreen = {},

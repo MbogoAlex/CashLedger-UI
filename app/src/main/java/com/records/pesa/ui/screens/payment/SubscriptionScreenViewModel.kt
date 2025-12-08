@@ -327,6 +327,78 @@ class SubscriptionScreenViewModel(
         }
     }
 
+    fun checkSubscriptionStatus() {
+        _uiState.update {
+            it.copy(
+                loadingStatus = LoadingStatus.LOADING,
+                state = "CHECKING"
+            )
+        }
+        
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val response = authenticationManager.executeWithAuth { token ->
+                        apiRepository.getUserSubscription(
+                            token = token,
+                            containerId = 1
+                        )
+                    }
+                    
+                    if(response?.isSuccessful == true) {
+                        val subscription = response.body()?.data
+                        Log.d("ManualSubscriptionCheck", subscription.toString())
+                        
+                        if(subscription != null) {
+                            // User has an active subscription
+                            val prefs = uiState.value.preferences.copy(
+                                paid = true,
+                                paidAt = if (subscription.paidAt != null) LocalDateTime.parse(subscription.paidAt) else null,
+                                expiryDate = if (subscription.expiredAt != null) LocalDateTime.parse(subscription.expiredAt) else null,
+                                permanent = subscription.subscriptionPackageId == 4 // Lifetime package
+                            )
+                            
+                            dbRepository.updateUserPreferences(prefs)
+                            
+                            _uiState.update {
+                                it.copy(
+                                    loadingStatus = LoadingStatus.SUCCESS,
+                                    state = "COMPLETED",
+                                    paymentMessage = "Payment verified successfully!"
+                                )
+                            }
+                        } else {
+                            // No subscription found - payment might still be processing or failed
+                            _uiState.update {
+                                it.copy(
+                                    loadingStatus = LoadingStatus.FAIL,
+                                    state = "PENDING",
+                                    failedReason = "Payment not yet confirmed. Please try again in a moment."
+                                )
+                            }
+                        }
+                    } else {
+                        Log.e("ManualSubscriptionCheck", "API call failed: ${response?.code()}")
+                        _uiState.update {
+                            it.copy(
+                                loadingStatus = LoadingStatus.FAIL,
+                                failedReason = "Failed to verify payment status"
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ManualSubscriptionCheck", "Exception: $e")
+                    _uiState.update {
+                        it.copy(
+                            loadingStatus = LoadingStatus.FAIL,
+                            failedReason = "Network error. Please check your connection."
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun lipaSave(permanent: Boolean, paidAt: String, expiredAt: String, month: Int) {
         _uiState.update {
             it.copy(
