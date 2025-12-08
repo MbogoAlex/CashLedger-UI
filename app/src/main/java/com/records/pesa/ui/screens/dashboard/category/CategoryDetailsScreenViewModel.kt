@@ -169,7 +169,7 @@ class CategoryDetailsScreenViewModel(
         Log.i("KEYWORD_DETAILS", keyword.toString())
         viewModelScope.launch {
             val query = transactionService.createUserTransactionQuery(
-                userId = uiState.value.userDetails.userId,
+                userId = uiState.value.userDetails.backUpUserId.toInt(),
                 entity = uiState.value.categoryKeyword.keyWord,
                 categoryId = uiState.value.categoryId.toInt(),
                 budgetId = null,
