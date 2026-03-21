@@ -1,0 +1,514 @@
+package com.records.pesa.ui.screens
+
+import android.util.Log
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import co.yml.charts.common.model.Point
+import com.records.pesa.datastore.DataStoreRepository
+import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
+import com.records.pesa.db.models.userPreferences
+import com.records.pesa.functions.formatLocalDate
+import com.records.pesa.mapper.toResponseTransactionCategory
+import com.records.pesa.mapper.toTransactionItem
+import com.records.pesa.models.BudgetDt
+import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.transaction.GroupedTransactionData
+import com.records.pesa.models.transaction.MonthlyTransaction
+import com.records.pesa.models.transaction.SortedTransactionItem
+import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.network.ApiRepository
+import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.service.auth.AuthenticationManager
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.WorkersRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.LocalDateTime
+import kotlin.math.absoluteValue
+
+data class DashboardScreenUiState(
+    val userDetails: UserDetails? = null,
+    val preferences: UserPreferences = userPreferences,
+    val userPassword: String = "",
+    val currentBalance: Double = 0.0,
+    val month: String = "June",
+    val year: String = "2024",
+    val selectableMonths: List<String> = listOf("JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"),
+    val selectableYears: List<String> = emptyList(),
+    val monthlyInTotal: Double = 0.0,
+    val monthlyOutTotal: Double = 0.0,
+    val todayTotalIn: Double = 0.0,
+    val todayTotalOut: Double = 0.0,
+    val startDate: String = "2024-06-15",
+    val endDate: String = "2024-06-15",
+    val moneyInPointsData: List<Point> = emptyList(),
+    val moneyOutPointsData: List<Point> = emptyList(),
+    val totalMoneyIn: Double = 0.0,
+    val totalMoneyOut: Double = 0.0,
+    val maxAmount: Float = 0.0f,
+    val firstTransactionDate: String = "",
+    val transactions: List<TransactionItem> = emptyList(),
+    val budgetList: List<BudgetDt> = emptyList(),
+    val groupedTransactions: List<GroupedTransactionData> = emptyList(),
+    val monthlyTransactions: List<MonthlyTransaction> = emptyList(),
+    val appVersion: Double? = null,
+    val categories: List<TransactionCategory> = emptyList(),
+    val sortedTransactionItems: List<SortedTransactionItem> = emptyList(),
+    val showSubscriptionExpiredDialog: Boolean = false,
+    val showSubscriptionActivatedDialog: Boolean = false,
+)
+class DashboardScreenViewModel(
+    private val apiRepository: ApiRepository,
+    private val savedStateHandle: SavedStateHandle,
+    private val dbRepository: DBRepository,
+    private val dataStoreRepository: DataStoreRepository,
+    private val transactionService: TransactionService,
+    private val categoryService: CategoryService,
+    private val workersRepository: WorkersRepository,
+    private val authenticationManager: AuthenticationManager
+): ViewModel() {
+    private val _uiState = MutableStateFlow(DashboardScreenUiState())
+    val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
+
+    private var filterJob: Job? = null
+    private var initialPaidStatus: Boolean? = null
+
+    fun updatePassword(password: String) {
+        _uiState.update {
+            it.copy(
+                userPassword = password
+            )
+        }
+    }
+
+    private fun setInitialDates() {
+        val currentDate = LocalDate.now()
+        val firstDayOfMonth = currentDate.withDayOfMonth(1)
+        val currentYear = currentDate.year
+        val lastYear = 2016
+        val years = mutableListOf<String>()
+        for (year in currentYear downTo lastYear) {
+            years.add(year.toString())
+        }
+        _uiState.update {
+            it.copy(
+                startDate = firstDayOfMonth.toString(),
+                endDate = currentDate.toString(),
+                month = currentDate.month.toString(),
+                year = currentDate.year.toString(),
+                selectableYears = years
+            )
+        }
+    }
+
+    fun backUpWorker() {
+        viewModelScope.launch {
+            Log.d("backUpWorker", "CAlling from dashboard")
+            try {
+                workersRepository.fetchAndBackupTransactions(
+                    token = "dala",
+                    userId = uiState.value.userDetails!!.dynamoUserId?.toInt() ?: uiState.value.userDetails!!.phoneNumber.toInt(),
+                    paymentStatus = uiState.value.userDetails!!.paymentStatus,
+                    priorityHigh = false
+                )
+                dbRepository.updateUser(
+                    uiState.value.userDetails!!.copy(
+                        backupWorkerInitiated = true
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("backUpWorkerException", e.toString())
+
+            }
+
+        }
+    }
+
+
+
+
+    fun initializeValues() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val today = transactionService.getTodayExpenditure(LocalDate.now()).first()
+                    val currentBalance = transactionService.getCurrentBalance().first()
+                    val firstTransaction = transactionService.getFirstTransaction().first()
+                    _uiState.update {
+                        it.copy(
+                            totalMoneyIn = today.totalIn,
+                            totalMoneyOut = today.totalOut,
+                            currentBalance = currentBalance,
+                            firstTransactionDate = formatLocalDate(firstTransaction.date)
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("INITIALIZATION_ERROR", e.toString())
+                }
+            }
+        }
+    }
+
+    fun getMoneyInAndOutToday() {
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails!!.backUpUserId.toInt(),
+            entity = null,
+            categoryId = null,
+            budgetId = null,
+            transactionType = null,
+            moneyDirection = null,
+            startDate = LocalDate.now(),
+            endDate = LocalDate.now(),
+            latest = true
+        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getUserTransactions(query).collect() {transactions ->
+                        transformTransactions2(transactions.map { transactionWithCategories -> transactionWithCategories.toTransactionItem() })
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("failedToLoadGroupedTransactions", e.toString())
+                }
+            }
+        }
+    }
+
+    fun getLatestTransactions() {
+        val query = transactionService.createUserTransactionQuery(
+            userId = uiState.value.userDetails!!.backUpUserId.toInt(),
+            entity = null,
+            categoryId = null,
+            budgetId = null,
+            transactionType = null,
+            moneyDirection = null,
+            startDate = LocalDate.now().minusYears(10),
+            endDate = LocalDate.now(),
+            latest = true
+        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                  transactionService.getUserTransactions(query).collect() {transactions ->
+                      _uiState.update {
+                          it.copy(
+                              transactions = transactions.map { transaction -> transaction.transaction.toTransactionItem() }
+                          )
+                      }
+                  }
+                } catch (e: Exception) {
+                    Log.e("FAILED_TO_LOAD_TRANSACTIONS", e.toString())
+                }
+            }
+        }
+    }
+
+    fun getCategories() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    categoryService.getAllCategories().collect(){ categories ->
+                        _uiState.update {
+                            it.copy(
+                                categories = categories.map { category -> category.toResponseTransactionCategory() }
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+
+                }
+            }
+        }
+    }
+
+    fun updateMonth(month: String) {
+        _uiState.update {
+            it.copy(
+                month = month
+            )
+        }
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            getGroupedTransactions()
+//            getGroupedByMonthTransactions()
+        }
+    }
+
+    fun updateYear(year: String) {
+        _uiState.update {
+            it.copy(
+                year = year
+            )
+        }
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            getGroupedTransactions()
+//            getGroupedByMonthTransactions()
+        }
+    }
+
+    fun getUserDetails() {
+        viewModelScope.launch(Dispatchers.IO) {
+            dbRepository.getUser()?.collect { user ->
+                _uiState.update {
+                    it.copy(
+                        userDetails = user
+                    )
+                }
+            }
+
+        }
+    }
+
+    private fun loadStartupData() {
+        viewModelScope.launch {
+            while (uiState.value.userDetails == null) {
+                delay(1000)
+            }
+            backUpWorker()
+//            getDashboardDetails()
+            initializeValues()
+            getLatestTransactions()
+            getCategories()
+//            getGroupedByMonthTransactions()
+            getGroupedTransactions()
+//            apiRepository.getSubscriptionStatus(uiState.value.userDetails.userId)
+        }
+    }
+
+    fun getGroupedTransactions() {
+        viewModelScope.launch {
+            val query = transactionService.createUserTransactionQueryByMonthAndYear(
+                userId = uiState.value.userDetails!!.backUpUserId.toInt(),
+                entity = null,
+                categoryId = null,
+                budgetId = null,
+                transactionType = null,
+                moneyDirection = null,
+                month = uiState.value.month,
+                year = uiState.value.year.toInt(),
+                latest = true
+            )
+            withContext(Dispatchers.IO) {
+                try {
+                    transactionService.getUserTransactionsFilteredByMonthAndYear(query).collect(){transactions ->
+                        transformTransactions(transactions.map { it.toTransactionItem() })
+                    }
+                } catch (e: Exception) {
+                    Log.e("FAILED_TO_LOAD_GROUPED_TRANSACTIONS", e.toString())
+                }
+            }
+        }
+    }
+
+    fun transformTransactions(transactions: List<TransactionItem>) {
+        // Initialize totalMoneyIn and totalMoneyOut
+        var totalMoneyIn = 0.0
+        var totalMoneyOut = 0.0
+
+        // Group transactions by entity
+        val groupedByEntity = transactions.groupBy { it.entity }
+
+        // Map each group to a SortedTransactionItem
+        val sortedTransactionItems = groupedByEntity.map { (entity, groupedTransactions) ->
+            val times = groupedTransactions.size
+            val timesOut = groupedTransactions.count { it.transactionAmount < 0 }
+            val timesIn = groupedTransactions.count { it.transactionAmount > 0 }
+            val totalOut = groupedTransactions.filter { it.transactionAmount < 0 }
+                .sumOf { it.transactionAmount.absoluteValue }
+            val totalIn = groupedTransactions.filter { it.transactionAmount > 0 }
+                .sumOf { it.transactionAmount }
+
+            // Update the totals
+            totalMoneyIn += totalIn
+            totalMoneyOut += totalOut
+
+            val transactionCost = groupedTransactions.sumOf { it.transactionCost }
+            val nickName = groupedTransactions.firstOrNull { it.nickName != null }?.nickName
+
+            SortedTransactionItem(
+                transactionType = groupedTransactions.first().transactionType,
+                times = times,
+                timesOut = timesOut,
+                timesIn = timesIn,
+                totalOut = totalOut,
+                totalIn = totalIn,
+                transactionCost = transactionCost,
+                entity = entity,
+                nickName = nickName
+            )
+        }
+
+        val sortedInDescendingOrder = sortedTransactionItems.sortedByDescending {
+            it.totalIn + it.totalOut.absoluteValue
+        }
+
+        _uiState.update {
+            it.copy(
+                sortedTransactionItems = sortedInDescendingOrder,
+                monthlyInTotal = totalMoneyIn,
+                monthlyOutTotal = totalMoneyOut,
+            )
+        }
+
+        // You can use totalMoneyIn and totalMoneyOut as needed in your code
+        println("Total Money In: $totalMoneyIn")
+        println("Total Money Out: $totalMoneyOut")
+
+    }
+
+    fun transformTransactions2(transactions: List<TransactionItem>) {
+        Log.d("todayTransactions", transactions.toString())
+        // Initialize totalMoneyIn and totalMoneyOut
+        var totalMoneyIn = 0.0
+        var totalMoneyOut = 0.0
+
+        for(transaction in transactions) {
+            if(transaction.transactionAmount < 0) {
+                totalMoneyOut = totalMoneyOut.plus(transaction.transactionAmount.absoluteValue)
+            } else if(transaction.transactionAmount > 0) {
+                totalMoneyIn = totalMoneyIn.plus(transaction.transactionAmount)
+            }
+        }
+
+        _uiState.update {
+            it.copy(
+                todayTotalIn = totalMoneyIn,
+                todayTotalOut = totalMoneyOut
+            )
+        }
+
+    }
+
+    fun changeBalanceVisibility() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val updatedPrefs = uiState.value.preferences.copy(
+                    showBalance = !uiState.value.preferences.showBalance
+                )
+                dbRepository.updateUserPreferences(updatedPrefs)
+                dataStoreRepository.saveUserPreferences(updatedPrefs)
+            }
+        }
+    }
+
+    private fun checkSubscriptionStatus() {
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    // Wait until initial preferences have been loaded
+                    while (initialPaidStatus == null) {
+                        delay(500)
+                    }
+
+                    val response = authenticationManager.executeWithAuth { token ->
+                        apiRepository.getUserSubscription(
+                            token = token,
+                            containerId = 1
+                        )
+                    }
+
+                    if(response?.isSuccessful == true) {
+                        val subscription = response.body()?.data
+                        Log.d("ManualSubscriptionCheck", subscription.toString())
+
+                        if(subscription != null) {
+                            val prefs = uiState.value.preferences.copy(
+                                paid = true,
+                                paidAt = if (subscription.paidAt != null) LocalDateTime.parse(subscription.paidAt) else null,
+                                expiryDate = if (subscription.expiredAt != null) LocalDateTime.parse(subscription.expiredAt) else null,
+                                permanent = subscription.subscriptionPackageId == 4
+                            )
+                            dataStoreRepository.saveUserPreferences(prefs)
+                            dbRepository.updateUserPreferences(prefs)
+
+                            if (initialPaidStatus == false) {
+                                _uiState.update { it.copy(showSubscriptionActivatedDialog = true) }
+                            }
+                        } else {
+                            val prefs = uiState.value.preferences.copy(
+                                paid = false,
+                                permanent = false
+                            )
+                            dataStoreRepository.saveUserPreferences(prefs)
+                            dbRepository.updateUserPreferences(prefs)
+
+                            if (initialPaidStatus == true) {
+                                _uiState.update { it.copy(showSubscriptionExpiredDialog = true) }
+                            }
+                        }
+                    } else {
+                        Log.e("ManualSubscriptionCheck", "API call failed: ${response?.code()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ManualSubscriptionCheck", "Exception: $e")
+                }
+            }
+        }
+    }
+
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    dataStoreRepository.getUserPreferences().collect { preferences ->
+                        if (initialPaidStatus == null) {
+                            initialPaidStatus = preferences.paid
+                        }
+                        _uiState.update {
+                            it.copy(
+                                preferences = preferences
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+
+                }
+            }
+        }
+    }
+
+
+    fun dismissSubscriptionExpiredDialog() {
+        _uiState.update { it.copy(showSubscriptionExpiredDialog = false) }
+    }
+
+    fun dismissSubscriptionActivatedDialog() {
+        _uiState.update { it.copy(showSubscriptionActivatedDialog = false) }
+    }
+
+    private fun initialzeApp() {
+        viewModelScope.launch {
+            while (uiState.value.userDetails == null) {
+                delay(2000)
+            }
+            getLatestTransactions()
+            getMoneyInAndOutToday()
+        }
+    }
+
+    init {
+        setInitialDates()
+        getUserDetails()
+        loadStartupData()
+        initialzeApp()
+        getUserPreferences()
+        checkSubscriptionStatus()
+//        checkAppVersion()
+    }
+}
