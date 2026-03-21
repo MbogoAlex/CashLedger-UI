@@ -120,15 +120,22 @@ class BackupRestoreScreenViewModel(
                     var deletedTransactions = emptyList<DeletedTransaction>()
 
                     try {
+                        Log.d("filesRestore", "Downloading transactions CSV for userId: $userId")
                         val response = authenticationManager.executeWithAuth { token ->
                             apiRepository.getFile(token, "${userId}_transactions.csv")
                         }
                         existingTransactionsCsv = response?.body()?.bytes()
+                        Log.d("filesRestore", "Downloaded transactions CSV, size: ${existingTransactionsCsv?.size ?: 0} bytes")
                         if (existingTransactionsCsv != null) {
+                            Log.d("filesRestore", "Starting to parse transactions CSV...")
                             transactions = parseTransactionsCsv(existingTransactionsCsv!!)
+                            Log.d("filesRestore", "Successfully parsed ${transactions.size} transactions")
+                        } else {
+                            Log.e("filesRestore", "Transactions CSV is null after download")
                         }
                     } catch (e: Exception) {
-                        Log.e("filesRestore", "Transactions CSV not found: ${e.message}")
+                        Log.e("filesRestore", "Transactions CSV error: ${e.message}")
+                        Log.e("filesRestore", "Stack trace: ${e.stackTraceToString()}")
                     }
 
                     try {
@@ -188,17 +195,34 @@ class BackupRestoreScreenViewModel(
                     }
 
                     // Insert Transactions into Room
-                    Log.d("filesRestore: ", transactions.size.toString())
-                    for (transaction in transactions) {
-                        Log.d("filesRestore: ", "Transaction ID: ${transaction.id}")
-
-                        transactionService.insertTransaction(transaction)
-                        _uiState.update {
-                            it.copy(
-                                totalItemsRestored = uiState.value.totalItemsRestored + 1
-                            )
+                    Log.d("filesRestore_insert", "Inserting ${transactions.size} transactions into database")
+                    var insertedCount = 0
+                    var insertFailedCount = 0
+                    
+                    for ((index, transaction) in transactions.withIndex()) {
+                        try {
+                            if (index < 5 || index % 100 == 0) {
+                                Log.d("filesRestore_insert", "Inserting transaction $index: ID=${transaction.id}, code=${transaction.transactionCode}, userId=${transaction.userId}")
+                            }
+                            
+                            transactionService.insertTransaction(transaction)
+                            insertedCount++
+                            
+                            _uiState.update {
+                                it.copy(
+                                    totalItemsRestored = uiState.value.totalItemsRestored + 1
+                                )
+                            }
+                        } catch (e: Exception) {
+                            insertFailedCount++
+                            Log.e("filesRestore_insert", "Failed to insert transaction $index (ID=${transaction.id}): ${e.message}")
+                            if (insertFailedCount <= 5) {
+                                Log.e("filesRestore_insert", "Stack trace: ${e.stackTraceToString()}")
+                            }
                         }
                     }
+                    
+                    Log.d("filesRestore_insert", "Transaction insertion complete: $insertedCount inserted, $insertFailedCount failed")
 
                     // Insert Categories into Room
                     for (category in categories) {
@@ -223,19 +247,33 @@ class BackupRestoreScreenViewModel(
                     }
 
                     // Insert TransactionCategoryCrossRef into Room
-                    for (categoryMapping in categoryMappings) {
-                        Log.d("filesRestore: ", "categoryMapping")
+                    Log.d("filesRestore_mapping", "Inserting ${categoryMappings.size} category mappings")
+                    var mappingInsertedCount = 0
+                    var mappingFailedCount = 0
+                    
+                    for ((index, categoryMapping) in categoryMappings.withIndex()) {
                         try {
+                            if (index < 5) {
+                                Log.d("filesRestore_mapping", "Mapping $index: transactionId=${categoryMapping.transactionId}, categoryId=${categoryMapping.categoryId}")
+                            }
+                            
                             categoryService.insertTransactionCategoryCrossRef(categoryMapping)
+                            mappingInsertedCount++
+                            
                             _uiState.update {
                                 it.copy(
                                     totalItemsRestored = uiState.value.totalItemsRestored + 1
                                 )
                             }
                         } catch (e: Exception) {
-                            Log.e("filesRestore, insertException", "categoryMapping $e")
+                            mappingFailedCount++
+                            if (mappingFailedCount <= 5) {
+                                Log.e("filesRestore_mapping", "Failed to insert mapping $index (txId=${categoryMapping.transactionId}, catId=${categoryMapping.categoryId}): ${e.message}")
+                            }
                         }
                     }
+                    
+                    Log.d("filesRestore_mapping", "Mapping insertion complete: $mappingInsertedCount inserted, $mappingFailedCount failed")
 
                     for(deletedTransaction in deletedTransactions) {
                         try {
@@ -286,26 +324,52 @@ class BackupRestoreScreenViewModel(
         val transactions = mutableListOf<Transaction>()
         val reader = CSVReader(InputStreamReader(csvData.inputStream()))
         val rows = reader.readAll()
+        
+        Log.d("filesRestore_parse", "Total rows in CSV: ${rows.size}")
+        Log.d("filesRestore_parse", "Header: ${rows.firstOrNull()?.joinToString(",")}")
+        
+        var successCount = 0
+        var failCount = 0
 
-        for (row in rows.drop(1)) { // Skip header row
-            val transaction = Transaction(
-                id = row[0].toInt(),
-                transactionCode = row[1],
-                transactionType = row[2],
-                transactionAmount = row[3].toDouble(),
-                transactionCost = row[4].toDouble(),
-                date = LocalDate.parse(row[5]),
-                time = LocalTime.parse(row[6]),
-                sender = row[7],
-                recipient = row[8],
-                nickName = row.getOrNull(9),
-                comment = row.getOrNull(10),
-                balance = row[11].toDouble(),
-                entity = row[12],
-                userId = row[13].toLong()
-            )
-            transactions.add(transaction)
+        for ((index, row) in rows.drop(1).withIndex()) { // Skip header row
+            try {
+                if (index < 3) {
+                    Log.d("filesRestore_parse", "Row $index: date='${row[5]}', time='${row[6]}'")
+                }
+                
+                val transaction = Transaction(
+                    id = row[0].toInt(),
+                    transactionCode = row[1],
+                    transactionType = row[2],
+                    transactionAmount = row[3].toDouble(),
+                    transactionCost = row[4].toDouble(),
+                    date = LocalDate.parse(row[5]),
+                    time = LocalTime.parse(row[6]),
+                    sender = row[7],
+                    recipient = row[8],
+                    nickName = row.getOrNull(9),
+                    comment = row.getOrNull(10),
+                    balance = row[11].toDouble(),
+                    entity = row[12],
+                    userId = row[13].toLong()
+                )
+                transactions.add(transaction)
+                successCount++
+                
+                if (index < 3) {
+                    Log.d("filesRestore_parse", "Successfully parsed transaction $index: ${transaction.transactionCode}")
+                }
+            } catch (e: Exception) {
+                failCount++
+                Log.e("filesRestore_parse", "Failed to parse row $index: ${e.message}")
+                Log.e("filesRestore_parse", "Row data: ${row.joinToString(",")}")
+                if (failCount <= 5) {
+                    Log.e("filesRestore_parse", "Stack trace: ${e.stackTraceToString()}")
+                }
+            }
         }
+        
+        Log.d("filesRestore_parse", "Parsing complete: $successCount success, $failCount failed")
         return transactions
     }
 

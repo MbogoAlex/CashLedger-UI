@@ -536,6 +536,22 @@ val MIGRATION_48_49 = object : Migration(48, 49) {
     }
 }
 
+/**
+ * Migration 49 -> 50: Add safaricomMigrationCompleted column to userPreferences
+ * 
+ * Added for Safaricom Data Minimization update (March 24, 2026)
+ * Tracks whether transaction re-classification migration has been completed
+ */
+val MIGRATION_49_50 = object : Migration(49, 50) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add the safaricomMigrationCompleted column to userPreferences table
+        database.execSQL("""
+            ALTER TABLE `userPreferences` 
+            ADD COLUMN `safaricomMigrationCompleted` INTEGER NOT NULL DEFAULT 0
+        """)
+    }
+}
+
 
 
 

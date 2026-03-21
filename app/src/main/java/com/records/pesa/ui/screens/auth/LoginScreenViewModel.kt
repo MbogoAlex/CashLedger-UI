@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.db.models.UserPreferences
@@ -49,6 +50,7 @@ data class LoginScreenUiState(
 class LoginScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
+    private val dataStoreRepository: DataStoreRepository,
     private val savedStateHandle: SavedStateHandle,
     private val workersRepository: WorkersRepository,
     private val userAccountService: UserAccountService,
@@ -300,6 +302,7 @@ class LoginScreenViewModel(
                                 loggedIn = true,
                                 hasSubmittedMessages = false
                             )
+                            dataStoreRepository.saveUserPreferences(prefs)
                             dbRepository.updateUserPreferences(prefs)
                         } else {
                             val prefs = UserPreferences(
@@ -319,6 +322,7 @@ class LoginScreenViewModel(
                                 hasSubmittedMessages = false
                             )
 
+                            dataStoreRepository.saveUserPreferences(prefs)
                             dbRepository.insertUserPreferences(prefs)
                         }
 
@@ -408,7 +412,7 @@ class LoginScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences()?.collect() { preferences ->
+                dataStoreRepository.getUserPreferences().collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences

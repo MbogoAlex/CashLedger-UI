@@ -23,7 +23,8 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsState()
 
             CashLedgerTheme(
-                darkTheme = uiState.preferences?.darkMode == true && uiState.preferences?.paid == true
+                darkTheme = uiState.preferences?.darkMode == true && uiState.preferences?.paid == true,
+                dynamicColor = false
             ) {
                 Surface(
                     modifier = Modifier

@@ -2,6 +2,8 @@ package com.records.pesa.container
 
 import android.content.Context
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.records.pesa.datastore.DataStoreRepository
+import com.records.pesa.datastore.DataStoreRepositoryImpl
 import com.records.pesa.db.AppDatabase
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.DBRepositoryImpl
@@ -31,8 +33,8 @@ class AppContainerImpl(context: Context): AppContainer {
     }
     //    private val baseUrl = "https://cashledger-backend-java.onrender.com/api/"
 //    private val baseUrl = "https://mledger-a110f0487fa8.herokuapp.com/api/"
-    private val baseUrl = "https://prod.kiwitechhub.com/api/v1/"
 //    private val baseUrl = "https://prod.kiwitechhub.com/api/v1/"
+    private val baseUrl = "https://prod.kiwitechhub.com/api/v1/"
 //      private val baseUrl = "https://example.com/"
 
 //    private val baseUrl = "https://8d1b-102-211-145-169.ngrok-free.app/api/"
@@ -64,6 +66,10 @@ class AppContainerImpl(context: Context): AppContainer {
             .build()
     }
 
+
+    override val dataStoreRepository: DataStoreRepository by lazy {
+        DataStoreRepositoryImpl(context)
+    }
 
     override val dbRepository: DBRepository by lazy {
         DBRepositoryImpl(AppDatabase.getDatabase(context).appDao())

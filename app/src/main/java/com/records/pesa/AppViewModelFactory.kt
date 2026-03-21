@@ -79,8 +79,10 @@ object AppViewModelFactory {
                 savedStateHandle = savedStateHandle,
                 transactionService = transactionService,
                 dbRepository = cashLedgerApplication().container.dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
                 categoryService = categoryService,
-                workersRepository = workersRepository
+                workersRepository = workersRepository,
+                authenticationManager = cashLedgerApplication().container.authenticationManager
             )
         }
 
@@ -211,6 +213,7 @@ object AppViewModelFactory {
             SplashScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
                 userAccountService = userService
             )
         }
@@ -233,6 +236,7 @@ object AppViewModelFactory {
             LoginScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
                 savedStateHandle = this.createSavedStateHandle(),
                 workersRepository = workersRepository,
                 userAccountService = userAccountService,
@@ -247,6 +251,7 @@ object AppViewModelFactory {
             AccountInformationScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
                 authenticationManager = authenticationManager
             )
         }
@@ -268,6 +273,7 @@ object AppViewModelFactory {
             SubscriptionScreenViewModel(
                 apiRepository = apiRepository,
                 dbRepository = dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
                 transactionService = transactionService,
                 authenticationManager = authenticationManager
             )
@@ -287,8 +293,11 @@ object AppViewModelFactory {
 
         initializer {
             val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val workersRepository: WorkersRepository = cashLedgerApplication().container.workersRepository
             MainActivityViewModel(
-                dbRepository = dbRepository
+                dbRepository = dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                workersRepository = workersRepository,
             )
         }
 

@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.profile
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
@@ -40,6 +41,7 @@ data class AccountInformationScreenUiState(
 class AccountInformationScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
+    private val dataStoreRepository: DataStoreRepository,
     private val authenticationManager: AuthenticationManager
 ): ViewModel() {
     private val _uiState = MutableStateFlow(AccountInformationScreenUiState())
@@ -295,10 +297,10 @@ class AccountInformationScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences()?.collect() { preferences ->
+                dataStoreRepository.getUserPreferences().collect() { preferences ->
                     _uiState.update {
                         it.copy(
-                            preferences = preferences!!
+                            preferences = preferences
                         )
                     }
                 }

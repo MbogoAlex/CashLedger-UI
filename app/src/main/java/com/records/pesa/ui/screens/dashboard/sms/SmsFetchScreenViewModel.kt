@@ -136,11 +136,12 @@ class SmsFetchScreenViewModel(
         cursor?.use {
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+            val subIdIndex = it.getColumnIndex(Telephony.Sms.SUBSCRIPTION_ID)
             while (it.moveToNext()) {
                 val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY))
                 val dateMillis = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
                 val senderAddress = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS))
-                val subscriptionId = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.SUBSCRIPTION_ID))
+                val subscriptionId = if (subIdIndex != -1) it.getInt(subIdIndex) else -1
                 
                 val date = Date(dateMillis)
                 val formattedDate = dateFormat.format(date)

@@ -13,6 +13,7 @@ import com.records.pesa.db.migration.MIGRATION_29_30
 import com.records.pesa.db.migration.MIGRATION_30_31
 import com.records.pesa.db.migration.MIGRATION_40_41
 import com.records.pesa.db.migration.MIGRATION_48_49
+import com.records.pesa.db.migration.MIGRATION_49_50
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
@@ -25,7 +26,7 @@ import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, UserSession::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class, UserPreferences::class], version = 49, exportSchema = false)
+@Database(entities = [UserDetails::class, UserSession::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class, UserPreferences::class], version = 50, exportSchema = false)
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
@@ -46,16 +47,17 @@ abstract class AppDatabase: RoomDatabase() {
                         db.execSQL("""
                             INSERT INTO `userPreferences` (
                                 `id`, `loggedIn`, `darkMode`, `restoredData`, `lastRestore`,
-                                `paid`, `permanent`, `paidAt`, `expiryDate`, `showBalance`, `hasSubmittedMessages`
+                                `paid`, `permanent`, `paidAt`, `expiryDate`, `showBalance`, `hasSubmittedMessages`,
+                                `safaricomMigrationCompleted`
                             ) VALUES (
-                                1, 0, 0, 0, NULL, 0, 0, NULL, NULL, 1, 0
+                                1, 0, 0, 0, NULL, 0, 0, NULL, NULL, 1, 0, 0
                             )
                         """)
                     }
                 }
 
                 val builder = Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
-                    .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41, MIGRATION_48_49)
+                    .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41, MIGRATION_48_49, MIGRATION_49_50)
                     .addCallback(callback)
                     .fallbackToDestructiveMigration()
 

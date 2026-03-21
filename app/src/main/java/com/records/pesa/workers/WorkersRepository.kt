@@ -24,6 +24,8 @@ interface WorkersRepository {
         userId: Long,
         userPhone: String
     )
+    
+    suspend fun runSafaricomMigration()
 }
 
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
@@ -89,6 +91,28 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
 
         } catch (e: Exception) {
             Log.e("SmsSubmissionWork", "Error enqueueing SMS submission work", e)
+        }
+    }
+    
+    override suspend fun runSafaricomMigration() {
+        try {
+            Log.d("SafaricomMigration", "Starting SafaricomMigration migration for masked phone numbers")
+
+            // Create one-time work request for migration
+            val migrationRequest = OneTimeWorkRequestBuilder<TransactionMigrationWorker>()
+                .build()
+
+            // Enqueue the work request
+            workManager.enqueueUniqueWork(
+                "safaricom_masked_phone_migration",
+                ExistingWorkPolicy.REPLACE,
+                migrationRequest
+            )
+
+            Log.d("SafaricomMigration", "Migration work enqueued")
+
+        } catch (e: Exception) {
+            Log.e("SafaricomMigration", "Error enqueueing migration work", e)
         }
     }
 

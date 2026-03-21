@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
@@ -34,6 +35,7 @@ data class SplashScreenUiState(
 class SplashScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
+    private val dataStoreRepository: DataStoreRepository,
     private val userAccountService: UserAccountService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SplashScreenUiState())
@@ -83,7 +85,7 @@ class SplashScreenViewModel(
     private fun getUserPreferences() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.getUserPreferences()?.collect() { preferences ->
+                dataStoreRepository.getUserPreferences().collect() { preferences ->
                     _uiState.update {
                         it.copy(
                             preferences = preferences

@@ -17,4 +17,5 @@ data class UserPreferences(
     val expiryDate: LocalDateTime?,
     val showBalance: Boolean,
     val hasSubmittedMessages: Boolean,
+    val safaricomMigrationCompleted: Boolean = false,
 )

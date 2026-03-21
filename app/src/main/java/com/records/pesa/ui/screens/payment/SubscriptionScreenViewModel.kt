@@ -10,6 +10,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
@@ -64,7 +65,8 @@ class SubscriptionScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
-    private val authenticationManager: AuthenticationManager
+    private val authenticationManager: AuthenticationManager,
+    private val dataStoreRepository: DataStoreRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(SubscriptionScreenUiState())
     val uiState: StateFlow<SubscriptionScreenUiState> = _uiState.asStateFlow()
@@ -129,12 +131,22 @@ class SubscriptionScreenViewModel(
     fun getFirstTransactionDate() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val firstTransaction = transactionService.getFirstTransaction().first()
-                _uiState.update {
-                    it.copy(
-                        firstTransactionDate = formatLocalDate(firstTransaction.date)
-                    )
+
+                try {
+                    val firstTransaction = transactionService.getFirstTransaction().first()
+                    _uiState.update {
+                        it.copy(
+                            firstTransactionDate = formatLocalDate(firstTransaction.date)
+                        )
+                    }
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(
+                            firstTransactionDate = "\nNo transactions found"
+                        )
+                    }
                 }
+
             }
         }
     }
@@ -357,8 +369,10 @@ class SubscriptionScreenViewModel(
                                 expiryDate = if (subscription.expiredAt != null) LocalDateTime.parse(subscription.expiredAt) else null,
                                 permanent = subscription.subscriptionPackageId == 4 // Lifetime package
                             )
-                            
+
+                            dataStoreRepository.saveUserPreferences(prefs)
                             dbRepository.updateUserPreferences(prefs)
+
                             
                             _uiState.update {
                                 it.copy(
@@ -408,18 +422,14 @@ class SubscriptionScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    dbRepository.updateUserPreferences(
-                        _uiState.value.preferences.copy(
-                            paid = true,
-                            paidAt = LocalDateTime.parse(paidAt),
-                            expiryDate = LocalDateTime.parse(expiredAt),
-                            permanent = permanent
-                        )
+                    val updatedPrefs = _uiState.value.preferences.copy(
+                        paid = true,
+                        paidAt = LocalDateTime.parse(paidAt),
+                        expiryDate = LocalDateTime.parse(expiredAt),
+                        permanent = permanent
                     )
-
-                    while(!uiState.value.preferences.paid) {
-                        delay(1000)
-                    }
+                    dbRepository.updateUserPreferences(updatedPrefs)
+                    dataStoreRepository.saveUserPreferences(updatedPrefs)
 
 
                     _uiState.update {

@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
@@ -19,6 +20,8 @@ import com.records.pesa.models.transaction.MonthlyTransaction
 import com.records.pesa.models.transaction.SortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.workers.WorkersRepository
@@ -33,6 +36,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.absoluteValue
 
 data class DashboardScreenUiState(
@@ -63,19 +67,24 @@ data class DashboardScreenUiState(
     val appVersion: Double? = null,
     val categories: List<TransactionCategory> = emptyList(),
     val sortedTransactionItems: List<SortedTransactionItem> = emptyList(),
+    val showSubscriptionExpiredDialog: Boolean = false,
+    val showSubscriptionActivatedDialog: Boolean = false,
 )
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
+    private val dataStoreRepository: DataStoreRepository,
     private val transactionService: TransactionService,
     private val categoryService: CategoryService,
-    private val workersRepository: WorkersRepository
+    private val workersRepository: WorkersRepository,
+    private val authenticationManager: AuthenticationManager
 ): ViewModel() {
     private val _uiState = MutableStateFlow(DashboardScreenUiState())
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
 
     private var filterJob: Job? = null
+    private var initialPaidStatus: Boolean? = null
 
     fun updatePassword(password: String) {
         _uiState.update {
@@ -388,11 +397,67 @@ class DashboardScreenViewModel(
     fun changeBalanceVisibility() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dbRepository.updateUserPreferences(
-                    uiState.value.preferences.copy(
-                        showBalance = !uiState.value.preferences.showBalance
-                    )
+                val updatedPrefs = uiState.value.preferences.copy(
+                    showBalance = !uiState.value.preferences.showBalance
                 )
+                dbRepository.updateUserPreferences(updatedPrefs)
+                dataStoreRepository.saveUserPreferences(updatedPrefs)
+            }
+        }
+    }
+
+    private fun checkSubscriptionStatus() {
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    // Wait until initial preferences have been loaded
+                    while (initialPaidStatus == null) {
+                        delay(500)
+                    }
+
+                    val response = authenticationManager.executeWithAuth { token ->
+                        apiRepository.getUserSubscription(
+                            token = token,
+                            containerId = 1
+                        )
+                    }
+
+                    if(response?.isSuccessful == true) {
+                        val subscription = response.body()?.data
+                        Log.d("ManualSubscriptionCheck", subscription.toString())
+
+                        if(subscription != null) {
+                            val prefs = uiState.value.preferences.copy(
+                                paid = true,
+                                paidAt = if (subscription.paidAt != null) LocalDateTime.parse(subscription.paidAt) else null,
+                                expiryDate = if (subscription.expiredAt != null) LocalDateTime.parse(subscription.expiredAt) else null,
+                                permanent = subscription.subscriptionPackageId == 4
+                            )
+                            dataStoreRepository.saveUserPreferences(prefs)
+                            dbRepository.updateUserPreferences(prefs)
+
+                            if (initialPaidStatus == false) {
+                                _uiState.update { it.copy(showSubscriptionActivatedDialog = true) }
+                            }
+                        } else {
+                            val prefs = uiState.value.preferences.copy(
+                                paid = false,
+                                permanent = false
+                            )
+                            dataStoreRepository.saveUserPreferences(prefs)
+                            dbRepository.updateUserPreferences(prefs)
+
+                            if (initialPaidStatus == true) {
+                                _uiState.update { it.copy(showSubscriptionExpiredDialog = true) }
+                            }
+                        }
+                    } else {
+                        Log.e("ManualSubscriptionCheck", "API call failed: ${response?.code()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ManualSubscriptionCheck", "Exception: $e")
+                }
             }
         }
     }
@@ -401,13 +466,16 @@ class DashboardScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                   dbRepository.getUserPreferences()?.collect { preferences ->
-                       _uiState.update {
-                           it.copy(
-                               preferences = preferences ?: userPreferences
-                           )
-                       }
-                   }
+                    dataStoreRepository.getUserPreferences().collect { preferences ->
+                        if (initialPaidStatus == null) {
+                            initialPaidStatus = preferences.paid
+                        }
+                        _uiState.update {
+                            it.copy(
+                                preferences = preferences
+                            )
+                        }
+                    }
                 } catch (e: Exception) {
 
                 }
@@ -415,6 +483,14 @@ class DashboardScreenViewModel(
         }
     }
 
+
+    fun dismissSubscriptionExpiredDialog() {
+        _uiState.update { it.copy(showSubscriptionExpiredDialog = false) }
+    }
+
+    fun dismissSubscriptionActivatedDialog() {
+        _uiState.update { it.copy(showSubscriptionActivatedDialog = false) }
+    }
 
     private fun initialzeApp() {
         viewModelScope.launch {
@@ -432,6 +508,7 @@ class DashboardScreenViewModel(
         loadStartupData()
         initialzeApp()
         getUserPreferences()
+        checkSubscriptionStatus()
 //        checkAppVersion()
     }
 }
