@@ -1441,42 +1441,70 @@ fun DateRangePickerDialog(
     onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.Red),
-        shape = RoundedCornerShape(0.dp),
-        modifier = modifier
+    ElevatedCard(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
-        Popup(
-            alignment = Alignment.TopEnd,
-            properties = PopupProperties(excludeFromSystemGesture = true),
-            onDismissRequest = onDismiss,
-        ) {
-            Card(shape = RoundedCornerShape(0.dp)) {
-                Column(modifier = Modifier.padding(10.dp).fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
                     Text(
-                        text = if (defaultStartDate != null)
-                            "Select date range (within $defaultStartDate and $defaultEndDate)"
-                        else "Select date range",
+                        text = "Custom date range",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(start = 16.dp)
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    DateRangePicker(
-                        premium = premium,
-                        startDate = startDate,
-                        endDate = endDate,
-                        defaultStartDate = defaultStartDate,
-                        defaultEndDate = defaultEndDate,
-                        onChangeStartDate = onChangeStartDate,
-                        onChangeLastDate = onChangeLastDate,
-                        onShowSubscriptionDialog = onShowSubscriptionDialog,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.padding(horizontal = 16.dp).align(Alignment.End)
-                    ) { Text("Dismiss") }
+                    if (defaultStartDate != null) {
+                        Text(
+                            text = "Within $defaultStartDate – $defaultEndDate",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
                 }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.baseline_clear_24),
+                        contentDescription = "Close",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Date selectors
+            DateRangePicker(
+                premium = premium,
+                startDate = startDate,
+                endDate = endDate,
+                defaultStartDate = defaultStartDate,
+                defaultEndDate = defaultEndDate,
+                onChangeStartDate = onChangeStartDate,
+                onChangeLastDate = onChangeLastDate,
+                onShowSubscriptionDialog = onShowSubscriptionDialog,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Done button
+            androidx.compose.material3.FilledTonalButton(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Apply", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1529,25 +1557,79 @@ fun DateRangePicker(
         }
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onPrimary),
-        elevation = CardDefaults.elevatedCardElevation(screenWidth(x = 10.0)),
-        modifier = modifier.padding(screenWidth(x = 16.0)).fillMaxWidth()
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // From date button
+        DateChipButton(
+            label = "From",
+            date = startDate,
+            onClick = { showDatePicker(true) },
+            modifier = Modifier.weight(1f)
+        )
+
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_right),
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+
+        // To date button
+        DateChipButton(
+            label = "To",
+            date = endDate,
+            onClick = { showDatePicker(false) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun DateChipButton(
+    label: String,
+    date: LocalDate,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayDate = date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 0.5.sp
+        )
         Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            IconButton(onClick = { showDatePicker(true) }) {
-                Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, tint = MaterialTheme.colorScheme.surfaceTint, modifier = Modifier.size(screenWidth(x = 24.0)))
-            }
-            Text(dateFormatter.format(startDate), fontSize = screenFontSize(x = 14.0).sp)
-            Text("to", fontSize = screenFontSize(x = 14.0).sp)
-            Text(dateFormatter.format(endDate), fontSize = screenFontSize(x = 14.0).sp)
-            IconButton(onClick = { showDatePicker(false) }) {
-                Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, tint = MaterialTheme.colorScheme.surfaceTint, modifier = Modifier.size(screenWidth(x = 24.0)))
-            }
+            Icon(
+                painter = painterResource(R.drawable.calendar),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = displayDate,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
