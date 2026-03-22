@@ -81,6 +81,9 @@ class SingleEntityTransactionsScreenViewModel(
                 loadingStatus = LoadingStatus.LOADING
             )
         }
+
+        Log.d("SingleEntityTransactions", "type:: ${uiState.value.transactionType}, entity:: ${uiState.value.entity}")
+
         val query = transactionService.createUserTransactionQuery(
             userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.entity,

@@ -104,7 +104,7 @@ interface TransactionsDao {
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
-            append("AND (? IS NULL OR ? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
+            append("AND (? IS NULL OR ? = '' OR LOWER(t.entity) = LOWER(?) OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
             append("AND (? IS NULL OR tc.categoryId = ?) ")
             append("AND (? IS NULL OR b.id = ?) ")
             append("AND (? IS NULL OR ? = '' OR LOWER(t.transactionType) LIKE '%' || ? || '%') ")
@@ -121,7 +121,7 @@ interface TransactionsDao {
 
         return SimpleSQLiteQuery(
             query.toString(),
-            arrayOf(userId, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, startDate.toString(), endDate.toString())
+            arrayOf(userId, entity, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, startDate.toString(), endDate.toString())
         )
     }
 
@@ -152,7 +152,7 @@ interface TransactionsDao {
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
-            append("AND (? IS NULL OR ? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
+            append("AND (? IS NULL OR ? = '' OR LOWER(t.entity) = LOWER(?) OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%') ")
             append("AND (? IS NULL OR tc.categoryId = ?) ")
             append("AND (? IS NULL OR b.id = ?) ")
             append("AND (? IS NULL OR ? = '' OR LOWER(t.transactionType) LIKE '%' || ? || '%') ")
@@ -175,7 +175,7 @@ interface TransactionsDao {
         return SimpleSQLiteQuery(
             query.toString(),
             arrayOf(
-                userId, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, "$year-$monthNumber-01", year.toString()
+                userId, entity, entity, entity, entity, entity, entity, categoryId, categoryId, budgetId, budgetId, transactionType, transactionType, transactionType, "$year-$monthNumber-01", year.toString()
             )
         )
     }
@@ -205,7 +205,7 @@ interface TransactionsDao {
             append("LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId ")
             append("LEFT JOIN budget b ON b.categoryId = tc.categoryId ")
             append("WHERE t.userId = ? ") // Assuming `userId` is a column in `transaction`
-            append("AND (? IS NULL OR (? = '' OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%')) ")
+            append("AND (? IS NULL OR (? = '' OR LOWER(t.entity) = LOWER(?) OR LOWER(t.sender) LIKE '%' || ? || '%' OR LOWER(t.nickName) LIKE '%' || ? || '%' OR LOWER(t.recipient) LIKE '%' || ? || '%')) ")
 
             if (!categoryIds.isNullOrEmpty()) {
                 append("AND tc.categoryId IN (${categoryIds.joinToString(", ")}) ")
@@ -220,6 +220,7 @@ interface TransactionsDao {
 
         val argsList = mutableListOf<Any?>()
         argsList.add(userId)
+        argsList.add(entity)
         argsList.add(entity)
         argsList.add(entity)
         argsList.add(entity)
@@ -278,6 +279,7 @@ interface TransactionsDao {
             LEFT JOIN budget b ON tc.categoryId = b.categoryId
             WHERE 
                 (? IS NULL OR 
+                LOWER(t.entity) = LOWER(?) OR
                 LOWER(CASE 
                     WHEN ? THEN t.sender 
                     ELSE t.recipient 
@@ -306,7 +308,7 @@ interface TransactionsDao {
         return SimpleSQLiteQuery(
             query.toString(),
             arrayOf(
-                moneyIn, moneyIn, entity, entity, entity,
+                moneyIn, entity, moneyIn, entity, entity,
                 categoryId, categoryId,
                 budgetId, budgetId,
                 transactionType, transactionType,
