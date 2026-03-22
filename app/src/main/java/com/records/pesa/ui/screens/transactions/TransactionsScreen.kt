@@ -974,6 +974,15 @@ private fun TxTypeFilterChip(
 
 // ─── Date header ─────────────────────────────────────────────────────────────
 
+private fun formatTxShortDate(dateStr: String): String = try {
+    LocalDate.parse(dateStr).format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))
+} catch (e: Exception) { dateStr }
+
+private fun formatTxShortTime(timeStr: String): String = try {
+    val t = java.time.LocalTime.parse(timeStr)
+    t.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+} catch (e: Exception) { timeStr }
+
 private fun formatTxDateHeader(dateStr: String): String {
     return try {
         val date = LocalDate.parse(dateStr)
@@ -1082,7 +1091,7 @@ private fun TxItemRow(
                     )
                 }
                 Text(
-                    text = "· ${transaction.time}",
+                    text = "· ${formatTxShortDate(transaction.date)}  ${formatTxShortTime(transaction.time)}",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                 )
