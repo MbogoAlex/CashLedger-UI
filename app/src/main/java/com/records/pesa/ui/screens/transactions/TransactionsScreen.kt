@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,6 +70,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -498,8 +500,38 @@ fun TransactionsScreen(
             )
 
             // ── Scrollable body ───────────────────────────────────────────────
+            val lazyListState = rememberLazyListState()
+
+            // Track which date section header is currently "above" the viewport
+            // and whether any date header is still visible in the list content.
+            var lastSeenDate by remember { mutableStateOf<String?>(null) }
+            var dateHeaderVisible by remember { mutableStateOf(true) }
+
+            LaunchedEffect(lazyListState, currentTab) {
+                androidx.compose.runtime.snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo }
+                    .distinctUntilChanged()
+                    .collect { items ->
+                        val dateHeaders = items.filter {
+                            (it.key as? String)?.startsWith("header_") == true
+                        }
+                        // Update last seen date whenever a header scrolls into view
+                        dateHeaders.maxByOrNull { it.index }?.let { header ->
+                            lastSeenDate = (header.key as? String)?.removePrefix("header_")
+                        }
+                        // A header is "visible" when its top edge is within the content area
+                        dateHeaderVisible = dateHeaders.any { it.offset >= 0 }
+                    }
+            }
+
+            // Show date in sticky bar only when no date header is visible in the list
+            val stickyDate = if (
+                currentTab == TransactionScreenTab.ALL_TRANSACTIONS &&
+                !dateHeaderVisible && lastSeenDate != null
+            ) lastSeenDate else null
+
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
+                    state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 120.dp)
                 ) {
@@ -547,7 +579,8 @@ fun TransactionsScreen(
                             selectedType = selectedType,
                             defaultTransactionType = defaultTransactionType,
                             transactionTypes = transactionTypes,
-                            onSelectType = onSelectType
+                            onSelectType = onSelectType,
+                            currentSectionDate = stickyDate
                         )
                     }
 
@@ -843,7 +876,8 @@ private fun TxTabAndFilterRow(
     selectedType: String,
     defaultTransactionType: String?,
     transactionTypes: List<String>,
-    onSelectType: (String) -> Unit
+    onSelectType: (String) -> Unit,
+    currentSectionDate: String? = null
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -898,6 +932,32 @@ private fun TxTabAndFilterRow(
                     types = transactionTypes,
                     onSelect = onSelectType
                 )
+            }
+
+            // Current date section indicator (All Transactions only)
+            if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS && currentSectionDate != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
+                        .padding(horizontal = 16.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.calendar),
+                        contentDescription = null,
+                        modifier = Modifier.size(11.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = formatTxDateHeader(currentSectionDate),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        letterSpacing = 0.3.sp
+                    )
+                }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
