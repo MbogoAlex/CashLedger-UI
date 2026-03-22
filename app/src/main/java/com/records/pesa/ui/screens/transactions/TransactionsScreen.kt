@@ -70,7 +70,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -502,32 +501,28 @@ fun TransactionsScreen(
             // ── Scrollable body ───────────────────────────────────────────────
             val lazyListState = rememberLazyListState()
 
-            // Track which date section header is currently "above" the viewport
-            // and whether any date header is still visible in the list content.
-            var lastSeenDate by remember { mutableStateOf<String?>(null) }
-            var dateHeaderVisible by remember { mutableStateOf(true) }
-
-            LaunchedEffect(lazyListState, currentTab) {
-                androidx.compose.runtime.snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo }
-                    .distinctUntilChanged()
-                    .collect { items ->
-                        val dateHeaders = items.filter {
-                            (it.key as? String)?.startsWith("header_") == true
-                        }
-                        // Update last seen date whenever a header scrolls into view
-                        dateHeaders.maxByOrNull { it.index }?.let { header ->
-                            lastSeenDate = (header.key as? String)?.removePrefix("header_")
-                        }
-                        // A header is "visible" when its top edge is within the content area
-                        dateHeaderVisible = dateHeaders.any { it.offset >= 0 }
+            // Track current date section: update whenever firstVisibleItemIndex changes.
+            // Since stickyDate persists, it stays set while scrolling through a section
+            // that has no header in view.
+            var stickyDate by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(lazyListState.firstVisibleItemIndex) {
+                if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
+                    val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+                    val dateHeaders = visibleItems.filter {
+                        (it.key as? String)?.startsWith("header_") == true
                     }
+                    val onScreenHeader = dateHeaders.firstOrNull { it.offset >= 0 }
+                    if (onScreenHeader != null) {
+                        // Date header is in view — no need for the banner
+                        stickyDate = null
+                    } else {
+                        // Header scrolled off — show last known date in banner
+                        dateHeaders.maxByOrNull { it.index }?.let {
+                            stickyDate = (it.key as? String)?.removePrefix("header_")
+                        }
+                    }
+                }
             }
-
-            // Show date in sticky bar only when no date header is visible in the list
-            val stickyDate = if (
-                currentTab == TransactionScreenTab.ALL_TRANSACTIONS &&
-                !dateHeaderVisible && lastSeenDate != null
-            ) lastSeenDate else null
 
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
@@ -571,7 +566,7 @@ fun TransactionsScreen(
                         }
                     }
 
-                    // Sticky tab + filter row
+                    // Sticky tab + filter row (always one sticky header — stacks date below tabs)
                     stickyHeader {
                         TxTabAndFilterRow(
                             currentTab = currentTab,
@@ -580,7 +575,7 @@ fun TransactionsScreen(
                             defaultTransactionType = defaultTransactionType,
                             transactionTypes = transactionTypes,
                             onSelectType = onSelectType,
-                            currentSectionDate = stickyDate
+                            currentSectionDate = if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS) stickyDate else null
                         )
                     }
 
@@ -934,13 +929,14 @@ private fun TxTabAndFilterRow(
                 )
             }
 
-            // Current date section indicator (All Transactions only)
-            if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS && currentSectionDate != null) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+            // Date section banner — only shown when header has scrolled off screen
+            if (currentSectionDate != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
-                        .padding(horizontal = 16.dp, vertical = 5.dp),
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f))
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -959,8 +955,6 @@ private fun TxTabAndFilterRow(
                     )
                 }
             }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
         }
     }
 }
