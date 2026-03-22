@@ -106,6 +106,11 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
+import com.records.pesa.ui.screens.components.TxDateHeader
+import com.records.pesa.ui.screens.components.TxEmptyState
+import com.records.pesa.ui.screens.components.TxItemRow
+import com.records.pesa.ui.screens.components.formatTxDateHeader
+import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
@@ -130,16 +135,6 @@ object TransactionsScreenDestination : AppNavigation {
     val routeWithBudgetId: String = "$route/{$categoryId}/{$budgetId}/{$startDate}/{$endDate}"
     val routeWithTransactionType: String = "$route/{$comment}/{$transactionType}/{$moneyDirection}/{$startDate}/{$endDate}"
 }
-
-// ─── Avatar palette ───────────────────────────────────────────────────────────
-
-private val txAvatarPalette = listOf(
-    Color(0xFF006A65), Color(0xFF4A6361), Color(0xFF48607B),
-    Color(0xFF7B5EA7), Color(0xFFB5542D), Color(0xFF2D6A8A),
-    Color(0xFF5A7A2B), Color(0xFF8A3D4A),
-)
-private fun txAvatarColor(name: String): Color =
-    txAvatarPalette[(name.firstOrNull()?.code ?: 0) % txAvatarPalette.size]
 
 // ─── Composable entry point ───────────────────────────────────────────────────
 
@@ -1026,176 +1021,6 @@ private fun TxTypeFilterChip(
     }
 }
 
-// ─── Date header ─────────────────────────────────────────────────────────────
-
-private fun formatTxShortDate(dateStr: String): String = try {
-    LocalDate.parse(dateStr).format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))
-} catch (e: Exception) { dateStr }
-
-private fun formatTxShortTime(timeStr: String): String = try {
-    val t = java.time.LocalTime.parse(timeStr)
-    t.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
-} catch (e: Exception) { timeStr }
-
-private fun formatTxDateHeader(dateStr: String): String {
-    return try {
-        val date = LocalDate.parse(dateStr)
-        val today = LocalDate.now()
-        when (date) {
-            today -> "Today"
-            today.minusDays(1) -> "Yesterday"
-            else -> date.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMM yyyy"))
-        }
-    } catch (e: Exception) {
-        dateStr
-    }
-}
-
-@Composable
-private fun TxDateHeader(date: String) {
-    Text(
-        text = formatTxDateHeader(date),
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-        letterSpacing = 0.4.sp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    )
-}
-
-// ─── Transaction item row ─────────────────────────────────────────────────────
-
-@Composable
-private fun TxItemRow(
-    transaction: TransactionItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isIn = transaction.transactionAmount > 0
-    val displayName = (transaction.nickName?.ifEmpty { null } ?: transaction.entity)
-        .replaceFirstChar { it.uppercase() }
-    val initials = displayName.trim().split(" ")
-        .mapNotNull { it.firstOrNull()?.uppercase() }
-        .take(2).joinToString("").ifEmpty { displayName.take(2).uppercase() }
-    val avatarColor = txAvatarColor(transaction.entity)
-    val amountColor = if (isIn) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-    val hasFee = !isIn && transaction.transactionCost.absoluteValue > 0
-
-    Row(
-        modifier = modifier
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = onClick
-            )
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        // Avatar with subtle colored ring
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(avatarColor.copy(alpha = 0.15f))
-            )
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(avatarColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(initials, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 0.5.sp)
-            }
-        }
-
-        // Middle
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                text = displayName,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Type pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = transaction.transactionType,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Text(
-                    text = "· ${formatTxShortDate(transaction.date)}  ${formatTxShortTime(transaction.time)}",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                )
-            }
-        }
-
-        // Right: amount + optional fee chip + direction indicator
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            // Direction dot + amount
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(amountColor)
-                )
-                Text(
-                    text = "${if (isIn) "+" else "-"}Ksh ${String.format("%,.0f", transaction.transactionAmount.absoluteValue)}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = amountColor
-                )
-            }
-            if (hasFee) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Text(
-                        text = "Fee",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = "Ksh ${String.format("%,.2f", transaction.transactionCost.absoluteValue)}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-}
-
 // ─── Sorted / grouped item row ────────────────────────────────────────────────
 
 @Composable
@@ -1329,33 +1154,6 @@ private fun SortedTxItemRow(
                     color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                 )
             }
-        }
-    }
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-@Composable
-private fun TxEmptyState(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                painter = painterResource(R.drawable.transactions),
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-            )
         }
     }
 }
