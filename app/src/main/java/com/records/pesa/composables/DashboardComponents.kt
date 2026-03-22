@@ -57,6 +57,9 @@ fun HeroBalanceCard(
     periodLabel: String,
     moneyIn: String,
     moneyOut: String,
+    selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
+    availableYears: List<Int> = emptyList(),
+    onPeriodSelected: (TimePeriod) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -196,14 +199,62 @@ fun HeroBalanceCard(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Period label
-                Text(
-                    text = periodLabel.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp
-                )
+                // Clickable period label with dropdown
+                Box {
+                    var showPeriodMenu by remember { mutableStateOf(false) }
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                            .clickable { showPeriodMenu = true }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = periodLabel.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.sp
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_downward),
+                            contentDescription = "Select period",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                    val allPeriods = remember(availableYears) {
+                        buildList<TimePeriod> {
+                            add(TimePeriod.TODAY); add(TimePeriod.YESTERDAY)
+                            add(TimePeriod.THIS_WEEK); add(TimePeriod.LAST_WEEK)
+                            add(TimePeriod.THIS_MONTH); add(TimePeriod.LAST_MONTH)
+                            add(TimePeriod.THIS_YEAR)
+                            val currentYear = java.time.LocalDate.now().year
+                            availableYears.filter { it < currentYear }
+                                .forEach { add(TimePeriod.SPECIFIC_YEAR(it)) }
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = showPeriodMenu,
+                        onDismissRequest = { showPeriodMenu = false }
+                    ) {
+                        allPeriods.forEach { period ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = period.getDisplayName(),
+                                        fontSize = 14.sp,
+                                        fontWeight = if (period == selectedTimePeriod) FontWeight.Bold
+                                                     else FontWeight.Normal
+                                    )
+                                },
+                                onClick = { onPeriodSelected(period); showPeriodMenu = false }
+                            )
+                        }
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
@@ -555,118 +606,17 @@ fun RecentTransactionsSection(
 }
 
 /**
- * Modern transaction card
+ * Modern transaction card — delegates to shared component.
  */
 @Composable
 fun TransactionCard(
     transaction: TransactionItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                // Transaction type icon
-                Surface(
-                    shape = CircleShape,
-                    color = if (transaction.transactionAmount > 0) {
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-                    } else {
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                if (transaction.transactionAmount > 0) {
-                                    R.drawable.arrow_downward
-                                } else {
-                                    R.drawable.arrow_upward
-                                }
-                            ),
-                            contentDescription = null,
-                            tint = if (transaction.transactionAmount > 0) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.width(10.dp))
-                
-                Column {
-                    Text(
-                        text = transaction.transactionType,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = transaction.entity,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        maxLines = 1
-                    )
-                }
-            }
-            
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = if (transaction.transactionAmount > 0) {
-                        "+${String.format("%,.0f", transaction.transactionAmount)}"
-                    } else {
-                        String.format("%,.0f", transaction.transactionAmount)
-                    },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (transaction.transactionAmount > 0) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    }
-                )
-                Text(
-                    text = transaction.time,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-        }
-    }
-}
+) = com.records.pesa.ui.screens.components.TransactionCard(transaction, onClick, modifier)
 
 /**
- * Empty state card
+ * Empty state card — delegates to shared component.
  */
 @Composable
 fun EmptyStateCard(
@@ -674,44 +624,7 @@ fun EmptyStateCard(
     message: String,
     subtitle: String,
     modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = message,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = subtitle,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-    }
-}
+) = com.records.pesa.ui.screens.components.EmptyStateCard(icon, message, subtitle, modifier)
 
 /**
  * Determine if a transaction type is money in or out based on type name
@@ -745,7 +658,7 @@ private fun isMoneyInType(transactionType: String): Boolean {
 }
 
 /**
- * Compact Transaction Breakdown - Simple list without charts
+ * Compact Transaction Breakdown — delegates to shared component.
  */
 @Composable
 fun CompactTransactionBreakdown(
@@ -753,286 +666,16 @@ fun CompactTransactionBreakdown(
     moneyOutCategories: List<com.records.pesa.models.TransactionTypeSummary>,
     periodLabel: String = "All Time",
     modifier: Modifier = Modifier
-) {
-    if (moneyInCategories.isEmpty() && moneyOutCategories.isEmpty()) return
-    
-    if (moneyInCategories.isEmpty() && moneyOutCategories.isEmpty()) return
-    
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "TOP CATEGORIES",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = periodLabel.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Money IN section
-            if (moneyInCategories.isNotEmpty()) {
-                Text(
-                    text = "MONEY IN",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    letterSpacing = 0.5.sp
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                moneyInCategories.take(3).forEach { item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f),
-                                        CircleShape
-                                    )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = item.transactionType,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Text(
-                            text = "+${String.format("%,.0f", item.totalAmount)}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
-            }
-            
-            // Divider between sections
-            if (moneyInCategories.isNotEmpty() && moneyOutCategories.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-            
-            // Money OUT section
-            if (moneyOutCategories.isNotEmpty()) {
-                Text(
-                    text = "MONEY OUT",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                    letterSpacing = 0.5.sp
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                moneyOutCategories.take(3).forEach { item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                                        CircleShape
-                                    )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = item.transactionType,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Text(
-                            text = "-${String.format("%,.0f", item.totalAmount)}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+) = com.records.pesa.ui.screens.components.CompactTransactionBreakdown(
+    moneyInCategories, moneyOutCategories, periodLabel, modifier
+)
 
 /**
- * Top Senders/Receivers Section
+ * Top Senders/Receivers Section — delegates to shared component.
  */
 @Composable
 fun TopPeopleSection(
     transactions: List<com.records.pesa.models.transaction.TransactionItem>,
     periodLabel: String = "All Time",
     modifier: Modifier = Modifier
-) {
-    if (transactions.isEmpty()) return
-    
-    // Calculate top senders (money received from)
-    val topSenders = transactions
-        .filter { it.transactionAmount > 0 }
-        .groupBy { it.entity }
-        .mapValues { it.value.sumOf { tx -> tx.transactionAmount } }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(3)
-    
-    // Calculate top receivers (money sent to)
-    val topReceivers = transactions
-        .filter { it.transactionAmount < 0 }
-        .groupBy { it.entity }
-        .mapValues { it.value.sumOf { tx -> Math.abs(tx.transactionAmount) } }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(3)
-    
-    if (topSenders.isEmpty() && topReceivers.isEmpty()) return
-    
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            if (topSenders.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "TOP SENDERS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = periodLabel.uppercase(),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                topSenders.forEach { (entity, amount) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = entity.take(25),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = "+${String.format("%,.0f", amount)}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
-            }
-            
-            if (topSenders.isNotEmpty() && topReceivers.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-            
-            if (topReceivers.isNotEmpty()) {
-                Text(
-                    text = "TOP RECEIVERS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                    letterSpacing = 1.sp
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                topReceivers.forEach { (entity, amount) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = entity.take(25),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = "-${String.format("%,.0f", amount)}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+) = com.records.pesa.ui.screens.components.TopPeopleSection(transactions, periodLabel, modifier)

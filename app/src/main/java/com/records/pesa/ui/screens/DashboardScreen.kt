@@ -204,7 +204,7 @@ fun DashboardScreenComposable(
 
     Box(
         modifier = modifier
-            .safeDrawingPadding()
+//             .safeDrawingPadding()
     ) {
         DashboardScreen(
             premium = uiState.preferences?.paid == true || uiState.userDetails?.phoneNumber == "0888888888",
@@ -341,6 +341,9 @@ fun DashboardScreen(
             periodLabel = selectedTimePeriod.getDisplayName(),
             moneyIn = periodTotalIn,
             moneyOut = periodTotalOut,
+            selectedTimePeriod = selectedTimePeriod,
+            availableYears = availableYears,
+            onPeriodSelected = onPeriodSelected,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = screenWidth(x = 16.0))
@@ -354,43 +357,6 @@ fun DashboardScreen(
             onClick = {
                 context.dialUssd("*334#")
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
-        )
-        
-        Spacer(modifier = Modifier.height(screenHeight(x = 12.0)))
-        
-        // Time Period Selector - Clean dropdown
-        TimePeriodSelector(
-            selectedPeriod = selectedTimePeriod,
-            availableYears = availableYears,
-            onPeriodSelected = onPeriodSelected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
-        )
-        
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        
-        // Transaction Type Breakdown
-        if (moneyInCategories.isNotEmpty() || moneyOutCategories.isNotEmpty()) {
-            CompactTransactionBreakdown(
-                moneyInCategories = moneyInCategories,
-                moneyOutCategories = moneyOutCategories,
-                periodLabel = selectedTimePeriod.getDisplayName(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = screenWidth(x = 16.0))
-            )
-            
-            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        }
-        
-        // Top Senders/Receivers
-        TopPeopleSection(
-            transactions = periodTransactions,
-            periodLabel = selectedTimePeriod.getDisplayName(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = screenWidth(x = 16.0))

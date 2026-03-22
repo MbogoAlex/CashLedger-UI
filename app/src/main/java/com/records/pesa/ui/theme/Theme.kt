@@ -235,8 +235,9 @@ fun CashLedgerTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // enableEdgeToEdge() in MainActivity handles status bar transparency.
+            // Just ensure icon colors contrast correctly with the background.
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

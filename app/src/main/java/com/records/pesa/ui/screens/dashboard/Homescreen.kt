@@ -19,6 +19,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -27,20 +29,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -48,8 +54,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,12 +64,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
@@ -96,6 +103,7 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
 import com.records.pesa.ui.screens.transactionTypes.TransactionTypesScreenComposable
+import com.records.pesa.ui.screens.transactions.TransactionsHubScreenComposable
 import com.records.pesa.ui.screens.transactions.TransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.sorted.SortedTransactionsScreenComposable
 import com.records.pesa.ui.screens.utils.screenFontSize
@@ -141,7 +149,6 @@ fun HomeScreenComposable(
     val uiState by viewModel.uiState.collectAsState()
 
     val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val notificationPermissionState = rememberPermissionState(permission = Manifest.permission.POST_NOTIFICATIONS)
     val notificationRequestHandler = rememberLauncherForActivityResult(
@@ -201,14 +208,23 @@ fun HomeScreenComposable(
     }
 
     Box(
-        modifier = Modifier.safeDrawingPadding()
+        modifier = Modifier
+            .then(
+                // Use statusBarsPadding for real device, fallback for preview
+                try {
+                    Modifier.statusBarsPadding()
+                } catch (e: Exception) {
+                    Modifier.padding(top = 24.dp)
+                }
+            )
+//            .imePadding()
+//            .safeDrawingPadding()
     ) {
         HomeScreen(
             context = context,
             lastBackup = uiState.userDetails.lastBackup?.let { formatIsoDateTime2(it) } ?: "Never",
             freeTrialDays = uiState.freeTrialDays,
             scope = scope,
-            drawerState = drawerState,
             firstName = uiState.userDetails.firstName,
             lastName = uiState.userDetails.lastName,
             phoneNumber = uiState.userDetails.phoneNumber,
@@ -217,12 +233,10 @@ fun HomeScreenComposable(
             onTabChange = { currentTab = it },
             tabs = listOf(
                 HomeScreenTabItem("Home", R.drawable.home, HomeScreenTab.HOME),
-                HomeScreenTabItem("All transactions", R.drawable.transactions, HomeScreenTab.ALL_TRANSACTIONS),
-                HomeScreenTabItem("Sorted transactions", R.drawable.sorted, HomeScreenTab.SORTED_TRANSACTIONS),
-                HomeScreenTabItem("Transaction types", R.drawable.types, HomeScreenTab.TRANSACTION_TYPES),
+                HomeScreenTabItem("Transactions", R.drawable.transactions, HomeScreenTab.ALL_TRANSACTIONS),
+                HomeScreenTabItem("Transact", R.drawable.ic_add, HomeScreenTab.TRANSACT),
                 HomeScreenTabItem("Categories", R.drawable.categories, HomeScreenTab.CATEGORIES),
-                HomeScreenTabItem("Account information", R.drawable.account_info, HomeScreenTab.ACCOUNT_INFO),
-                HomeScreenTabItem("Contact us", R.drawable.contact, HomeScreenTab.CONTACT_US),
+                HomeScreenTabItem("Profile", R.drawable.account_info, HomeScreenTab.ACCOUNT_INFO),
             ),
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToCategoriesScreen = navigateToCategoriesScreen,
@@ -236,18 +250,7 @@ fun HomeScreenComposable(
             navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
             navigateToLoginScreen = navigateToLoginScreen,
             navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-            onSwitchTheme = {
-                onSwitchTheme()
-                scope.launch {
-                    delay(1000)
-                    drawerState.close()
-                }
-                if (uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888") {
-                    Toast.makeText(context, "Theme switched", Toast.LENGTH_SHORT).show()
-                } else {
-                    showSubscribeDialog = true
-                }
-            },
+            onSwitchTheme = onSwitchTheme,
             onBackup = { showBackupDialog = true },
             onReviewApp = {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.records.pesa"))
@@ -273,7 +276,6 @@ fun HomeScreen(
     lastBackup: String,
     freeTrialDays: Int,
     scope: CoroutineScope?,
-    drawerState: DrawerState?,
     firstName: String?,
     lastName: String?,
     phoneNumber: String,
@@ -305,205 +307,19 @@ fun HomeScreen(
     navigateToUpdatePasswordScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ModalNavigationDrawer(
-        drawerState = drawerState!!,
-        drawerContent = {
-            ModalDrawerSheet {
-                Column(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 10.0))
-                ) {
-                    Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(
-                                horizontal = screenWidth(x = 16.0)
-                            )
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.account_info),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(screenWidth(x = 40.0))
-                        )
-                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-                        (if(firstName.isNullOrEmpty() && lastName.isNullOrEmpty()) phoneNumber else if(firstName.isNotNull() && lastName.isNotNull()) "$firstName $lastName" else if (firstName.isNullOrEmpty() && lastName.isNotNull()) lastName else if (lastName.isNotNull() && firstName.isNullOrEmpty()) lastName else phoneNumber)?.let {
-                            Text(
-                                text = it,
-                                fontSize = screenFontSize(x = 14.0).sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        ThemeSwitcher(
-                            darkTheme = darkTheme,
-                            size = screenWidth(x = 30.0),
-                            padding = screenWidth(x = 5.0),
-                            onClick = onSwitchTheme,
-                            modifier = Modifier
-                                .padding(
-                                    end = screenWidth(x = 8.0)
-                                )
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(screenHeight(x = 15.0)))
-                    Divider()
-                    Spacer(modifier = Modifier.height(screenHeight(x = 15.0)))
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        for(tab in tabs) {
-                            NavigationDrawerItem(
-                                label = {
-                                    Row {
-                                        Icon(
-                                            painter = painterResource(id = tab.icon),
-                                            contentDescription = tab.name,
-                                            modifier = Modifier
-                                                .size(screenWidth(x = 24.0))
-                                        )
-                                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-                                        Text(
-                                            text = tab.name,
-                                            fontSize = screenFontSize(x = 14.0).sp,
-                                        )
-                                    }
-                                },
-                                selected = currentTab == tab.tab,
-                                onClick = {
-                                    onTabChange(tab.tab)
-                                    scope!!.launch {
-                                        drawerState.close()
-                                    }
-                                }
-                            )
-                        }
-                        if(freeTrialDays != 0) {
-                            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .padding(
-                                        horizontal = screenWidth(x = 16.0)
-                                    )
-                            ) {
-                                Text(
-                                    text = "Free trial days: ",
-                                    fontSize = screenFontSize(x = 14.0).sp
-                                )
-                                Text(
-                                    text = freeTrialDays.toString(),
-                                    fontSize = screenFontSize(x = 14.0).sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                TextButton(onClick = onShowFreeTrialDetails) {
-                                    Text(
-                                        text = "See more",
-                                        fontSize = screenFontSize(x = 14.0).sp
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(
-                                    horizontal = screenWidth(x = 16.0)
-                                )
-                                .fillMaxWidth()
-                                .clickable {
-                                    onBackup()
-                                }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.backup_icon),
-                                contentDescription = "Last backup",
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-                            Text(
-                                text = lastBackup,
-                                fontSize = screenFontSize(x = 14.0).sp,
-                                color = MaterialTheme.colorScheme.surfaceTint
-                            )
-                        }
-//                        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-//                        Row(
-//                            modifier = Modifier
-//                                .clickable {
-//                                    onReviewApp()
-//                                }
-//                                .padding(
-//                                    horizontal = screenWidth(x = 16.0)
-//                                )
-//                                .fillMaxWidth()
-//                        ) {
-//                            Icon(
-//                                tint = Color.Yellow,
-//                                painter = painterResource(id = R.drawable.star),
-//                                contentDescription = "Review app",
-//                                modifier = Modifier
-//                                    .padding(
-//                                        vertical = screenWidth(x = 8.0)
-//                                    )
-//                                    .size(screenWidth(x = 24.0))
-//                            )
-//                            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-//                            Text(
-//                                color = MaterialTheme.colorScheme.surfaceTint,
-//                                text = "Review app",
-//                                fontSize = screenFontSize(x = 14.0).sp,
-//                                modifier = Modifier
-//                                    .padding(
-//                                        vertical = screenWidth(x = 8.0)
-//                                    )
-//                            )
-//                        }
-                    }
-                }
-            }
-        }
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column(
+        // Track dates from hub to pass to TransactionTypesScreen
+        var txTypesStartDate by remember { mutableStateOf("") }
+        var txTypesEndDate   by remember { mutableStateOf("") }
+
+        // Content area – fills full screen, scrolls behind the floating bar
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(bottom = 96.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = screenWidth(x = 16.0)
-                    )
-            ) {
-                IconButton(onClick = {
-                    scope!!.launch {
-                        if(drawerState.isClosed) drawerState.open() else drawerState.close()
-                    }
-                }) {
-                    Icon(
-                        tint = Color.Gray,
-                        painter = painterResource(id = R.drawable.menu),
-                        contentDescription = "Menu",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = navigateToAccountInfoScreen) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.account_info),
-                        contentDescription = "Account info",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-            }
             when(currentTab) {
                 HomeScreenTab.HOME -> {
                     DashboardScreenComposable(
@@ -513,20 +329,20 @@ fun HomeScreen(
                         navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                        navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
-                        modifier = Modifier
-                            .weight(1f)
+                        navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen
                     )
                 }
                 HomeScreenTab.ALL_TRANSACTIONS -> {
-                    TransactionsScreenComposable(
-                        navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
-                        navigateToPreviousScreen = navigateToPreviousScreen,
-                        navigateToHomeScreen = navigateToHomeScreen,
-                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
-                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                        showBackArrow = false,
-                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
+                    TransactionsHubScreenComposable(
+                        navigateToAllTransactions = navigateToTransactionsScreen,
+                        navigateToSortedTransactions = { onTabChange(HomeScreenTab.SORTED_TRANSACTIONS) },
+                        navigateToTransactionTypes = { startDate, endDate ->
+                            txTypesStartDate = startDate
+                            txTypesEndDate   = endDate
+                            onTabChange(HomeScreenTab.TRANSACTION_TYPES)
+                        },
+                        navigateToTransactionDetails = navigateToTransactionDetailsScreen,
+                        navigateToEntityTransactions = navigateToEntityTransactionsScreen
                     )
                 }
                 HomeScreenTab.SORTED_TRANSACTIONS -> {
@@ -540,7 +356,21 @@ fun HomeScreen(
                     TransactionTypesScreenComposable(
                         navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
-                        navigateToHomeScreen = navigateToHomeScreen
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        initialStartDate = txTypesStartDate.ifEmpty { null },
+                        initialEndDate   = txTypesEndDate.ifEmpty { null }
+                    )
+                }
+                HomeScreenTab.TRANSACT -> {
+                    // Navigate to transactions screen where user can add new transaction
+                    TransactionsScreenComposable(
+                        navigateToEntityTransactionsScreen = navigateToEntityTransactionsScreen,
+                        navigateToPreviousScreen = navigateToPreviousScreen,
+                        navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+                        navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
+                        showBackArrow = false,
+                        navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs
                     )
                 }
                 HomeScreenTab.CATEGORIES -> {
@@ -588,32 +418,124 @@ fun HomeScreen(
                 }
             }
         }
+        
+        // Floating Bottom Navigation Bar – overlays content, pinned to bottom
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 12.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Card(
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    tabs.forEachIndexed { index, item ->
+                        val isSelected = currentTab == item.tab
+                        if (index == 2) {
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .shadow(elevation = 4.dp, shape = CircleShape)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) { onTabChange(item.tab) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = item.icon),
+                                        contentDescription = item.name,
+                                        modifier = Modifier.size(22.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                        } else {
+                            BottomNavBarItem(
+                                item = item,
+                                isSelected = isSelected,
+                                onClick = { onTabChange(item.tab) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun BottomNavBar(
-    tabItems: List<HomeScreenTabItem>,
-    currentTab: HomeScreenTab,
-    onTabSelected: (HomeScreenTab) -> Unit,
+private fun BottomNavBarItem(
+    item: HomeScreenTabItem,
+    isSelected: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    NavigationBar {
-        for(item in tabItems) {
-            NavigationBarItem(
-                label = {
-                    Text(text = item.name)
-                },
-                selected = item.tab == currentTab,
-                onClick = { onTabSelected(item.tab) },
-                icon = {
-                    Icon(
-                        painter = painterResource(id = item.icon),
-                        contentDescription = item.name
-                    )
-                }
-            )
-        }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(vertical = 6.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = item.icon),
+            contentDescription = item.name,
+            modifier = Modifier.size(22.dp),
+            tint = if (isSelected)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = item.name,
+            fontSize = 10.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        // Active indicator dot
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isSelected) MaterialTheme.colorScheme.primary
+                    else Color.Transparent
+                )
+        )
     }
 }
 
@@ -885,7 +807,6 @@ fun HomeScreenPreview() {
             lastBackup = "",
             freeTrialDays = 0,
             scope = null,
-            drawerState = null,
             firstName = null,
             lastName = null,
             phoneNumber = "",

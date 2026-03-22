@@ -72,7 +72,7 @@ data class DashboardScreenUiState(
     val showSubscriptionExpiredDialog: Boolean = false,
     val showSubscriptionActivatedDialog: Boolean = false,
     // Time Period Selector fields
-    val selectedTimePeriod: TimePeriod = TimePeriod.THIS_MONTH,
+    val selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
     val availableYears: List<Int> = emptyList(),
     val periodTotalIn: Double = 0.0,
     val periodTotalOut: Double = 0.0,

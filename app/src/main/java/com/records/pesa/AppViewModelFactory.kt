@@ -35,6 +35,7 @@ import com.records.pesa.ui.screens.profile.AccountInformationScreenViewModel
 import com.records.pesa.ui.screens.transactionTypes.TransactionTypesScreenViewModel
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenViewModel
+import com.records.pesa.ui.screens.transactions.TransactionsHubScreenViewModel
 import com.records.pesa.ui.screens.transactions.TransactionsScreenViewModel
 import com.records.pesa.ui.screens.transactions.sorted.SortedTransactionsScreenViewModel
 import com.records.pesa.workers.WorkersRepository
@@ -321,6 +322,15 @@ object AppViewModelFactory {
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             TransactionTypesScreenViewModel(
                 apiRepository = apiRepository,
+                dbRepository = dbRepository,
+                transactionService = transactionService
+            )
+        }
+
+        initializer {
+            val dbRepository: DBRepository = cashLedgerApplication().container.dbRepository
+            val transactionService: TransactionService = cashLedgerApplication().container.transactionService
+            TransactionsHubScreenViewModel(
                 dbRepository = dbRepository,
                 transactionService = transactionService
             )

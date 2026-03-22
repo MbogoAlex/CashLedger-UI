@@ -7,6 +7,7 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.mapper.toTransactionItem
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.transaction.TransactionTypeItem
@@ -25,6 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import kotlin.math.absoluteValue
+
+data class TransactionTypeEntry(
+    val type: String,
+    val amount: Double,
+    val isIn: Boolean,
+    val transactionCost: Double = 0.0
+)
 
 data class TransactionTypesScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -50,6 +58,10 @@ data class TransactionTypesScreenUiState(
     val payBill: Double = 0.0,
     val toKcbMpesa: Double = 0.0,
     val fromKcbMpesa: Double = 0.0,
+    val selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
+    val moneyInEntries: List<TransactionTypeEntry> = emptyList(),
+    val moneyOutEntries: List<TransactionTypeEntry> = emptyList(),
+    val totalTransactionCost: Double = 0.0,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
 
@@ -74,15 +86,50 @@ class TransactionTypesScreenViewModel(
     }
 
     fun initializeDate() {
-        val currentDate = LocalDate.now()
-        val firstDayOfMonth = currentDate.withDayOfMonth(1)
-        var startDate = firstDayOfMonth
-        var endDate = currentDate
+        val (start, end) = TimePeriod.TODAY.getDateRange()
         _uiState.update {
             it.copy(
-                startDate = startDate.toString(),
-                endDate = endDate.toString(),
+                startDate = start.toString(),
+                endDate = end.toString(),
+                selectedTimePeriod = TimePeriod.TODAY
             )
+        }
+    }
+
+    fun updateSelectedPeriod(period: TimePeriod) {
+        val (start, end) = period.getDateRange()
+        _uiState.update {
+            it.copy(
+                selectedTimePeriod = period,
+                startDate = start.toString(),
+                endDate = end.toString()
+            )
+        }
+        getTransactionTypes()
+    }
+
+    fun applyInitialDates(startDate: String, endDate: String) {
+        if (startDate.isEmpty() || endDate.isEmpty()) return
+        // Try to reverse-map the date range back to a known TimePeriod so the label is correct
+        val knownPeriods = listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR
+        )
+        val matchedPeriod = knownPeriods.firstOrNull { period ->
+            val (s, e) = period.getDateRange()
+            s.toString() == startDate && e.toString() == endDate
+        }
+        _uiState.update {
+            it.copy(
+                startDate = startDate,
+                endDate = endDate,
+                selectedTimePeriod = matchedPeriod ?: it.selectedTimePeriod
+            )
+        }
+        if (uiState.value.userDetails.userId != 0) {
+            getTransactionTypes()
         }
     }
 
@@ -368,6 +415,11 @@ class TransactionTypesScreenViewModel(
         val foundTransactionTypes = mutableSetOf<String>()
         var allMoneyIn = 0.0
         var allMoneyOut = 0.0
+        // Compute cost data before the local `transactions` variable shadows the parameter
+        val totalTransactionCost = transactions.sumOf { kotlin.math.abs(it.transactionCost) }
+        val costByType = transactions
+            .groupBy { it.transactionType }
+            .mapValues { (_, txs) -> txs.sumOf { kotlin.math.abs(it.transactionCost) } }
         val transactions = transactions
             .groupBy {
                 Pair(it.transactionType, it.transactionAmount >= 0)
@@ -570,6 +622,15 @@ class TransactionTypesScreenViewModel(
             it.copy(
                 allMoneyIn = allMoneyIn,
                 allMoneyOut = allMoneyOut,
+                totalTransactionCost = totalTransactionCost,
+                moneyInEntries = transactions
+                    .filter { it.amountSign == "Positive" }
+                    .map { TransactionTypeEntry(it.transactionType, it.amount, true, costByType[it.transactionType] ?: 0.0) }
+                    .sortedByDescending { it.amount },
+                moneyOutEntries = transactions
+                    .filter { it.amountSign == "Negative" }
+                    .map { TransactionTypeEntry(it.transactionType, it.amount, false, costByType[it.transactionType] ?: 0.0) }
+                    .sortedByDescending { it.amount },
                 loadingStatus = LoadingStatus.SUCCESS
             )
         }
