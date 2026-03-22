@@ -13,6 +13,7 @@ import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
+import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.TransactionWithCategories
 import com.records.pesa.models.TodayExpenditure
 import kotlinx.coroutines.flow.Flow
@@ -318,5 +319,68 @@ interface TransactionsDao {
     @RawQuery(observedEntities = [Transaction::class, TransactionCategory::class])
     fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<AggregatedTransaction>>
 
+    // ===== Time Period Queries =====
+    
+    /**
+     * Get all transactions between two dates (inclusive)
+     */
+    @Query("""
+        SELECT * FROM `transaction` 
+        WHERE date >= :startDate AND date <= :endDate 
+        ORDER BY date DESC, time DESC
+    """)
+    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>
+
+    /**
+     * Get distinct years that have at least one transaction
+     * Returns years in descending order (most recent first)
+     */
+    @Query("""
+        SELECT DISTINCT CAST(strftime('%Y', date) AS INTEGER) as year 
+        FROM `transaction` 
+        ORDER BY year DESC
+    """)
+    suspend fun getDistinctYearsWithTransactions(): List<Int>
+
+    /**
+     * Get total money IN for a specific date range
+     */
+    @Query("""
+        SELECT COALESCE(SUM(transactionAmount), 0.0) 
+        FROM `transaction` 
+        WHERE date >= :startDate 
+        AND date <= :endDate 
+        AND transactionAmount > 0
+    """)
+    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
+
+    /**
+     * Get total money OUT for a specific date range (returns positive value)
+     */
+    @Query("""
+        SELECT COALESCE(SUM(ABS(transactionAmount)), 0.0) 
+        FROM `transaction` 
+        WHERE date >= :startDate 
+        AND date <= :endDate 
+        AND transactionAmount < 0
+    """)
+    suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double
+
+    /**
+     * Get transaction counts and totals grouped by transaction type for a date range
+     * Used for transaction type breakdown
+     */
+    @Query("""
+        SELECT 
+            transactionType,
+            COUNT(*) as count,
+            SUM(ABS(transactionAmount)) as total
+        FROM `transaction`
+        WHERE date >= :startDate 
+        AND date <= :endDate
+        GROUP BY transactionType
+        ORDER BY total DESC
+    """)
+    suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData>
 
 }

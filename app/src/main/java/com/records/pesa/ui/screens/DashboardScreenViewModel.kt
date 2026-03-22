@@ -14,6 +14,8 @@ import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.BudgetDt
 import com.records.pesa.models.TransactionCategory
+import com.records.pesa.models.TimePeriod
+import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.transaction.MonthlyTransaction
@@ -69,6 +71,15 @@ data class DashboardScreenUiState(
     val sortedTransactionItems: List<SortedTransactionItem> = emptyList(),
     val showSubscriptionExpiredDialog: Boolean = false,
     val showSubscriptionActivatedDialog: Boolean = false,
+    // Time Period Selector fields
+    val selectedTimePeriod: TimePeriod = TimePeriod.THIS_MONTH,
+    val availableYears: List<Int> = emptyList(),
+    val periodTotalIn: Double = 0.0,
+    val periodTotalOut: Double = 0.0,
+    val transactionTypeBreakdown: List<TransactionTypeSummary> = emptyList(),
+    val moneyInCategories: List<TransactionTypeSummary> = emptyList(),
+    val moneyOutCategories: List<TransactionTypeSummary> = emptyList(),
+    val periodTransactions: List<TransactionItem> = emptyList(),
 )
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -502,6 +513,167 @@ class DashboardScreenViewModel(
         }
     }
 
+    // ===== Time Period Selector Functions =====
+    
+    /**
+     * Load available years that have transactions
+     */
+    private fun loadAvailableYears() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val years = dbRepository.getDistinctYearsWithTransactions()
+                _uiState.update {
+                    it.copy(availableYears = years)
+                }
+            } catch (e: Exception) {
+                Log.e("LOAD_YEARS_ERROR", e.toString())
+            }
+        }
+    }
+    
+    /**
+     * Update selected time period and recalculate totals
+     */
+    fun updateSelectedPeriod(period: TimePeriod) {
+        _uiState.update {
+            it.copy(selectedTimePeriod = period)
+        }
+        calculatePeriodTotals()
+        calculateTransactionTypeBreakdown()
+        calculatePeriodTransactions()
+        calculateChartData()
+    }
+    
+    /**
+     * Calculate total IN and OUT for the selected period
+     */
+    private fun calculatePeriodTotals() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                Log.d("PERIOD_TOTALS", "Period: ${uiState.value.selectedTimePeriod.getDisplayName()}, Start: $startDate, End: $endDate")
+                
+                val totalIn = dbRepository.getTotalInForPeriod(startDate, endDate)
+                val totalOut = dbRepository.getTotalOutForPeriod(startDate, endDate)
+                
+                Log.d("PERIOD_TOTALS", "Money In: $totalIn, Money Out: $totalOut")
+                
+                _uiState.update {
+                    it.copy(
+                        periodTotalIn = totalIn,
+                        periodTotalOut = totalOut
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("CALCULATE_PERIOD_TOTALS_ERROR", e.toString())
+            }
+        }
+    }
+    
+    /**
+     * Calculate transaction type breakdown for the selected period
+     */
+    private fun calculateTransactionTypeBreakdown() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                Log.d("BREAKDOWN_DATES", "Period: ${uiState.value.selectedTimePeriod.getDisplayName()}, Start: $startDate, End: $endDate")
+                
+                // Get actual transactions to group by type AND sign (like TransactionTypesScreen does)
+                dbRepository.getTransactionsBetweenDates(startDate, endDate).collect { transactions ->
+                    Log.d("BREAKDOWN_DATA", "Found ${transactions.size} transactions")
+                    
+                    // Group by type AND whether amount is positive or negative
+                    val grouped = transactions
+                        .groupBy { Pair(it.transactionType, it.transactionAmount >= 0) }
+                        .map { (key, groupedTransactions) ->
+                            val (transactionType, isPositive) = key
+                            val totalAmount = groupedTransactions.sumOf { it.transactionAmount.absoluteValue }
+                            TransactionTypeSummary(
+                                transactionType = transactionType,
+                                totalAmount = totalAmount,
+                                transactionCount = groupedTransactions.size,
+                                percentageOfTotal = 0f, // Not needed for dashboard
+                                icon = null
+                            ) to isPositive
+                        }
+                    
+                    // Separate into money IN (positive) and money OUT (negative)
+                    val moneyInTypes = grouped
+                        .filter { it.second } // isPositive = true
+                        .map { it.first }
+                        .sortedByDescending { it.totalAmount }
+                    
+                    val moneyOutTypes = grouped
+                        .filter { !it.second } // isPositive = false
+                        .map { it.first }
+                        .sortedByDescending { it.totalAmount }
+                    
+                    Log.d("BREAKDOWN_DATA", "Money IN types: ${moneyInTypes.size}, Money OUT types: ${moneyOutTypes.size}")
+                    
+                    _uiState.update {
+                        it.copy(
+                            moneyInCategories = moneyInTypes,
+                            moneyOutCategories = moneyOutTypes
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CALCULATE_TYPE_BREAKDOWN_ERROR", e.toString())
+            }
+        }
+    }
+    
+    /**
+     * Calculate chart data points for the selected period
+     */
+    private fun calculateChartData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                Log.d("CHART_DATA", "Calculating chart data from $startDate to $endDate")
+                
+                dbRepository.getTransactionsBetweenDates(startDate, endDate).collect { transactions ->
+                    Log.d("CHART_DATA", "Found ${transactions.size} transactions")
+                    
+                    // Group transactions by date
+                    val groupedByDate = transactions.groupBy { it.date }
+                    
+                    // Sort dates and create points
+                    val sortedDates = groupedByDate.keys.sorted()
+                    Log.d("CHART_DATA", "Grouped into ${sortedDates.size} dates")
+                    
+                    val moneyInPoints = sortedDates.mapIndexed { index, date ->
+                        val dayTransactions = groupedByDate[date] ?: emptyList()
+                        val totalIn = dayTransactions
+                            .filter { it.transactionAmount > 0 }
+                            .sumOf { it.transactionAmount }
+                        Point(index.toFloat(), totalIn.toFloat())
+                    }
+                    
+                    val moneyOutPoints = sortedDates.mapIndexed { index, date ->
+                        val dayTransactions = groupedByDate[date] ?: emptyList()
+                        val totalOut = dayTransactions
+                            .filter { it.transactionAmount < 0 }
+                            .sumOf { it.transactionAmount.absoluteValue }
+                        Point(index.toFloat(), totalOut.toFloat())
+                    }
+                    
+                    Log.d("CHART_DATA", "Created ${moneyInPoints.size} money in points and ${moneyOutPoints.size} money out points")
+                    
+                    _uiState.update {
+                        it.copy(
+                            moneyInPointsData = moneyInPoints,
+                            moneyOutPointsData = moneyOutPoints
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CALCULATE_CHART_DATA_ERROR", e.toString())
+            }
+        }
+    }
+
     init {
         setInitialDates()
         getUserDetails()
@@ -509,6 +681,52 @@ class DashboardScreenViewModel(
         initialzeApp()
         getUserPreferences()
         checkSubscriptionStatus()
+        loadAvailableYears()
+        calculatePeriodTotals()
+        calculateTransactionTypeBreakdown()
+        calculatePeriodTransactions()
+        calculateChartData()
 //        checkAppVersion()
+    }
+    
+    /**
+     * Get transactions for the selected period (for Top Senders/Receivers)
+     */
+    private fun calculatePeriodTransactions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                
+                dbRepository.getTransactionsBetweenDates(startDate, endDate).collect { transactions ->
+                    Log.d("PERIOD_TRANSACTIONS", "Found ${transactions.size} transactions for period")
+                    
+                    // Convert Transaction to TransactionItem
+                    val transactionItems = transactions.map { tx ->
+                        TransactionItem(
+                            transactionId = tx.id,
+                            transactionCode = tx.transactionCode,
+                            transactionType = tx.transactionType,
+                            transactionAmount = tx.transactionAmount,
+                            transactionCost = tx.transactionCost,
+                            date = tx.date.toString(),
+                            time = tx.time.toString(),
+                            sender = tx.sender,
+                            recipient = tx.recipient,
+                            nickName = tx.nickName,
+                            entity = tx.entity,
+                            balance = tx.balance,
+                            comment = tx.comment,
+                            categories = null
+                        )
+                    }
+                    
+                    _uiState.update {
+                        it.copy(periodTransactions = transactionItems)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CALCULATE_PERIOD_TRANSACTIONS_ERROR", e.toString())
+            }
+        }
     }
 }

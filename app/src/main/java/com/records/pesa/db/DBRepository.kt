@@ -4,11 +4,15 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.records.pesa.db.dao.TransactionsDao
+import com.records.pesa.db.models.Transaction
+import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface DBRepository {
     suspend fun insertUser(user: UserDetails)
@@ -67,9 +71,17 @@ interface DBRepository {
 
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
+    
+    // Time Period Selector methods
+    suspend fun getDistinctYearsWithTransactions(): List<Int>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
+    suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double
+    suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData>
 }
 
-class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
+class DBRepositoryImpl(
+    private val appDao: AppDao,
+    private val transactionsDao: TransactionsDao
+): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
     override suspend fun updateUser(user: UserDetails) = appDao.updateUser(user)
@@ -155,5 +167,12 @@ class DBRepositoryImpl(private val appDao: AppDao): DBRepository {
     override suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
     override suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int) = appDao.deleteFromCategoryMappingByCategoryId(categoryId)
     override suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int) = appDao.deleteCategoryKeywordByKeywordId(keywordId)
+
+    // Time Period Selector implementations
+    override suspend fun getDistinctYearsWithTransactions(): List<Int> = transactionsDao.getDistinctYearsWithTransactions()
+    override fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> = transactionsDao.getTransactionsBetweenDates(startDate, endDate)
+    override suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalInForPeriod(startDate, endDate)
+    override suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalOutForPeriod(startDate, endDate)
+    override suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData> = transactionsDao.getTransactionTypeBreakdown(startDate, endDate)
 
 }

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,13 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.DropdownMenu
@@ -66,8 +65,21 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.composables.TransactionItemCell
+import com.records.pesa.composables.TimePeriodSelector
+import com.records.pesa.composables.TransactionTypeBreakdownCard
+import com.records.pesa.composables.UssdQuickActionButton
+import com.records.pesa.composables.MoneyFlowLineChart
+import com.records.pesa.composables.HeroBalanceCard
+import com.records.pesa.composables.QuickStatsGrid
+import com.records.pesa.composables.VisualChartSection
+import com.records.pesa.composables.RecentTransactionsSection
+import com.records.pesa.composables.CompactTransactionBreakdown
+import com.records.pesa.composables.TopPeopleSection
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.functions.formatMoneyValue
+import com.records.pesa.functions.dialUssd
+import com.records.pesa.models.TimePeriod
+import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.transaction.GroupedTransactionData
 import com.records.pesa.models.transaction.MonthlyTransaction
@@ -235,7 +247,19 @@ fun DashboardScreenComposable(
                 }
             },
             showBalance = uiState.preferences.showBalance,
-            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen
+            navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
+            // Time Period Selector parameters
+            selectedTimePeriod = uiState.selectedTimePeriod,
+            availableYears = uiState.availableYears,
+            periodTotalIn = formatMoneyValue(uiState.periodTotalIn),
+            periodTotalOut = formatMoneyValue(uiState.periodTotalOut),
+            transactionTypeBreakdown = uiState.transactionTypeBreakdown,
+            moneyInCategories = uiState.moneyInCategories,
+            moneyOutCategories = uiState.moneyOutCategories,
+            periodTransactions = uiState.periodTransactions,
+            onPeriodSelected = { period ->
+                viewModel.updateSelectedPeriod(period)
+            }
         )
     }
 }
@@ -271,6 +295,16 @@ fun DashboardScreen(
     onToggleBalanceVisibility: () -> Unit,
     showBalance: Boolean,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
+    // Time Period Selector parameters
+    selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
+    availableYears: List<Int> = emptyList(),
+    periodTotalIn: String = "Ksh 0.00",
+    periodTotalOut: String = "Ksh 0.00",
+    transactionTypeBreakdown: List<TransactionTypeSummary> = emptyList(),
+    moneyInCategories: List<TransactionTypeSummary> = emptyList(),
+    moneyOutCategories: List<TransactionTypeSummary> = emptyList(),
+    periodTransactions: List<TransactionItem> = emptyList(),
+    onPeriodSelected: (TimePeriod) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
 
@@ -283,302 +317,246 @@ fun DashboardScreen(
     }
 
     val oneMonthBack = LocalDate.now().minusMonths(1).month
+    
+    // Animated entrance
+    LaunchedEffect(Unit) {
+        // Trigger any lifecycle animations here
+    }
 
     Column(
         modifier = Modifier
-            .padding(
-                top = screenHeight(x = 8.0),
-                start = screenWidth(x = 16.0),
-                end = screenWidth(x = 16.0),
-                bottom = screenHeight(x = 16.0)
-            )
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .padding(
+                top = screenHeight(x = 16.0),
+                bottom = screenHeight(x = 20.0)
+            )
     ) {
-        HeaderSection(
-            totalInToday = totalInToday,
-            totalOutToday = totalOutToday,
-            currentBalance = currentBalance,
-            firstTransactionDate = firstTransactionDate,
-            onToggleBalanceVisibility = onToggleBalanceVisibility,
+        // Hero Balance Card with integrated stats
+        HeroBalanceCard(
+            balance = currentBalance,
             showBalance = showBalance,
+            onToggleVisibility = onToggleBalanceVisibility,
+            firstTransactionDate = firstTransactionDate,
+            periodLabel = selectedTimePeriod.getDisplayName(),
+            moneyIn = periodTotalIn,
+            moneyOut = periodTotalOut,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
         )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Transactions History",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = navigateToTransactionsScreen) {
-                Text(
-                    text = "See all",
-                    fontSize = screenFontSize(x = 14.0).sp,
-                )
-            }
-        }
-//        Spacer(modifier = Modifier.height(5.dp))
-        transactions.take(2).forEachIndexed { index, item ->
-            TransactionItemCell(
-                transaction = item,
-                modifier = Modifier
-                    .clickable {
-                        navigateToTransactionDetailsScreen(item.transactionId.toString())
-                    }
-            )
-        }
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Categories",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            if(transactionCategories.isEmpty()) {
-                TextButton(onClick = navigateToCategoryAdditionScreen) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Add",
-                            fontSize = screenFontSize(x = 14.0).sp,
-                        )
-                        Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add category")
-                    }
-
-                }
-            } else {
-                TextButton(onClick = navigateToCategoriesScreen) {
-                    Text(
-                        text = "See all",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                    )
-                }
-            }
-
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        if(transactionCategories.isNotEmpty()) {
-            transactionCategories.take(2).forEachIndexed {index, item ->
-                TransactionCategoryCell(
-                    transactionCategory = item,
-                    navigateToCategoryDetailsScreen = {
-                        Log.d("PREMIUM", premium.toString())
-                        if(index != 0 && !premium) {
-                            onShowSubscriptionDialog()
-                        } else {
-                            navigateToCategoryDetailsScreen(item.id.toString())
-                        }
-                    },
-                    modifier = Modifier
-                        .clickable {
-                            if(index != 0 && !premium) {
-                                onShowSubscriptionDialog()
-                            } else {
-                                navigateToCategoryDetailsScreen(item.id.toString())
-                            }
-                        }
-                )
-            }
-        } else {
-            Text(
-                text = "Create categories and add transactions to them to analyze the money flow in each category",
-                fontSize = screenFontSize(x = 14.0).sp,
-                textAlign = TextAlign.Center,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Light,
+        
+        // USSD Quick Action Button
+        val context = LocalContext.current
+        UssdQuickActionButton(
+            onClick = {
+                context.dialUssd("*334#")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
+        )
+        
+        Spacer(modifier = Modifier.height(screenHeight(x = 12.0)))
+        
+        // Time Period Selector - Clean dropdown
+        TimePeriodSelector(
+            selectedPeriod = selectedTimePeriod,
+            availableYears = availableYears,
+            onPeriodSelected = onPeriodSelected,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
+        )
+        
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        
+        // Transaction Type Breakdown
+        if (moneyInCategories.isNotEmpty() || moneyOutCategories.isNotEmpty()) {
+            CompactTransactionBreakdown(
+                moneyInCategories = moneyInCategories,
+                moneyOutCategories = moneyOutCategories,
+                periodLabel = selectedTimePeriod.getDisplayName(),
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
+                    .fillMaxWidth()
+                    .padding(horizontal = screenWidth(x = 16.0))
             )
+            
+            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
         }
-
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                TextButton(onClick = { selectMonthExpanded = !selectMonthExpanded }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = selectedMonth,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        if(selectMonthExpanded) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowUp,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        }
-                    }
-                }
-                DropdownMenu(
-                    expanded = selectMonthExpanded,
-                    onDismissRequest = { selectMonthExpanded = !selectMonthExpanded }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .height(screenHeight(x = 200.0))
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        selectableMonths.forEach {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = it,
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
-                                },
-                                onClick = {
-
-                                    if (Month.valueOf(it.uppercase()) < (oneMonthBack) && !premium) {
-                                        selectMonthExpanded = !selectMonthExpanded
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        onSelectMonth(it)
-                                        selectMonthExpanded = !selectMonthExpanded
-                                    }
-
-                                }
-                            )
-                        }
-                    }
-                }
-
-            }
-            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-            Column {
-                TextButton(onClick = { selectYearExpanded = !selectYearExpanded }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = selectedYear,
-                            fontSize = screenFontSize(x = 14.0).sp,
-                        )
-                        if(selectYearExpanded) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowUp,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        }
-                    }
-                }
-                DropdownMenu(
-                    expanded = selectYearExpanded,
-                    onDismissRequest = { selectYearExpanded = !selectYearExpanded }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .height(screenHeight(x = 200.0))
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        selectableYears.forEach {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = it,
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
-                                },
-                                onClick = {
-                                    if(!premium) {
-                                        selectYearExpanded = !selectYearExpanded
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        selectYearExpanded = !selectYearExpanded
-                                        onSelectYear(it)
-                                    }
-
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        if(sortedTransactionItems.isNotEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.arrow_downward),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-                Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                Text(
-                    text = monthlyTotalIn,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    color = MaterialTheme.colorScheme.surfaceTint
-                )
-                Spacer(modifier = Modifier.width(screenWidth(x = 10.0)))
-                Icon(
-                    painter = painterResource(id = R.drawable.arrow_upward),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-                Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                Text(
-                    text = monthlyTotalOut,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            Chart6(sortedTransactionItems, Modifier.height(screenHeight(x = 350.0)))
-        } else {
-            Text(
-                text = "No transactions for this month",
-                fontSize = screenFontSize(x = 14.0).sp,
-                textAlign = TextAlign.Center,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Light,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-            )
-        }
+        
+        // Top Senders/Receivers
+        TopPeopleSection(
+            transactions = periodTransactions,
+            periodLabel = selectedTimePeriod.getDisplayName(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
+        )
+        
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        
+        // Recent Transactions Section
+        RecentTransactionsSection(
+            transactions = transactions,
+            onSeeAllClick = navigateToTransactionsScreen,
+            onTransactionClick = navigateToTransactionDetailsScreen,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
+        )
+        
+        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        
+        // Categories Section
+        CategoriesSection(
+            categories = transactionCategories,
+            premium = premium,
+            onSeeAllClick = navigateToCategoriesScreen,
+            onAddClick = navigateToCategoryAdditionScreen,
+            onCategoryClick = navigateToCategoryDetailsScreen,
+            onShowSubscriptionDialog = onShowSubscriptionDialog,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenWidth(x = 16.0))
+        )
 
     }
 
 
+}
+
+/**
+ * Categories Section - Modern card-based categories display
+ */
+@Composable
+fun CategoriesSection(
+    categories: List<TransactionCategory>,
+    premium: Boolean,
+    onSeeAllClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onCategoryClick: (String) -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        // Section header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Categories",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            if (categories.isEmpty()) {
+                TextButton(
+                    onClick = onAddClick,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_add),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Add",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = onSeeAllClick,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "See All",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Categories content
+        if (categories.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "📊",
+                        fontSize = 40.sp,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    Text(
+                        text = "No Categories Yet",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Create categories to analyze money flow and track spending patterns",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        } else {
+            // Show top 2 categories
+            categories.take(2).forEachIndexed { index, category ->
+                TransactionCategoryCell(
+                    transactionCategory = category,
+                    navigateToCategoryDetailsScreen = {
+                        if (index != 0 && !premium) {
+                            onShowSubscriptionDialog()
+                        } else {
+                            onCategoryClick(category.id.toString())
+                        }
+                    },
+                    modifier = Modifier
+                        .clickable {
+                            if (index != 0 && !premium) {
+                                onShowSubscriptionDialog()
+                            } else {
+                                onCategoryClick(category.id.toString())
+                            }
+                        }
+                        .padding(bottom = 8.dp)
+                )
+            }
+        }
+    }
 }
 
 
@@ -1071,7 +1049,13 @@ fun DashboardScreenPreview(
             showBalance = true,
             onToggleBalanceVisibility = {},
             navigateToTransactionDetailsScreen = {},
-            sortedTransactionItems = emptyList()
+            sortedTransactionItems = emptyList(),
+            selectedTimePeriod = TimePeriod.TODAY,
+            availableYears = listOf(2026, 2025, 2024),
+            periodTotalIn = "Ksh 0.00",
+            periodTotalOut = "Ksh 0.00",
+            transactionTypeBreakdown = emptyList(),
+            onPeriodSelected = {}
         )
     }
 }
