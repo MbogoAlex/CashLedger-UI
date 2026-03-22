@@ -565,7 +565,7 @@ fun TransactionsScreen(
                                     }
                                 } else {
                                     groupedByDate.forEach { (date, txsForDate) ->
-                                        stickyHeader(key = "header_$date") {
+                                        item(key = "header_$date") {
                                             TxDateHeader(date = date)
                                         }
                                         items(txsForDate, key = { it.transactionId ?: it.transactionCode }) { tx ->
@@ -1082,7 +1082,7 @@ private fun TxItemRow(
                     )
                 }
                 Text(
-                    text = "· ${transaction.date}",
+                    text = "· ${transaction.time}",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                 )
