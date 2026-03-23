@@ -70,6 +70,9 @@ interface CategoryDao {
     @Query("select * from transactionCategory where id = :id")
     fun getCategoryById(id: Int): Flow<CategoryWithKeywords>
 
+    @Query("select * from transactionCategory where id = :id")
+    fun getCategoryWithTransactions(id: Int): Flow<CategoryWithTransactions>
+
     @Query("select * from categoryKeyword")
     fun getAllCategoryKeywords(): List<CategoryKeyword>
 

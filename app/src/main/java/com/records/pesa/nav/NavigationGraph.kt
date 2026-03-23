@@ -445,6 +445,9 @@ fun NavigationGraph(
                 },
                 navigateToCategoryBudgetListScreen = {categoryId, categoryName ->
                     navController.navigate("${BudgetListScreenDestination.route}/${categoryId}/${categoryName}")
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
                 }
             )
         }

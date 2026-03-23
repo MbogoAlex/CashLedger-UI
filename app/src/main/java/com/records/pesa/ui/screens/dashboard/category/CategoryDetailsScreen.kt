@@ -1,11 +1,21 @@
 package com.records.pesa.ui.screens.dashboard.category
 
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,28 +25,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,41 +58,68 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
-import com.records.pesa.functions.formatIsoDateTime
+import com.records.pesa.R
+import com.records.pesa.models.CategoryBudget
 import com.records.pesa.models.CategoryKeyword
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.transactionCategory
-import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
-import com.records.pesa.ui.screens.utils.screenWidth
-import com.records.pesa.ui.theme.CashLedgerTheme
-import java.time.LocalDateTime
-object CategoryDetailsScreenDestination: AppNavigation {
-    override val title: String = "Category details screen"
-    override val route: String = "category-details-screen"
-    val categoryId: String = "categoryId"
-    val routeWithArgs: String = "$route/{$categoryId}"
+import com.records.pesa.ui.screens.components.txAvatarColor
+import com.records.pesa.ui.screens.components.SubscriptionDialog
+import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.math.abs
+import kotlin.math.min
 
+// ─── Navigation destination ───────────────────────────────────────────────────
+object CategoryDetailsScreenDestination : com.records.pesa.nav.AppNavigation {
+    override val title = "Category details screen"
+    override val route = "category-details-screen"
+    const val categoryId = "categoryId"
+    val routeWithArgs = "$route/{$categoryId}"
 }
+
+// ─── Member colour palette ────────────────────────────────────────────────────
+private val memberColors: List<Color> = listOf(
+    Color(0xFF006A65), Color(0xFF7B5EA7), Color(0xFF48607B), Color(0xFFB5542D),
+    Color(0xFF2D6A8A), Color(0xFF8A3D4A), Color(0xFF5A7A2B), Color(0xFF4A6361),
+    Color(0xFF7B6E28), Color(0xFF6B3D7A), Color(0xFF2D6A4A), Color(0xFF8A5D2D),
+)
+
+private fun memberColor(index: Int): Color = memberColors[index % memberColors.size]
+
+// ─── Top-level Composable (wires ViewModel) ───────────────────────────────────
 @OptIn(ExperimentalMaterialApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CategoryDetailsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
@@ -88,173 +128,112 @@ fun CategoryDetailsScreenComposable(
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val viewModel: CategoryDetailsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
-
-//    LaunchedEffect(lifecycleState) {
-//        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
-//        if(lifecycleState.name.lowercase() == "started") {
-//            viewModel.getCategory()
-//        }
-//    }
-
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
-        onRefresh = {
-            viewModel.getCategory()
-        }
+        onRefresh = { viewModel.getCategory() }
     )
 
-    var showEditCategoryNameDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var showEditCategoryNameDialog by rememberSaveable { mutableStateOf(false) }
+    var showEditMemberNameDialog   by rememberSaveable { mutableStateOf(false) }
+    var categoryName               by rememberSaveable { mutableStateOf("") }
+    var memberName                 by rememberSaveable { mutableStateOf("") }
+    var categoryId                 by rememberSaveable { mutableIntStateOf(0) }
+    var keywordId                  by rememberSaveable { mutableIntStateOf(0) }
+    var showRemoveMemberDialog     by rememberSaveable { mutableStateOf(false) }
+    var showRemoveCategoryDialog   by rememberSaveable { mutableStateOf(false) }
+    var showSubscriptionDialog     by rememberSaveable { mutableStateOf(false) }
 
-    var showEditMemberNameDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var categoryName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var memberName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var categoryId by rememberSaveable {
-        mutableIntStateOf(0)
-    }
-
-    var keywordId by rememberSaveable {
-        mutableIntStateOf(0)
-    }
-
-    var showRemoveMemberDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showRemoveCategoryDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-
-    if(showEditCategoryNameDialog) {
+    if (showEditCategoryNameDialog) {
         EditNameDialog(
-            title = "Category name",
-            label = "Category",
-            name = categoryName,
-            onNameChange = {
-                categoryName = it
-                viewModel.editCategoryName(it)
-            },
-            onConfirm = {
-                viewModel.updateCategoryName()
-                showEditCategoryNameDialog = !showEditCategoryNameDialog
-            },
-            onDismiss = {showEditCategoryNameDialog = !showEditCategoryNameDialog}
+            title = "Category name", label = "Category", name = categoryName,
+            onNameChange = { categoryName = it; viewModel.editCategoryName(it) },
+            onConfirm = { viewModel.updateCategoryName(); showEditCategoryNameDialog = false },
+            onDismiss = { showEditCategoryNameDialog = false }
         )
     }
-
-    if(showEditMemberNameDialog) {
+    if (showEditMemberNameDialog) {
         EditNameDialog(
-            title = "Member name",
-            label = "Member",
-            name = memberName,
-            onNameChange = {
-                memberName = it
-                viewModel.editMemberName(it)
-            },
-            onConfirm = {
-                viewModel.updateMemberName()
-                showEditMemberNameDialog = !showEditMemberNameDialog
-            },
-            onDismiss = {showEditMemberNameDialog = !showEditMemberNameDialog}
+            title = "Member name", label = "Member", name = memberName,
+            onNameChange = { memberName = it; viewModel.editMemberName(it) },
+            onConfirm = { viewModel.updateMemberName(); showEditMemberNameDialog = false },
+            onDismiss = { showEditMemberNameDialog = false }
         )
     }
-
-    if(showRemoveMemberDialog) {
+    if (showRemoveMemberDialog) {
         DeleteDialog(
-            name = memberName,
-            categoryDeletion = false,
-            onConfirm = {
-                viewModel.removeCategoryMember(categoryId, keywordId)
-                showRemoveMemberDialog = !showRemoveMemberDialog
-                if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-                    navigateToHomeScreen()
-                }
-            },
-            onDismiss = {
-                showRemoveMemberDialog = !showRemoveMemberDialog
-            }
+            name = memberName, categoryDeletion = false,
+            onConfirm = { viewModel.removeCategoryMember(categoryId, keywordId); showRemoveMemberDialog = false },
+            onDismiss = { showRemoveMemberDialog = false }
         )
     }
-
-    if(showRemoveCategoryDialog) {
+    if (showRemoveCategoryDialog) {
         DeleteDialog(
-            name = categoryName,
-            categoryDeletion = true,
-            onConfirm = {
-                viewModel.removeCategory(categoryId)
-                showRemoveCategoryDialog = !showRemoveCategoryDialog
-            },
-            onDismiss = {
-                showRemoveCategoryDialog = !showRemoveCategoryDialog
-            }
+            name = categoryName, categoryDeletion = true,
+            onConfirm = { viewModel.removeCategory(categoryId); showRemoveCategoryDialog = false },
+            onDismiss = { showRemoveCategoryDialog = false }
+        )
+    }
+    if (showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = { showSubscriptionDialog = false },
+            onConfirm = { showSubscriptionDialog = false; navigateToSubscriptionScreen() }
         )
     }
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+    if (uiState.loadingStatus == LoadingStatus.SUCCESS) {
         Toast.makeText(context, "Category updated", Toast.LENGTH_SHORT).show()
         viewModel.getCategory()
         viewModel.resetLoadingStatus()
-    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
-        Toast.makeText(context, "Failed. Check connection or try later", Toast.LENGTH_SHORT).show()
+    } else if (uiState.loadingStatus == LoadingStatus.FAIL) {
+        Toast.makeText(context, "Failed. Try again.", Toast.LENGTH_SHORT).show()
         viewModel.resetLoadingStatus()
     }
-
-    if(uiState.deletionStatus == DeletionStatus.SUCCESS) {
+    if (uiState.deletionStatus == DeletionStatus.SUCCESS) {
         Toast.makeText(context, "Category deleted", Toast.LENGTH_SHORT).show()
         navigateToPreviousScreen()
         viewModel.resetLoadingStatus()
-    } else if(uiState.deletionStatus == DeletionStatus.FAIL) {
-//        Toast.makeText(context, "Failed to delete category. Check your connection or try later", Toast.LENGTH_SHORT).show()
-        viewModel.resetLoadingStatus()
     }
 
-    Box(
-        modifier = Modifier
-            .safeDrawingPadding()
-    ) {
+    Box(modifier = Modifier.safeDrawingPadding()) {
         CategoryDetailsScreen(
             pullRefreshState = pullRefreshState,
             loadingStatus = uiState.loadingStatus,
             category = uiState.category,
-            onEditCategoryName = {
-                categoryName = it
-                showEditCategoryNameDialog = !showEditCategoryNameDialog
-            },
+            isPremium = uiState.isPremium,
+            selectedPeriod = uiState.selectedPeriod,
+            startDate = uiState.startDate,
+            endDate = uiState.endDate,
+            showCustomPicker = uiState.showCustomPicker,
+            totalIn = uiState.totalIn,
+            totalOut = uiState.totalOut,
+            txCount = uiState.txCount,
+            typeBreakdown = uiState.typeBreakdown,
+            trendData = uiState.trendData,
+            memberStats = uiState.memberStats,
+            insights = uiState.insights,
+            onSelectPeriod = { viewModel.selectPeriod(it) },
+            onSetCustomStart = { viewModel.setCustomStartDate(it) },
+            onSetCustomEnd = { viewModel.setCustomEndDate(it) },
+            onToggleCustomPicker = { viewModel.toggleCustomPicker() },
+            onShowSubscriptionDialog = { showSubscriptionDialog = true },
+            onEditCategoryName = { categoryName = it; showEditCategoryNameDialog = true },
             onEditMemberName = {
                 memberName = it.nickName ?: it.keyWord
                 viewModel.updateCategoryKeyword(it)
-                showEditMemberNameDialog = !showEditMemberNameDialog
+                showEditMemberNameDialog = true
             },
-            onRemoveMember = {memName, catId, keyId ->
-                memberName = memName
-                categoryId = catId
-                keywordId = keyId
-                showRemoveMemberDialog = !showRemoveMemberDialog
+            onRemoveMember = { memName, catId, keyId ->
+                memberName = memName; categoryId = catId; keywordId = keyId
+                showRemoveMemberDialog = true
             },
-            onRemoveCategory = { catId, cateName ->
-                categoryId = catId
-                categoryName = cateName
-                showRemoveCategoryDialog = !showRemoveCategoryDialog
-            },
+            onRemoveCategory = { catId, cateName -> categoryId = catId; categoryName = cateName; showRemoveCategoryDialog = true },
             navigateToCategoryBudgetListScreen = navigateToCategoryBudgetListScreen,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen,
@@ -263,325 +242,1326 @@ fun CategoryDetailsScreenComposable(
         )
     }
 }
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CategoryDetailsScreen(
     pullRefreshState: PullRefreshState?,
     loadingStatus: LoadingStatus,
     category: TransactionCategory,
-    navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
+    isPremium: Boolean,
+    selectedPeriod: TimePeriod,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    showCustomPicker: Boolean,
+    totalIn: Double,
+    totalOut: Double,
+    txCount: Int,
+    typeBreakdown: List<Pair<String, Int>>,
+    trendData: List<TrendPoint>,
+    memberStats: List<MemberStat>,
+    insights: List<InsightItem>,
+    onSelectPeriod: (TimePeriod) -> Unit,
+    onSetCustomStart: (LocalDate) -> Unit,
+    onSetCustomEnd: (LocalDate) -> Unit,
+    onToggleCustomPicker: () -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
     onEditCategoryName: (name: String) -> Unit,
     onEditMemberName: (categoryKeyword: CategoryKeyword) -> Unit,
     onRemoveMember: (memberName: String, categoryId: Int, keywordId: Int) -> Unit,
     onRemoveCategory: (categoryId: Int, categoryName: String) -> Unit,
+    navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .padding(screenWidth(x = 16.0))
-            .fillMaxSize()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = navigateToPreviousScreen
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack, 
-                    contentDescription = "Previous screen",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                ),
-                onClick = {onRemoveCategory(category.id, category.name)}
-            ) {
-                Icon(
-                    tint = MaterialTheme.colorScheme.error,
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete category",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = category.name,
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 18.0).sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                onEditCategoryName(category.name)
-            }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit category name",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Text(
-            text = "Created on ${formatIsoDateTime(LocalDateTime.parse(category.createdAt))}",
-            fontSize = screenFontSize(x = 14.0).sp
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Divider()
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Members",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 18.0).sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = { navigateToMembersAdditionScreen(category.id.toString()) }) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Add",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
-                }
-            }
-        }
-        if(category.keywords.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                TextButton(
-                    onClick = { navigateToMembersAdditionScreen(category.id.toString()) },
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add members")
-                        Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
-                        Text(
-                            text = "No members yet. Tap to add",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-                }
+    val categoryColor = txAvatarColor(category.name)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val net = totalIn - totalOut
+    var showMembers by rememberSaveable { mutableStateOf(true) }
+    var showBudgets  by rememberSaveable { mutableStateOf(false) }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM") }
 
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-            ) {
-                Log.d("CATEGORY_KEYWORDS", category.keywords.toString())
-                items(category.keywords) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if(it.nickName.isNullOrEmpty()) it.keyWord else it.keyWord,
-//                        fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp,
-                            modifier = Modifier
-                                .weight(0.8f)
-                        )
-//                    Spacer(modifier = Modifier.weight(1f))
-                        IconButton(
-                            modifier = Modifier.weight(0.1f),
-                            onClick = {
-                                onEditMemberName(it)
-                            }) {
-                            Icon(
-                                tint = MaterialTheme.colorScheme.surfaceTint,
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit member",
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier.weight(0.1f),
-                            onClick = {
-                                onRemoveMember(it.nickName ?: it.keyWord, category.id, it.id)
-                            }) {
-                            Icon(
-                                tint = MaterialTheme.colorScheme.error,
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Remove member",
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    Column(modifier = modifier.fillMaxSize()) {
 
-        if(loadingStatus == LoadingStatus.LOADING) {
-            Box(
-                contentAlignment = Alignment.TopCenter,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-            ) {
-                PullRefreshIndicator(
-                    refreshing = loadingStatus == LoadingStatus.LOADING,
-                    state = pullRefreshState!!
-                )
-            }
-        }
-        OutlinedButton(
-            onClick = {
-                navigateToTransactionsScreen(category.id.toString())
-            },
+        // ── App bar ──────────────────────────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(onClick = navigateToPreviousScreen) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_right),
+                    contentDescription = "Back",
+                    modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = 180f },
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Box(
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(categoryColor),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Transactions",
-                    fontSize = screenFontSize(x = 14.0).sp
+                    text = category.name.take(2).uppercase(),
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
                 )
-                Icon(imageVector = Icons.Default.KeyboardArrowRight, contentDescription = "See transactions")
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = category.name,
+                fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            IconButton(onClick = { onEditCategoryName(category.name) }) {
+                Icon(
+                    painter = painterResource(R.drawable.edit),
+                    contentDescription = "Edit name",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = { onRemoveCategory(category.id, category.name) }) {
+                Icon(
+                    painter = painterResource(R.drawable.remove),
+                    contentDescription = "Delete category",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
 
-    }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item { Spacer(Modifier.height(4.dp)) }
+
+                // ── Non-premium upgrade banner ────────────────────────────────
+                if (!isPremium) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f)
+                                        )
+                                    )
+                                )
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Upgrade for full experience",
+                                    fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    "All-time history · advanced insights · projections",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                            Button(
+                                onClick = onShowSubscriptionDialog,
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    "Upgrade",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }                        }
+                    }
+                }
+
+                // ── Period picker ─────────────────────────────────────────────
+                item {
+                    CatPeriodPicker(
+                        isPremium = isPremium,
+                        selectedPeriod = selectedPeriod,
+                        startDate = startDate,
+                        endDate = endDate,
+                        txCount = txCount,
+                        totalIn = totalIn,
+                        totalOut = totalOut,
+                        onPeriodSelected = onSelectPeriod,
+                        onOpenCustomPicker = onToggleCustomPicker,
+                        onShowSubscriptionDialog = onShowSubscriptionDialog
+                    )
+                }
+
+                // ── Custom date picker ────────────────────────────────────────
+                if (showCustomPicker) {
+                    item {
+                        DateRangePickerDialog(
+                            premium = isPremium,
+                            startDate = startDate,
+                            endDate = endDate,
+                            defaultStartDate = null,
+                            defaultEndDate = null,
+                            onChangeStartDate = onSetCustomStart,
+                            onChangeLastDate = onSetCustomEnd,
+                            onDismiss = onToggleCustomPicker,
+                            onConfirm = onToggleCustomPicker,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // ── Hero stats card ───────────────────────────────────────────
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            categoryColor.copy(alpha = 0.25f),
+                                            MaterialTheme.colorScheme.surface
+                                        )
+                                    )
+                                )
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CatStatPill(
+                                    label = "$txCount transaction${if (txCount != 1) "s" else ""}",
+                                    color = categoryColor, modifier = Modifier.weight(1f)
+                                )
+                                CatStatPill(
+                                    label = "${category.keywords.size} member${if (category.keywords.size != 1) "s" else ""}",
+                                    color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                MoneyStatBox(
+                                    label = "Money In", amount = totalIn,
+                                    color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f)
+                                )
+                                MoneyStatBox(
+                                    label = "Money Out", amount = totalOut,
+                                    color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f)
+                                )
+                                MoneyStatBox(
+                                    label = "Net", amount = net,
+                                    color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // In vs Out bar
+                            val total = totalIn + totalOut
+                            if (total > 0) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        LegendDot(color = MaterialTheme.colorScheme.tertiary, label = "In")
+                                        LegendDot(color = MaterialTheme.colorScheme.error, label = "Out")
+                                    }
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))
+                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth((totalIn / total).toFloat().coerceIn(0f, 1f))
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(MaterialTheme.colorScheme.tertiary)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Activity bar chart ────────────────────────────────────────
+                if (trendData.isNotEmpty() && (totalIn > 0 || totalOut > 0)) {
+                    item {
+                        // Determine aggregation level from point count vs date span
+                        val daySpan = startDate.until(endDate, java.time.temporal.ChronoUnit.DAYS).toInt()
+                        val granularity = when {
+                            daySpan > 90 -> "Monthly"
+                            daySpan > 31 -> "Weekly"
+                            else         -> "Daily"
+                        }
+                        ElevatedCard(
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Activity",
+                                            fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                        )
+                                        Text(
+                                            "$granularity · ${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        LegendDot(color = MaterialTheme.colorScheme.tertiary, label = "In")
+                                        LegendDot(color = MaterialTheme.colorScheme.error, label = "Out")
+                                    }
+                                }
+                                TrendBarChart(
+                                    trendData = trendData,
+                                    modifier = Modifier.fillMaxWidth().height(160.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Member distribution donut ─────────────────────────────────
+                val membersWithActivity = memberStats.filter { it.totalOut + it.totalIn > 0 }
+                if (membersWithActivity.isNotEmpty()) {
+                    item {
+                        ElevatedCard(
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    "Member Distribution",
+                                    fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                                MemberDonutChart(
+                                    memberStats = membersWithActivity,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Transaction type breakdown ────────────────────────────────
+                if (typeBreakdown.isNotEmpty()) {
+                    item {
+                        ElevatedCard(
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    "Transaction Types",
+                                    fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                                typeBreakdown.take(5).forEachIndexed { idx, (type, count) ->
+                                    val fraction = if (txCount > 0) count.toFloat() / txCount else 0f
+                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                type, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                                                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                "$count (${(fraction * 100).toInt()}%)",
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().height(5.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(memberColor(idx).copy(alpha = 0.15f))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth(fraction).fillMaxSize()
+                                                    .clip(RoundedCornerShape(3.dp))
+                                                    .background(memberColor(idx))
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Insights ──────────────────────────────────────────────────
+                if (insights.isNotEmpty()) {
+                    item {
+                        InsightsCard(
+                            insights = insights,
+                            isPremium = isPremium,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog
+                        )
+                    }
+                }
+
+                // ── Members section ───────────────────────────────────────────
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { showMembers = !showMembers }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(30.dp).clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.contact),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            "Members", fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                        )
+                                        Text(
+                                            "${category.keywords.size} member${if (category.keywords.size != 1) "s" else ""}",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_arrow_right),
+                                    contentDescription = if (showMembers) "Collapse" else "Expand",
+                                    modifier = Modifier.size(16.dp)
+                                        .graphicsLayer { rotationZ = if (showMembers) 90f else 0f },
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AnimatedVisibility(
+                                visible = showMembers,
+                                enter = expandVertically(), exit = shrinkVertically()
+                            ) {
+                                Column {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                    if (category.keywords.isEmpty()) {
+                                        Text(
+                                            "No members yet",
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            fontSize = 13.sp
+                                        )
+                                    } else {
+                                        category.keywords.forEach { member ->
+                                            val stat = memberStats.firstOrNull {
+                                                it.keyword.equals(member.keyWord, ignoreCase = true)
+                                            }
+                                            MemberRow(
+                                                member = member,
+                                                stat = stat,
+                                                categoryId = category.id,
+                                                onEditMemberName = onEditMemberName,
+                                                onRemoveMember = onRemoveMember
+                                            )
+                                            HorizontalDivider(
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                            )
+                                        }
+                                    }
+                                    // Add members button
+                                    TextButton(
+                                        onClick = { navigateToMembersAdditionScreen(category.id.toString()) },
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_add),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Add Members")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Budgets section ───────────────────────────────────────────
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { showBudgets = !showBudgets }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(30.dp).clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.wallet),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    Column {
+                                        Text("Budgets", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text(
+                                            "${category.budgets.size} budget${if (category.budgets.size != 1) "s" else ""}",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_arrow_right),
+                                    contentDescription = if (showBudgets) "Collapse" else "Expand",
+                                    modifier = Modifier.size(16.dp)
+                                        .graphicsLayer { rotationZ = if (showBudgets) 90f else 0f },
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AnimatedVisibility(
+                                visible = showBudgets,
+                                enter = expandVertically(), exit = shrinkVertically()
+                            ) {
+                                Column {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                    if (category.budgets.isEmpty()) {
+                                        Text(
+                                            "No budgets yet",
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            fontSize = 13.sp
+                                        )
+                                    } else {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            category.budgets.forEach { budget ->
+                                                BudgetRow(budget = budget)
+                                            }
+                                        }
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        TextButton(
+                                            onClick = { navigateToCategoryBudgetListScreen(category.id.toString(), category.name) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.list),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("Manage Budgets", fontSize = 12.sp)
+                                        }
+                                        TextButton(
+                                            onClick = { navigateToBudgetCreationScreen(category.id.toString()) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_add),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("New Budget", fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── View all transactions button ───────────────────────────────
+                item {
+                    Button(
+                        onClick = { navigateToTransactionsScreen(category.id.toString()) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.list),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("View All Transactions", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                item { Spacer(Modifier.height(32.dp)) }
+            }
+
+            // Pull-to-refresh indicator
+            if (pullRefreshState != null) {
+                PullRefreshIndicator(
+                    refreshing = loadingStatus == LoadingStatus.LOADING,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+        }
+    }
+}
+
+// ─── Period picker card ───────────────────────────────────────────────────────
+@Composable
+private fun CatPeriodPicker(
+    isPremium: Boolean,
+    selectedPeriod: TimePeriod,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    txCount: Int,
+    totalIn: Double,
+    totalOut: Double,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onOpenCustomPicker: () -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val net = totalIn - totalOut
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM") }
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR
+        )
+    }
+    var showPeriodMenu by remember { mutableStateOf(false) }
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primaryColor.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f),
+                            primaryColor.copy(alpha = 0.04f)
+                        )
+                    )
+                )
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Column {
+                // Period selector chip row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(primaryColor.copy(alpha = 0.10f))
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { showPeriodMenu = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = selectedPeriod.getDisplayName().uppercase(),
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                color = primaryColor, letterSpacing = 1.sp
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_downward),
+                                contentDescription = "Select period",
+                                tint = primaryColor, modifier = Modifier.size(11.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showPeriodMenu,
+                            onDismissRequest = { showPeriodMenu = false }
+                        ) {
+                            periodOptions.forEach { period ->
+                                val requiresPremium = !isPremium && period == TimePeriod.THIS_YEAR
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = period.getDisplayName(),
+                                                fontSize = 14.sp,
+                                                fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (period == selectedPeriod) primaryColor
+                                                        else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (requiresPremium) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.lock),
+                                                    contentDescription = "Premium",
+                                                    modifier = Modifier.size(12.dp),
+                                                    tint = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        showPeriodMenu = false
+                                        if (requiresPremium) onShowSubscriptionDialog()
+                                        else onPeriodSelected(period)
+                                    }
+                                )
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.calendar),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp), tint = primaryColor
+                                        )
+                                        Text("Custom", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = primaryColor)
+                                    }
+                                },
+                                onClick = { showPeriodMenu = false; onOpenCustomPicker() }
+                            )
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "$txCount txn${if (txCount != 1) "s" else ""}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "Net Flow",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "${if (net >= 0) "+" else "-"}KES ${String.format("%,.0f", abs(net))}",
+                    fontSize = 28.sp, fontWeight = FontWeight.Bold,
+                    color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+// ─── Insights card ────────────────────────────────────────────────────────────
+@Composable
+private fun InsightsCard(
+    insights: List<InsightItem>,
+    isPremium: Boolean,
+    onShowSubscriptionDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Insights", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                if (!isPremium) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            "Some blurred · Upgrade",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+            insights.forEach { insight ->
+                val isLocked = insight.requiresPremium && !isPremium
+                Box {
+                    InsightRow(
+                        insight = insight,
+                        modifier = if (isLocked) Modifier.blur(6.dp) else Modifier
+                    )
+                    if (isLocked) {
+                        Box(
+                            modifier = Modifier.matchParentSize()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                                .clickable { onShowSubscriptionDialog() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = "Premium",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    "Premium", fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun EditNameDialog(
-    label: String,
-    title: String,
-    name: String,
-    onNameChange: (name: String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
+private fun InsightRow(insight: InsightItem, modifier: Modifier = Modifier) {
+    val accentColor = when (insight.isPositive) {
+        true -> MaterialTheme.colorScheme.tertiary
+        false -> MaterialTheme.colorScheme.error
+        null -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val bgColor = when (insight.isPositive) {
+        true -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f)
+        false -> MaterialTheme.colorScheme.error.copy(alpha = 0.08f)
+        null -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(6.dp).clip(CircleShape).background(accentColor)
+                .align(Alignment.CenterVertically)
+        )
+        Text(
+            text = insight.text,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            lineHeight = 18.sp,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+// ─── Member donut chart ───────────────────────────────────────────────────────
+@Composable
+private fun MemberDonutChart(
+    memberStats: List<MemberStat>,
     modifier: Modifier = Modifier
 ) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Edit $title",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = name,
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = screenFontSize(x = 14.0).sp
+    val surface   = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val totalOut  = memberStats.sumOf { it.totalOut }.coerceAtLeast(0.01)
+
+    var drawTarget by remember { mutableStateOf(0f) }
+    LaunchedEffect(memberStats) { drawTarget = 1f }
+    val drawProgress by animateFloatAsState(
+        targetValue = drawTarget,
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label = "memberDonut"
+    )
+
+    val segments = memberStats.take(8).mapIndexed { idx, stat ->
+        Triple(stat, memberColor(idx), (stat.totalOut / totalOut).toFloat())
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(150.dp)) {
+            Canvas(modifier = Modifier.size(150.dp)) {
+                val canvasSize  = min(size.width, size.height)
+                val strokeWidth = canvasSize * 0.18f
+                val arcRadius   = (canvasSize / 2f) - strokeWidth / 2f
+                val arcTopLeft  = Offset((size.width - arcRadius * 2) / 2f, (size.height - arcRadius * 2) / 2f)
+                val arcSize     = Size(arcRadius * 2, arcRadius * 2)
+                var startAngle  = -90f
+                val gap         = if (segments.size > 1) 2f else 0f
+
+                segments.forEach { (_, color, fraction) ->
+                    val sweep = (fraction * 360f - gap).coerceAtLeast(0f) * drawProgress
+                    drawArc(
+                        color = color, startAngle = startAngle, sweepAngle = sweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Butt),
+                        topLeft = arcTopLeft, size = arcSize
                     )
-                },
-                onValueChange = onNameChange,
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Text
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
+                    startAngle += fraction * 360f
+                }
+                drawCircle(color = surface, radius = arcRadius - strokeWidth / 2f + 2f)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("OUT", fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error, letterSpacing = 1.sp)
+                Text(
+                    "KES ${String.format("%,.0f", totalOut)}",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold, color = onSurface
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            segments.take(6).forEach { (stat, color, fraction) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stat.displayName.take(14),
+                            fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "KES ${String.format("%,.0f", stat.totalOut)}",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "${(fraction * 100).toInt()}%",
+                        fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = color
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Trend bar chart ─────────────────────────────────────────────────────────
+@Composable
+private fun TrendBarChart(
+    trendData: List<TrendPoint>,
+    modifier: Modifier = Modifier
+) {
+    val inColor    = MaterialTheme.colorScheme.tertiary
+    val outColor   = MaterialTheme.colorScheme.error
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val maxVal     = trendData.maxOfOrNull { maxOf(it.totalIn, it.totalOut) }?.coerceAtLeast(1.0) ?: 1.0
+
+    // Thin out labels if there are many points — show at most ~7
+    val totalPoints = trendData.size.coerceAtLeast(1)
+    val labelEveryN = ((totalPoints / 7.0).toInt()).coerceAtLeast(1)
+
+    Column(modifier = modifier) {
+        // ── Bars ──
+        Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val barGroupW = size.width / totalPoints
+            val barW      = (barGroupW * 0.35f).coerceAtLeast(2.dp.toPx())
+            val gap       = 2.dp.toPx()
+
+            trendData.forEachIndexed { idx, point ->
+                val groupLeft = idx * barGroupW
+                val inH  = (point.totalIn  / maxVal * size.height).toFloat()
+                val outH = (point.totalOut / maxVal * size.height).toFloat()
+
+                if (outH > 0f) drawRoundRect(
+                    color = outColor,
+                    topLeft = Offset(groupLeft + gap, size.height - outH),
+                    size = Size(barW, outH),
+                    cornerRadius = CornerRadius(2.dp.toPx())
+                )
+                if (inH > 0f) drawRoundRect(
+                    color = inColor,
+                    topLeft = Offset(groupLeft + gap + barW + gap, size.height - inH),
+                    size = Size(barW, inH),
+                    cornerRadius = CornerRadius(2.dp.toPx())
+                )
+            }
+        }
+
+        // ── X-axis labels ──
+        Spacer(Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            trendData.forEachIndexed { idx, point ->
+                val showLabel = point.label.isNotEmpty() && idx % labelEveryN == 0
+                Text(
+                    text = if (showLabel) point.label else "",
+                    fontSize = 8.sp,
+                    color = labelColor.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+// ─── Member row ───────────────────────────────────────────────────────────────
+@Composable
+private fun MemberRow(
+    member: CategoryKeyword,
+    stat: MemberStat?,
+    categoryId: Int,
+    onEditMemberName: (CategoryKeyword) -> Unit,
+    onRemoveMember: (memberName: String, categoryId: Int, keywordId: Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayName = member.nickName?.takeIf { it.isNotBlank() } ?: member.keyWord
+    val avatarColor = txAvatarColor(displayName)
+
+    Row(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                displayName.take(1).uppercase(),
+                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
             )
-        },
-        confirmButton = {
-            Button(onClick = onConfirm) {
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            if (stat != null && stat.txCount > 0) {
                 Text(
-                    text = "Confirm",
-                    fontSize = screenFontSize(x = 14.0).sp
+                    "${stat.txCount} txn${if (stat.txCount != 1) "s" else ""}  ·  " +
+                    "KES ${String.format("%,.0f", stat.totalOut + stat.totalIn)}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    "No activity this period",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+        }
+        // Stat badges
+        if (stat != null) {
+            Column(horizontalAlignment = Alignment.End) {
+                if (stat.totalOut > 0) {
+                    Text(
+                        "-${String.format("%,.0f", stat.totalOut)}",
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (stat.totalIn > 0) {
+                    Text(
+                        "+${String.format("%,.0f", stat.totalIn)}",
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
-        },
+        }
+        IconButton(
+            onClick = { onEditMemberName(member) },
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.edit),
+                contentDescription = "Edit member",
+                modifier = Modifier.size(15.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(
+            onClick = { onRemoveMember(displayName, categoryId, member.id) },
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.remove),
+                contentDescription = "Remove member",
+                modifier = Modifier.size(15.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+// ─── Small reusable composables ───────────────────────────────────────────────
+@Composable
+private fun CatStatPill(label: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = color.copy(alpha = 0.12f),
+        modifier = modifier
+    ) {
+        Text(
+            text = label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+            color = color, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun MoneyStatBox(label: String, amount: Double, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.08f)).padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = "KES ${String.format("%,.0f", abs(amount))}",
+            fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = color,
+            textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
+        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun BudgetRow(budget: CategoryBudget, modifier: Modifier = Modifier) {
+    val spent    = budget.budgetLimit - (budget.exceededBy * -1).coerceAtMost(budget.budgetLimit)
+    val fraction = if (budget.budgetLimit > 0) (spent / budget.budgetLimit).toFloat().coerceIn(0f, 1f) else 0f
+    val overBudget = budget.limitReached || budget.exceededBy > 0
+    val barColor = if (overBudget) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(budget.name ?: "Budget", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(
+                "KES ${String.format("%,.0f", budget.budgetLimit)}",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Box(
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(Modifier.fillMaxWidth(fraction).fillMaxSize().clip(RoundedCornerShape(3.dp)).background(barColor))
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                if (overBudget) "Over budget by KES ${String.format("%,.0f", budget.exceededBy)}"
+                else "${(fraction * 100).toInt()}% used",
+                fontSize = 10.sp, color = barColor
+            )
+            Text(
+                "Until: ${budget.limitDate.take(10)}",
+                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ─── Dialogs ──────────────────────────────────────────────────────────────────
+@Composable
+fun EditNameDialog(
+    title: String, label: String, name: String,
+    onNameChange: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit
+) {
+    AlertDialog(
         onDismissRequest = onDismiss,
+        title = { Text("Edit $title", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Current: $name", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name, onValueChange = onNameChange, label = { Text(label) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Done,
+                        keyboardType = KeyboardType.Text
+                    )
+                )
+            }
+        },
+        confirmButton = { Button(onClick = onConfirm) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
 @Composable
 fun DeleteDialog(
-    name: String,
-    categoryDeletion: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    name: String, categoryDeletion: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit
 ) {
     AlertDialog(
-        title = {
-            Text(
-                text = if(categoryDeletion) "Remove category" else "Remove member",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
+        onDismissRequest = onDismiss,
+        title = { Text(if (categoryDeletion) "Delete category?" else "Remove member?", fontWeight = FontWeight.Bold) },
         text = {
             Text(
-                text = "Remove $name? This action cannot be undone",
-                fontSize = screenFontSize(x = 14.0).sp
+                if (categoryDeletion)
+                    "Delete category \"$name\"? This will also remove all associated members and budgets."
+                else
+                    "Remove member \"$name\" from this category?"
             )
         },
-        onDismissRequest = onDismiss,
         confirmButton = {
-            Button(onClick = onConfirm) {
-                Text(
-                    text = "Confirm",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text(if (categoryDeletion) "Delete" else "Remove") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
-        modifier = Modifier
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
 @OptIn(ExperimentalMaterialApi::class)
-@RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true)
 @Composable
-fun CategoryDetailsScreenPreview() {
-    CashLedgerTheme {
+private fun CategoryDetailsScreenPreview() {
+    MaterialTheme {
         CategoryDetailsScreen(
-            loadingStatus = LoadingStatus.INITIAL,
             pullRefreshState = null,
-            category = transactionCategory,
+            loadingStatus = LoadingStatus.INITIAL,
+            category = com.records.pesa.reusables.transactionCategory,
+            isPremium = false,
+            selectedPeriod = TimePeriod.THIS_MONTH,
+            startDate = LocalDate.now().withDayOfMonth(1),
+            endDate = LocalDate.now(),
+            showCustomPicker = false,
+            totalIn = 12500.0,
+            totalOut = 8300.0,
+            txCount = 14,
+            typeBreakdown = listOf("Send Money" to 5, "Buy Goods" to 4, "Pay Bill" to 3, "Withdraw" to 2),
+            trendData = emptyList(),
+            memberStats = emptyList(),
+            insights = emptyList(),
+            onSelectPeriod = {},
+            onSetCustomStart = {},
+            onSetCustomEnd = {},
+            onToggleCustomPicker = {},
+            onShowSubscriptionDialog = {},
             onEditCategoryName = {},
             onEditMemberName = {},
-            onRemoveMember = {memName, categoryId, keywordId ->  },
-            onRemoveCategory = {categoryId, categoryName ->  },
+            onRemoveMember = { _, _, _ -> },
+            onRemoveCategory = { _, _ -> },
+            navigateToCategoryBudgetListScreen = { _, _ -> },
             navigateToPreviousScreen = {},
-            navigateToCategoryBudgetListScreen = {categoryId, categoryName ->  },
             navigateToMembersAdditionScreen = {},
             navigateToTransactionsScreen = {},
             navigateToBudgetCreationScreen = {}

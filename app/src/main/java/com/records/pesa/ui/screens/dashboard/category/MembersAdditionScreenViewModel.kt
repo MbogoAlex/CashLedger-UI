@@ -11,6 +11,7 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.mapper.toTransactionItem
+import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.models.CategoryEditPayload
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.transaction.TransactionItem
@@ -392,10 +393,13 @@ class MembersAdditionScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    categoryService.getCategoryById(uiState.value.categoryId.toInt()).collect() {category ->
+                    categoryService.getCategoryById(uiState.value.categoryId.toInt()).collect() { category ->
                         categoryKeywords.clear()
-                        for(keyword in category.keywords) {
+                        for (keyword in category.keywords) {
                             categoryKeywords.add(keyword.keyword)
+                        }
+                        _uiState.update {
+                            it.copy(category = category.toResponseTransactionCategory(emptyList()))
                         }
                     }
                 } catch (e: Exception) {

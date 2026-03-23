@@ -385,4 +385,33 @@ interface TransactionsDao {
     """)
     suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData>
 
+    @Query("""
+        SELECT COUNT(*) FROM `transaction`
+    """)
+    suspend fun getTotalTransactionCount(): Int
+
+    @Query("""
+        SELECT COUNT(*) FROM `transaction` t
+        LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId
+        WHERE tc.transactionId IS NULL
+    """)
+    suspend fun getUncategorizedTransactionCount(): Int
+
+    @Query("""
+        SELECT 
+            t.entity,
+            t.nickName,
+            t.transactionType,
+            COUNT(*) AS times,
+            SUM(ABS(t.transactionAmount)) AS totalAmount,
+            SUM(ABS(t.transactionCost)) AS totalCost
+        FROM `transaction` t
+        LEFT JOIN transactionCategoryCrossRef tc ON t.id = tc.transactionId
+        WHERE tc.transactionId IS NULL
+        GROUP BY t.entity, t.transactionType
+        ORDER BY times DESC
+        LIMIT 10
+    """)
+    suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction>
+
 }

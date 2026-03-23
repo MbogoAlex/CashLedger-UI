@@ -17,6 +17,7 @@ class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService
 
     override suspend fun updateCategory(transactionCategory: TransactionCategory) = categoryDao.updateCategory(transactionCategory)
     override fun getCategoryById(id: Int): Flow<CategoryWithKeywords> = categoryDao.getCategoryById(id)
+    override fun getCategoryWithTransactions(id: Int): Flow<CategoryWithTransactions> = categoryDao.getCategoryWithTransactions(id)
 
     override fun getAllCategories(): Flow<List<CategoryWithTransactions>> = categoryDao.getAllCategories()
     override fun getRawCategoryById(id: Int): Flow<TransactionCategory> = categoryDao.getRawCategoryById(id)

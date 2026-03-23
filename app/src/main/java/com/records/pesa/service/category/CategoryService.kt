@@ -15,6 +15,7 @@ interface CategoryService {
     suspend fun insertCategoryKeyword(categoryKeyword: CategoryKeyword)
     suspend fun updateCategory(transactionCategory: TransactionCategory)
     fun getCategoryById(id: Int): Flow<CategoryWithKeywords>
+    fun getCategoryWithTransactions(id: Int): Flow<CategoryWithTransactions>
     fun getAllCategories(): Flow<List<CategoryWithTransactions>>
     fun getRawCategoryById(id: Int): Flow<TransactionCategory>
     fun getCategoryKeyword(id: Int): Flow<CategoryKeyword>

@@ -32,9 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -96,6 +93,7 @@ import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
+import com.records.pesa.ui.screens.components.SubscriptionDialog
 import java.time.ZoneId
 
 object CategoriesScreenDestination : AppNavigation {
@@ -212,7 +210,10 @@ fun CategoriesScreenComposable(
             navigateToPreviousScreen = navigateToPreviousScreen,
             onShowSubscriptionDialog = { showSubscriptionDialog = true },
             onDownloadReport = { showDownloadReportDialog = !showDownloadReportDialog },
-            onFilter = { filteringOn = !filteringOn },
+            onFilter = {
+                if (filteringOn) viewModel.clearSelectedCategories()
+                filteringOn = !filteringOn
+            },
             filteringOn = filteringOn,
             showBackArrow = showBackArrow,
             getCategories = { viewModel.getUserCategories() },
@@ -363,14 +364,26 @@ fun CategoriesScreen(
                             }
                         }
 
-                        // Add (+) button
-                        IconButton(onClick = navigateToCategoryAdditionScreen) {
+                        // Select mode toggle
+                        IconButton(onClick = onFilter) {
                             Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add category",
-                                tint = MaterialTheme.colorScheme.primary,
+                                painter = painterResource(if (filteringOn) R.drawable.baseline_clear_24 else R.drawable.check_box_blank),
+                                contentDescription = if (filteringOn) "Cancel selection" else "Select categories",
+                                tint = if (filteringOn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(22.dp)
                             )
+                        }
+
+                        // Add (+) button
+                        if (!filteringOn) {
+                            IconButton(onClick = navigateToCategoryAdditionScreen) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_add),
+                                    contentDescription = "Add category",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
 
                         // Download icon — enabled when categories selected
@@ -845,64 +858,6 @@ private fun CategoryItemRow(
     }
 }
 
-// ─── Subscription dialog ──────────────────────────────────────────────────────
-
-@Composable
-private fun SubscriptionDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Go premium?",
-                fontSize = screenFontSize(x = 16.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text(
-                        text = "Ksh100.0 premium monthly fee",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Premium version allows you to: ",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "1. See transactions and export reports of more than one months",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "2. Backup your transactions", fontSize = screenFontSize(x = 14.0).sp)
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "3. Manage more than one category", fontSize = screenFontSize(x = 14.0).sp)
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(text = "4. Use in dark mode", fontSize = screenFontSize(x = 14.0).sp)
-                }
-            }
-        },
-        onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Dismiss", fontSize = screenFontSize(x = 14.0).sp)
-            }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text(text = "Subscribe", fontSize = screenFontSize(x = 14.0).sp)
-            }
-        }
-    )
-}
-
 // ─── Date range picker ────────────────────────────────────────────────────────
 
 @Composable
@@ -1041,7 +996,7 @@ private fun DownloadReportDialog(
                         )
                         Icon(
                             tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.KeyboardArrowDown,
+                            painter = painterResource(R.drawable.arrow_downward),
                             contentDescription = "Select report type",
                             modifier = Modifier.size(screenWidth(x = 24.0))
                         )

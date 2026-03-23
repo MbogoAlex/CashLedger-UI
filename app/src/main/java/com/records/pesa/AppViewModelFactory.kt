@@ -97,7 +97,8 @@ object AppViewModelFactory {
                 savedStateHandle = savedStateHandle,
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = categoryService,
-                transactionService = transactionService
+                transactionService = transactionService,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
             )
         }
 

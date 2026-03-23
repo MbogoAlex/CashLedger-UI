@@ -77,6 +77,7 @@ import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
+import com.records.pesa.ui.screens.components.SubscriptionDialog
 import java.time.ZoneId
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -673,85 +674,6 @@ fun DateRangePicker(
             }
         }
     }
-}
-
-@Composable
-fun SubscriptionDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Go premium?",
-                fontSize = screenFontSize(x = 16.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(10.dp)
-                ) {
-                    Text(
-                        text = "Ksh100.0 premium monthly fee",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = TextDecoration.Underline
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Premium version allows you to: ",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "1. See transactions and export reports of more than one months",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "2. Backup your transactions",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "3. Manage more than one category",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "4. Use in dark mode",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-
-                }
-            }
-        },
-        onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Dismiss",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text(
-                    text = "Subscribe",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        }
-    )
 }
 
 @Composable

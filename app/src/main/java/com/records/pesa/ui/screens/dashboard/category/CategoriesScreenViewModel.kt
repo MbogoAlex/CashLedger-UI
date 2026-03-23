@@ -100,6 +100,13 @@ class CategoriesScreenViewModel(
         }
     }
 
+    fun clearSelectedCategories() {
+        selectedCategories.clear()
+        _uiState.update {
+            it.copy(selectedCategories = selectedCategories)
+        }
+    }
+
     fun updateOrderBy(orderBy: String) {
         _uiState.update {
             it.copy(

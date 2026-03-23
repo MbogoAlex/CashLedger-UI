@@ -5,6 +5,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.dao.TransactionsDao
+import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
@@ -76,6 +77,9 @@ interface DBRepository {
     suspend fun getDistinctYearsWithTransactions(): List<Int>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
     suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double
     suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData>
+    suspend fun getTotalTransactionCount(): Int
+    suspend fun getUncategorizedTransactionCount(): Int
+    suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction>
 }
 
 class DBRepositoryImpl(
@@ -174,5 +178,8 @@ class DBRepositoryImpl(
     override suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalInForPeriod(startDate, endDate)
     override suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalOutForPeriod(startDate, endDate)
     override suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData> = transactionsDao.getTransactionTypeBreakdown(startDate, endDate)
+    override suspend fun getTotalTransactionCount(): Int = transactionsDao.getTotalTransactionCount()
+    override suspend fun getUncategorizedTransactionCount(): Int = transactionsDao.getUncategorizedTransactionCount()
+    override suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction> = transactionsDao.getTopUncategorizedEntities()
 
 }

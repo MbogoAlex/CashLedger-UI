@@ -117,6 +117,7 @@ import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import com.records.pesa.ui.screens.components.SubscriptionDialog
 import kotlin.math.absoluteValue
 
 object TransactionsScreenDestination : AppNavigation {
@@ -1204,43 +1205,6 @@ fun TransactionsScreenPreview() {
             navigateToTransactionDetailsScreen = {}
         )
     }
-}
-
-// ─── Subscription dialog ──────────────────────────────────────────────────────
-
-@Composable
-fun SubscriptionDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        title = {
-            Text(text = "Go premium?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        },
-        text = {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text("Ksh100.0 premium monthly fee", fontSize = 14.sp, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text("Premium version allows you to:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    listOf(
-                        "See transactions and export reports of more than one months",
-                        "Backup your transactions",
-                        "Manage more than one category",
-                        "Use in dark mode"
-                    ).forEachIndexed { i, text ->
-                        Spacer(modifier = Modifier.height(5.dp))
-                        Text("${i + 1}. $text", fontSize = 14.sp)
-                    }
-                }
-            }
-        },
-        onDismissRequest = onDismiss,
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Dismiss") } },
-        confirmButton = { Button(onClick = onConfirm) { Text("Subscribe") } }
-    )
 }
 
 // ─── Download report dialog ───────────────────────────────────────────────────
