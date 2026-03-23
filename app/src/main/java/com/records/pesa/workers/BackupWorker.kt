@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.records.pesa.CashLedger
 import com.records.pesa.R
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
@@ -207,11 +208,12 @@ suspend fun backup(
     val categoryKeywords = categoryService.getAllCategoryKeywords()
     val transactionCategoryMappings = categoryService.getTransactionCategoryCrossRefs().first()
     val deletedTransactions = transactionService.getDeletedTransactionEntities()
+    val budgets = dbRepository.getAllBudgets().first()
 
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 5 // Define the total number of tasks
+        val totalSteps = 6 // Define the total number of tasks
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -219,6 +221,7 @@ suspend fun backup(
         val categoryKeywordsFileParts = mutableListOf<MultipartBody.Part>()
         val categoryMappingsFileParts = mutableListOf<MultipartBody.Part>()
         val deletedTransactionsFileParts = mutableListOf<MultipartBody.Part>()
+        val budgetsFileParts = mutableListOf<MultipartBody.Part>()
 
         // Transactions
         val transactionsCsv = backupTransactionsToCSV(context, "${backUpId}_transactions.csv", transactions.map { it.toTransaction(backUpId) })
@@ -288,6 +291,17 @@ suspend fun backup(
         }
         currentStep++
         worker.updateProgressNotification("Finalizing backup...", currentStep, totalSteps, priorityHigh)
+
+        // Budgets
+        val budgetsCsv = backupBudgetsToCSV(context, "${backUpId}_budgets.csv", budgets)
+        budgetsCsv?.let { budgetsFileParts.add(it.toMultipartBody("file")) }
+        if (budgetsCsv != null) {
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, budgetsFileParts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up budgets...", currentStep, totalSteps, priorityHigh)
 
         // Final Step: Update User Account
         val lastBackup = LocalDateTime.now()
@@ -465,6 +479,33 @@ fun backupDeletedTransactionsToCSV(context: Context, fileName: String, deletedTr
         return file
     } catch (e: Exception) {
         Log.e("backupDeletedTransactionsToCSV", "Error saving transactions backup: ${e.message}")
+        return null
+    }
+}
+
+fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List<Budget>): File? {
+    try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                "id", "name", "active", "expenditure", "budgetLimit",
+                "createdAt", "limitDate", "limitReached", "limitReachedAt",
+                "exceededBy", "categoryId"
+            ))
+            budgetsToBackup.forEach { budget ->
+                csvPrinter.printRecord(
+                    budget.id, budget.name, budget.active, budget.expenditure,
+                    budget.budgetLimit, budget.createdAt, budget.limitDate,
+                    budget.limitReached, budget.limitReachedAt, budget.exceededBy,
+                    budget.categoryId
+                )
+            }
+            csvPrinter.flush()
+        }
+        Log.d("backupBudgetsToCSV", "Budgets backup saved to ${file.absolutePath}")
+        return file
+    } catch (e: Exception) {
+        Log.e("backupBudgetsToCSV", "Error saving budgets backup: ${e.message}")
         return null
     }
 }

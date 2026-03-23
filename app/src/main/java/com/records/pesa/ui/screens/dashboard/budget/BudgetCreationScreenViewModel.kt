@@ -1,17 +1,13 @@
 package com.records.pesa.ui.screens.dashboard.budget
 
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
-import com.records.pesa.models.BudgetEditPayLoad
-import com.records.pesa.models.TransactionCategory
+import com.records.pesa.db.models.Budget
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.transactionCategory
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 data class BudgetCreationScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -26,93 +23,73 @@ data class BudgetCreationScreenUiState(
     val budgetLimit: String = "",
     val limitDate: LocalDate? = null,
     val categoryId: String? = null,
-    val budgetId: String = "",
-    val selectedCategory: TransactionCategory = transactionCategory,
-    val categories: List<TransactionCategory> = emptyList(),
+    val categoryName: String? = null,
+    val newBudgetId: Int = 0,
     val saveButtonEnabled: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
 )
+
 class BudgetCreationScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository
-): ViewModel() {
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(BudgetCreationScreenUiState())
     val uiState: StateFlow<BudgetCreationScreenUiState> = _uiState.asStateFlow()
 
-    private val categoryId: String? = savedStateHandle[BudgetCreationScreenDestination.categoryId]
+    private val categoryIdArg: String? = savedStateHandle[BudgetCreationScreenDestination.categoryId]
 
-    fun updateCategory(category: TransactionCategory) {
-        _uiState.update {
-            it.copy(
-                selectedCategory = category
-            )
-        }
-    }
-    fun updateBudgetName(name: String) {
-        _uiState.update {
-            it.copy(
-                budgetName = name
-            )
-        }
-    }
+    fun updateBudgetName(name: String) { _uiState.update { it.copy(budgetName = name) }; checkFields() }
+    fun updateBudgetLimit(amount: String) { _uiState.update { it.copy(budgetLimit = amount) }; checkFields() }
+    fun updateLimitDate(date: LocalDate) { _uiState.update { it.copy(limitDate = date) }; checkFields() }
 
-    fun updateBudgetLimit(amount: String) {
+    fun resetLoadingStatus() = _uiState.update { it.copy(loadingStatus = LoadingStatus.INITIAL) }
+
+    private fun checkFields() {
+        val s = _uiState.value
         _uiState.update {
             it.copy(
-                budgetLimit = amount
+                saveButtonEnabled = s.budgetName.isNotBlank() &&
+                    s.budgetLimit.isNotBlank() &&
+                    (s.budgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
+                    s.limitDate != null &&
+                    s.limitDate.isAfter(LocalDate.now())
             )
         }
     }
 
-    fun updateLimitDate(date: LocalDate) {
-        _uiState.update {
-            it.copy(
-                limitDate = date
-            )
-        }
-    }
-
-
-    fun checkIfFieldsAreFilled() {
-        _uiState.update {
-            it.copy(
-                saveButtonEnabled = uiState.value.budgetName.isNotEmpty() &&
-                        uiState.value.selectedCategory.name.isNotEmpty() &&
-                        uiState.value.budgetLimit.isNotEmpty() &&
-                        uiState.value.budgetLimit.toDouble() != 0.0 &&
-                        uiState.value.limitDate != null
-            )
-        }
-    }
-
-    fun resetLoadingStatus() {
-        _uiState.update {
-            it.copy(
-                loadingStatus = LoadingStatus.INITIAL
-            )
-        }
-    }
-
-    private fun getUserDetails() {
+    fun createBudget() {
+        val catId = _uiState.value.categoryId?.toIntOrNull() ?: return
+        val limit = _uiState.value.budgetLimit.toDoubleOrNull() ?: return
+        val endDate = _uiState.value.limitDate ?: return
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    userDetails = dbRepository.getUsers().first()[0]
+            _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
+            try {
+                val budget = Budget(
+                    name = _uiState.value.budgetName.trim(),
+                    active = true,
+                    expenditure = 0.0,
+                    budgetLimit = limit,
+                    createdAt = LocalDateTime.now(),
+                    limitDate = endDate,
+                    limitReached = false,
+                    limitReachedAt = null,
+                    exceededBy = 0.0,
+                    categoryId = catId
                 )
-            }
-            while (uiState.value.userDetails.userId == 0) {
-                delay(1000)
+                val newId = dbRepository.insertBudget(budget)
+                _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
             }
         }
     }
 
     init {
-        _uiState.update {
-            it.copy(
-                categoryId = categoryId
-            )
+        _uiState.update { it.copy(categoryId = categoryIdArg) }
+        viewModelScope.launch {
+            _uiState.update { it.copy(userDetails = dbRepository.getUsers().first()[0]) }
         }
-        getUserDetails()
     }
 }
