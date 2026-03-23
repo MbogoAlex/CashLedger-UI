@@ -117,6 +117,7 @@ fun TransactionsHubScreenComposable(
         moneyOutCategories = uiState.moneyOutCategories,
         startDate = uiState.startDate,
         endDate = uiState.endDate,
+        userId = uiState.userDetails.id.toString(),
         onPeriodSelected = { viewModel.updateSelectedPeriod(it) },
         navigateToAllTransactions = navigateToAllTransactions,
         navigateToSortedTransactions = navigateToSortedTransactions,
@@ -144,6 +145,7 @@ fun TransactionsHubScreen(
     moneyOutCategories: List<TransactionTypeSummary>,
     startDate: String = "",
     endDate: String = "",
+    userId: String = "",
     onPeriodSelected: (TimePeriod) -> Unit,
     navigateToAllTransactions: () -> Unit,
     navigateToSortedTransactions: () -> Unit,
@@ -322,8 +324,12 @@ fun TransactionsHubScreen(
                                         moneyIn = topContactsShowIn,
                                         onClick = {
                                             navigateToEntityTransactions(
-                                                "0", contact.transactionType, contact.name,
-                                                "", "", contact.times.toString(),
+                                                userId,
+                                                contact.transactionType,
+                                                contact.name,
+                                                startDate,
+                                                endDate,
+                                                contact.times.toString(),
                                                 if (topContactsShowIn) "in" else "out"
                                             )
                                         }
