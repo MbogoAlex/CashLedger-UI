@@ -648,6 +648,9 @@ fun NavigationGraph(
                 navigateToBudgetInfoScreen = {
                     navController.popBackStack(BudgetCreationScreenDestination.route, true)
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                },
+                navigateToCreateCategory = {
+                    navController.navigate(CategoryAdditionScreenDestination.route)
                 }
             )
         }
@@ -666,6 +669,9 @@ fun NavigationGraph(
                 navigateToBudgetInfoScreen = {
                     navController.popBackStack(BudgetCreationScreenDestination.routeWithArgs, true)
                     navController.navigate("${BudgetInfoScreenDestination.route}/${it}")
+                },
+                navigateToCreateCategory = {
+                    navController.navigate(CategoryAdditionScreenDestination.route)
                 }
             )
         }
