@@ -72,6 +72,8 @@ class BudgetCreationScreenViewModel(
 
     fun dismissUpgradeDialog() = _uiState.update { it.copy(showUpgradeDialog = false) }
 
+    fun goToStep0() = _uiState.update { it.copy(step = 0) }
+
     fun updateCategorySearch(query: String) = _uiState.update { it.copy(categorySearch = query) }
 
     fun selectCategory(item: CategoryPickerItem) {

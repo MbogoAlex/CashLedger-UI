@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -101,6 +102,7 @@ fun BudgetCreationScreenComposable(
         BudgetCreationScreen(
             uiState = uiState,
             onSelectBudgetType = { viewModel.selectBudgetType(it) },
+            onGoToStep0 = { viewModel.goToStep0() },
             onDismissUpgradeDialog = { viewModel.dismissUpgradeDialog() },
             onSelectCategory = { viewModel.selectCategory(it) },
             onCategorySearchChange = { viewModel.updateCategorySearch(it) },
@@ -110,6 +112,7 @@ fun BudgetCreationScreenComposable(
                 val filtered = value.filter { it.isDigit() || it == '.' }
                 viewModel.updateBudgetLimit(filtered)
             },
+            onBudgetStartDateChange = { viewModel.updateStartDate(it) },
             onBudgetEndDateChange = { viewModel.updateLimitDate(it) },
             onCreateBudget = { viewModel.createBudget() },
             navigateToPreviousScreen = navigateToPreviousScreen,
@@ -123,12 +126,14 @@ fun BudgetCreationScreenComposable(
 fun BudgetCreationScreen(
     uiState: BudgetCreationScreenUiState,
     onSelectBudgetType: (BudgetType) -> Unit,
+    onGoToStep0: () -> Unit,
     onDismissUpgradeDialog: () -> Unit,
     onSelectCategory: (CategoryPickerItem) -> Unit,
     onCategorySearchChange: (String) -> Unit,
     onClearCategory: () -> Unit,
     onBudgetNameChange: (String) -> Unit,
     onBudgetLimitChange: (String) -> Unit,
+    onBudgetStartDateChange: (LocalDate) -> Unit,
     onBudgetEndDateChange: (LocalDate) -> Unit,
     onCreateBudget: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
@@ -138,10 +143,11 @@ fun BudgetCreationScreen(
     val context = LocalContext.current
     val today = LocalDate.now()
 
-    // Back on step 1 without pre-selected category → go back to step 0
-    val canGoBackToTypeSelect = uiState.step == 1 && uiState.budgetType == BudgetType.CATEGORY
-    BackHandler(enabled = canGoBackToTypeSelect) {
-        onSelectBudgetType(BudgetType.CATEGORY)
+    // On step 1, back always returns to step 0 (type selection)
+    val isOnStep1 = uiState.step == 1
+    BackHandler(enabled = isOnStep1) {
+        onClearCategory()
+        onGoToStep0()
     }
 
     // Upgrade dialog
@@ -168,7 +174,7 @@ fun BudgetCreationScreen(
         )
     }
 
-    fun showDatePicker() {
+    fun showEndDatePicker() {
         val picker = DatePickerDialog(
             context,
             { _, year, month, day ->
@@ -178,11 +184,25 @@ fun BudgetCreationScreen(
             today.monthValue - 1,
             today.dayOfMonth
         )
-        val minMillis = today.plusDays(1)
+        val minMillis = (uiState.startDate.plusDays(1))
             .atStartOfDay(java.time.ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
         picker.datePicker.minDate = minMillis
+        picker.show()
+    }
+
+    fun showStartDatePicker() {
+        val current = uiState.startDate
+        val picker = DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                onBudgetStartDateChange(LocalDate.of(year, month + 1, day))
+            },
+            current.year,
+            current.monthValue - 1,
+            current.dayOfMonth
+        )
         picker.show()
     }
 
@@ -202,10 +222,9 @@ fun BudgetCreationScreen(
                     .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
                 IconButton(onClick = {
-                    if (canGoBackToTypeSelect) {
-                        // Reset to step 0 by selecting the same type — triggers nav to step 0
+                    if (isOnStep1) {
                         onClearCategory()
-                        onSelectBudgetType(BudgetType.CATEGORY)
+                        onGoToStep0()
                     } else {
                         navigateToPreviousScreen()
                     }
@@ -643,6 +662,59 @@ fun BudgetCreationScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
 
+                // ── Standalone: transaction type selector (coming soon) ─────
+                if (uiState.budgetType == BudgetType.STANDALONE) {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().background(
+                                Brush.linearGradient(listOf(
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+                                ))
+                            )
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(painter = painterResource(R.drawable.wallet), contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.tertiary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("What will this budget track?", fontWeight = FontWeight.Bold, fontSize = screenFontSize(x = 14.0).sp)
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                val types = listOf("All Outflows", "Send Money", "Buy Goods", "Paybill", "Withdraw", "Buy Airtime")
+                                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    types.forEach { type ->
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(type, fontSize = screenFontSize(x = 12.0).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)).padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(painter = painterResource(R.drawable.info), contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.tertiary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Standalone budgets (track spending across all categories) are coming in the next update. Your data is safe.",
+                                        fontSize = screenFontSize(x = 11.0).sp,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
                 // ── Budget name ────────────────────────────────────────────
                 Text(
                     text = "Budget name",
@@ -778,6 +850,39 @@ fun BudgetCreationScreen(
 
                 Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
 
+                // ── Start date ─────────────────────────────────────────────
+                Text(
+                    text = "Budget starts on",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = screenFontSize(x = 14.0).sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = screenHeight(x = 6.0))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                        .clickable { showStartDatePicker() }
+                        .padding(horizontal = screenWidth(x = 16.0), vertical = screenHeight(x = 14.0))
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = formatLocalDate(uiState.startDate),
+                            fontSize = screenFontSize(x = 14.0).sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.calendar),
+                            contentDescription = "Pick start date",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(screenWidth(x = 22.0))
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+
                 // ── End date ───────────────────────────────────────────────
                 Text(
                     text = "Budget ends on",
@@ -794,7 +899,7 @@ fun BudgetCreationScreen(
                             color = MaterialTheme.colorScheme.outline,
                             shape = RoundedCornerShape(12.dp)
                         )
-                        .clickable { showDatePicker() }
+                        .clickable { showEndDatePicker() }
                         .padding(
                             horizontal = screenWidth(x = 16.0),
                             vertical = screenHeight(x = 14.0)
@@ -820,24 +925,6 @@ fun BudgetCreationScreen(
                             modifier = Modifier.size(screenWidth(x = 22.0))
                         )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(screenHeight(x = 12.0)))
-
-                // Info row
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(R.drawable.info),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(screenWidth(x = 16.0))
-                    )
-                    Spacer(modifier = Modifier.width(screenWidth(x = 6.0)))
-                    Text(
-                        text = "Budget starts today (${formatLocalDate(today)})",
-                        fontSize = screenFontSize(x = 12.0).sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(screenHeight(x = 32.0)))
