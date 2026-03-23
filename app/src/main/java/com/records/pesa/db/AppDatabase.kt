@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.records.pesa.db.dao.BudgetDao
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.dao.UserDao
@@ -33,6 +34,7 @@ abstract class AppDatabase: RoomDatabase() {
     abstract fun transactionDao(): TransactionsDao
     abstract fun categoryDao(): CategoryDao
     abstract fun userDao(): UserDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         @Volatile

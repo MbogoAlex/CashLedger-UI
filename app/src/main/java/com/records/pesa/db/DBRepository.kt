@@ -4,8 +4,10 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.records.pesa.db.dao.BudgetDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
+import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
@@ -80,11 +82,26 @@ interface DBRepository {
     suspend fun getTotalTransactionCount(): Int
     suspend fun getUncategorizedTransactionCount(): Int
     suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction>
+
+    // Budget operations
+    suspend fun insertBudget(budget: Budget): Long
+    suspend fun updateBudget(budget: Budget)
+    suspend fun deleteBudget(budget: Budget)
+    suspend fun deleteBudgetById(id: Int)
+    fun getBudgetById(id: Int): Flow<Budget?>
+    fun getBudgetsByCategoryId(categoryId: Int): Flow<List<Budget>>
+    fun getActiveBudgets(): Flow<List<Budget>>
+    fun getAllBudgets(): Flow<List<Budget>>
+
+    // Local spending computation
+    fun getOutflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double>
+    fun getInflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double>
 }
 
 class DBRepositoryImpl(
     private val appDao: AppDao,
-    private val transactionsDao: TransactionsDao
+    private val transactionsDao: TransactionsDao,
+    private val budgetDao: BudgetDao
 ): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
@@ -181,5 +198,21 @@ class DBRepositoryImpl(
     override suspend fun getTotalTransactionCount(): Int = transactionsDao.getTotalTransactionCount()
     override suspend fun getUncategorizedTransactionCount(): Int = transactionsDao.getUncategorizedTransactionCount()
     override suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction> = transactionsDao.getTopUncategorizedEntities()
+
+    // Budget operations
+    override suspend fun insertBudget(budget: Budget): Long = budgetDao.insertBudget(budget)
+    override suspend fun updateBudget(budget: Budget) = budgetDao.updateBudget(budget)
+    override suspend fun deleteBudget(budget: Budget) = budgetDao.deleteBudget(budget)
+    override suspend fun deleteBudgetById(id: Int) = budgetDao.deleteBudgetById(id)
+    override fun getBudgetById(id: Int): Flow<Budget?> = budgetDao.getBudgetById(id)
+    override fun getBudgetsByCategoryId(categoryId: Int): Flow<List<Budget>> = budgetDao.getBudgetsByCategoryId(categoryId)
+    override fun getActiveBudgets(): Flow<List<Budget>> = budgetDao.getActiveBudgets()
+    override fun getAllBudgets(): Flow<List<Budget>> = budgetDao.getAllBudgets()
+
+    // Local spending computation
+    override fun getOutflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double> =
+        transactionsDao.getOutflowForCategory(categoryId, startDate, endDate)
+    override fun getInflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double> =
+        transactionsDao.getInflowForCategory(categoryId, startDate, endDate)
 
 }

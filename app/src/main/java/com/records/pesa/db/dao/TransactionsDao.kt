@@ -414,4 +414,34 @@ interface TransactionsDao {
     """)
     suspend fun getTopUncategorizedEntities(): List<AggregatedTransaction>
 
+    @Query("""
+        SELECT COALESCE(SUM(ABS(t.transactionAmount)), 0.0)
+        FROM `transaction` t
+        INNER JOIN transactionCategoryCrossRef ref ON ref.transactionId = t.id
+        WHERE ref.categoryId = :categoryId
+          AND t.date >= :startDate
+          AND t.date <= :endDate
+          AND t.transactionAmount < 0
+    """)
+    fun getOutflowForCategory(
+        categoryId: Int,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<Double>
+
+    @Query("""
+        SELECT COALESCE(SUM(t.transactionAmount), 0.0)
+        FROM `transaction` t
+        INNER JOIN transactionCategoryCrossRef ref ON ref.transactionId = t.id
+        WHERE ref.categoryId = :categoryId
+          AND t.date >= :startDate
+          AND t.date <= :endDate
+          AND t.transactionAmount > 0
+    """)
+    fun getInflowForCategory(
+        categoryId: Int,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<Double>
+
 }

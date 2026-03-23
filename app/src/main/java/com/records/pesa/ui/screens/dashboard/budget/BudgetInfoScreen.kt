@@ -62,11 +62,10 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.BudgetDt
+import com.records.pesa.db.models.Budget
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.budget
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
@@ -121,7 +120,7 @@ fun BudgetInfoScreenComposable(
     }
 
     var endDate by rememberSaveable {
-        mutableStateOf(uiState.budget.limitDate)
+        mutableStateOf(uiState.budget?.limitDate?.toString() ?: "")
     }
 
     var showRemoveBudgetDialog by rememberSaveable {
@@ -152,7 +151,7 @@ fun BudgetInfoScreenComposable(
 
     if(showEditBudgetNameDialog) {
         EditNameDialog(
-            title = uiState.budget.name!!,
+            title = uiState.budget?.name ?: "",
             label = "Budget name",
             name = budgetName,
             onNameChange = {
@@ -172,7 +171,7 @@ fun BudgetInfoScreenComposable(
 
     if(showEditBudgetLimitDialog) {
         EditAmountDialog(
-            title = uiState.budget.name!!,
+            title = uiState.budget?.name ?: "",
             label = "Budget limit",
             amount = budgetLimit,
             onAmountChange = {value ->
@@ -194,9 +193,9 @@ fun BudgetInfoScreenComposable(
 
     if(showEditLimitDateDialog) {
         EditLimitDateDialog(
-            startDate = uiState.budget.createdAt.substring(0, 10),
+            startDate = uiState.budget?.createdAt?.toLocalDate()?.toString() ?: "",
             endDate = endDate,
-            title = uiState.budget.name!!,
+            title = uiState.budget?.name ?: "",
             onLimitDateChange = {
                 endDate = it.toString()
                 viewModel.updateLimitDate(endDate)
@@ -215,7 +214,7 @@ fun BudgetInfoScreenComposable(
 
     if(showRemoveBudgetDialog) {
         DeleteDialog(
-            name = uiState.budget.name!!,
+            name = uiState.budget?.name ?: "",
             onConfirm = {},
             onDismiss = {
                 if(uiState.executionStatus != ExecutionStatus.LOADING) {
@@ -231,7 +230,12 @@ fun BudgetInfoScreenComposable(
             .safeDrawingPadding()
     ) {
         BudgetInfoScreen(
-            budgetDt = uiState.budget,
+            budget = uiState.budget,
+            actualSpending = uiState.actualSpending,
+            isOverBudget = uiState.isOverBudget,
+            overage = uiState.overage,
+            percentUsed = uiState.percentUsed,
+            remaining = uiState.remaining,
             onDeleteBudget = {
                 showRemoveBudgetDialog = !showRemoveBudgetDialog
             },
@@ -261,7 +265,12 @@ fun BudgetInfoScreenComposable(
 fun BudgetInfoScreen(
     pullRefreshState: PullRefreshState?,
     loadingStatus: LoadingStatus,
-    budgetDt: BudgetDt,
+    budget: Budget?,
+    actualSpending: Double,
+    isOverBudget: Boolean,
+    overage: Double,
+    percentUsed: Int,
+    remaining: Double,
     onDeleteBudget: () -> Unit,
     onEditBudgetName: (name: String) -> Unit,
     onEditBudgetLimit: (amount: String) -> Unit,
@@ -270,15 +279,15 @@ fun BudgetInfoScreen(
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.d("BUDGET", budgetDt.toString())
-    val difference = budgetDt.expenditure - budgetDt.budgetLimit
+    Log.d("BUDGET", budget.toString())
+    val difference = actualSpending - (budget?.budgetLimit ?: 0.0)
     var expanded by remember {
         mutableStateOf(false)
     }
-    val progress = budgetDt.expenditure / budgetDt.budgetLimit
+    val progress = if ((budget?.budgetLimit ?: 0.0) == 0.0) 0.0 else actualSpending / budget!!.budgetLimit
     val percentLeft = "%.2f".format((1 - progress) * 100)
 
-    val days = ChronoUnit.DAYS.between(LocalDate.parse(budgetDt.limitDate), LocalDateTime.parse(budgetDt.createdAt))
+    val days = ChronoUnit.DAYS.between(budget?.createdAt?.toLocalDate() ?: LocalDate.now(), budget?.limitDate ?: LocalDate.now())
 
     Column(
         modifier = Modifier
@@ -332,13 +341,13 @@ fun BudgetInfoScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = budgetDt.name!!,
+                text = budget?.name ?: "",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {
-                onEditBudgetName(budgetDt.name)
+                onEditBudgetName(budget?.name ?: "")
             }) {
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
@@ -349,7 +358,7 @@ fun BudgetInfoScreen(
                 )
             }
         }
-        if(budgetDt.active) {
+        if(budget?.active == true) {
             Text(
                 text = "ACTIVE",
                 fontSize = screenFontSize(x = 14.0).sp,
@@ -364,7 +373,7 @@ fun BudgetInfoScreen(
         }
         Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Text(
-            text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}",
+            text = "Spent: ${formatMoneyValue(actualSpending)} / ${formatMoneyValue(budget?.budgetLimit ?: 0.0)}",
             fontSize = screenFontSize(x = 14.0).sp,
             color = MaterialTheme.colorScheme.surfaceTint,
             fontWeight = FontWeight.Bold
@@ -390,7 +399,7 @@ fun BudgetInfoScreen(
             )
             Spacer(modifier = Modifier.weight(1f))
             TextButton(onClick = {
-                onEditBudgetLimit(budgetDt.budgetLimit.toString())
+                onEditBudgetLimit((budget?.budgetLimit ?: 0.0).toString())
             }) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -439,7 +448,7 @@ fun BudgetInfoScreen(
         }
         Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
         Text(
-            text = "Created on ${formatIsoDateTime(LocalDateTime.parse(budgetDt.createdAt))}",
+            text = "Created on ${budget?.createdAt?.let { formatIsoDateTime(it) } ?: ""}",
             fontSize = screenFontSize(x = 14.0).sp,
             fontWeight = FontWeight.Bold
         )
@@ -448,13 +457,13 @@ fun BudgetInfoScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Budget period ends on ${budgetDt.limitDate}",
+                text = "Budget period ends on ${budget?.limitDate?.toString() ?: ""}",
                 fontSize = screenFontSize(x = 14.0).sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {
-                onEditLimitDate(budgetDt.limitDate)
+                onEditLimitDate(budget?.limitDate?.toString() ?: "")
             }) {
                 Icon(
                     tint = MaterialTheme.colorScheme.surfaceTint,
@@ -471,7 +480,7 @@ fun BudgetInfoScreen(
             fontSize = screenFontSize(x = 14.0).sp,
             fontWeight = FontWeight.Bold
         )
-        if(budgetDt.limitReached) {
+        if(budget?.limitReached == true) {
             Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
             Text(
                 text = "Limit Reached",
@@ -479,7 +488,7 @@ fun BudgetInfoScreen(
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
             Text(
-                text = "Reached limit at ${formatIsoDateTime(LocalDateTime.parse(budgetDt.limitReachedAt))}",
+                text = "Reached limit at ${budget?.limitReachedAt?.let { formatIsoDateTime(it) } ?: ""}",
                 fontSize = screenFontSize(x = 14.0).sp
             )
             Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
@@ -490,13 +499,13 @@ fun BudgetInfoScreen(
         }
         Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         Text(
-            text = "Category: ${budgetDt.category.name}",
+            text = "Category",
             fontSize = screenFontSize(x = 14.0).sp
         )
         Spacer(modifier = Modifier.weight(1f))
         OutlinedButton(
             onClick = {
-                navigateToTransactionsScreen(budgetDt.category.id, budgetDt.id, budgetDt.createdAt.substring(0, 10), budgetDt.limitDate)
+                navigateToTransactionsScreen(budget?.categoryId ?: 0, budget?.id ?: 0, budget?.createdAt?.toLocalDate()?.toString() ?: "", budget?.limitDate?.toString() ?: "")
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -818,12 +827,28 @@ fun BudgetInfoScreenPreview() {
         BudgetInfoScreen(
             pullRefreshState = null,
             loadingStatus = LoadingStatus.INITIAL,
-            budgetDt = budget,
+            budget = Budget(
+                name = "Test Budget",
+                active = true,
+                expenditure = 0.0,
+                budgetLimit = 20000.0,
+                createdAt = LocalDateTime.now(),
+                limitDate = LocalDate.now().plusDays(30),
+                limitReached = false,
+                limitReachedAt = null,
+                exceededBy = 0.0,
+                categoryId = 1
+            ),
+            actualSpending = 5000.0,
+            isOverBudget = false,
+            overage = 0.0,
+            percentUsed = 25,
+            remaining = 15000.0,
             onDeleteBudget = {},
             onEditBudgetName = {},
             onEditBudgetLimit = {},
             onEditLimitDate = {},
-            navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->},
+            navigateToTransactionsScreen = { categoryId, budgetId, startDate, endDate -> },
             navigateToPreviousScreen = {}
         )
     }

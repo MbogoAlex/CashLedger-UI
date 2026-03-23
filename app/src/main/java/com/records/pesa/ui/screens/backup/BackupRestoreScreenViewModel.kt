@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
@@ -112,12 +113,14 @@ class BackupRestoreScreenViewModel(
                     var existingCategoryKeywordsCsv: ByteArray? = null
                     var existingCategoryMappingsCsv: ByteArray? = null
                     var existingDeletedTransactionsCsv: ByteArray? = null
+                    var existingBudgetsCsv: ByteArray? = null
 
                     var transactions = emptyList<Transaction>()
                     var categories = emptyList<TransactionCategory>()
                     var categoryKeywords = emptyList<CategoryKeyword>()
                     var categoryMappings = emptyList<TransactionCategoryCrossRef>()
                     var deletedTransactions = emptyList<DeletedTransaction>()
+                    var budgets = emptyList<Budget>()
 
                     try {
                         Log.d("filesRestore", "Downloading transactions CSV for userId: $userId")
@@ -187,10 +190,23 @@ class BackupRestoreScreenViewModel(
                         Log.e("filesRestore", "Deleted Transactions CSV not found: ${e.message}")
                     }
 
+                    try {
+                        val response = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_budgets.csv")
+                        }
+                        existingBudgetsCsv = response?.body()?.bytes()
+                        if (existingBudgetsCsv != null) {
+                            budgets = parseBudgetsCsv(existingBudgetsCsv!!)
+                            Log.d("filesRestore", "Parsed ${budgets.size} budgets")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("filesRestore", "Budgets CSV not found: ${e.message}")
+                    }
+
                     // Update the total number of items to restore
                     _uiState.update {
                         it.copy(
-                            totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size + deletedTransactions.size
+                            totalItemsToRestore = transactions.size + categories.size + categoryKeywords.size + categoryMappings.size + deletedTransactions.size + budgets.size
                         )
                     }
 
@@ -285,6 +301,18 @@ class BackupRestoreScreenViewModel(
                             }
                         } catch (e: Exception) {
                             Log.e("filesRestore, insertException", "deletedTransaction $e")
+                        }
+                    }
+
+                    // Insert Budgets into Room
+                    for (budget in budgets) {
+                        try {
+                            dbRepository.insertBudget(budget)
+                            _uiState.update {
+                                it.copy(totalItemsRestored = uiState.value.totalItemsRestored + 1)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("filesRestore", "Failed to insert budget ${budget.id}: ${e.message}")
                         }
                     }
 
@@ -418,6 +446,34 @@ class BackupRestoreScreenViewModel(
             deletedTransactions.add(deletedTransaction)
         }
         return deletedTransactions
+    }
+
+    private fun parseBudgetsCsv(csvData: ByteArray): List<Budget> {
+        val budgets = mutableListOf<Budget>()
+        val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+        val rows = reader.readAll()
+
+        for (row in rows.drop(1)) { // Skip header row
+            try {
+                val budget = Budget(
+                    id = row[0].toInt(),
+                    name = row[1],
+                    active = row[2].toBoolean(),
+                    expenditure = row[3].toDouble(),
+                    budgetLimit = row[4].toDouble(),
+                    createdAt = LocalDateTime.parse(row[5]),
+                    limitDate = LocalDate.parse(row[6]),
+                    limitReached = row[7].toBoolean(),
+                    limitReachedAt = row.getOrNull(8)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
+                    exceededBy = row[9].toDouble(),
+                    categoryId = row[10].toInt()
+                )
+                budgets.add(budget)
+            } catch (e: Exception) {
+                Log.e("filesRestore", "Failed to parse budget row: ${e.message}")
+            }
+        }
+        return budgets
     }
 
 

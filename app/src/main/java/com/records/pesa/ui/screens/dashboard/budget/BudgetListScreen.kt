@@ -69,10 +69,9 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatMoneyValue
-import com.records.pesa.models.BudgetDt
+import com.records.pesa.db.models.Budget
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.reusables.budgets
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
@@ -112,7 +111,7 @@ fun BudgetListScreenComposable(
     val uiState by viewModel.uiState.collectAsState()
 
     val pullRefreshState = rememberPullRefreshState(
-        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
+        refreshing = false,
         onRefresh = {}
     )
 
@@ -132,8 +131,8 @@ fun BudgetListScreenComposable(
     ) {
         BudgetListScreen(
             pullRefreshState = pullRefreshState,
-            loadingStatus = uiState.loadingStatus,
-            budgets = uiState.budgetList,
+            loadingStatus = LoadingStatus.INITIAL,
+            budgets = uiState.budgets,
             searchQuery = uiState.searchQuery,
             categoryId = uiState.categoryId,
             categoryName = uiState.categoryName,
@@ -158,7 +157,7 @@ fun BudgetListScreenComposable(
 fun BudgetListScreen(
     pullRefreshState: PullRefreshState?,
     loadingStatus: LoadingStatus,
-    budgets: List<BudgetDt>,
+    budgets: List<BudgetWithProgress>,
     searchQuery: String,
     categoryId: String?,
     categoryName: String?,
@@ -316,7 +315,7 @@ fun BudgetListScreen(
                 ) {
                     items(budgets) {
                         BudgetListItem(
-                            budgetDt = it,
+                            budgetWithProgress = it,
                             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen
                         )
                     }
@@ -370,15 +369,15 @@ fun BudgetListScreen(
 
 @Composable
 fun BudgetListItem(
-    budgetDt: BudgetDt,
+    budgetWithProgress: BudgetWithProgress,
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val difference = budgetDt.expenditure - budgetDt.budgetLimit
+    val difference = budgetWithProgress.actualSpending - budgetWithProgress.budget.budgetLimit
     var expanded by remember {
         mutableStateOf(false)
     }
-    val progress = budgetDt.expenditure / budgetDt.budgetLimit
+    val progress = if (budgetWithProgress.budget.budgetLimit == 0.0) 0.0 else budgetWithProgress.actualSpending / budgetWithProgress.budget.budgetLimit
     val percentLeft = "%.2f".format((1 - progress) * 100)
     ElevatedCard(
         modifier = Modifier
@@ -401,12 +400,12 @@ fun BudgetListItem(
                     )
             ) {
                 Text(
-                    text = budgetDt.name ?: "N/A",
+                    text = budgetWithProgress.budget.name,
                     fontSize = screenFontSize(x = 14.0).sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(5.dp))
-                if(budgetDt.active) {
+                if(budgetWithProgress.budget.active) {
                     Text(
                         text = "ACTIVE",
                         fontSize = screenFontSize(x = 14.0).sp,
@@ -421,7 +420,7 @@ fun BudgetListItem(
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
-                    text = "Spent: ${formatMoneyValue(budgetDt.expenditure)} / ${formatMoneyValue(budgetDt.budgetLimit)}",
+                    text = "Spent: ${formatMoneyValue(budgetWithProgress.actualSpending)} / ${formatMoneyValue(budgetWithProgress.budget.budgetLimit)}",
                     fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.surfaceTint,
                     fontWeight = FontWeight.Bold
@@ -470,11 +469,11 @@ fun BudgetListItem(
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
-                    text = "Created on ${formatIsoDateTime(LocalDateTime.parse(budgetDt.createdAt))}",
+                    text = "Created on ${formatIsoDateTime(budgetWithProgress.budget.createdAt)}",
                     fontSize = screenFontSize(x = 14.0).sp,
                     fontWeight = FontWeight.Bold
                 )
-                if(budgetDt.limitReached) {
+                if(budgetWithProgress.budget.limitReached) {
                     Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                     Text(
                         text = "Limit Reached",
@@ -482,7 +481,7 @@ fun BudgetListItem(
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                     Text(
-                        text = "Reached limit at ${formatIsoDateTime(LocalDateTime.parse(budgetDt.limitReachedAt))}",
+                        text = "Reached limit at ${budgetWithProgress.budget.limitReachedAt?.let { formatIsoDateTime(it) } ?: ""}",
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
@@ -493,14 +492,14 @@ fun BudgetListItem(
                 }
                 Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Text(
-                    text = "Category: ${budgetDt.category.name}",
+                    text = "Category",
                     fontSize = screenFontSize(x = 14.0).sp
                 )
 
                 Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
                 Button(
                     onClick = {
-                        navigateToBudgetInfoScreen(budgetDt.id.toString())
+                        navigateToBudgetInfoScreen(budgetWithProgress.budget.id.toString())
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -527,12 +526,32 @@ fun BudgetListScreenPreview(
         BudgetListScreen(
             loadingStatus = LoadingStatus.INITIAL,
             pullRefreshState = null,
-            budgets = budgets,
+            budgets = listOf(
+                BudgetWithProgress(
+                    budget = Budget(
+                        name = "Food Budget",
+                        active = true,
+                        expenditure = 0.0,
+                        budgetLimit = 10000.0,
+                        createdAt = java.time.LocalDateTime.now(),
+                        limitDate = java.time.LocalDate.now().plusDays(30),
+                        limitReached = false,
+                        limitReachedAt = null,
+                        exceededBy = 0.0,
+                        categoryId = 1
+                    ),
+                    actualSpending = 5000.0,
+                    percentUsed = 50,
+                    remaining = 5000.0,
+                    isOverBudget = false,
+                    daysLeft = 15
+                )
+            ),
             searchQuery = "",
             categoryId = null,
             categoryName = null,
             onChangeSearchQuery = {},
-            onClearSearch = { /*TODO*/ },
+            onClearSearch = {},
             navigateToBudgetInfoScreen = {},
             navigateToBudgetCreationScreen = {},
             navigateToBudgetCreationScreenWithCategoryId = {},
