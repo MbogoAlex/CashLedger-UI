@@ -3,10 +3,12 @@ package com.records.pesa.ui.screens.dashboard.budget
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.category.CategoryService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,13 +20,17 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
+enum class BudgetStatus { ON_TRACK, WARNING, EXCEEDED, EXPIRED }
+
 data class BudgetWithProgress(
     val budget: Budget,
     val actualSpending: Double = 0.0,
     val percentUsed: Int = 0,
     val remaining: Double = 0.0,
     val isOverBudget: Boolean = false,
-    val daysLeft: Int = 0
+    val daysLeft: Int = 0,
+    val status: BudgetStatus = BudgetStatus.ON_TRACK,
+    val categoryName: String = ""
 )
 
 data class BudgetListScreenUiState(
@@ -32,13 +38,21 @@ data class BudgetListScreenUiState(
     val categoryId: String? = null,
     val categoryName: String? = null,
     val searchQuery: String = "",
-    val budgets: List<BudgetWithProgress> = emptyList()
+    val budgets: List<BudgetWithProgress> = emptyList(),
+    val sortBy: String = "default",
+    val filterStatus: String = "all",
+    val isPremium: Boolean = false,
+    val activeCount: Int = 0,
+    val totalExceeded: Int = 0,
+    val totalOverBudgetAmount: Double = 0.0
 )
 
 class BudgetListScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val categoryService: CategoryService,
+    private val dataStoreRepository: DataStoreRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetListScreenUiState())
@@ -49,12 +63,41 @@ class BudgetListScreenViewModel(
 
     fun updateSearchQuery(query: String) = _uiState.update { it.copy(searchQuery = query) }
     fun clearSearch() = _uiState.update { it.copy(searchQuery = "") }
+    fun updateSortBy(sort: String) = _uiState.update { it.copy(sortBy = sort) }
+    fun updateFilterStatus(filter: String) = _uiState.update { it.copy(filterStatus = filter) }
+
+    fun deleteBudget(budget: Budget) {
+        viewModelScope.launch { dbRepository.deleteBudget(budget) }
+    }
+
+    fun undoDelete(budget: Budget) {
+        viewModelScope.launch { dbRepository.insertBudget(budget) }
+    }
 
     val filteredBudgets: List<BudgetWithProgress>
         get() {
             val q = _uiState.value.searchQuery.trim().lowercase()
-            return if (q.isEmpty()) _uiState.value.budgets
-            else _uiState.value.budgets.filter { it.budget.name.contains(q, ignoreCase = true) }
+            val filter = _uiState.value.filterStatus
+            val sort = _uiState.value.sortBy
+
+            var list = _uiState.value.budgets
+            if (q.isNotEmpty()) list = list.filter {
+                it.budget.name.contains(q, ignoreCase = true) || it.categoryName.contains(q, ignoreCase = true)
+            }
+            if (filter != "all") list = list.filter {
+                when (filter) {
+                    "on_track" -> it.status == BudgetStatus.ON_TRACK
+                    "warning"  -> it.status == BudgetStatus.WARNING
+                    "exceeded" -> it.status == BudgetStatus.EXCEEDED
+                    "expired"  -> it.status == BudgetStatus.EXPIRED
+                    else -> true
+                }
+            }
+            return when (sort) {
+                "most_used" -> list.sortedByDescending { it.percentUsed }
+                "created"   -> list.sortedByDescending { it.budget.createdAt }
+                else -> list
+            }
         }
 
     private fun observeBudgets() {
@@ -68,7 +111,7 @@ class BudgetListScreenViewModel(
             budgetFlow.collectLatest { budgets ->
                 val today = LocalDate.now()
                 val withProgress = budgets.map { budget ->
-                    val start = budget.createdAt.toLocalDate()
+                    val start = budget.startDate
                     val end = budget.limitDate
                     val spending = dbRepository.getOutflowForCategory(budget.categoryId, start, end).first()
                     val totalDays = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
@@ -78,19 +121,39 @@ class BudgetListScreenViewModel(
                         ((spending / budget.budgetLimit) * 100).roundToInt().coerceAtLeast(0)
                     else 0
                     val remaining = (budget.budgetLimit - spending).coerceAtLeast(0.0)
+                    val isOverBudget = spending > budget.budgetLimit
+                    val isExpired = budget.limitDate.isBefore(today) && !isOverBudget
+                    val status = when {
+                        isOverBudget -> BudgetStatus.EXCEEDED
+                        isExpired    -> BudgetStatus.EXPIRED
+                        percentUsed >= 80 -> BudgetStatus.WARNING
+                        else -> BudgetStatus.ON_TRACK
+                    }
+                    val catName = try {
+                        categoryService.getCategoryById(budget.categoryId).first().category.name
+                    } catch (e: Exception) { "" }
                     BudgetWithProgress(
                         budget = budget,
                         actualSpending = spending,
                         percentUsed = percentUsed,
                         remaining = remaining,
-                        isOverBudget = spending > budget.budgetLimit,
-                        daysLeft = daysLeft
+                        isOverBudget = isOverBudget,
+                        daysLeft = daysLeft,
+                        status = status,
+                        categoryName = catName
                     )
-                }.sortedWith(
-                    compareByDescending<BudgetWithProgress> { it.isOverBudget }
-                        .thenByDescending { it.percentUsed }
-                )
-                _uiState.update { it.copy(budgets = withProgress) }
+                }
+                val active = withProgress.filter { it.budget.active && it.status != BudgetStatus.EXPIRED }
+                val exceeded = withProgress.filter { it.status == BudgetStatus.EXCEEDED }
+                val overAmount = exceeded.sumOf { it.actualSpending - it.budget.budgetLimit }
+                _uiState.update {
+                    it.copy(
+                        budgets = withProgress,
+                        activeCount = active.size,
+                        totalExceeded = exceeded.size,
+                        totalOverBudgetAmount = overAmount
+                    )
+                }
             }
         }
     }
@@ -101,5 +164,12 @@ class BudgetListScreenViewModel(
             _uiState.update { it.copy(userDetails = dbRepository.getUsers().first()[0]) }
         }
         observeBudgets()
+        viewModelScope.launch {
+            dataStoreRepository.getUserPreferences().collect { prefs ->
+                val isPremium = prefs.permanent ||
+                    (prefs.expiryDate != null && prefs.expiryDate.isAfter(java.time.LocalDateTime.now()))
+                _uiState.update { it.copy(isPremium = isPremium) }
+            }
+        }
     }
 }

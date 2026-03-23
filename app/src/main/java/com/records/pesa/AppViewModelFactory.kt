@@ -10,6 +10,7 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.ui.screens.DashboardScreenViewModel
@@ -145,10 +146,14 @@ object AppViewModelFactory {
         initializer {
             val apiRepository: ApiRepository = cashLedgerApplication().container.apiRepository
             val savedStateHandle: SavedStateHandle = this.createSavedStateHandle()
+            val categoryService: CategoryService = cashLedgerApplication().container.categoryService
+            val dataStoreRepository: DataStoreRepository = cashLedgerApplication().container.dataStoreRepository
             BudgetListScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = categoryService,
+                dataStoreRepository = dataStoreRepository
             )
         }
 
