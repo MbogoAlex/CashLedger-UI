@@ -4,21 +4,18 @@ import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,18 +29,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
+import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -53,58 +47,64 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
-import com.records.pesa.composables.TransactionCategoryCell
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.dateFormatter
 import com.records.pesa.reusables.transactionCategories
+import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-object CategoriesScreenDestination: AppNavigation {
+object CategoriesScreenDestination : AppNavigation {
     override val title: String = "Categories screen"
     override val route: String = "categories-screen"
-
 }
+
+// ─── Composable entry point ───────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun CategoriesScreenComposable(
@@ -118,11 +118,7 @@ fun CategoriesScreenComposable(
 ) {
     val context = LocalContext.current
     BackHandler(onBack = {
-        if(showBackArrow) {
-            navigateToPreviousScreen()
-        } else {
-            navigateToHomeScreen()
-        }
+        if (showBackArrow) navigateToPreviousScreen() else navigateToHomeScreen()
     })
 
     val viewModel: CategoriesScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -130,68 +126,47 @@ fun CategoriesScreenComposable(
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
-        onRefresh = {
-            viewModel.getUserCategories()
-        }
+        onRefresh = { viewModel.getUserCategories() }
     )
 
-    var showSubscriptionDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var showSubscriptionDialog by rememberSaveable { mutableStateOf(false) }
+    var filteringOn by rememberSaveable { mutableStateOf(false) }
+    var showDownloadReportDialog by rememberSaveable { mutableStateOf(false) }
+    var reportType by rememberSaveable { mutableStateOf("PDF") }
 
-    var filteringOn by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showDownloadReportDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var reportType by rememberSaveable {
-        mutableStateOf("PDF")
-    }
-
-    val createDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
-        uri?.let {
-            viewModel.fetchReportAndSave(
-                context = context,
-                saveUri = it,
-                reportType = reportType
-            )
+    val createDocumentLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
+            uri?.let {
+                viewModel.fetchReportAndSave(context = context, saveUri = it, reportType = reportType)
+            }
         }
-    }
 
-    if(uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
+    if (uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
         filteringOn = false
         Toast.makeText(context, "Report downloaded in your selected folder", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
         val uri = uiState.downLoadUri
-        if(reportType == "PDF") {
+        if (reportType == "PDF") {
             val pdfIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/pdf")
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             }
-
             context.startActivity(Intent.createChooser(pdfIntent, "Open PDF with:"))
-        } else if(reportType == "CSV") {
+        } else if (reportType == "CSV") {
             val csvIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "text/csv")
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             }
-
             context.startActivity(Intent.createChooser(csvIntent, "Open CSV with:"))
         }
-
-    } else if(uiState.downloadingStatus == DownloadingStatus.FAIL) {
+    } else if (uiState.downloadingStatus == DownloadingStatus.FAIL) {
         Toast.makeText(context, "Failed to download report. Check your connection", Toast.LENGTH_SHORT).show()
         viewModel.resetDownloadingStatus()
     }
 
-    if(showSubscriptionDialog) {
+    if (showSubscriptionDialog) {
         SubscriptionDialog(
-            onDismiss = {
-                showSubscriptionDialog = false
-            },
+            onDismiss = { showSubscriptionDialog = false },
             onConfirm = {
                 showSubscriptionDialog = false
                 navigateToSubscriptionScreen()
@@ -199,7 +174,7 @@ fun CategoriesScreenComposable(
         )
     }
 
-    if(showDownloadReportDialog) {
+    if (showDownloadReportDialog) {
         DownloadReportDialog(
             startDate = uiState.startDate,
             endDate = uiState.endDate,
@@ -207,29 +182,16 @@ fun CategoriesScreenComposable(
             onConfirm = { type ->
                 reportType = type
                 showDownloadReportDialog = !showDownloadReportDialog
-                if(reportType == "PDF") {
+                if (reportType == "PDF") {
                     createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
-                } else if(reportType == "CSV") {
+                } else if (reportType == "CSV") {
                     createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.csv")
                 }
             }
         )
     }
 
-//    val lifecycleOwner = LocalLifecycleOwner.current
-//    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
-
-//    LaunchedEffect(lifecycleState) {
-//        Log.i("CURRENT_LIFECYCLE", lifecycleState.name)
-//        if(lifecycleState.name.lowercase() == "started") {
-//            viewModel.getUserCategories()
-//        }
-//    }
-
-    Box(
-        modifier = Modifier
-            .safeDrawingPadding()
-    ) {
+    Box(modifier = Modifier.safeDrawingPadding()) {
         CategoriesScreen(
             pullRefreshState = pullRefreshState,
             loadingStatus = uiState.loadingStatus,
@@ -237,48 +199,29 @@ fun CategoriesScreenComposable(
             searchQuery = uiState.name,
             startDate = LocalDate.parse(uiState.startDate),
             endDate = LocalDate.parse(uiState.endDate),
-            onChangeStartDate = {
-                viewModel.changeStartDate(it)
-            },
-            onChangeLastDate = {
-                viewModel.changeEndDate(it)
-            },
-            onChangeSearchQuery = {
-                viewModel.updateName(it)
-            },
-            onClearSearch = {
-                viewModel.updateName("")
-//                viewModel.getUserCategories()
-            },
+            onChangeStartDate = { viewModel.changeStartDate(it) },
+            onChangeLastDate = { viewModel.changeEndDate(it) },
+            onChangeSearchQuery = { viewModel.updateName(it) },
+            onClearSearch = { viewModel.updateName("") },
             categories = uiState.categories,
             selectedCategories = uiState.selectedCategories,
-            onRemoveCategory = {
-                viewModel.removeCategoryId(it)
-            },
-            onAddCategory = {
-                viewModel.addCategoryId(it)
-            },
+            onRemoveCategory = { viewModel.removeCategoryId(it) },
+            onAddCategory = { viewModel.addCategoryId(it) },
             navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
             navigateToPreviousScreen = navigateToPreviousScreen,
-            onShowSubscriptionDialog = {
-                showSubscriptionDialog = true
-            },
-            onDownloadReport = {
-                showDownloadReportDialog = !showDownloadReportDialog
-            },
-            onFilter = {
-                filteringOn = !filteringOn
-            },
+            onShowSubscriptionDialog = { showSubscriptionDialog = true },
+            onDownloadReport = { showDownloadReportDialog = !showDownloadReportDialog },
+            onFilter = { filteringOn = !filteringOn },
             filteringOn = filteringOn,
             showBackArrow = showBackArrow,
-            getCategories = {
-                viewModel.getUserCategories()
-            },
+            getCategories = { viewModel.getUserCategories() },
             downloadingStatus = uiState.downloadingStatus
         )
     }
 }
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -309,376 +252,617 @@ fun CategoriesScreen(
     getCategories: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.d("Back_arrow", showBackArrow.toString())
-    var searchingOn by rememberSaveable {
-        mutableStateOf(false)
+    val isLoading = loadingStatus == LoadingStatus.LOADING
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(showSearch) {
+        if (showSearch) focusRequester.requestFocus()
+        else {
+            keyboard?.hide()
+            onClearSearch()
+        }
     }
-    Column(
-        modifier = Modifier
-            .padding(
-                start = screenWidth(x = 16.0),
-                end = screenWidth(x = 16.0),
-                top = if (showBackArrow) screenHeight(x = 8.0) else 0.dp,
-                bottom = screenHeight(x = 8.0)
-            )
+
+    val filteredCategories = remember(categories, searchQuery) {
+        if (searchQuery.isBlank()) categories
+        else categories.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+
+    Box(
+        modifier = modifier
             .fillMaxSize()
-
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        
+        Column(modifier = Modifier.fillMaxSize()) {
 
-        
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if(showBackArrow) {
-                IconButton(onClick = navigateToPreviousScreen) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Previous screen",
+            // ── Top app bar ───────────────────────────────────────────────────
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
+            ) {
+                Column {
+                    Row(
                         modifier = Modifier
-                            .size(screenWidth(x = 24.0))
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Back arrow — only when showBackArrow is true
+                        if (showBackArrow) {
+                            IconButton(onClick = navigateToPreviousScreen) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_arrow_right),
+                                    contentDescription = "Back",
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .scale(scaleX = -1f, scaleY = 1f)
+                                )
+                            }
+                        }
+
+                        // Inline search field or title
+                        if (showSearch) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = onChangeSearchQuery,
+                                placeholder = {
+                                    Text(
+                                        "Search categories\u2026",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = { showSearch = false }) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.baseline_clear_24),
+                                            contentDescription = "Close search",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { keyboard?.hide() }),
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(focusRequester)
+                            )
+                        } else {
+                            Text(
+                                text = "Categories",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = if (showBackArrow) 4.dp else 12.dp)
+                            )
+                        }
+
+                        // Search icon toggle
+                        if (!showSearch) {
+                            IconButton(onClick = { showSearch = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.search),
+                                    contentDescription = "Search",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Add (+) button
+                        IconButton(onClick = navigateToCategoryAdditionScreen) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add category",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // Download icon — enabled when categories selected
+                        IconButton(
+                            onClick = onDownloadReport,
+                            enabled = selectedCategories.isNotEmpty()
+                        ) {
+                            if (downloadingStatus == DownloadingStatus.LOADING) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.download),
+                                    contentDescription = "Download report",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (selectedCategories.isNotEmpty())
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f),
+                        thickness = 1.dp
                     )
                 }
             }
-            Spacer(modifier = Modifier.weight(1f))
-            if(!filteringOn) {
-                Box(
-                    modifier = Modifier
-                        .clickable {
-                            if(categories.isNotEmpty() && !premium) {
-                                onShowSubscriptionDialog()
-                            } else {
-                                navigateToCategoryAdditionScreen()
+
+            // ── Scrollable body ───────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (pullRefreshState != null) Modifier.pullRefresh(pullRefreshState)
+                        else Modifier
+                    )
+            ) {
+                if (isLoading && categories.isEmpty()) {
+                    // Full-screen loader on initial load
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 120.dp)
+                    ) {
+                        // Hero summary card (scrolls with list)
+                        item {
+                            CategoriesHeroCard(
+                                categories = categories,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+
+                        // Empty state
+                        if (filteredCategories.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(260.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.categories),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(52.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                        )
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Text(
+                                            text = "No categories yet",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Tap + to create your first category",
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(filteredCategories, key = { it.id }) { category ->
+                                CategoryItemRow(
+                                    category = category,
+                                    isSelected = category.id in selectedCategories,
+                                    filteringOn = filteringOn,
+                                    onToggleSelection = {
+                                        if (category.id in selectedCategories)
+                                            onRemoveCategory(category.id)
+                                        else
+                                            onAddCategory(category.id)
+                                    },
+                                    onClick = {
+                                        navigateToCategoryDetailsScreen(category.id.toString())
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f)
+                                )
                             }
                         }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Add",
-                            color = MaterialTheme.colorScheme.surfaceTint,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add category",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
-                        )
                     }
                 }
-            }
 
+                // Pull-to-refresh indicator
+                if (pullRefreshState != null) {
+                    PullRefreshIndicator(
+                        refreshing = isLoading,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        backgroundColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
 
-
-
-        if(filteringOn) {
-            Text(
-                text = "Select report date range",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            DateRangePicker(
-                premium = premium,
-                startDate = startDate,
-                endDate = endDate,
-                defaultStartDate = null,
-                defaultEndDate = null,
-                onChangeStartDate = onChangeStartDate,
-                onChangeLastDate = onChangeLastDate,
-                onShowSubscriptionDialog = onShowSubscriptionDialog
-            )
-            TextButton(
-                onClick = { onFilter() },
+        // ── Selection banner (bottom) — shown when categories are selected ───
+        if (selectedCategories.isNotEmpty()) {
+            Surface(
                 modifier = Modifier
-                    .align(Alignment.End)
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shadowElevation = 6.dp
             ) {
-                Text(text = "Cancel")
-            }
-        } else {
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Categories",
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(
-                    enabled = downloadingStatus != DownloadingStatus.LOADING && categories.isNotEmpty(),
-                    onClick = onFilter
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Statement",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        if(downloadingStatus == DownloadingStatus.LOADING) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(screenWidth(x = 15.0))
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(id = R.drawable.download),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        }
-
-                    }
-                }
-                if(premium && !searchingOn && categories.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                    IconButton(onClick = { searchingOn = !searchingOn }) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search category",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
-                        )
-                    }
-                }
-
-            }
-            if(!filteringOn && premium && searchingOn) {
-//            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                ) {
-                    TextField(
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
-                            )
-                        },
-                        value = searchQuery,
-                        placeholder = {
-                            Text(
-                                text = "Category",
-                                fontSize = screenFontSize(x = 14.0).sp
-                            )
-                        },
-                        trailingIcon = {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.inverseOnSurface)
-                                    .padding(screenWidth(x = 5.0))
-                                    .clickable {
-                                        onClearSearch()
-                                    }
-
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search",
-                                    modifier = Modifier
-                                        .size(screenWidth(x = 16.0))
-                                )
-                            }
-
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        keyboardOptions = KeyboardOptions.Default.copy(
-                            imeAction = ImeAction.Done,
-                            keyboardType = KeyboardType.Text
-                        ),
-                        onValueChange = onChangeSearchQuery,
-                        modifier = Modifier
-                            .weight(0.9f)
-                    )
-//                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                    IconButton(
-                        onClick = { searchingOn = !searchingOn },
-                        modifier = Modifier
-                            .weight(0.1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Stop searching",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-
-        if(loadingStatus == LoadingStatus.FAIL) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                IconButton(onClick = getCategories) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.refresh),
-                        contentDescription = "Reload categories"
-                    )
-                }
-            }
-        }
-
-//        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        if(loadingStatus == LoadingStatus.SUCCESS) {
-            if(categories.isEmpty()) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
+                        .clickable(onClick = onDownloadReport)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Add categories to group you transactions. You can for example add `Supermarket` and select from the transactions list the supermarkets (members) you want to group",
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = "${selectedCategories.size} selected",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                }
-            } else {
-                if(filteringOn) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Generate report for",
-                            fontSize = screenFontSize(x = 14.0).sp
+                            text = "Download report",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        TextButton(
-                            enabled = selectedCategories.isNotEmpty(),
-                            onClick = onDownloadReport
-                        ) {
-                            Text(
-                                text = "Generate",
-                                fontSize = screenFontSize(x = 14.0).sp
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-                }
-                LazyColumn {
-                    items(categories.size) {index ->
-                        if(filteringOn) {
-                            SelectableCategoryCell(
-                                category = categories[index],
-                                selectedCategories = selectedCategories,
-                                onRemoveCategory = onRemoveCategory,
-                                onAddCategory = {
-                                    if(index > 0 && !premium) {
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        onAddCategory(categories[index].id)
-                                    }
-                                }
-                            )
-                        } else {
-                            TransactionCategoryCell(
-                                transactionCategory = categories[index],
-                                navigateToCategoryDetailsScreen = {
-                                    if(index != 0 && !premium) {
-                                        onShowSubscriptionDialog()
-                                    } else {
-                                        navigateToCategoryDetailsScreen(categories[index].id.toString())
-                                    }
-                                },
-                                modifier = Modifier
-                                    .clickable {
-                                        if(index != 0 && !premium) {
-                                            onShowSubscriptionDialog()
-                                        } else {
-                                            navigateToCategoryDetailsScreen(categories[index].id.toString())
-                                        }
-                                    }
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
         }
-        Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            PullRefreshIndicator(
-                refreshing = loadingStatus == LoadingStatus.LOADING,
-                state = pullRefreshState!!
-            )
-        }
     }
-
 }
 
+// ─── Hero summary card ────────────────────────────────────────────────────────
+
 @Composable
-fun SelectableCategoryCell(
-    category: TransactionCategory,
-    selectedCategories: List<Int>,
-    onRemoveCategory: (id: Int) -> Unit,
-    onAddCategory: (id: Int) -> Unit,
+private fun CategoriesHeroCard(
+    categories: List<TransactionCategory>,
     modifier: Modifier = Modifier
-        .fillMaxWidth()
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val totalIn = remember(categories) {
+        categories.sumOf { cat ->
+            cat.transactions.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount }
+        }
+    }
+    val totalOut = remember(categories) {
+        categories.sumOf { cat ->
+            cat.transactions.filter { it.transactionAmount < 0 }
+                .sumOf { kotlin.math.abs(it.transactionAmount) }
+        }
+    }
+    val totalTransactions = remember(categories) { categories.sumOf { it.transactions.size } }
+
     ElevatedCard(
-        modifier = Modifier
-            .padding(
-                bottom = screenHeight(x = 10.0)
-            )
+        modifier = modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = primaryColor.copy(alpha = 0.15f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
             modifier = Modifier
-                .padding(screenWidth(x = 10.0))
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primaryColor.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f),
+                            primaryColor.copy(alpha = 0.04f)
+                        )
+                    )
+                )
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "CATEGORIES OVERVIEW",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = primaryColor.copy(alpha = 0.8f),
+                        letterSpacing = 1.sp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(primaryColor.copy(alpha = 0.10f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${categories.size} ${if (categories.size == 1) "category" else "categories"}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = primaryColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Total Transactions",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "$totalTransactions txn${if (totalTransactions != 1) "s" else ""}",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Money In",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.3.sp
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "+Ksh ${String.format("%,.2f", totalIn)}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Money Out",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.3.sp
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "-Ksh ${String.format("%,.2f", totalOut)}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Category item row ────────────────────────────────────────────────────────
+
+@Composable
+private fun CategoryItemRow(
+    category: TransactionCategory,
+    isSelected: Boolean,
+    filteringOn: Boolean,
+    onToggleSelection: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val totalIn = remember(category) {
+        category.transactions.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount }
+    }
+    val totalOut = remember(category) {
+        category.transactions.filter { it.transactionAmount < 0 }
+            .sumOf { kotlin.math.abs(it.transactionAmount) }
+    }
+    val initials = category.name.trim().split(" ")
+        .mapNotNull { it.firstOrNull()?.uppercase() }
+        .take(2).joinToString("").ifEmpty { category.name.take(2).uppercase() }
+    val avatarColor = txAvatarColor(category.name)
+    val budget = category.budgets.firstOrNull()
+
+    Row(
+        modifier = modifier
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = { if (filteringOn) onToggleSelection() else onClick() }
+            )
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Checkbox visible in selection/filter mode
+        if (filteringOn) {
+            Icon(
+                painter = painterResource(
+                    if (isSelected) R.drawable.check_box_filled else R.drawable.check_box_blank
+                ),
+                contentDescription = if (isSelected) "Deselect" else "Select",
+                tint = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        // Circular avatar with initials
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(avatarColor.copy(alpha = 0.15f))
+            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(avatarColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initials,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+
+        // Middle: name + badge pills
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = category.name,
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.weight(1f))
-            if(selectedCategories.contains(category.id)) {
-                IconButton(onClick = { onRemoveCategory(category.id) }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.check_box_filled),
-                        contentDescription = "Remove item from filter",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Keywords count pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${category.keywords.size} kw",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            } else {
-                IconButton(onClick = { onAddCategory(category.id) }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.check_box_blank),
-                        contentDescription = "Add item to filter",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
+                // Transaction count pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${category.transactions.size} txn",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                }
+                // Budget pill (if budget exists)
+                if (budget != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (budget.limitReached)
+                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                else
+                                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Budget: Ksh ${String.format("%,.0f", budget.budgetLimit)}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (budget.limitReached) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
         }
-    }
 
+        // Right: money in / money out
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = "+Ksh ${String.format("%,.0f", totalIn)}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+            Text(
+                text = "-Ksh ${String.format("%,.0f", totalOut)}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
 }
 
+// ─── Subscription dialog ──────────────────────────────────────────────────────
+
 @Composable
-fun SubscriptionDialog(
+private fun SubscriptionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier
@@ -692,19 +876,12 @@ fun SubscriptionDialog(
             )
         },
         text = {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(10.dp)
-                ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(10.dp)) {
                     Text(
                         text = "Ksh100.0 premium monthly fee",
                         fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = TextDecoration.Underline
+                        fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
@@ -718,43 +895,29 @@ fun SubscriptionDialog(
                         fontSize = screenFontSize(x = 14.0).sp
                     )
                     Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "2. Backup your transactions",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
+                    Text(text = "2. Backup your transactions", fontSize = screenFontSize(x = 14.0).sp)
                     Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "3. Manage more than one category",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
+                    Text(text = "3. Manage more than one category", fontSize = screenFontSize(x = 14.0).sp)
                     Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = "4. Use in dark mode",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-
+                    Text(text = "4. Use in dark mode", fontSize = screenFontSize(x = 14.0).sp)
                 }
             }
         },
         onDismissRequest = onDismiss,
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Dismiss",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+                Text(text = "Dismiss", fontSize = screenFontSize(x = 14.0).sp)
             }
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text(
-                    text = "Subscribe",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+                Text(text = "Subscribe", fontSize = screenFontSize(x = 14.0).sp)
             }
         }
     )
 }
+
+// ─── Date range picker ────────────────────────────────────────────────────────
 
 @Composable
 fun DateRangePicker(
@@ -770,13 +933,13 @@ fun DateRangePicker(
 ) {
     val context = LocalContext.current
 
-    // Parse the default start and end dates
     val defaultStartLocalDate = defaultStartDate?.let { LocalDate.parse(it) }
     val defaultEndLocalDate = defaultEndDate?.let { LocalDate.parse(it) }
 
-    // Convert LocalDate to milliseconds since epoch
-    val defaultStartMillis = defaultStartLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-    val defaultEndMillis = defaultEndLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+    val defaultStartMillis =
+        defaultStartLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+    val defaultEndMillis =
+        defaultEndLocalDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
 
     val oneMonthAgo = LocalDateTime.now().minusMonths(1)
 
@@ -789,45 +952,42 @@ fun DateRangePicker(
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (isStart) {
                     if (selectedDate.isBefore(endDate) || selectedDate.isEqual(endDate)) {
-                        if(selectedDate.isBefore(oneMonthAgo.toLocalDate())) {
-                            if(premium) {
-                                onChangeStartDate(selectedDate)
-                            } else {
-                                onShowSubscriptionDialog()
-                            }
+                        if (selectedDate.isBefore(oneMonthAgo.toLocalDate())) {
+                            if (premium) onChangeStartDate(selectedDate)
+                            else onShowSubscriptionDialog()
                         } else {
                             onChangeStartDate(selectedDate)
                         }
                     } else {
-                        // Handle case where start date is after end date
-                        Toast.makeText(context, "Start date must be before end date", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "Start date must be before end date",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 } else {
                     if (selectedDate.isAfter(startDate) || selectedDate.isEqual(startDate)) {
                         onChangeLastDate(selectedDate)
                     } else {
-                        // Handle case where end date is before start date
-                        Toast.makeText(context, "End date must be after start date", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "End date must be after start date",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             },
-
             initialDate.year,
             initialDate.monthValue - 1,
             initialDate.dayOfMonth
         )
-
-        // Set minimum and maximum dates
         defaultStartMillis?.let { datePicker.datePicker.minDate = it }
         defaultEndMillis?.let { datePicker.datePicker.maxDate = it }
-
         datePicker.show()
     }
 
     Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.onPrimary
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onPrimary),
         elevation = CardDefaults.elevatedCardElevation(screenWidth(x = 10.0)),
         modifier = modifier
             .padding(screenWidth(x = 16.0))
@@ -836,8 +996,7 @@ fun DateRangePicker(
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         ) {
             IconButton(onClick = { showDatePicker(true) }) {
                 Icon(
@@ -847,43 +1006,32 @@ fun DateRangePicker(
                 )
             }
             Text(text = dateFormatter.format(startDate))
-            Text(
-                text = "to",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-
-            Text(
-                text = dateFormatter.format(endDate),
-                fontSize = screenFontSize(x = 14.0).sp
-            )
+            Text(text = "to", fontSize = screenFontSize(x = 14.0).sp)
+            Text(text = dateFormatter.format(endDate), fontSize = screenFontSize(x = 14.0).sp)
             IconButton(onClick = { showDatePicker(false) }) {
                 Icon(
                     tint = Color(0xFF405189),
                     painter = painterResource(id = R.drawable.calendar),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
+                    modifier = Modifier.size(screenWidth(x = 24.0))
                 )
             }
         }
     }
 }
 
+// ─── Download report dialog ───────────────────────────────────────────────────
+
 @Composable
-fun DownloadReportDialog(
+private fun DownloadReportDialog(
     startDate: String,
     endDate: String,
     onDismiss: () -> Unit,
     onConfirm: (type: String) -> Unit,
 ) {
     val types = listOf("PDF", "CSV")
-    var selectedType by rememberSaveable {
-        mutableStateOf("PDF")
-    }
-
-    var expanded by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var selectedType by rememberSaveable { mutableStateOf("PDF") }
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     AlertDialog(
         title = {
@@ -893,22 +1041,12 @@ fun DownloadReportDialog(
             )
         },
         text = {
-            Row(
-//                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = "Export to ",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Export to ", fontSize = screenFontSize(x = 14.0).sp)
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable {
-                                expanded = !expanded
-                            }
+                        modifier = Modifier.clickable { expanded = !expanded }
                     ) {
                         Text(
                             text = selectedType,
@@ -919,23 +1057,16 @@ fun DownloadReportDialog(
                             tint = MaterialTheme.colorScheme.surfaceTint,
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Select report type",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
+                            modifier = Modifier.size(screenWidth(x = 24.0))
                         )
                     }
                     DropdownMenu(
                         expanded = expanded,
-                        onDismissRequest = {expanded = !expanded},
-                        modifier = Modifier
+                        onDismissRequest = { expanded = !expanded }
                     ) {
                         types.forEach {
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = it,
-                                        fontSize = screenFontSize(x = 14.0).sp
-                                    )
-                                },
+                                text = { Text(text = it, fontSize = screenFontSize(x = 14.0).sp) },
                                 onClick = {
                                     selectedType = it
                                     expanded = !expanded
@@ -949,23 +1080,18 @@ fun DownloadReportDialog(
         onDismissRequest = onDismiss,
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+                Text(text = "Cancel", fontSize = screenFontSize(x = 14.0).sp)
             }
-
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedType) }) {
-                Text(
-                    text = "Confirm",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+                Text(text = "Confirm", fontSize = screenFontSize(x = 14.0).sp)
             }
         }
     )
 }
+
+// ─── Preview ──────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterialApi::class)
 @Preview(showBackground = true, showSystemUi = true)
