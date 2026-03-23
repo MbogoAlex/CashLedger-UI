@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.mapper.toResponseTransactionCategory
@@ -77,7 +78,14 @@ data class CategoryDetailsScreenUiState(
     val memberStats: List<MemberStat> = emptyList(),
     val insights: List<InsightItem> = emptyList(),
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
-    val deletionStatus: DeletionStatus = DeletionStatus.INITIAL
+    val deletionStatus: DeletionStatus = DeletionStatus.INITIAL,
+    // Inline budget creation
+    val showInlineBudgetForm: Boolean = false,
+    val inlineBudgetName: String = "",
+    val inlineBudgetLimit: String = "",
+    val inlineBudgetEndDate: LocalDate? = null,
+    val inlineBudgetSaving: Boolean = false,
+    val inlineBudgetSaved: Boolean = false
 )
 
 class CategoryDetailsScreenViewModel(
@@ -677,6 +685,59 @@ class CategoryDetailsScreenViewModel(
     fun resetLoadingStatus() {
         _uiState.update {
             it.copy(loadingStatus = LoadingStatus.INITIAL, deletionStatus = DeletionStatus.INITIAL)
+        }
+    }
+
+    fun toggleInlineBudgetForm() {
+        _uiState.update {
+            it.copy(
+                showInlineBudgetForm = !it.showInlineBudgetForm,
+                inlineBudgetName = "",
+                inlineBudgetLimit = "",
+                inlineBudgetEndDate = null,
+                inlineBudgetSaved = false
+            )
+        }
+    }
+
+    fun updateInlineBudgetName(name: String) = _uiState.update { it.copy(inlineBudgetName = name) }
+    fun updateInlineBudgetLimit(limit: String) = _uiState.update { it.copy(inlineBudgetLimit = limit) }
+    fun updateInlineBudgetEndDate(date: LocalDate) = _uiState.update { it.copy(inlineBudgetEndDate = date) }
+
+    fun createInlineBudget() {
+        val catId = _uiState.value.categoryId.toIntOrNull() ?: return
+        val limit = _uiState.value.inlineBudgetLimit.toDoubleOrNull() ?: return
+        val endDate = _uiState.value.inlineBudgetEndDate ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(inlineBudgetSaving = true) }
+            try {
+                dbRepository.insertBudget(
+                    Budget(
+                        name = _uiState.value.inlineBudgetName.trim(),
+                        active = true,
+                        expenditure = 0.0,
+                        budgetLimit = limit,
+                        createdAt = LocalDateTime.now(),
+                        limitDate = endDate,
+                        limitReached = false,
+                        limitReachedAt = null,
+                        exceededBy = 0.0,
+                        categoryId = catId
+                    )
+                )
+                _uiState.update {
+                    it.copy(
+                        inlineBudgetSaving = false,
+                        inlineBudgetSaved = true,
+                        showInlineBudgetForm = false,
+                        inlineBudgetName = "",
+                        inlineBudgetLimit = "",
+                        inlineBudgetEndDate = null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(inlineBudgetSaving = false) }
+            }
         }
     }
 

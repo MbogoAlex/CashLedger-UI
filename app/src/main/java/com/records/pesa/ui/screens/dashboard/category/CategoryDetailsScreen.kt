@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.dashboard.category
 
+import android.app.DatePickerDialog
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -127,6 +128,7 @@ fun CategoryDetailsScreenComposable(
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
@@ -201,6 +203,10 @@ fun CategoryDetailsScreenComposable(
         viewModel.resetLoadingStatus()
     }
 
+    if (uiState.inlineBudgetSaved) {
+        Toast.makeText(context, "Budget created!", Toast.LENGTH_SHORT).show()
+    }
+
     Box(modifier = Modifier.safeDrawingPadding()) {
         CategoryDetailsScreen(
             pullRefreshState = pullRefreshState,
@@ -238,7 +244,17 @@ fun CategoryDetailsScreenComposable(
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen,
             navigateToTransactionsScreen = navigateToTransactionsScreen,
-            navigateToBudgetCreationScreen = navigateToBudgetCreationScreen
+            navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+            showInlineBudgetForm = uiState.showInlineBudgetForm,
+            inlineBudgetName = uiState.inlineBudgetName,
+            inlineBudgetLimit = uiState.inlineBudgetLimit,
+            inlineBudgetEndDate = uiState.inlineBudgetEndDate,
+            inlineBudgetSaving = uiState.inlineBudgetSaving,
+            onToggleInlineBudgetForm = { viewModel.toggleInlineBudgetForm() },
+            onInlineBudgetNameChange = { viewModel.updateInlineBudgetName(it) },
+            onInlineBudgetLimitChange = { viewModel.updateInlineBudgetLimit(it) },
+            onInlineBudgetEndDateChange = { viewModel.updateInlineBudgetEndDate(it) },
+            onCreateInlineBudget = { viewModel.createInlineBudget() }
         )
     }
 }
@@ -275,7 +291,17 @@ fun CategoryDetailsScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
-    navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
+    navigateToBudgetInfoScreen: (budgetId: String) -> Unit = {},
+    showInlineBudgetForm: Boolean = false,
+    inlineBudgetName: String = "",
+    inlineBudgetLimit: String = "",
+    inlineBudgetEndDate: LocalDate? = null,
+    inlineBudgetSaving: Boolean = false,
+    onToggleInlineBudgetForm: () -> Unit = {},
+    onInlineBudgetNameChange: (String) -> Unit = {},
+    onInlineBudgetLimitChange: (String) -> Unit = {},
+    onInlineBudgetEndDateChange: (LocalDate) -> Unit = {},
+    onCreateInlineBudget: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -815,7 +841,10 @@ fun CategoryDetailsScreen(
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             category.budgets.forEach { budget ->
-                                                BudgetRow(budget = budget)
+                                                BudgetRow(
+                                                    budget = budget,
+                                                    onClick = { navigateToBudgetInfoScreen(budget.id.toString()) }
+                                                )
                                             }
                                         }
                                     }
@@ -837,7 +866,7 @@ fun CategoryDetailsScreen(
                                             Text("Manage Budgets", fontSize = 12.sp)
                                         }
                                         TextButton(
-                                            onClick = { navigateToBudgetCreationScreen(category.id.toString()) },
+                                            onClick = onToggleInlineBudgetForm,
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             Icon(
@@ -846,7 +875,121 @@ fun CategoryDetailsScreen(
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("New Budget", fontSize = 12.sp)
+                                            Text(
+                                                if (showInlineBudgetForm) "Cancel" else "New Budget",
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
+                                    // Inline budget creation form
+                                    AnimatedVisibility(
+                                        visible = showInlineBudgetForm,
+                                        enter = expandVertically(),
+                                        exit = shrinkVertically()
+                                    ) {
+                                        val context = LocalContext.current
+                                        val today = LocalDate.now()
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                            Text(
+                                                "New Budget for ${category.name}",
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            OutlinedTextField(
+                                                value = inlineBudgetName,
+                                                onValueChange = onInlineBudgetNameChange,
+                                                label = { Text("Budget name") },
+                                                placeholder = {
+                                                    val monthYear = today.format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy"))
+                                                    Text("e.g. ${category.name} – $monthYear", fontSize = 12.sp)
+                                                },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(12.dp),
+                                                keyboardOptions = KeyboardOptions.Default.copy(
+                                                    imeAction = ImeAction.Next,
+                                                    keyboardType = KeyboardType.Text
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                            OutlinedTextField(
+                                                value = inlineBudgetLimit,
+                                                onValueChange = { v ->
+                                                    onInlineBudgetLimitChange(v.filter { it.isDigit() || it == '.' })
+                                                },
+                                                label = { Text("Spending limit (KES)") },
+                                                placeholder = { Text("0.00", fontSize = 12.sp) },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(12.dp),
+                                                keyboardOptions = KeyboardOptions.Default.copy(
+                                                    imeAction = ImeAction.Done,
+                                                    keyboardType = KeyboardType.Decimal
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                            // End date picker
+                                            OutlinedTextField(
+                                                value = inlineBudgetEndDate?.toString() ?: "",
+                                                onValueChange = {},
+                                                readOnly = true,
+                                                label = { Text("End date") },
+                                                placeholder = { Text("Tap to pick a date", fontSize = 12.sp) },
+                                                trailingIcon = {
+                                                    IconButton(onClick = {
+                                                        DatePickerDialog(
+                                                            context,
+                                                            { _, year, month, day ->
+                                                                onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
+                                                            },
+                                                            today.year, today.monthValue - 1, today.dayOfMonth
+                                                        ).apply { datePicker.minDate = System.currentTimeMillis() }.show()
+                                                    }) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.calendar),
+                                                            contentDescription = "Pick date",
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        DatePickerDialog(
+                                                            context,
+                                                            { _, year, month, day ->
+                                                                onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
+                                                            },
+                                                            today.year, today.monthValue - 1, today.dayOfMonth
+                                                        ).apply { datePicker.minDate = System.currentTimeMillis() }.show()
+                                                    }
+                                            )
+                                            val canSave = inlineBudgetName.isNotBlank() &&
+                                                (inlineBudgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
+                                                inlineBudgetEndDate != null &&
+                                                inlineBudgetEndDate.isAfter(today)
+                                            Button(
+                                                onClick = onCreateInlineBudget,
+                                                enabled = canSave && !inlineBudgetSaving,
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                if (inlineBudgetSaving) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(18.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Create Budget")
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1442,13 +1585,19 @@ private fun LegendDot(color: Color, label: String) {
 }
 
 @Composable
-private fun BudgetRow(budget: CategoryBudget, modifier: Modifier = Modifier) {
+private fun BudgetRow(budget: CategoryBudget, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
     val spent    = budget.budgetLimit - (budget.exceededBy * -1).coerceAtMost(budget.budgetLimit)
     val fraction = if (budget.budgetLimit > 0) (spent / budget.budgetLimit).toFloat().coerceIn(0f, 1f) else 0f
     val overBudget = budget.limitReached || budget.exceededBy > 0
     val barColor = if (overBudget) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(budget.name ?: "Budget", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             Text(
@@ -1563,8 +1712,7 @@ private fun CategoryDetailsScreenPreview() {
             navigateToCategoryBudgetListScreen = { _, _ -> },
             navigateToPreviousScreen = {},
             navigateToMembersAdditionScreen = {},
-            navigateToTransactionsScreen = {},
-            navigateToBudgetCreationScreen = {}
+            navigateToTransactionsScreen = {}
         )
     }
 }

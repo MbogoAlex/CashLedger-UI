@@ -55,6 +55,7 @@ import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 object BudgetCreationScreenDestination : AppNavigation {
     override val title: String = "Budget creation screen"
@@ -86,6 +87,7 @@ fun BudgetCreationScreenComposable(
     Box(modifier = Modifier.safeDrawingPadding()) {
         BudgetCreationScreen(
             budgetName = uiState.budgetName,
+            categoryName = uiState.categoryName,
             onBudgetNameChange = { viewModel.updateBudgetName(it) },
             budgetLimit = uiState.budgetLimit,
             onBudgetLimitChange = { value ->
@@ -106,6 +108,7 @@ fun BudgetCreationScreenComposable(
 @Composable
 fun BudgetCreationScreen(
     budgetName: String,
+    categoryName: String?,
     onBudgetNameChange: (String) -> Unit,
     budgetLimit: String,
     onBudgetLimitChange: (String) -> Unit,
@@ -243,8 +246,13 @@ fun BudgetCreationScreen(
             value = budgetName,
             onValueChange = onBudgetNameChange,
             placeholder = {
+                val monthYear = LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+                val placeholderText = if (!categoryName.isNullOrBlank())
+                    "e.g. $categoryName – $monthYear"
+                else
+                    "e.g. Groceries – $monthYear"
                 Text(
-                    text = "e.g. March Rent",
+                    text = placeholderText,
                     fontSize = screenFontSize(x = 14.0).sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

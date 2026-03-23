@@ -2,88 +2,70 @@ package com.records.pesa.ui.screens.dashboard.budget
 
 import android.app.DatePickerDialog
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.PullRefreshState
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
-import com.records.pesa.functions.formatIsoDateTime
-import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.Transaction
+import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
-import com.records.pesa.ui.screens.utils.screenWidth
-import com.records.pesa.ui.theme.CashLedgerTheme
+import com.records.pesa.ui.screens.dashboard.category.InsightItem
+import com.records.pesa.ui.screens.dashboard.category.TrendPoint
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
-import kotlin.math.absoluteValue
+import java.time.format.DateTimeFormatter
+import kotlin.math.abs
+import kotlin.math.ceil
 
-object BudgetInfoScreenDestination: AppNavigation {
-    override val title: String = "Budget info screen"
+// ─── Navigation destination ───────────────────────────────────────────────────
+object BudgetInfoScreenDestination : AppNavigation {
+    override val title: String = "Budget info"
     override val route: String = "budget-info-screen"
-    val budgetId: String = "budgetId"
-    val routeWithArgs: String = "$route/{$budgetId}"
-
+    const val budgetId = "budgetId"
+    val routeWithArgs = "${route}/{${budgetId}}"
 }
-@OptIn(ExperimentalMaterialApi::class)
+
+// ─── Top-level wiring composable ─────────────────────────────────────────────
 @Composable
 fun BudgetInfoScreenComposable(
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
@@ -94,638 +76,1051 @@ fun BudgetInfoScreenComposable(
     val viewModel: BudgetInfoScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = uiState.loadingStatus == LoadingStatus.LOADING,
-        onRefresh = {}
-    )
+    var showEditDialog   by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
-    var showEditBudgetNameDialog by rememberSaveable {
-        mutableStateOf(false)
+    // Handle save feedback
+    LaunchedEffect(uiState.loadingStatus) {
+        when (uiState.loadingStatus) {
+            LoadingStatus.SUCCESS -> {
+                Toast.makeText(context, "Budget updated", Toast.LENGTH_SHORT).show()
+                showEditDialog = false
+                viewModel.resetLoadingStatus()
+            }
+            LoadingStatus.FAIL -> {
+                Toast.makeText(context, "Update failed. Try again.", Toast.LENGTH_SHORT).show()
+                viewModel.resetLoadingStatus()
+            }
+            else -> {}
+        }
     }
 
-    var showEditBudgetLimitDialog by rememberSaveable {
-        mutableStateOf(false)
+    // Handle delete feedback
+    LaunchedEffect(uiState.executionStatus) {
+        when (uiState.executionStatus) {
+            ExecutionStatus.SUCCESS -> {
+                Toast.makeText(context, "Budget deleted", Toast.LENGTH_SHORT).show()
+                navigateToPreviousScreen()
+                viewModel.resetLoadingStatus()
+            }
+            ExecutionStatus.FAIL -> {
+                Toast.makeText(context, "Delete failed. Try again.", Toast.LENGTH_SHORT).show()
+                viewModel.resetLoadingStatus()
+            }
+            else -> {}
+        }
     }
 
-    var showEditLimitDateDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var budgetName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var budgetLimit by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var endDate by rememberSaveable {
-        mutableStateOf(uiState.budget?.limitDate?.toString() ?: "")
-    }
-
-    var showRemoveBudgetDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
-        Toast.makeText(context, "Budget updated", Toast.LENGTH_SHORT).show()
-        showEditBudgetNameDialog = false
-        showEditBudgetLimitDialog = false
-        showEditLimitDateDialog = false
-        showRemoveBudgetDialog = false
-        viewModel.resetLoadingStatus()
-    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
-        Toast.makeText(context, "Failed. Check connection or try later", Toast.LENGTH_SHORT).show()
-        showEditBudgetNameDialog = false
-        showEditBudgetLimitDialog = false
-        showEditLimitDateDialog = false
-        showRemoveBudgetDialog = false
-        viewModel.resetLoadingStatus()
-    }
-
-    if(uiState.executionStatus == ExecutionStatus.SUCCESS) {
-        Toast.makeText(context, "Budget deleted", Toast.LENGTH_SHORT).show()
-        navigateToPreviousScreen()
-        viewModel.resetLoadingStatus()
-    }
-
-    if(showEditBudgetNameDialog) {
-        EditNameDialog(
-            title = uiState.budget?.name ?: "",
-            label = "Budget name",
-            name = budgetName,
-            onNameChange = {
-                budgetName = it
-                viewModel.updateBudgetName(it)
-            },
-            onConfirm = {},
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    viewModel.updateBudgetName("")
-                    showEditBudgetNameDialog = !showEditBudgetNameDialog
-                }
-            },
-            loadingStatus = uiState.loadingStatus
+    if (showEditDialog) {
+        BudgetEditDialog(
+            uiState = uiState,
+            onNameChange = viewModel::updateBudgetName,
+            onLimitChange = viewModel::updateBudgetLimit,
+            onDateChange = viewModel::updateLimitDate,
+            onSave = viewModel::saveBudgetEdits,
+            onDismiss = { showEditDialog = false; viewModel.resetLoadingStatus() }
         )
     }
 
-    if(showEditBudgetLimitDialog) {
-        EditAmountDialog(
-            title = uiState.budget?.name ?: "",
-            label = "Budget limit",
-            amount = budgetLimit,
-            onAmountChange = {value ->
-                val filteredAmount = value.filter { it.isDigit() }
-                budgetLimit = filteredAmount
-                viewModel.updateBudgetLimit(budgetLimit)
-            },
-            onConfirm = {},
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    viewModel.updateBudgetLimit("")
-                    showEditBudgetLimitDialog = !showEditBudgetLimitDialog
-                }
-
-            },
-            loadingStatus = uiState.loadingStatus
+    if (showDeleteDialog) {
+        BudgetDeleteDialog(
+            budgetName = uiState.budget?.name ?: "this budget",
+            isDeleting = uiState.executionStatus == ExecutionStatus.LOADING,
+            onConfirm = viewModel::deleteBudget,
+            onDismiss = { showDeleteDialog = false }
         )
     }
 
-    if(showEditLimitDateDialog) {
-        EditLimitDateDialog(
-            startDate = uiState.budget?.createdAt?.toLocalDate()?.toString() ?: "",
-            endDate = endDate,
-            title = uiState.budget?.name ?: "",
-            onLimitDateChange = {
-                endDate = it.toString()
-                viewModel.updateLimitDate(endDate)
-            },
-            onConfirm = {},
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    viewModel.updateLimitDate("")
-                    showEditLimitDateDialog = !showEditLimitDateDialog
-                }
-
-            },
-            loadingStatus = uiState.loadingStatus
-        )
-    }
-
-    if(showRemoveBudgetDialog) {
-        DeleteDialog(
-            name = uiState.budget?.name ?: "",
-            onConfirm = {},
-            onDismiss = {
-                if(uiState.executionStatus != ExecutionStatus.LOADING) {
-                    showRemoveBudgetDialog = !showRemoveBudgetDialog
-                }
-            },
-            executionStatus = uiState.executionStatus
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .safeDrawingPadding()
-    ) {
+    Box(modifier = modifier.safeDrawingPadding()) {
         BudgetInfoScreen(
-            budget = uiState.budget,
-            actualSpending = uiState.actualSpending,
-            isOverBudget = uiState.isOverBudget,
-            overage = uiState.overage,
-            percentUsed = uiState.percentUsed,
-            remaining = uiState.remaining,
-            onDeleteBudget = {
-                showRemoveBudgetDialog = !showRemoveBudgetDialog
-            },
-            onEditBudgetName = {
-                budgetName = it
-                showEditBudgetNameDialog = !showEditBudgetNameDialog
-            },
-            onEditBudgetLimit = {
-                budgetLimit = it
-                showEditBudgetLimitDialog = !showEditBudgetLimitDialog
-            },
-            onEditLimitDate = {
-                endDate = it
-                showEditLimitDateDialog = !showEditLimitDateDialog
-            },
+            uiState = uiState,
+            onEditClick = { showEditDialog = true },
+            onDeleteClick = { showDeleteDialog = true },
             navigateToTransactionsScreen = navigateToTransactionsScreen,
-            navigateToPreviousScreen = navigateToPreviousScreen,
-            pullRefreshState = pullRefreshState,
-            loadingStatus = uiState.loadingStatus
+            navigateToPreviousScreen = navigateToPreviousScreen
         )
     }
-
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+// ─── Main screen ─────────────────────────────────────────────────────────────
 @Composable
 fun BudgetInfoScreen(
-    pullRefreshState: PullRefreshState?,
-    loadingStatus: LoadingStatus,
-    budget: Budget?,
-    actualSpending: Double,
-    isOverBudget: Boolean,
-    overage: Double,
-    percentUsed: Int,
-    remaining: Double,
-    onDeleteBudget: () -> Unit,
-    onEditBudgetName: (name: String) -> Unit,
-    onEditBudgetLimit: (amount: String) -> Unit,
-    onEditLimitDate: (date: String) -> Unit,
+    uiState: BudgetInfoScreenUiState,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.d("BUDGET", budget.toString())
-    val difference = actualSpending - (budget?.budgetLimit ?: 0.0)
-    var expanded by remember {
-        mutableStateOf(false)
-    }
-    val progress = if ((budget?.budgetLimit ?: 0.0) == 0.0) 0.0 else actualSpending / budget!!.budgetLimit
-    val percentLeft = "%.2f".format((1 - progress) * 100)
+    val budget = uiState.budget
 
-    val days = ChronoUnit.DAYS.between(budget?.createdAt?.toLocalDate() ?: LocalDate.now(), budget?.limitDate ?: LocalDate.now())
-
-    Column(
-        modifier = Modifier
-            .padding(
-                horizontal = 16.dp,
-                vertical = 8.dp
-            )
-            .fillMaxSize()
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = navigateToPreviousScreen) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Previous screen",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
-                onClick = onDeleteBudget
-            ) {
-                Icon(
-                    tint = MaterialTheme.colorScheme.error,
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete this budget",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
+        // 1. Top Bar
+        item {
+            BudgetTopBar(
+                title = budget?.name ?: uiState.budgetName,
+                onBack = navigateToPreviousScreen,
+                onEdit = onEditClick
+            )
         }
-        if(loadingStatus == LoadingStatus.LOADING) {
-            Box(
-                contentAlignment = Alignment.TopCenter,
+
+        // 2. Hero Stats Card
+        item {
+            BudgetHeroCard(
+                budgetName = budget?.name ?: uiState.budgetName,
+                actualSpending = uiState.actualSpending,
+                budgetLimit = budget?.budgetLimit ?: 0.0,
+                percentUsed = uiState.percentUsed,
+                daysLeft = uiState.daysLeft,
+                remaining = uiState.remaining,
+                dailyAvg = uiState.dailyAvg,
+                isOverBudget = uiState.isOverBudget,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        // 3. Spending Trend Chart
+        item {
+            SpendingTrendCard(
+                trendData = uiState.trendData,
+                dailyBudget = uiState.dailyBudget,
+                isPremium = uiState.isPremium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        // 4. Smart Insights Card
+        item {
+            SmartInsightsCard(
+                insights = uiState.insights,
+                isPremium = uiState.isPremium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        // 5. Recent Transactions header
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
             ) {
-                PullRefreshIndicator(
-                    refreshing = loadingStatus == LoadingStatus.LOADING,
-                    state = pullRefreshState!!
+                Icon(
+                    painter = painterResource(R.drawable.wallet),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Transactions in this budget",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = budget?.name ?: "",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                onEditBudgetName(budget?.name ?: "")
-            }) {
-                Icon(
-                    tint = MaterialTheme.colorScheme.surfaceTint,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit budget name",
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
+        // 5. Recent Transactions grouped by date
+        val grouped = uiState.transactions
+            .sortedByDescending { it.date }
+            .groupBy { it.date }
+
+        grouped.forEach { (date, txList) ->
+            item(key = date.toString()) {
+                BudgetDateHeader(date = date)
+            }
+            items(txList, key = { it.id }) { tx ->
+                BudgetTransactionRow(
+                    transaction = tx,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )
             }
         }
-        if(budget?.active == true) {
-            Text(
-                text = "ACTIVE",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-        } else {
-            Text(
-                text = "INACTIVE",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Text(
-            text = "Spent: ${formatMoneyValue(actualSpending)} / ${formatMoneyValue(budget?.budgetLimit ?: 0.0)}",
-            fontSize = screenFontSize(x = 14.0).sp,
-            color = MaterialTheme.colorScheme.surfaceTint,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-        LinearProgressIndicator(
-            progress = {
-                if(progress.isNaN()) 0f else progress.toFloat()
-            },
-            modifier = Modifier
-                .height(screenHeight(x = 20.0))
-                .fillMaxWidth(),
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "$percentLeft % left",
-                fontSize = screenFontSize(x = 14.0).sp,
-                color = MaterialTheme.colorScheme.surfaceTint,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = {
-                onEditBudgetLimit((budget?.budgetLimit ?: 0.0).toString())
-            }) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+
+        if (uiState.transactions.isEmpty() && uiState.loadingStatus != LoadingStatus.LOADING) {
+            item {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp)
                 ) {
                     Text(
-                        text = "Edit budget limit",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-                    Icon(
-                        tint = MaterialTheme.colorScheme.surfaceTint,
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit budget",
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
+                        text = "No transactions in this budget period yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Remaining:",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.width(screenWidth(x = 3.0)))
-            if(difference <= 0) {
-                Text(
-                    text = formatMoneyValue(difference.absoluteValue),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    color = MaterialTheme.colorScheme.surfaceTint
-                )
-            } else {
-                Text(
-                    text = "- ${formatMoneyValue(difference)}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    color = Color.Red
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Text(
-            text = "Created on ${budget?.createdAt?.let { formatIsoDateTime(it) } ?: ""}",
-            fontSize = screenFontSize(x = 14.0).sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Budget period ends on ${budget?.limitDate?.toString() ?: ""}",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                onEditLimitDate(budget?.limitDate?.toString() ?: "")
-            }) {
-                Icon(
-                    tint = MaterialTheme.colorScheme.surfaceTint,
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit budget limit date",
+        // 6. View all transactions button
+        if (budget != null) {
+            item {
+                OutlinedButton(
+                    onClick = {
+                        navigateToTransactionsScreen(
+                            budget.categoryId,
+                            budget.id,
+                            budget.createdAt.toLocalDate().toString(),
+                            budget.limitDate.toString()
+                        )
+                    },
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("View all transactions")
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-        Text(
-            text = "Period: ${days.absoluteValue} days",
-            fontSize = screenFontSize(x = 14.0).sp,
-            fontWeight = FontWeight.Bold
-        )
-        if(budget?.limitReached == true) {
-            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-            Text(
-                text = "Limit Reached",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-            Text(
-                text = "Reached limit at ${budget?.limitReachedAt?.let { formatIsoDateTime(it) } ?: ""}",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
-            Text(
-                text = "Overspent by ${formatMoneyValue(difference)}",
-                fontSize = screenFontSize(x = 14.0).sp
+
+        // 7. Danger Zone
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Danger Zone",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onDeleteClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        brush = Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.error,
+                                MaterialTheme.colorScheme.error
+                            )
+                        )
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.remove),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete Budget")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+// ─── Top Bar ─────────────────────────────────────────────────────────────────
+@Composable
+private fun BudgetTopBar(
+    title: String,
+    onBack: () -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                painter = painterResource(R.drawable.arrow_back),
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onBackground
             )
         }
-        Spacer(modifier = Modifier.height(screenHeight(x = 5.0)))
         Text(
-            text = "Category",
-            fontSize = screenFontSize(x = 14.0).sp
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
         )
-        Spacer(modifier = Modifier.weight(1f))
-        OutlinedButton(
-            onClick = {
-                navigateToTransactionsScreen(budget?.categoryId ?: 0, budget?.id ?: 0, budget?.createdAt?.toLocalDate()?.toString() ?: "", budget?.limitDate?.toString() ?: "")
-            },
+        IconButton(onClick = onEdit) {
+            Icon(
+                painter = painterResource(R.drawable.edit),
+                contentDescription = "Edit budget",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+// ─── Hero Stats Card ─────────────────────────────────────────────────────────
+@Composable
+private fun BudgetHeroCard(
+    budgetName: String,
+    actualSpending: Double,
+    budgetLimit: Double,
+    percentUsed: Int,
+    daysLeft: Int,
+    remaining: Double,
+    dailyAvg: Double,
+    isOverBudget: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor    = MaterialTheme.colorScheme.primary
+    val containerColor  = MaterialTheme.colorScheme.primaryContainer
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = (percentUsed / 100f).coerceIn(0f, 1f),
+        animationSpec = tween(800),
+        label = "budget_progress"
+    )
+
+    val progressColor = when {
+        percentUsed >= 100 -> MaterialTheme.colorScheme.error
+        percentUsed >= 80  -> Color(0xFFE65100)
+        percentUsed >= 60  -> Color(0xFFFFA000)
+        else               -> Color(0xFF388E3C)
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(listOf(primaryColor, containerColor))
+                )
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
             ) {
+                // Budget name subtitle
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(R.drawable.budget_2),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = budgetName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Large spent amount
                 Text(
-                    text = "Transactions",
-                    fontSize = screenFontSize(x = 14.0).sp
+                    text = formatMoneyValue(actualSpending),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = "See transactions",
+                Text(
+                    text = "spent",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Animated progress bar
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
                     modifier = Modifier
-                        .size(screenWidth(x = 24.0))
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = progressColor,
+                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
                 )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "$percentUsed% of ${formatMoneyValue(budgetLimit)} limit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$daysLeft days left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Three stat chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    HeroStatChip(label = "Spent", value = formatMoneyValue(actualSpending))
+                    HeroStatChip(
+                        label = if (isOverBudget) "Over" else "Remaining",
+                        value = formatMoneyValue(if (isOverBudget) actualSpending - budgetLimit else remaining),
+                        valueColor = if (isOverBudget) MaterialTheme.colorScheme.error else null
+                    )
+                    HeroStatChip(label = "Daily avg", value = formatMoneyValue(dailyAvg))
+                }
             }
         }
     }
-
 }
 
 @Composable
-fun EditNameDialog(
+private fun HeroStatChip(
     label: String,
-    title: String,
-    name: String,
-    onNameChange: (name: String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    loadingStatus: LoadingStatus,
+    value: String,
+    valueColor: Color? = null,
     modifier: Modifier = Modifier
 ) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Edit budget name for $title",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = name,
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                },
-                onValueChange = onNameChange,
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Text
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            Button(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onConfirm
-            ) {
-                if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(
-                        text = "Loading",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Confirm",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-
-            }
-        },
-        dismissButton = {
-            TextButton(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
-        onDismissRequest = onDismiss,
-    )
-}
-
-@Composable
-fun EditAmountDialog(
-    label: String,
-    title: String,
-    amount: String,
-    onAmountChange: (name: String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    loadingStatus: LoadingStatus,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Edit budget limit for $title",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = amount,
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                },
-                onValueChange = onAmountChange,
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Decimal
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            Button(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onConfirm
-            ) {
-                if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(
-                        text = "Loading",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Confirm",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
-        onDismissRequest = onDismiss,
-    )
-}
-
-@Composable
-fun EditLimitDateDialog(
-    startDate: String,
-    endDate: String,
-    title: String,
-    onLimitDateChange: (date: LocalDate) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    loadingStatus: LoadingStatus,
-    modifier: Modifier = Modifier
-) {
-
-    val context = LocalContext.current
-    val dStartDate = LocalDate.parse(startDate)
-
-    val defaultStartMillis = dStartDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun showDatePicker() {
-        val datePicker = DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                onLimitDateChange(selectedDate)
-            },
-
-            dStartDate.year,
-            dStartDate.monthValue - 1,
-            dStartDate.dayOfMonth
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = valueColor ?: MaterialTheme.colorScheme.onPrimary,
+            maxLines = 1
         )
-        defaultStartMillis?.let { datePicker.datePicker.minDate = it }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
+        )
+    }
+}
 
-        datePicker.show()
+// ─── Spending Trend Chart ─────────────────────────────────────────────────────
+@Composable
+private fun SpendingTrendCard(
+    trendData: List<TrendPoint>,
+    dailyBudget: Double,
+    isPremium: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val greenColor  = Color(0xFF388E3C)
+    val orangeColor = Color(0xFFE65100)
+    val redColor    = Color(0xFFB71C1C)
+    val gridColor   = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+    val limitColor  = Color(0xFFFF8F00)
+    val onSurface   = MaterialTheme.colorScheme.onSurface
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.chart),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Spending Trend",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (trendData.isEmpty()) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                ) {
+                    Text(
+                        text = "No transactions in this budget period yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                val maxVal = trendData.maxOf { it.totalOut }.coerceAtLeast(1.0)
+                val showN  = if (trendData.size <= 7) 1 else ceil(trendData.size / 7.0).toInt()
+
+                Box {
+                    // Chart area
+                    Column {
+                        // Y-axis max label
+                        Text(
+                            text = formatMoneyValue(maxVal),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp
+                        )
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .run { if (!isPremium) alpha(1f) else this }
+                        ) {
+                            val w = size.width
+                            val h = size.height
+                            val barCount = trendData.size
+                            val gap = 4.dp.toPx()
+                            val barW = ((w - gap * (barCount + 1)) / barCount).coerceAtLeast(4f)
+
+                            // Draw daily limit dashed line
+                            if (dailyBudget > 0) {
+                                val limitY = h - (dailyBudget / maxVal).toFloat() * h
+                                drawLine(
+                                    color = limitColor,
+                                    start = Offset(0f, limitY),
+                                    end = Offset(w, limitY),
+                                    strokeWidth = 1.5.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
+                                )
+                            }
+
+                            trendData.forEachIndexed { i, point ->
+                                val barH = (point.totalOut / maxVal).toFloat() * h
+                                val left = gap + i * (barW + gap)
+                                val top  = h - barH
+                                val barColor = when {
+                                    dailyBudget <= 0            -> greenColor
+                                    point.totalOut > dailyBudget * 1.5 -> redColor
+                                    point.totalOut > dailyBudget       -> orangeColor
+                                    else                        -> greenColor
+                                }
+                                drawRoundRect(
+                                    color = barColor,
+                                    topLeft = Offset(left, top),
+                                    size = Size(barW, barH.coerceAtLeast(2f)),
+                                    cornerRadius = CornerRadius(2.dp.toPx())
+                                )
+                            }
+                        }
+
+                        // X-axis labels
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            trendData.forEachIndexed { i, point ->
+                                val show = i % showN == 0
+                                Text(
+                                    text = if (show) point.label else "",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 8.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    // Premium gate overlay (covers lower half)
+                    if (!isPremium) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .align(Alignment.BottomCenter)
+                                .clip(RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Unlock full trend history → Go Premium",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Legend
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LegendDot(color = greenColor, label = "Within limit")
+                    LegendDot(color = orangeColor, label = "Slightly over")
+                    LegendDot(color = redColor, label = "Over limit")
+                    LegendDot(color = limitColor, label = "Daily limit", isDash = true)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(
+    color: Color,
+    label: String,
+    isDash: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        if (isDash) {
+            Canvas(modifier = Modifier.size(16.dp, 2.dp)) {
+                drawLine(
+                    color = color,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 3f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f))
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// ─── Smart Insights Card ──────────────────────────────────────────────────────
+@Composable
+private fun SmartInsightsCard(
+    insights: List<InsightItem>,
+    isPremium: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (insights.isEmpty()) return
+
+    val freeInsights    = insights.filter { !it.requiresPremium }
+    val premiumInsights = insights.filter { it.requiresPremium }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.info),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Smart Insights",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Free insights always shown
+            freeInsights.forEach { insight ->
+                InsightRow(insight = insight)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (isPremium) {
+                // All premium insights shown normally
+                premiumInsights.forEach { insight ->
+                    InsightRow(insight = insight)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            } else if (premiumInsights.isNotEmpty()) {
+                // Show first 2 blurred
+                premiumInsights.take(2).forEach { insight ->
+                    Box {
+                        Box(modifier = Modifier.alpha(0.12f)) {
+                            InsightRow(insight = insight)
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 12.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Premium Insight",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // CTA row
+                val remaining = premiumInsights.size
+                OutlinedButton(
+                    onClick = { /* navigate to subscription */ },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.lock),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "$remaining more insight${if (remaining != 1) "s" else ""} available — Upgrade to unlock →",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightRow(
+    insight: InsightItem,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = when (insight.isPositive) {
+        true  -> Color(0xFF388E3C)
+        false -> Color(0xFFE65100)
+        null  -> Color(0xFFFFA000)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(IntrinsicSize.Max)
+                .background(accentColor)
+                .padding(vertical = 12.dp)
+        )
+        Text(
+            text = insight.text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        )
+    }
+}
+
+// ─── Date header ──────────────────────────────────────────────────────────────
+@Composable
+private fun BudgetDateHeader(date: LocalDate, modifier: Modifier = Modifier) {
+    val formatter = remember { DateTimeFormatter.ofPattern("EEE d MMM") }
+    Text(
+        text = date.format(formatter),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+    )
+}
+
+// ─── Transaction row ──────────────────────────────────────────────────────────
+@Composable
+private fun BudgetTransactionRow(
+    transaction: Transaction,
+    modifier: Modifier = Modifier
+) {
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    val isOutflow = transaction.transactionType.contains("sent", ignoreCase = true)
+        || transaction.transactionType.contains("pay", ignoreCase = true)
+        || transaction.transactionType.contains("withdraw", ignoreCase = true)
+        || transaction.transactionType.contains("airtime", ignoreCase = true)
+
+    val amountColor = if (isOutflow)
+        MaterialTheme.colorScheme.error
+    else
+        Color(0xFF388E3C)
+
+    val prefix = if (isOutflow) "-" else "+"
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        // Avatar circle
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Text(
+                text = (transaction.nickName ?: transaction.entity)
+                    .firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = transaction.nickName ?: transaction.entity,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = transaction.time.format(timeFormatter),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Text(
+            text = "$prefix${formatMoneyValue(transaction.transactionAmount)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = amountColor
+        )
+    }
+}
+
+// ─── Edit Dialog ──────────────────────────────────────────────────────────────
+@Composable
+private fun BudgetEditDialog(
+    uiState: BudgetInfoScreenUiState,
+    onNameChange: (String) -> Unit,
+    onLimitChange: (String) -> Unit,
+    onDateChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val showDatePicker: () -> Unit = {
+        val today = LocalDate.now()
+        DatePickerDialog(
+            context,
+            { _, y, m, d ->
+                onDateChange(LocalDate.of(y, m + 1, d).toString())
+            },
+            today.year, today.monthValue - 1, today.dayOfMonth
+        ).show()
     }
 
     AlertDialog(
+        onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Edit budget limit date for $title",
-                fontSize = screenFontSize(x = 14.0).sp
+                text = "Edit Budget",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                TextButton(onClick = {showDatePicker()}) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = uiState.budgetName,
+                    onValueChange = onNameChange,
+                    label = { Text("Budget name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = uiState.budgetLimit,
+                    onValueChange = onLimitChange,
+                    label = { Text("Budget limit (KES)") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next
+                    ),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = uiState.budgetLimitDate,
+                    onValueChange = onDateChange,
+                    label = { Text("Limit date") },
+                    readOnly = true,
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = {
+                        IconButton(onClick = showDatePicker) {
+                            Icon(
+                                painter = painterResource(R.drawable.calendar),
+                                contentDescription = "Pick date",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker() }
+                )
+
+                if (uiState.loadingStatus == LoadingStatus.LOADING) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(text = endDate)
-                        Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-                        Icon(
-                            painter = painterResource(id = R.drawable.calendar),
-                            contentDescription = "Change limit date",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = uiState.loadingStatus != LoadingStatus.LOADING,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.check),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+// ─── Delete Confirmation Dialog ───────────────────────────────────────────────
+@Composable
+private fun BudgetDeleteDialog(
+    budgetName: String,
+    isDeleting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Delete Budget",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Are you sure you want to delete \"$budgetName\"? This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (isDeleting) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -733,122 +1128,43 @@ fun EditLimitDateDialog(
         },
         confirmButton = {
             Button(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onConfirm
+                onClick = onConfirm,
+                enabled = !isDeleting,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(
-                        text = "Loading",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Confirm",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
+                Text("Delete")
             }
         },
         dismissButton = {
-            TextButton(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         },
-        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
+// ─── Preview ──────────────────────────────────────────────────────────────────
+@Preview(showBackground = true)
 @Composable
-fun DeleteDialog(
-    name: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    executionStatus: ExecutionStatus,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Remove budget",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            Text(
-                text = "Remove $name? This action cannot be undone",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            Button(
-                enabled = executionStatus != ExecutionStatus.LOADING,
-                onClick = onConfirm
-            ) {
-                if(executionStatus == ExecutionStatus.LOADING) {
-                    Text(
-                        text = "Loading...",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Confirm",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-
-            }
-        },
-        dismissButton = {
-            TextButton(
-                enabled = executionStatus != ExecutionStatus.LOADING,
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Cancel",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterialApi::class)
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun BudgetInfoScreenPreview() {
-    CashLedgerTheme {
+private fun BudgetInfoScreenPreview() {
+    MaterialTheme {
         BudgetInfoScreen(
-            pullRefreshState = null,
-            loadingStatus = LoadingStatus.INITIAL,
-            budget = Budget(
-                name = "Test Budget",
-                active = true,
-                expenditure = 0.0,
-                budgetLimit = 20000.0,
-                createdAt = LocalDateTime.now(),
-                limitDate = LocalDate.now().plusDays(30),
-                limitReached = false,
-                limitReachedAt = null,
-                exceededBy = 0.0,
-                categoryId = 1
+            uiState = BudgetInfoScreenUiState(
+                budgetName = "Groceries Budget",
+                actualSpending = 3200.0,
+                percentUsed = 64,
+                remaining = 1800.0,
+                dailyAvg = 320.0,
+                daysLeft = 10,
+                isPremium = false
             ),
-            actualSpending = 5000.0,
-            isOverBudget = false,
-            overage = 0.0,
-            percentUsed = 25,
-            remaining = 15000.0,
-            onDeleteBudget = {},
-            onEditBudgetName = {},
-            onEditBudgetLimit = {},
-            onEditLimitDate = {},
-            navigateToTransactionsScreen = { categoryId, budgetId, startDate, endDate -> },
+            onEditClick = {},
+            onDeleteClick = {},
+            navigateToTransactionsScreen = { _, _, _, _ -> },
             navigateToPreviousScreen = {}
         )
     }

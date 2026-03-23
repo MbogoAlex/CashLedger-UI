@@ -8,6 +8,7 @@ import com.records.pesa.db.models.Budget
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.service.category.CategoryService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +33,8 @@ data class BudgetCreationScreenUiState(
 class BudgetCreationScreenViewModel(
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val categoryService: CategoryService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetCreationScreenUiState())
@@ -90,6 +92,11 @@ class BudgetCreationScreenViewModel(
         _uiState.update { it.copy(categoryId = categoryIdArg) }
         viewModelScope.launch {
             _uiState.update { it.copy(userDetails = dbRepository.getUsers().first()[0]) }
+            val catId = categoryIdArg?.toIntOrNull()
+            if (catId != null) {
+                val category = categoryService.getRawCategoryById(catId).first()
+                _uiState.update { it.copy(categoryName = category.name) }
+            }
         }
     }
 }
