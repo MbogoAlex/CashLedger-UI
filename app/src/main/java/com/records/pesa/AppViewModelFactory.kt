@@ -158,7 +158,9 @@ object AppViewModelFactory {
             BudgetInfoScreenViewModel(
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = cashLedgerApplication().container.categoryService,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
             )
         }
 
