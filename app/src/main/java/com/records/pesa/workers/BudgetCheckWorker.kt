@@ -39,6 +39,7 @@ class BudgetCheckWorker(
                 NotificationHelper.notify(
                     context = context,
                     id = budget.id * 10 + 0,
+                    budgetId = budget.id,
                     title = "Heads up: ${budget.name}",
                     body = "You've used 70% of your budget. KES ${spending.toLong()} of KES ${budget.budgetLimit.toLong()} used."
                 )
@@ -50,6 +51,7 @@ class BudgetCheckWorker(
                 NotificationHelper.notify(
                     context = context,
                     id = budget.id * 10 + 1,
+                    budgetId = budget.id,
                     title = "⚠️ ${budget.name} Budget Warning",
                     body = "85% used. Only KES ${(budget.budgetLimit - spending).toLong()} remaining."
                 )
@@ -61,6 +63,7 @@ class BudgetCheckWorker(
                 NotificationHelper.notify(
                     context = context,
                     id = budget.id * 10 + 2,
+                    budgetId = budget.id,
                     title = "🚨 ${budget.name} Budget Exceeded",
                     body = "You've exceeded your budget of KES ${budget.budgetLimit.toLong()} by KES ${(spending - budget.budgetLimit).toLong()}."
                 )
@@ -72,6 +75,7 @@ class BudgetCheckWorker(
                 NotificationHelper.notify(
                     context = context,
                     id = budget.id * 10 + 3,
+                    budgetId = budget.id,
                     title = "📅 ${budget.name} Expires Tomorrow",
                     body = "KES ${(budget.budgetLimit - spending).toLong()} remaining before your budget closes."
                 )
