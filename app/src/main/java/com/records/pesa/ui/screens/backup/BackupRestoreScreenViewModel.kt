@@ -455,6 +455,8 @@ class BackupRestoreScreenViewModel(
 
         for (row in rows.drop(1)) { // Skip header row
             try {
+                // Support both old format (no startDate, col 5=limitDate) and new format (col 6=startDate, col 7=limitDate)
+                val hasStartDate = row.size >= 12
                 val budget = Budget(
                     id = row[0].toInt(),
                     name = row[1],
@@ -462,11 +464,13 @@ class BackupRestoreScreenViewModel(
                     expenditure = row[3].toDouble(),
                     budgetLimit = row[4].toDouble(),
                     createdAt = LocalDateTime.parse(row[5]),
-                    limitDate = LocalDate.parse(row[6]),
-                    limitReached = row[7].toBoolean(),
-                    limitReachedAt = row.getOrNull(8)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
-                    exceededBy = row[9].toDouble(),
-                    categoryId = row[10].toInt()
+                    startDate = if (hasStartDate) LocalDate.parse(row[6])
+                                else LocalDateTime.parse(row[5]).toLocalDate().withDayOfMonth(1),
+                    limitDate = LocalDate.parse(if (hasStartDate) row[7] else row[6]),
+                    limitReached = row[if (hasStartDate) 8 else 7].toBoolean(),
+                    limitReachedAt = row.getOrNull(if (hasStartDate) 9 else 8)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
+                    exceededBy = row[if (hasStartDate) 10 else 9].toDouble(),
+                    categoryId = row[if (hasStartDate) 11 else 10].toInt()
                 )
                 budgets.add(budget)
             } catch (e: Exception) {

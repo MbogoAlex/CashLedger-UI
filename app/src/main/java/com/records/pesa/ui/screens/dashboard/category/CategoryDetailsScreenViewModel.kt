@@ -83,6 +83,7 @@ data class CategoryDetailsScreenUiState(
     val showInlineBudgetForm: Boolean = false,
     val inlineBudgetName: String = "",
     val inlineBudgetLimit: String = "",
+    val inlineBudgetStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     val inlineBudgetEndDate: LocalDate? = null,
     val inlineBudgetSaving: Boolean = false,
     val inlineBudgetSaved: Boolean = false
@@ -694,6 +695,7 @@ class CategoryDetailsScreenViewModel(
                 showInlineBudgetForm = !it.showInlineBudgetForm,
                 inlineBudgetName = "",
                 inlineBudgetLimit = "",
+                inlineBudgetStartDate = LocalDate.now().withDayOfMonth(1),
                 inlineBudgetEndDate = null,
                 inlineBudgetSaved = false
             )
@@ -702,6 +704,7 @@ class CategoryDetailsScreenViewModel(
 
     fun updateInlineBudgetName(name: String) = _uiState.update { it.copy(inlineBudgetName = name) }
     fun updateInlineBudgetLimit(limit: String) = _uiState.update { it.copy(inlineBudgetLimit = limit) }
+    fun updateInlineBudgetStartDate(date: LocalDate) = _uiState.update { it.copy(inlineBudgetStartDate = date) }
     fun updateInlineBudgetEndDate(date: LocalDate) = _uiState.update { it.copy(inlineBudgetEndDate = date) }
 
     fun createInlineBudget() {
@@ -718,6 +721,7 @@ class CategoryDetailsScreenViewModel(
                         expenditure = 0.0,
                         budgetLimit = limit,
                         createdAt = LocalDateTime.now(),
+                        startDate = _uiState.value.inlineBudgetStartDate,
                         limitDate = endDate,
                         limitReached = false,
                         limitReachedAt = null,
@@ -732,6 +736,7 @@ class CategoryDetailsScreenViewModel(
                         showInlineBudgetForm = false,
                         inlineBudgetName = "",
                         inlineBudgetLimit = "",
+                        inlineBudgetStartDate = LocalDate.now().withDayOfMonth(1),
                         inlineBudgetEndDate = null
                     )
                 }

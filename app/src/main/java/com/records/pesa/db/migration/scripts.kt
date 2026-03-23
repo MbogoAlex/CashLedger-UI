@@ -552,6 +552,28 @@ val MIGRATION_49_50 = object : Migration(49, 50) {
     }
 }
 
+/**
+ * Migration 50 -> 51: Add startDate column to budget table
+ *
+ * Budget periods now have an explicit start date chosen by the user,
+ * instead of defaulting to createdAt. Existing budgets default to
+ * the first day of the month of their createdAt timestamp.
+ */
+val MIGRATION_50_51 = object : Migration(50, 51) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            ALTER TABLE `budget`
+            ADD COLUMN `startDate` TEXT NOT NULL DEFAULT ''
+        """)
+        // Backfill: use the first of the month from createdAt (stored as ISO string)
+        database.execSQL("""
+            UPDATE `budget`
+            SET `startDate` = substr(`createdAt`, 1, 7) || '-01'
+            WHERE `startDate` = ''
+        """)
+    }
+}
+
 
 
 

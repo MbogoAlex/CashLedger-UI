@@ -248,11 +248,13 @@ fun CategoryDetailsScreenComposable(
             showInlineBudgetForm = uiState.showInlineBudgetForm,
             inlineBudgetName = uiState.inlineBudgetName,
             inlineBudgetLimit = uiState.inlineBudgetLimit,
+            inlineBudgetStartDate = uiState.inlineBudgetStartDate,
             inlineBudgetEndDate = uiState.inlineBudgetEndDate,
             inlineBudgetSaving = uiState.inlineBudgetSaving,
             onToggleInlineBudgetForm = { viewModel.toggleInlineBudgetForm() },
             onInlineBudgetNameChange = { viewModel.updateInlineBudgetName(it) },
             onInlineBudgetLimitChange = { viewModel.updateInlineBudgetLimit(it) },
+            onInlineBudgetStartDateChange = { viewModel.updateInlineBudgetStartDate(it) },
             onInlineBudgetEndDateChange = { viewModel.updateInlineBudgetEndDate(it) },
             onCreateInlineBudget = { viewModel.createInlineBudget() }
         )
@@ -295,11 +297,13 @@ fun CategoryDetailsScreen(
     showInlineBudgetForm: Boolean = false,
     inlineBudgetName: String = "",
     inlineBudgetLimit: String = "",
+    inlineBudgetStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     inlineBudgetEndDate: LocalDate? = null,
     inlineBudgetSaving: Boolean = false,
     onToggleInlineBudgetForm: () -> Unit = {},
     onInlineBudgetNameChange: (String) -> Unit = {},
     onInlineBudgetLimitChange: (String) -> Unit = {},
+    onInlineBudgetStartDateChange: (LocalDate) -> Unit = {},
     onInlineBudgetEndDateChange: (LocalDate) -> Unit = {},
     onCreateInlineBudget: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -933,6 +937,34 @@ fun CategoryDetailsScreen(
                                                 ),
                                                 modifier = Modifier.fillMaxWidth()
                                             )
+                                            // Start date picker
+                                            OutlinedTextField(
+                                                value = inlineBudgetStartDate.toString(),
+                                                onValueChange = {},
+                                                readOnly = true,
+                                                label = { Text("Start date") },
+                                                trailingIcon = {
+                                                    IconButton(onClick = {
+                                                        DatePickerDialog(
+                                                            context,
+                                                            { _, year, month, day ->
+                                                                onInlineBudgetStartDateChange(LocalDate.of(year, month + 1, day))
+                                                            },
+                                                            inlineBudgetStartDate.year,
+                                                            inlineBudgetStartDate.monthValue - 1,
+                                                            inlineBudgetStartDate.dayOfMonth
+                                                        ).show()
+                                                    }) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.calendar),
+                                                            contentDescription = "Pick start date",
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
                                             // End date picker
                                             OutlinedTextField(
                                                 value = inlineBudgetEndDate?.toString() ?: "",
@@ -948,32 +980,22 @@ fun CategoryDetailsScreen(
                                                                 onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
                                                             },
                                                             today.year, today.monthValue - 1, today.dayOfMonth
-                                                        ).apply { datePicker.minDate = System.currentTimeMillis() }.show()
+                                                        ).show()
                                                     }) {
                                                         Icon(
                                                             painter = painterResource(R.drawable.calendar),
-                                                            contentDescription = "Pick date",
+                                                            contentDescription = "Pick end date",
                                                             modifier = Modifier.size(18.dp)
                                                         )
                                                     }
                                                 },
                                                 shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        DatePickerDialog(
-                                                            context,
-                                                            { _, year, month, day ->
-                                                                onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
-                                                            },
-                                                            today.year, today.monthValue - 1, today.dayOfMonth
-                                                        ).apply { datePicker.minDate = System.currentTimeMillis() }.show()
-                                                    }
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                             val canSave = inlineBudgetName.isNotBlank() &&
                                                 (inlineBudgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
                                                 inlineBudgetEndDate != null &&
-                                                inlineBudgetEndDate.isAfter(today)
+                                                inlineBudgetEndDate.isAfter(inlineBudgetStartDate)
                                             Button(
                                                 onClick = onCreateInlineBudget,
                                                 enabled = canSave && !inlineBudgetSaving,

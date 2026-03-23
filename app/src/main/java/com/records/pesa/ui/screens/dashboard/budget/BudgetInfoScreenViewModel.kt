@@ -54,6 +54,7 @@ data class BudgetInfoScreenUiState(
     // Edit fields
     val budgetName: String = "",
     val budgetLimit: String = "",
+    val budgetStartDate: String = "",
     val budgetLimitDate: String = "",
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val executionStatus: ExecutionStatus = ExecutionStatus.INITIAL
@@ -75,6 +76,7 @@ class BudgetInfoScreenViewModel(
 
     fun updateBudgetName(name: String) = _uiState.update { it.copy(budgetName = name) }
     fun updateBudgetLimit(amount: String) = _uiState.update { it.copy(budgetLimit = amount) }
+    fun updateStartDate(date: String) = _uiState.update { it.copy(budgetStartDate = date) }
     fun updateLimitDate(date: String) = _uiState.update { it.copy(budgetLimitDate = date) }
 
     fun resetLoadingStatus() = _uiState.update {
@@ -89,6 +91,8 @@ class BudgetInfoScreenViewModel(
                 val updated = budget.copy(
                     name = _uiState.value.budgetName.ifBlank { budget.name },
                     budgetLimit = _uiState.value.budgetLimit.toDoubleOrNull() ?: budget.budgetLimit,
+                    startDate = _uiState.value.budgetStartDate.takeIf { it.isNotBlank() }
+                        ?.let { LocalDate.parse(it) } ?: budget.startDate,
                     limitDate = _uiState.value.budgetLimitDate.takeIf { it.isNotBlank() }
                         ?.let { LocalDate.parse(it) } ?: budget.limitDate
                 )
@@ -124,10 +128,11 @@ class BudgetInfoScreenViewModel(
                             budget = budget,
                             budgetName = budget.name,
                             budgetLimit = budget.budgetLimit.toString(),
+                            budgetStartDate = budget.startDate.toString(),
                             budgetLimitDate = budget.limitDate.toString()
                         )
                     }
-                    val start = budget.createdAt.toLocalDate()
+                    val start = budget.startDate
                     val end = budget.limitDate
                     dbRepository.getOutflowForCategory(budget.categoryId, start, end)
                 }
@@ -140,7 +145,7 @@ class BudgetInfoScreenViewModel(
 
     private fun recomputeAll(budget: Budget, spending: Double) {
         val today = LocalDate.now()
-        val start = budget.createdAt.toLocalDate()
+        val start = budget.startDate
         val end = budget.limitDate
 
         val totalDays = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
@@ -286,7 +291,7 @@ class BudgetInfoScreenViewModel(
         val shortFmt = DateTimeFormatter.ofPattern("d MMM")
         fun fmt(d: Double) = "%,.0f".format(d)
 
-        val start = budget.createdAt.toLocalDate()
+        val start = budget.startDate
         val end = budget.limitDate
         val today = LocalDate.now()
 
@@ -441,7 +446,7 @@ class BudgetInfoScreenViewModel(
                 .filter { it.name == budget.name && it.id != budget.id }
             if (allBudgets.isNotEmpty()) {
                 val metLimit = allBudgets.count { b ->
-                    val s = b.createdAt.toLocalDate()
+                    val s = b.startDate
                     val e = b.limitDate
                     val spent = dbRepository.getOutflowForCategory(b.categoryId, s, e).first()
                     spent <= b.budgetLimit

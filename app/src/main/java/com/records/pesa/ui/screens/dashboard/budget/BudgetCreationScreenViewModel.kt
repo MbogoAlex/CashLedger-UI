@@ -22,6 +22,7 @@ data class BudgetCreationScreenUiState(
     val userDetails: UserDetails = UserDetails(),
     val budgetName: String = "",
     val budgetLimit: String = "",
+    val startDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     val limitDate: LocalDate? = null,
     val categoryId: String? = null,
     val categoryName: String? = null,
@@ -44,6 +45,7 @@ class BudgetCreationScreenViewModel(
 
     fun updateBudgetName(name: String) { _uiState.update { it.copy(budgetName = name) }; checkFields() }
     fun updateBudgetLimit(amount: String) { _uiState.update { it.copy(budgetLimit = amount) }; checkFields() }
+    fun updateStartDate(date: LocalDate) { _uiState.update { it.copy(startDate = date) }; checkFields() }
     fun updateLimitDate(date: LocalDate) { _uiState.update { it.copy(limitDate = date) }; checkFields() }
 
     fun resetLoadingStatus() = _uiState.update { it.copy(loadingStatus = LoadingStatus.INITIAL) }
@@ -56,7 +58,7 @@ class BudgetCreationScreenViewModel(
                     s.budgetLimit.isNotBlank() &&
                     (s.budgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
                     s.limitDate != null &&
-                    s.limitDate.isAfter(LocalDate.now())
+                    s.limitDate.isAfter(s.startDate)
             )
         }
     }
@@ -74,6 +76,7 @@ class BudgetCreationScreenViewModel(
                     expenditure = 0.0,
                     budgetLimit = limit,
                     createdAt = LocalDateTime.now(),
+                    startDate = _uiState.value.startDate,
                     limitDate = endDate,
                     limitReached = false,
                     limitReachedAt = null,

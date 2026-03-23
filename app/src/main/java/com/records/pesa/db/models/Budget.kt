@@ -20,6 +20,7 @@ data class Budget(
     val expenditure: Double,
     val budgetLimit: Double,
     val createdAt: LocalDateTime,
+    val startDate: LocalDate,
     val limitDate: LocalDate,
     val limitReached: Boolean,
     val limitReachedAt: LocalDateTime?,

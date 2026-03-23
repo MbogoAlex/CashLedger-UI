@@ -534,6 +534,7 @@ fun BudgetListScreenPreview(
                         expenditure = 0.0,
                         budgetLimit = 10000.0,
                         createdAt = java.time.LocalDateTime.now(),
+                        startDate = java.time.LocalDate.now().withDayOfMonth(1),
                         limitDate = java.time.LocalDate.now().plusDays(30),
                         limitReached = false,
                         limitReachedAt = null,

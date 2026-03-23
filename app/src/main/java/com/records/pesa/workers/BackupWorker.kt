@@ -489,13 +489,13 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
         FileWriter(file).use { writer ->
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
                 "id", "name", "active", "expenditure", "budgetLimit",
-                "createdAt", "limitDate", "limitReached", "limitReachedAt",
+                "createdAt", "startDate", "limitDate", "limitReached", "limitReachedAt",
                 "exceededBy", "categoryId"
             ))
             budgetsToBackup.forEach { budget ->
                 csvPrinter.printRecord(
                     budget.id, budget.name, budget.active, budget.expenditure,
-                    budget.budgetLimit, budget.createdAt, budget.limitDate,
+                    budget.budgetLimit, budget.createdAt, budget.startDate, budget.limitDate,
                     budget.limitReached, budget.limitReachedAt, budget.exceededBy,
                     budget.categoryId
                 )
