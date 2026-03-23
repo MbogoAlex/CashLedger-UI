@@ -264,7 +264,7 @@ fun BudgetInfoScreen(
         // 6. View all transactions button
         if (budget != null) {
             item {
-                OutlinedButton(
+                Button(
                     onClick = {
                         navigateToTransactionsScreen(
                             budget.categoryId,
@@ -273,18 +273,18 @@ fun BudgetInfoScreen(
                             budget.limitDate.toString()
                         )
                     },
-                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("View all transactions")
-                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
-                        painter = painterResource(R.drawable.ic_arrow_right),
+                        painter = painterResource(R.drawable.list),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View All Transactions", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
