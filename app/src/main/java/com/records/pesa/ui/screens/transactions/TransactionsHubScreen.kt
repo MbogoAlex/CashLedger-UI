@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -70,10 +71,7 @@ import com.records.pesa.models.TimePeriod
 import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.transaction.IndividualSortedTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
-import com.records.pesa.ui.screens.components.CompactTransactionBreakdown
-import com.records.pesa.ui.screens.components.EmptyStateCard
-import com.records.pesa.ui.screens.components.SectionHeader
-import com.records.pesa.ui.screens.components.TransactionCard
+import com.records.pesa.composables.RecentTransactionsSection
 import kotlin.math.abs
 
 // ─── Transaction type config ──────────────────────────────────────────────────
@@ -107,6 +105,7 @@ fun TransactionsHubScreenComposable(
 
     TransactionsHubScreen(
         recentTransactions = uiState.recentTransactions,
+        latestTransactions = uiState.latestTransactions,
         topMoneyIn = uiState.topMoneyIn,
         topMoneyOut = uiState.topMoneyOut,
         totalMoneyIn = uiState.totalMoneyIn,
@@ -133,6 +132,7 @@ fun TransactionsHubScreenComposable(
 @Composable
 fun TransactionsHubScreen(
     recentTransactions: List<TransactionItem>,
+    latestTransactions: List<TransactionItem> = emptyList(),
     topMoneyIn: List<IndividualSortedTransactionItem>,
     topMoneyOut: List<IndividualSortedTransactionItem>,
     totalMoneyIn: Double,
@@ -155,6 +155,8 @@ fun TransactionsHubScreen(
     var topContactsShowIn by remember { mutableStateOf(true) }
     val contacts = if (topContactsShowIn) topMoneyIn else topMoneyOut
     val listState = rememberLazyListState()
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
 
     // Show sticky bar once the hero card (item index 1) scrolls out of view
     val showStickyBar by remember { derivedStateOf { listState.firstVisibleItemIndex >= 2 } }
@@ -208,103 +210,127 @@ fun TransactionsHubScreen(
         // ── Recent Activity ───────────────────────────────────────────────────
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            SectionHeader(
-                title = "Recent Activity",
-                onAction = navigateToAllTransactions,
+            RecentTransactionsSection(
+                transactions = latestTransactions,
+                onSeeAllClick = navigateToAllTransactions,
+                onTransactionClick = { id -> navigateToTransactionDetails(id) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
+        // ── Top Contacts ──────────────────────────────────────────────────────
         item {
-            if (recentTransactions.isEmpty()) {
-                EmptyStateCard(
-                    icon = R.drawable.list,
-                    message = "No transactions yet",
-                    subtitle = "Your recent transactions will appear here",
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            } else {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    recentTransactions.take(5).forEach { transaction ->
-                        TransactionCard(
-                            transaction = transaction,
-                            onClick = {
-                                transaction.transactionId?.let {
-                                    navigateToTransactionDetails(it.toString())
-                                }
-                            },
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // ── Top Contacts (horizontal cards) ───────────────────────────────────
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
+            Spacer(Modifier.height(16.dp))
+            ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text(
-                    text = "Top Contacts",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                // In / Out toggle pills
-                Row(
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    primary.copy(alpha = 0.12f),
+                                    tertiary.copy(alpha = 0.06f),
+                                    primary.copy(alpha = 0.04f)
+                                )
+                            )
+                        )
                 ) {
-                    ContactToggleChip(
-                        label = "Received",
-                        selected = topContactsShowIn,
-                        selectedBg = MaterialTheme.colorScheme.tertiary,
-                        onClick = { topContactsShowIn = true }
-                    )
-                    ContactToggleChip(
-                        label = "Sent",
-                        selected = !topContactsShowIn,
-                        selectedBg = MaterialTheme.colorScheme.error,
-                        onClick = { topContactsShowIn = false }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (contacts.isEmpty()) {
-                EmptyStateCard(
-                    icon = R.drawable.account_info,
-                    message = "No contact data",
-                    subtitle = "Top contacts will appear here",
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(contacts) { contact ->
-                        ContactAvatarCard(
-                            item = contact,
-                            moneyIn = topContactsShowIn,
-                            onClick = {
-                                navigateToEntityTransactions(
-                                    "0", contact.transactionType, contact.name,
-                                    "", "", contact.times.toString(),
-                                    if (topContactsShowIn) "in" else "out"
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, start = 16.dp, end = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(R.drawable.account_info),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = primary
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "Top Contacts",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
                                 )
                             }
-                        )
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                ContactToggleChip(
+                                    label = "Received",
+                                    selected = topContactsShowIn,
+                                    selectedBg = MaterialTheme.colorScheme.tertiary,
+                                    onClick = { topContactsShowIn = true }
+                                )
+                                ContactToggleChip(
+                                    label = "Sent",
+                                    selected = !topContactsShowIn,
+                                    selectedBg = MaterialTheme.colorScheme.error,
+                                    onClick = { topContactsShowIn = false }
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        if (contacts.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.account_info),
+                                    contentDescription = null,
+                                    tint = primary.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "No contact data",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Top contacts will appear here",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        } else {
+                            LazyRow(
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(contacts) { contact ->
+                                    ContactAvatarCard(
+                                        item = contact,
+                                        moneyIn = topContactsShowIn,
+                                        onClick = {
+                                            navigateToEntityTransactions(
+                                                "0", contact.transactionType, contact.name,
+                                                "", "", contact.times.toString(),
+                                                if (topContactsShowIn) "in" else "out"
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -312,25 +338,146 @@ fun TransactionsHubScreen(
 
         // ── Transaction Types ──────────────────────────────────────────────────
         item {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionHeader(
-                title = "Transaction Types",
-                actionLabel = "View All",
-                onAction = { navigateToTransactionTypes(startDate, endDate) },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            CompactTransactionBreakdown(
-                moneyInCategories = moneyInCategories,
-                moneyOutCategories = moneyOutCategories,
-                periodLabel = selectedTimePeriod.getDisplayName(),
-                modifier = Modifier.padding(horizontal = 16.dp),
+            Spacer(Modifier.height(16.dp))
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(16.dp),
                 onClick = { navigateToTransactionTypes(startDate, endDate) }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    primary.copy(alpha = 0.12f),
+                                    tertiary.copy(alpha = 0.06f),
+                                    primary.copy(alpha = 0.04f)
+                                )
+                            )
+                        )
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(R.drawable.chart),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = primary
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "Transaction Types",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            TextButton(
+                                onClick = { navigateToTransactionTypes(startDate, endDate) },
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    "View All",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_arrow_right),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = primary
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        if (moneyInCategories.isEmpty() && moneyOutCategories.isEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.chart),
+                                    contentDescription = null,
+                                    tint = primary.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "No transaction data",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            if (moneyInCategories.isNotEmpty()) {
+                                Text(
+                                    text = "MONEY IN",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                moneyInCategories.take(3).forEach { item ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                            Box(modifier = Modifier.size(6.dp).background(tertiary.copy(alpha = 0.8f), CircleShape))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(item.transactionType, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Text("+Ksh ${String.format("%,.0f", item.totalAmount)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
+                                    }
+                                }
+                            }
+                            if (moneyInCategories.isNotEmpty() && moneyOutCategories.isNotEmpty()) {
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            if (moneyOutCategories.isNotEmpty()) {
+                                Text(
+                                    text = "MONEY OUT",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.error,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                moneyOutCategories.take(3).forEach { item ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                            Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.error.copy(alpha = 0.8f), CircleShape))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(item.transactionType, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Text("-Ksh ${String.format("%,.0f", item.totalAmount)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
 
-        // ── Transaction Fees ───────────────────────────────────────────────────
         if (totalTransactionCost > 0) {
             item {
                 TransactionCostCard(
@@ -339,7 +486,7 @@ fun TransactionsHubScreen(
                     periodLabel = selectedTimePeriod.getDisplayName(),
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
         } // end LazyColumn

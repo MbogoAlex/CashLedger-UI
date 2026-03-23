@@ -343,7 +343,7 @@ fun BudgetListScreen(
             // ── Scrollable content ────────────────────────────────────────
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
             ) {
 
             // ── Summary card (CatPeriodPicker-style gradient) ─────────────

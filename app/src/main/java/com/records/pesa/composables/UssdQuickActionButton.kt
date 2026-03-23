@@ -1,93 +1,89 @@
 package com.records.pesa.composables
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.records.pesa.R
-import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
-import com.records.pesa.ui.screens.utils.screenWidth
 
 /**
- * Prominent button to initiate M-PESA transactions via *334# USSD
+ * Compact USSD quick-action button — understated ElevatedCard style.
  */
 @Composable
 fun UssdQuickActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = screenHeight(x = 4.0))
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Box(
             modifier = Modifier
-                .padding(screenWidth(x = 20.0))
                 .fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Make a Transaction",
-                    fontSize = screenFontSize(x = 18.0).sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primary.copy(alpha = 0.10f),
+                            tertiary.copy(alpha = 0.05f),
+                            primary.copy(alpha = 0.03f)
+                        )
+                    )
                 )
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_phone_ussd),
+                        contentDescription = "USSD Dial",
+                        tint = primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Make a Transaction",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Text(
-                    text = getCaptivatingCTA(),
-                    fontSize = screenFontSize(x = 13.0).sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
-                    fontStyle = FontStyle.Italic,
-                    modifier = Modifier.padding(top = screenHeight(x = 4.0))
+                    text = "Dial *334# →",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = primary
                 )
             }
-            Icon(
-                painter = painterResource(id = R.drawable.ic_phone_ussd),
-                contentDescription = "USSD Dial",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(screenWidth(x = 32.0))
-            )
         }
     }
-}
-
-/**
- * Returns a captivating call-to-action text
- */
-private fun getCaptivatingCTA(): String {
-    val ctas = listOf(
-        "Once you go USSD, you don't go back! 🚀",
-        "Tap to transact like a pro! ⚡",
-        "Your wallet's best friend is just a tap away 💰",
-        "Quick! Send money faster than lightning ⚡💸",
-        "USSD: Because life's too short for slow transfers 🚀",
-        "Make it rain with *334#! 💸",
-        "The fastest way to move your money! 🏃‍♂️💨"
-    )
-    return ctas.random()
 }

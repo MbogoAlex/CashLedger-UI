@@ -29,6 +29,7 @@ data class TransactionsHubUiState(
     val userDetails: UserDetails = UserDetails(),
     val preferences: UserPreferences = userPreferences,
     val recentTransactions: List<TransactionItem> = emptyList(),
+    val latestTransactions: List<TransactionItem> = emptyList(),
     val topMoneyIn: List<IndividualSortedTransactionItem> = emptyList(),
     val topMoneyOut: List<IndividualSortedTransactionItem> = emptyList(),
     val totalMoneyIn: Double = 0.0,
@@ -78,6 +79,7 @@ class TransactionsHubScreenViewModel(
             if (users.isNotEmpty()) {
                 _uiState.update { it.copy(userDetails = users[0]) }
                 fetchAll()
+                loadLatestTransactions()
             }
         }
     }
@@ -201,6 +203,31 @@ class TransactionsHubScreenViewModel(
                     Log.e("TransactionsHubVM", "fetchAll: $e")
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
                 }
+            }
+        }
+    }
+
+    private fun loadLatestTransactions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val query = transactionService.createUserTransactionQuery(
+                    userId = uiState.value.userDetails.backUpUserId.toInt(),
+                    entity = null,
+                    categoryId = null,
+                    budgetId = null,
+                    transactionType = null,
+                    latest = true,
+                    moneyDirection = null,
+                    startDate = LocalDate.now().minusYears(10),
+                    endDate = LocalDate.now()
+                )
+                transactionService.getUserTransactions(query).collect { list ->
+                    _uiState.update {
+                        it.copy(latestTransactions = list.map { it.toTransactionItem() }.take(5))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("TransactionsHubVM", "loadLatestTransactions: $e")
             }
         }
     }

@@ -355,10 +355,8 @@ fun DashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(
-                top = screenHeight(x = 16.0),
-                bottom = screenHeight(x = 20.0)
-            )
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Hero Balance Card with integrated stats
         HeroBalanceCard(
@@ -372,38 +370,26 @@ fun DashboardScreen(
             selectedTimePeriod = selectedTimePeriod,
             availableYears = availableYears,
             onPeriodSelected = onPeriodSelected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        
         // USSD Quick Action Button
         val context = LocalContext.current
         UssdQuickActionButton(
             onClick = {
                 context.dialUssd("*334#")
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
+            modifier = Modifier.fillMaxWidth()
         )
-        
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        
+
         // Recent Transactions Section
         RecentTransactionsSection(
             transactions = transactions,
             onSeeAllClick = navigateToTransactionsScreen,
             onTransactionClick = navigateToTransactionDetailsScreen,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
+            modifier = Modifier.fillMaxWidth()
         )
-        
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-        
+
         // Categories Section
         CategoriesSection(
             categories = transactionCategories,
@@ -412,12 +398,8 @@ fun DashboardScreen(
             onAddClick = navigateToCategoryAdditionScreen,
             onCategoryClick = navigateToCategoryDetailsScreen,
             onShowSubscriptionDialog = onShowSubscriptionDialog,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
+            modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
 
         // Budget Health Widget
         BudgetHealthWidget(
@@ -425,18 +407,15 @@ fun DashboardScreen(
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             navigateToAllBudgets = navigateToAllBudgets,
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth(x = 16.0))
+            modifier = Modifier.fillMaxWidth()
         )
-
     }
 
 
 }
 
 /**
- * Categories Section - Modern card-based categories display
+ * Categories Section — header inside ElevatedCard (BudgetHealthWidget pattern)
  */
 @Composable
 fun CategoriesSection(
@@ -453,129 +432,156 @@ fun CategoriesSection(
         "Food & Drink", "Shopping", "Savings", "Utilities",
         "School Fees", "Healthcare", "Airtime & Data", "Family"
     )
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Categories",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            TextButton(
-                onClick = if (categories.isEmpty()) onAddClick else onSeeAllClick,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+    if (categories.isEmpty()) {
+        ElevatedCard(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Box(
+                modifier = Modifier.fillMaxWidth().background(
+                    Brush.linearGradient(listOf(
+                        primary.copy(alpha = 0.12f),
+                        tertiary.copy(alpha = 0.06f),
+                        primary.copy(alpha = 0.04f)
+                    ))
+                )
             ) {
-                if (categories.isEmpty()) {
-                    Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                } else {
-                    Text("See All", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(painter = painterResource(R.drawable.ic_arrow_right), contentDescription = null, modifier = Modifier.size(16.dp))
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        if (categories.isEmpty()) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().background(
-                        Brush.linearGradient(listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
-                        ))
-                    )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    // Header row inside card
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chart),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            text = "See Where Your Money Really Goes",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = "Categories group your M-PESA transactions so you can track spending on rent, food, transport and more — all in one place. You can also set budgets per category.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        // Quick picks
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(R.drawable.star),
+                                painter = painterResource(R.drawable.categories),
                                 contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                modifier = Modifier.size(20.dp),
+                                tint = primary
                             )
-                            Spacer(Modifier.width(5.dp))
-                            Text(
-                                text = "Quick picks",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Categories", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            quickPicks.forEach { suggestion ->
-                                Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = txAvatarColor(suggestion).copy(alpha = 0.15f),
-                                    modifier = Modifier.clickable(
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }
-                                    ) { onAddClick() }
-                                ) {
-                                    Text(
-                                        text = suggestion,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = txAvatarColor(suggestion),
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                    )
-                                }
+                        TextButton(onClick = onAddClick, contentPadding = PaddingValues(0.dp)) {
+                            Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(14.dp), tint = primary)
+                            Spacer(Modifier.width(4.dp))
+                            Text("New", style = MaterialTheme.typography.labelSmall, color = primary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.chart),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = primary
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "See Where Your Money Really Goes",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Categories group your M-PESA transactions so you can track spending on rent, food, transport and more — all in one place. You can also set budgets per category.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    // Quick picks
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.star),
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = primary
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = "Quick picks",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        quickPicks.forEach { suggestion ->
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = txAvatarColor(suggestion).copy(alpha = 0.15f),
+                                modifier = Modifier.clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onAddClick() }
+                            ) {
+                                Text(
+                                    text = suggestion,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = txAvatarColor(suggestion),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
                             }
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = onAddClick,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Create a Category", fontWeight = FontWeight.SemiBold)
-                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onAddClick,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Create a Category", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
-        } else {
-            ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        }
+    } else {
+        ElevatedCard(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Box(
+                modifier = Modifier.fillMaxWidth().background(
+                    Brush.linearGradient(listOf(
+                        primary.copy(alpha = 0.12f),
+                        tertiary.copy(alpha = 0.06f),
+                        primary.copy(alpha = 0.04f)
+                    ))
+                )
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    // Header row inside card
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.categories),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Categories", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                        TextButton(onClick = onSeeAllClick, contentPadding = PaddingValues(0.dp)) {
+                            Text("See All", style = MaterialTheme.typography.labelSmall, color = primary, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(2.dp))
+                            Icon(painter = painterResource(R.drawable.ic_arrow_right), contentDescription = null, modifier = Modifier.size(14.dp), tint = primary)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                     categories.take(3).forEachIndexed { index, category ->
                         val isLocked = index != 0 && !premium
                         val totalIn = remember(category) {
@@ -590,6 +596,12 @@ fun CategoriesSection(
                         val avatarColor = txAvatarColor(category.name)
                         val budget = category.budgets.firstOrNull()
 
+                        if (index > 0) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            )
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -600,7 +612,7 @@ fun CategoriesSection(
                                     if (isLocked) onShowSubscriptionDialog()
                                     else onCategoryClick(category.id.toString())
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -632,7 +644,7 @@ fun CategoriesSection(
                                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
-                                        Text("${category.transactions.size} txn", fontSize = 10.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+                                        Text("${category.transactions.size} txn", fontSize = 10.sp, fontWeight = FontWeight.Medium, color = primary)
                                     }
                                     if (budget != null) {
                                         Box(
@@ -657,9 +669,6 @@ fun CategoriesSection(
                                 Text("+Ksh ${String.format("%,.0f", totalIn)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
                                 Text("-Ksh ${String.format("%,.0f", totalOut)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                             }
-                        }
-                        if (index < minOf(categories.size, 3) - 1) {
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                         }
                     }
                 }

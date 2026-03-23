@@ -540,7 +540,7 @@ fun VisualChartSection(
 }
 
 /**
- * Redesigned Recent Transactions Section with card layout
+ * Redesigned Recent Transactions Section — header inside ElevatedCard (BudgetHealthWidget pattern)
  */
 @Composable
 fun RecentTransactionsSection(
@@ -549,57 +549,105 @@ fun RecentTransactionsSection(
     onTransactionClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth()
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    ElevatedCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp)
     ) {
-        // Section header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primary.copy(alpha = 0.12f),
+                            tertiary.copy(alpha = 0.06f),
+                            primary.copy(alpha = 0.04f)
+                        )
+                    )
+                )
         ) {
-            Text(
-                text = "Recent Activity",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            TextButton(
-                onClick = onSeeAllClick,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = "See All",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_right),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        if (transactions.isEmpty()) {
-            // Empty state
-            EmptyStateCard(
-                icon = R.drawable.list,
-                message = "No transactions yet",
-                subtitle = "Your recent transactions will appear here"
-            )
-        } else {
-            // Transaction cards
-            transactions.take(3).forEach { transaction ->
-                TransactionCard(
-                    transaction = transaction,
-                    onClick = { onTransactionClick(transaction.transactionId.toString()) },
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Header row — title + action inside the card
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.list),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Recent Activity",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    TextButton(
+                        onClick = onSeeAllClick,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "See All",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = primary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                if (transactions.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.list),
+                            contentDescription = null,
+                            tint = primary.copy(alpha = 0.4f),
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No recent transactions",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Start transacting to see activity here",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                } else {
+                    transactions.take(3).forEach { transaction ->
+                        TransactionCard(
+                            transaction = transaction,
+                            onClick = { onTransactionClick(transaction.transactionId.toString()) },
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                }
             }
         }
     }
