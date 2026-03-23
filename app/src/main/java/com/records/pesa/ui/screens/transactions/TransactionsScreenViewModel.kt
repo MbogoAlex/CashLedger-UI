@@ -100,7 +100,7 @@ class TransactionsScreenViewModel(
                 startDate = defaultStartDate ?: startDate.toString(),
                 endDate = defaultEndDate ?: endDate.toString(),
                 categoryId = categoryId?.toInt(),
-                budgetId = budgetId?.toInt(),
+                budgetId = budgetId?.toIntOrNull()?.takeIf { it > 0 },
                 categoryName = savedStateHandle[TransactionsScreenDestination.categoryName],
                 budgetName = savedStateHandle[TransactionsScreenDestination.budgetName],
                 defaultStartDate = defaultStartDate,

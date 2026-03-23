@@ -268,8 +268,8 @@ fun BudgetInfoScreen(
                     onClick = {
                         navigateToTransactionsScreen(
                             budget.categoryId,
-                            budget.id,
-                            budget.createdAt.toLocalDate().toString(),
+                            0, // no direct transaction↔budget link; filter by categoryId + date range
+                            budget.startDate.toString(),
                             budget.limitDate.toString()
                         )
                     },
