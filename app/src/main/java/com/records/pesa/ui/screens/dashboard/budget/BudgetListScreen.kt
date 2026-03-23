@@ -36,6 +36,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -139,6 +140,7 @@ fun BudgetListScreenComposable(
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit = {},
+    navigateToSubscriptionScreen: () -> Unit = {},
     showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -178,6 +180,7 @@ fun BudgetListScreenComposable(
             navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
             navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
             navigateToPreviousScreen = navigateToPreviousScreen,
+            navigateToSubscriptionScreen = navigateToSubscriptionScreen,
             showBackArrow = showBackArrow
         )
     }
@@ -206,6 +209,7 @@ fun BudgetListScreen(
     navigateToBudgetCreationScreen: () -> Unit,
     navigateToBudgetCreationScreenWithCategoryId: (categoryId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit = {},
     showBackArrow: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -227,7 +231,7 @@ fun BudgetListScreen(
             },
             title = { Text("Premium Feature") },
             text = { Text("Free accounts can only have 1 active budget. Upgrade to unlock unlimited budgets, AI insights, and more.") },
-            confirmButton = { TextButton(onClick = { showPremiumGateDialog = false }) { Text("Upgrade") } },
+            confirmButton = { TextButton(onClick = { showPremiumGateDialog = false; navigateToSubscriptionScreen() }) { Text("Upgrade") } },
             dismissButton = { TextButton(onClick = { showPremiumGateDialog = false }) { Text("Not now") } }
         )
     }
@@ -482,35 +486,149 @@ fun BudgetListScreen(
                 }
             }
 
+            // ── Free user limit banner ────────────────────────────────────────
+            if (!isPremium && activeCount >= 1) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Free plan: 1 active budget",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Text(
+                                    text = "Upgrade for unlimited budgets + standalone budgets",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            TextButton(
+                                onClick = navigateToSubscriptionScreen,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "Upgrade →",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Empty state ──────────────────────────────────────────────────
             if (budgets.isEmpty()) {
                 item {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 48.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.budget_2),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No budgets yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Tap + to create your first budget.\nA budget belongs to a category — create a category first.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
+                    if (searchQuery.isNotEmpty()) {
+                        // Search returned nothing
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth().padding(32.dp)
+                        ) {
+                            Icon(painter = painterResource(R.drawable.search), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(48.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text("No budgets match \"$searchQuery\"", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        }
+                    } else {
+                        // No budgets at all — entice user
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().background(
+                                    Brush.linearGradient(listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.07f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
+                                    ))
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.budget_2),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(52.dp)
+                                    )
+                                    Spacer(Modifier.height(14.dp))
+                                    Text(
+                                        text = "Take Control of Your Spending",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = "Set a budget for any category — rent, groceries, transport — and get notified before you overspend. Know exactly how much you have left, every day.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    // Tips row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf("📊 Track spending", "🔔 Get alerts", "📅 Set periods").forEach { tip ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                                            ) {
+                                                Text(tip, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(20.dp))
+                                    Button(
+                                        onClick = navigateToBudgetCreationScreen,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Create Your First Budget", fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = "💡 Tip: Create a category first, then set a budget for it.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -236,7 +236,7 @@ fun HomeScreenComposable(
             tabs = listOf(
                 HomeScreenTabItem("Home", R.drawable.home, HomeScreenTab.HOME),
                 HomeScreenTabItem("Transactions", R.drawable.transactions, HomeScreenTab.ALL_TRANSACTIONS),
-                HomeScreenTabItem("Transact", R.drawable.ic_add, HomeScreenTab.TRANSACT),
+                HomeScreenTabItem("Budgets", R.drawable.budget_2, HomeScreenTab.BUDGETS),
                 HomeScreenTabItem("Categories", R.drawable.categories, HomeScreenTab.CATEGORIES),
                 HomeScreenTabItem("Profile", R.drawable.account_info, HomeScreenTab.ACCOUNT_INFO),
             ),
@@ -398,6 +398,7 @@ fun HomeScreen(
                         navigateToBudgetCreationScreenWithCategoryId = navigateToBudgetCreationScreenWithCategoryId,
                         navigateToPreviousScreen = navigateToPreviousScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         showBackArrow = false,
                         modifier = Modifier
                     )
