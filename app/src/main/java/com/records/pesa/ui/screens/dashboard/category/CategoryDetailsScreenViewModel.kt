@@ -25,9 +25,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.temporal.ChronoUnit
+import com.records.pesa.ui.screens.dashboard.budget.BudgetStatus
+import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -86,7 +90,8 @@ data class CategoryDetailsScreenUiState(
     val inlineBudgetStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     val inlineBudgetEndDate: LocalDate? = null,
     val inlineBudgetSaving: Boolean = false,
-    val inlineBudgetSaved: Boolean = false
+    val inlineBudgetSaved: Boolean = false,
+    val budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap()
 )
 
 class CategoryDetailsScreenViewModel(
@@ -756,6 +761,47 @@ class CategoryDetailsScreenViewModel(
         }
     }
 
+    private fun loadBudgetProgress() {
+        val catId = _uiState.value.categoryId.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.getBudgetsByCategoryId(catId).collectLatest { budgets ->
+                val today = LocalDate.now()
+                val progressMap = mutableMapOf<Int, BudgetWithProgress>()
+                for (budget in budgets) {
+                    val spending = dbRepository.getOutflowForCategory(
+                        budget.categoryId, budget.startDate, budget.limitDate
+                    ).first()
+                    val totalDays = ChronoUnit.DAYS.between(budget.startDate, budget.limitDate).toInt().coerceAtLeast(1)
+                    val daysElapsed = ChronoUnit.DAYS.between(budget.startDate, today).toInt().coerceIn(0, totalDays)
+                    val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)
+                    val percentUsed = if (budget.budgetLimit > 0)
+                        ((spending / budget.budgetLimit) * 100).toInt().coerceAtLeast(0)
+                    else 0
+                    val remaining = (budget.budgetLimit - spending).coerceAtLeast(0.0)
+                    val isOverBudget = spending > budget.budgetLimit
+                    val isExpired = budget.limitDate.isBefore(today) && !isOverBudget
+                    val status = when {
+                        isOverBudget      -> BudgetStatus.EXCEEDED
+                        isExpired         -> BudgetStatus.EXPIRED
+                        percentUsed >= 70 -> BudgetStatus.WARNING
+                        else              -> BudgetStatus.ON_TRACK
+                    }
+                    progressMap[budget.id] = BudgetWithProgress(
+                        budget = budget,
+                        actualSpending = spending,
+                        percentUsed = percentUsed,
+                        remaining = remaining,
+                        isOverBudget = isOverBudget,
+                        daysLeft = daysLeft,
+                        status = status,
+                        categoryName = _uiState.value.category.name
+                    )
+                }
+                _uiState.update { it.copy(budgetProgressMap = progressMap) }
+            }
+        }
+    }
+
     fun getUserDetails() {
         viewModelScope.launch {
             _uiState.update { it.copy(userDetails = dbRepository.getUsers().first()[0]) }
@@ -767,6 +813,7 @@ class CategoryDetailsScreenViewModel(
     init {
         _uiState.update { it.copy(categoryId = categoryId!!) }
         loadPreferences()
+        loadBudgetProgress()
         getUserDetails()
     }
 }

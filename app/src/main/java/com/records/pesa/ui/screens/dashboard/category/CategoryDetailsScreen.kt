@@ -40,7 +40,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -76,6 +78,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -96,6 +99,8 @@ import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.components.SubscriptionDialog
+import com.records.pesa.ui.screens.dashboard.budget.BudgetStatus
+import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -256,7 +261,8 @@ fun CategoryDetailsScreenComposable(
             onInlineBudgetLimitChange = { viewModel.updateInlineBudgetLimit(it) },
             onInlineBudgetStartDateChange = { viewModel.updateInlineBudgetStartDate(it) },
             onInlineBudgetEndDateChange = { viewModel.updateInlineBudgetEndDate(it) },
-            onCreateInlineBudget = { viewModel.createInlineBudget() }
+            onCreateInlineBudget = { viewModel.createInlineBudget() },
+            budgetProgressMap = uiState.budgetProgressMap
         )
     }
 }
@@ -306,6 +312,7 @@ fun CategoryDetailsScreen(
     onInlineBudgetStartDateChange: (LocalDate) -> Unit = {},
     onInlineBudgetEndDateChange: (LocalDate) -> Unit = {},
     onCreateInlineBudget: () -> Unit = {},
+    budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -832,13 +839,51 @@ fun CategoryDetailsScreen(
                                 Column {
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                     if (category.budgets.isEmpty()) {
-                                        Text(
-                                            "No budgets yet",
-                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                            textAlign = TextAlign.Center,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                            fontSize = 13.sp
-                                        )
+                                        ElevatedCard(
+                                            shape = RoundedCornerShape(16.dp),
+                                            colors = CardDefaults.elevatedCardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                            ),
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.budget_2),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(36.dp),
+                                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                                )
+                                                Spacer(Modifier.height(4.dp))
+                                                Text(
+                                                    "No active budget",
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    "Track your spending by creating a budget for this category.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                                Spacer(Modifier.height(8.dp))
+                                                Button(
+                                                    onClick = onToggleInlineBudgetForm,
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_add),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text("Create Budget", fontWeight = FontWeight.SemiBold)
+                                                }
+                                            }
+                                        }
                                     } else {
                                         Column(
                                             modifier = Modifier.padding(16.dp),
@@ -847,6 +892,7 @@ fun CategoryDetailsScreen(
                                             category.budgets.forEach { budget ->
                                                 BudgetRow(
                                                     budget = budget,
+                                                    progress = budgetProgressMap[budget.id],
                                                     onClick = { navigateToBudgetInfoScreen(budget.id.toString()) }
                                                 )
                                             }
@@ -1607,42 +1653,197 @@ private fun LegendDot(color: Color, label: String) {
 }
 
 @Composable
-private fun BudgetRow(budget: CategoryBudget, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
-    val spent    = budget.budgetLimit - (budget.exceededBy * -1).coerceAtMost(budget.budgetLimit)
-    val fraction = if (budget.budgetLimit > 0) (spent / budget.budgetLimit).toFloat().coerceIn(0f, 1f) else 0f
-    val overBudget = budget.limitReached || budget.exceededBy > 0
-    val barColor = if (overBudget) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+private fun BudgetRow(
+    budget: CategoryBudget,
+    progress: BudgetWithProgress?,
+    onClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val status = progress?.status ?: BudgetStatus.ON_TRACK
+    val actualSpending = progress?.actualSpending ?: 0.0
+    val percentUsed = progress?.percentUsed ?: 0
+    val remaining = progress?.remaining ?: budget.budgetLimit
+    val daysLeft = progress?.daysLeft ?: 0
+    val fraction = (percentUsed / 100f).coerceIn(0f, 1f)
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    val gradientBrush = when (status) {
+        BudgetStatus.ON_TRACK -> Brush.linearGradient(
+            listOf(colorScheme.primary, colorScheme.primary.copy(alpha = 0.85f))
+        )
+        BudgetStatus.WARNING -> Brush.linearGradient(
+            listOf(Color(0xFFF57C00), Color(0xFFE65100))
+        )
+        BudgetStatus.EXCEEDED -> Brush.linearGradient(
+            listOf(colorScheme.error, colorScheme.error.copy(alpha = 0.85f))
+        )
+        BudgetStatus.EXPIRED -> Brush.linearGradient(
+            listOf(colorScheme.onSurfaceVariant.copy(alpha = 0.6f), colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+        )
+    }
+
+    val statusLabel = when (status) {
+        BudgetStatus.ON_TRACK -> "Active"
+        BudgetStatus.WARNING  -> "Warning"
+        BudgetStatus.EXCEEDED -> "Exceeded!"
+        BudgetStatus.EXPIRED  -> "Expired"
+    }
+
+    val animatedFraction by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "budgetProgress"
+    )
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth()
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(budget.name ?: "Budget", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            Text(
-                "KES ${String.format("%,.0f", budget.budgetLimit)}",
-                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
         Box(
-            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(gradientBrush)
         ) {
-            Box(Modifier.fillMaxWidth(fraction).fillMaxSize().clip(RoundedCornerShape(3.dp)).background(barColor))
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                if (overBudget) "Over budget by KES ${String.format("%,.0f", budget.exceededBy)}"
-                else "${(fraction * 100).toInt()}% used",
-                fontSize = 10.sp, color = barColor
-            )
-            Text(
-                "Until: ${budget.limitDate.take(10)}",
-                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Header row: name + status badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.budget_2),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White
+                        )
+                        Text(
+                            text = budget.name ?: "Budget",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = statusLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Spending + days left row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        text = "KES ${String.format("%,.0f", actualSpending)} spent",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = if (status == BudgetStatus.EXPIRED) "Expired" else "${daysLeft}d left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                }
+                Text(
+                    text = "of KES ${String.format("%,.0f", budget.budgetLimit)} limit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Progress bar
+                LinearProgressIndicator(
+                    progress = { animatedFraction },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.3f),
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Percent used + remaining row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${percentUsed}% used",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                    Text(
+                        text = "KES ${String.format("%,.0f", remaining)} left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                }
+
+                // Projection insight
+                if (progress != null && daysLeft > 0 && actualSpending > 0) {
+                    val dbBudget = progress.budget
+                    val totalDays = java.time.temporal.ChronoUnit.DAYS.between(dbBudget.startDate, dbBudget.limitDate).toInt().coerceAtLeast(1)
+                    val daysElapsed = (totalDays - daysLeft).coerceAtLeast(1)
+                    val projectedTotal = actualSpending / daysElapsed * totalDays
+
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "⚡ At this rate: KES ${String.format("%,.0f", projectedTotal)} projected by ${budget.limitDate.take(10)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontStyle = FontStyle.Italic
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // View Details button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onClick) {
+                        Text(
+                            text = "View Details",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
         }
     }
 }
