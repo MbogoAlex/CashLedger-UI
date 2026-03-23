@@ -187,6 +187,7 @@ fun BudgetInfoScreen(
             SpendingTrendCard(
                 trendData = uiState.trendData,
                 dailyBudget = uiState.dailyBudget,
+                dailyLimitLine = uiState.dailyLimitLine,
                 isPremium = uiState.isPremium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
@@ -542,6 +543,7 @@ private fun HeroStatChip(
 private fun SpendingTrendCard(
     trendData: List<TrendPoint>,
     dailyBudget: Double,
+    dailyLimitLine: Double,
     isPremium: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -572,6 +574,18 @@ private fun SpendingTrendCard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // How-to-read caption
+            Text(
+                text = "Each bar = spending per period. The dashed line = daily limit to stay on budget. " +
+                    "🟢 Within limit  🟠 Slightly over  🔴 Over limit",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                lineHeight = 14.sp
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             if (trendData.isEmpty()) {
@@ -589,7 +603,7 @@ private fun SpendingTrendCard(
                     )
                 }
             } else {
-                val maxVal = trendData.maxOf { it.totalOut }.coerceAtLeast(1.0)
+                val maxVal = trendData.maxOf { it.totalOut }.coerceAtLeast(dailyLimitLine).coerceAtLeast(1.0)
                 val showN  = if (trendData.size <= 7) 1 else ceil(trendData.size / 7.0).toInt()
 
                 Box {
@@ -614,9 +628,9 @@ private fun SpendingTrendCard(
                             val gap = 4.dp.toPx()
                             val barW = ((w - gap * (barCount + 1)) / barCount).coerceAtLeast(4f)
 
-                            // Draw daily limit dashed line
-                            if (dailyBudget > 0) {
-                                val limitY = h - (dailyBudget / maxVal).toFloat() * h
+                            // Draw daily limit dashed line using dailyLimitLine (fixed: budgetLimit / totalDays)
+                            if (dailyLimitLine > 0) {
+                                val limitY = h - (dailyLimitLine / maxVal).toFloat() * h
                                 drawLine(
                                     color = limitColor,
                                     start = Offset(0f, limitY),
@@ -630,11 +644,13 @@ private fun SpendingTrendCard(
                                 val barH = (point.totalOut / maxVal).toFloat() * h
                                 val left = gap + i * (barW + gap)
                                 val top  = h - barH
+                                // Use dailyLimitLine (not dailyBudget) so coloring is accurate
+                                // even when budget is over and remaining=0
                                 val barColor = when {
-                                    dailyBudget <= 0            -> greenColor
-                                    point.totalOut > dailyBudget * 1.5 -> redColor
-                                    point.totalOut > dailyBudget       -> orangeColor
-                                    else                        -> greenColor
+                                    dailyLimitLine <= 0                        -> greenColor
+                                    point.totalOut > dailyLimitLine * 1.5     -> redColor
+                                    point.totalOut > dailyLimitLine            -> orangeColor
+                                    else                                       -> greenColor
                                 }
                                 drawRoundRect(
                                     color = barColor,
@@ -916,10 +932,8 @@ private fun BudgetTransactionRow(
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
-    val isOutflow = transaction.transactionType.contains("sent", ignoreCase = true)
-        || transaction.transactionType.contains("pay", ignoreCase = true)
-        || transaction.transactionType.contains("withdraw", ignoreCase = true)
-        || transaction.transactionType.contains("airtime", ignoreCase = true)
+    // Use amount sign as source of truth — more reliable than type string matching
+    val isOutflow = transaction.transactionAmount < 0
 
     val amountColor = if (isOutflow)
         MaterialTheme.colorScheme.error
@@ -927,6 +941,9 @@ private fun BudgetTransactionRow(
         Color(0xFF388E3C)
 
     val prefix = if (isOutflow) "-" else "+"
+    val displayName = (transaction.nickName?.trim()?.ifBlank { null }
+        ?: transaction.entity.trim().ifBlank { null }
+        ?: transaction.transactionType)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -945,8 +962,7 @@ private fun BudgetTransactionRow(
                 .background(MaterialTheme.colorScheme.primaryContainer)
         ) {
             Text(
-                text = (transaction.nickName ?: transaction.entity)
-                    .firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.Bold
@@ -957,21 +973,31 @@ private fun BudgetTransactionRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = transaction.nickName ?: transaction.entity,
+                text = displayName,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = transaction.time.format(timeFormatter),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = transaction.transactionType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Text(
+                    text = "· ${transaction.time.format(timeFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Text(
-            text = "$prefix${formatMoneyValue(transaction.transactionAmount)}",
+            text = "$prefix${formatMoneyValue(abs(transaction.transactionAmount))}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = amountColor

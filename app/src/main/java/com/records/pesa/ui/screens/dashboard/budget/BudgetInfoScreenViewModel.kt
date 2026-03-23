@@ -44,7 +44,8 @@ data class BudgetInfoScreenUiState(
     val daysLeft: Int = 0,
     val daysElapsed: Int = 0,
     val totalDays: Int = 0,
-    val dailyBudget: Double = 0.0,
+    val dailyBudget: Double = 0.0,       // remaining / daysLeft (forward-looking)
+    val dailyLimitLine: Double = 0.0,    // budgetLimit / totalDays (fixed reference for chart)
     val dailyAvg: Double = 0.0,
     val projectedTotal: Double = 0.0,
     // Chart + insights
@@ -158,6 +159,7 @@ class BudgetInfoScreenViewModel(
         val isOverBudget = spending > budget.budgetLimit
         val overage = if (isOverBudget) spending - budget.budgetLimit else 0.0
         val dailyBudget = if (daysLeft > 0) remaining / daysLeft else 0.0
+        val dailyLimitLine = if (totalDays > 0) budget.budgetLimit / totalDays else 0.0
         val dailyAvg = if (daysElapsed > 0) spending / daysElapsed else 0.0
         val projectedTotal = dailyAvg * totalDays
 
@@ -172,6 +174,7 @@ class BudgetInfoScreenViewModel(
                 daysElapsed = daysElapsed,
                 totalDays = totalDays,
                 dailyBudget = dailyBudget,
+                dailyLimitLine = dailyLimitLine,
                 dailyAvg = dailyAvg,
                 projectedTotal = projectedTotal
             )
