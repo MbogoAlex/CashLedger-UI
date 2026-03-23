@@ -27,16 +27,19 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -141,41 +144,52 @@ fun BudgetCreationScreen(
         picker.show()
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = screenWidth(x = 16.0),
-                vertical = screenHeight(x = 8.0)
-            )
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Top bar
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+    Column(modifier = modifier.fillMaxSize()) {
+
+        // ── Fixed top bar ─────────────────────────────────────────────────
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp
         ) {
-            IconButton(onClick = navigateToPreviousScreen) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = "Back",
-                    modifier = Modifier.size(screenWidth(x = 24.0)),
-                    tint = MaterialTheme.colorScheme.onSurface
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .size(22.dp)
+                            .scale(scaleX = -1f, scaleY = 1f),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = "Set Budget",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Set Budget",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 18.0).sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            // balance the back button
-            Spacer(modifier = Modifier.size(screenWidth(x = 48.0)))
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+        // ── Scrollable content ────────────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = screenWidth(x = 16.0),
+                    vertical = screenHeight(x = 8.0)
+                )
+                .verticalScroll(rememberScrollState())
+        ) {
 
         // Hero header card
         Card(
@@ -383,5 +397,6 @@ fun BudgetCreationScreen(
         }
 
         Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-    }
+        } // end scrollable Column
+    } // end outer Column
 }

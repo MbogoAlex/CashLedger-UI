@@ -42,10 +42,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -62,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -243,15 +247,18 @@ fun BudgetListScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = modifier
                 .padding(innerPadding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp)
+                .fillMaxSize()
         ) {
-
-            // ── Top bar ──────────────────────────────────────────────────────
-            item {
+            // ── Fixed top bar ─────────────────────────────────────────────
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -261,65 +268,79 @@ fun BudgetListScreen(
                     if (showBackArrow) {
                         IconButton(onClick = navigateToPreviousScreen) {
                             Icon(
-                                painter = painterResource(R.drawable.arrow_back),
+                                painter = painterResource(R.drawable.ic_arrow_right),
                                 contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onBackground
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .scale(scaleX = -1f, scaleY = 1f),
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
                     if (searchingOn) {
-                        TextField(
+                        OutlinedTextField(
                             value = searchQuery,
                             onValueChange = onChangeSearchQuery,
-                            placeholder = { Text("Search budgets…", fontSize = screenFontSize(x = 14.0).sp) },
-                            singleLine = true,
+                            placeholder = {
+                                Text(
+                                    "Search budgets…",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            },
                             trailingIcon = {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.inverseOnSurface)
-                                        .padding(screenWidth(x = 5.0))
-                                        .clickable { onClearSearch(); searchingOn = false }
-                                ) {
+                                IconButton(onClick = { onClearSearch(); searchingOn = false }) {
                                     Icon(
-                                        painter = painterResource(R.drawable.remove),
-                                        contentDescription = "Clear",
-                                        modifier = Modifier.size(16.dp)
+                                        painter = painterResource(R.drawable.baseline_clear_24),
+                                        contentDescription = "Close search",
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             },
-                            colors = TextFieldDefaults.colors(
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
                             ),
-                            keyboardOptions = KeyboardOptions.Default.copy(
-                                imeAction = ImeAction.Done,
-                                keyboardType = KeyboardType.Text
-                            ),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         )
                     } else {
-                        Text(
-                            text = categoryName?.let { "$it Budgets" } ?: "My Budgets",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                        Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 4.dp)
-                        )
+                                .padding(start = 4.dp)
+                        ) {
+                            Text(
+                                text = categoryName?.let { "$it Budgets" } ?: "My Budgets",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         IconButton(onClick = { searchingOn = true }) {
                             Icon(
-                                painter = painterResource(R.drawable.list),
+                                painter = painterResource(R.drawable.search),
                                 contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onBackground
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            // ── Scrollable content ────────────────────────────────────────
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
 
             // ── Summary card (CatPeriodPicker-style gradient) ─────────────
             item {
@@ -540,7 +561,8 @@ fun BudgetListScreen(
                     }
                 )
             }
-        }
+        } // end LazyColumn
+        } // end Column
     }
 }
 

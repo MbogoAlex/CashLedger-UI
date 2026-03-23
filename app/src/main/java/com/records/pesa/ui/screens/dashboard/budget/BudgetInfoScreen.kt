@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.scale
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -154,18 +155,67 @@ fun BudgetInfoScreen(
 ) {
     val budget = uiState.budget
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 32.dp)
-    ) {
-        // 1. Top Bar
-        item {
-            BudgetTopBar(
-                title = budget?.name ?: uiState.budgetName,
-                onBack = navigateToPreviousScreen,
-                onEdit = onEditClick
-            )
+    Column(modifier = modifier.fillMaxSize()) {
+
+        // ── Fixed top bar ─────────────────────────────────────────────────
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .size(22.dp)
+                            .scale(scaleX = -1f, scaleY = 1f),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = budget?.name ?: uiState.budgetName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 4.dp)
+                )
+                IconButton(onClick = onEditClick) {
+                    Icon(
+                        painter = painterResource(R.drawable.edit),
+                        contentDescription = "Edit budget",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        painter = painterResource(R.drawable.remove),
+                        contentDescription = "Delete budget",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+        // ── Scrollable content ────────────────────────────────────────────
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
 
         // 2. Hero Stats Card
         item {
@@ -338,7 +388,8 @@ fun BudgetInfoScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
-    }
+    } // end LazyColumn
+    } // end Column
 }
 
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
