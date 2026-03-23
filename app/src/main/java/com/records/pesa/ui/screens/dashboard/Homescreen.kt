@@ -100,6 +100,7 @@ import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.backup.BackupScreenComposable
 import com.records.pesa.ui.screens.contact.ContactFormScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.profile.AccountInformationScreenComposable
 import com.records.pesa.ui.screens.transactionTypes.TransactionTypesScreenComposable
@@ -265,7 +266,8 @@ fun HomeScreenComposable(
             navigateToTransactionsScreenWithTransactionType = {transactionType, moneyDirection, startDate, endDate ->
                 navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
             },
-            navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen
+            navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
+            budgets = uiState.budgets
         )
     }
 }
@@ -306,6 +308,7 @@ fun HomeScreen(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToTransactionsScreenWithTransactionType: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     navigateToUpdatePasswordScreen: () -> Unit,
+    budgets: List<BudgetWithProgress> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -330,7 +333,11 @@ fun HomeScreen(
                         navigateToCategoryDetailsScreen = navigateToCategoryDetailsScreen,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-                        navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen
+                        navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
+                        budgets = budgets,
+                        navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
+                        navigateToAllBudgets = { onTabChange(HomeScreenTab.BUDGETS) },
+                        navigateToBudgetCreationScreen = navigateToBudgetCreationScreen
                     )
                 }
                 HomeScreenTab.ALL_TRANSACTIONS -> {

@@ -9,16 +9,23 @@ import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.ui.screens.dashboard.budget.BudgetStatus
+import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 
 data class HomeScreenUiState(
     val darkMode: Boolean = false,
@@ -26,14 +33,18 @@ data class HomeScreenUiState(
     val preferences: UserPreferences = userPreferences,
     val freeTrialDays: Int = 0,
     val screen: String? = null,
-    val user: UserDetails? = null
+    val user: UserDetails? = null,
+    val budgets: List<BudgetWithProgress> = emptyList(),
+    val budgetActiveCount: Int = 0,
+    val budgetExceededCount: Int = 0
 )
 
 class HomeScreenViewModel(
     private val apiRepository: ApiRepository,
     private val dbRepository: DBRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val workersRepository: WorkersRepository
+    private val workersRepository: WorkersRepository,
+    private val categoryService: CategoryService
 ): ViewModel() {
     private val _uiState = MutableStateFlow(value = HomeScreenUiState())
     val uiState: StateFlow<HomeScreenUiState> = _uiState.asStateFlow()
@@ -111,9 +122,60 @@ class HomeScreenViewModel(
         }
     }
 
+    private fun observeBudgets() {
+        viewModelScope.launch {
+            dbRepository.getAllBudgets().collectLatest { budgets ->
+                val today = LocalDate.now()
+                val withProgress = budgets.map { budget ->
+                    val start = budget.startDate
+                    val end = budget.limitDate
+                    val spending = dbRepository.getOutflowForCategory(budget.categoryId, start, end).first()
+                    val totalDays = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
+                    val daysElapsed = ChronoUnit.DAYS.between(start, today).toInt().coerceIn(0, totalDays)
+                    val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)
+                    val percentUsed = if (budget.budgetLimit > 0)
+                        ((spending / budget.budgetLimit) * 100).roundToInt().coerceAtLeast(0)
+                    else 0
+                    val remaining = (budget.budgetLimit - spending).coerceAtLeast(0.0)
+                    val isOverBudget = spending > budget.budgetLimit
+                    val isExpired = budget.limitDate.isBefore(today) && !isOverBudget
+                    val status = when {
+                        isOverBudget     -> BudgetStatus.EXCEEDED
+                        isExpired        -> BudgetStatus.EXPIRED
+                        percentUsed >= 80 -> BudgetStatus.WARNING
+                        else             -> BudgetStatus.ON_TRACK
+                    }
+                    val catName = try {
+                        categoryService.getCategoryById(budget.categoryId).first().category.name
+                    } catch (e: Exception) { "" }
+                    BudgetWithProgress(
+                        budget = budget,
+                        actualSpending = spending,
+                        percentUsed = percentUsed,
+                        remaining = remaining,
+                        isOverBudget = isOverBudget,
+                        daysLeft = daysLeft,
+                        status = status,
+                        categoryName = catName
+                    )
+                }
+                val active = withProgress.filter { it.status != BudgetStatus.EXPIRED }
+                val exceeded = withProgress.filter { it.status == BudgetStatus.EXCEEDED }
+                _uiState.update {
+                    it.copy(
+                        budgets = withProgress,
+                        budgetActiveCount = active.size,
+                        budgetExceededCount = exceeded.size
+                    )
+                }
+            }
+        }
+    }
+
     init {
         getUserDetails()
         getUserPreferences()
+        observeBudgets()
         _uiState.update {
             it.copy(
                 screen = screen
