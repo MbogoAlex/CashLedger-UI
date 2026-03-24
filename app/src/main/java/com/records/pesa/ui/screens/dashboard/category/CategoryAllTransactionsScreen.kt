@@ -1,17 +1,29 @@
 package com.records.pesa.ui.screens.dashboard.category
 
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.SavedStateHandle
@@ -24,9 +36,14 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.nav.AppNavigation
+import com.records.pesa.service.category.CategoryService
+import com.records.pesa.ui.screens.components.TxDateHeader
+import com.records.pesa.ui.screens.components.TxEmptyState
+import com.records.pesa.ui.screens.components.txAvatarColor
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import kotlin.math.absoluteValue
 
 object CategoryAllTransactionsScreenDestination : AppNavigation {
     override val title = "All Transactions"
@@ -47,12 +64,14 @@ data class CategoryAllTransactionsUiState(
     val mpesaItems: List<Transaction> = emptyList(),
     val manualItems: List<ManualTransaction> = emptyList(),
     val filter: CombinedFilter = CombinedFilter.ALL,
+    val searchText: String = "",
     val isLoading: Boolean = true
 )
 
 class CategoryAllTransactionsScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
-    private val dbRepository: DBRepository
+    private val dbRepository: DBRepository,
+    private val categoryService: CategoryService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoryAllTransactionsUiState())
@@ -62,7 +81,20 @@ class CategoryAllTransactionsScreenViewModel(
         ?.toIntOrNull() ?: 0
 
     init {
+        loadCategoryName()
         loadData()
+    }
+
+    private fun loadCategoryName() {
+        viewModelScope.launch {
+            try {
+                categoryService.getCategoryById(categoryIdInt).collect { cat ->
+                    _uiState.update { it.copy(categoryName = cat.category.name) }
+                }
+            } catch (e: Exception) {
+                Log.e("CategoryAllTx", "Error loading category: $e")
+            }
+        }
     }
 
     private fun loadData() {
@@ -90,6 +122,10 @@ class CategoryAllTransactionsScreenViewModel(
     fun setFilter(filter: CombinedFilter) {
         _uiState.update { it.copy(filter = filter) }
     }
+
+    fun setSearchText(text: String) {
+        _uiState.update { it.copy(searchText = text) }
+    }
 }
 
 @Composable
@@ -103,136 +139,375 @@ fun CategoryAllTransactionsScreenComposable(
     CategoryAllTransactionsScreen(
         uiState = uiState,
         onFilterChange = { viewModel.setFilter(it) },
+        onSearchTextChange = { viewModel.setSearchText(it) },
         onNavigateBack = navigateToPreviousScreen,
         modifier = modifier
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CategoryAllTransactionsScreen(
     uiState: CategoryAllTransactionsUiState,
     onFilterChange: (CombinedFilter) -> Unit,
+    onSearchTextChange: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
-    val combined: List<CombinedTransactionItem> = when (uiState.filter) {
-        CombinedFilter.ALL -> {
-            val mpesa = uiState.mpesaItems.map { CombinedTransactionItem.MpesaItem(it) }
-            val manual = uiState.manualItems.map { CombinedTransactionItem.ManualItem(it) }
-            (mpesa + manual).sortedByDescending { item: CombinedTransactionItem ->
-                when (item) {
-                    is CombinedTransactionItem.MpesaItem -> item.tx.date.toString()
-                    is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
-                }
-            }
-        }
-        CombinedFilter.MPESA -> uiState.mpesaItems.map { CombinedTransactionItem.MpesaItem(it) }
-        CombinedFilter.MANUAL -> uiState.manualItems.map { CombinedTransactionItem.ManualItem(it) }
+    LaunchedEffect(showSearch) {
+        if (showSearch) focusRequester.requestFocus()
+        else { keyboard?.hide(); onSearchTextChange("") }
     }
 
-    Column(modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(painter = painterResource(R.drawable.arrow_back), contentDescription = "Back")
+    val filtered: List<CombinedTransactionItem> = remember(uiState) {
+        val search = uiState.searchText
+        val mpesaList = uiState.mpesaItems.let { list ->
+            if (search.isBlank()) list
+            else list.filter { tx ->
+                tx.entity?.contains(search, ignoreCase = true) == true ||
+                tx.transactionType.contains(search, ignoreCase = true)
             }
-            Column {
-                Text("All Transactions", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                if (uiState.categoryName.isNotBlank()) {
-                    Text(uiState.categoryName, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+        }.map { CombinedTransactionItem.MpesaItem(it) }
+
+        val manualList = uiState.manualItems.let { list ->
+            if (search.isBlank()) list
+            else list.filter { tx ->
+                tx.memberName.contains(search, ignoreCase = true) ||
+                tx.transactionTypeName.contains(search, ignoreCase = true)
             }
+        }.map { CombinedTransactionItem.ManualItem(it) }
+
+        when (uiState.filter) {
+            CombinedFilter.ALL -> (mpesaList + manualList)
+            CombinedFilter.MPESA -> mpesaList
+            CombinedFilter.MANUAL -> manualList
         }
+    }
 
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CombinedFilter.values().forEach { f ->
-                FilterChip(
-                    selected = uiState.filter == f,
-                    onClick = { onFilterChange(f) },
-                    label = { Text(f.name.lowercase().replaceFirstChar { it.uppercase() }) }
-                )
+    val groupedByDate = remember(filtered) {
+        filtered.groupBy { item ->
+            when (item) {
+                is CombinedTransactionItem.MpesaItem -> item.tx.date.toString()
+                is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
             }
-        }
+        }.entries.sortedByDescending { it.key }
+    }
 
-        Spacer(Modifier.height(8.dp))
+    Box(
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top bar
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 2.dp,
+                tonalElevation = 0.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        if (showSearch) { showSearch = false }
+                        else onNavigateBack()
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = "Back",
+                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (combined.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No transactions found", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(combined) { item ->
-                    when (item) {
-                        is CombinedTransactionItem.MpesaItem -> {
-                            val tx = item.tx
-                            ElevatedCard(
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                            ) {
-                                Row(
-                                    Modifier.fillMaxWidth().padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(tx.entity ?: "", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        Text(tx.transactionType, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(tx.date.toString(), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text(
-                                        "KES ${tx.transactionAmount.toLong()}",
-                                        color = if (tx.transactionType.contains("received", true) || tx.transactionType.contains("deposit", true)) Color(0xFF388E3C) else Color(0xFFD32F2F),
-                                        fontWeight = FontWeight.Bold
+                    if (showSearch) {
+                        OutlinedTextField(
+                            value = uiState.searchText,
+                            onValueChange = onSearchTextChange,
+                            placeholder = {
+                                Text(
+                                    "Search transactions…",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { showSearch = false }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.baseline_clear_24),
+                                        contentDescription = "Close search",
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { keyboard?.hide() }),
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester)
+                        )
+                    } else {
+                        Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                            Text(
+                                text = "All Transactions",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (uiState.categoryName.isNotBlank()) {
+                                Text(
+                                    uiState.categoryName,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                        is CombinedTransactionItem.ManualItem -> {
-                            val tx = item.tx
-                            ElevatedCard(
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                            ) {
-                                Row(
-                                    Modifier.fillMaxWidth().padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.edit),
-                                        contentDescription = "Manual",
-                                        modifier = Modifier.size(14.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(tx.memberName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        Text(tx.transactionTypeName, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(tx.date.format(dateFormatter), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text(
-                                        "KES ${tx.amount.toLong()}",
-                                        color = if (tx.isOutflow) Color(0xFFD32F2F) else Color(0xFF388E3C),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { showSearch = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.search),
+                                contentDescription = "Search",
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 }
-                item { Spacer(Modifier.height(32.dp)) }
             }
+
+            // Filter chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CombinedFilter.values().forEach { f ->
+                    FilterChip(
+                        selected = uiState.filter == f,
+                        onClick = { onFilterChange(f) },
+                        label = {
+                            Text(
+                                when (f) {
+                                    CombinedFilter.ALL -> "All"
+                                    CombinedFilter.MPESA -> "M-PESA"
+                                    CombinedFilter.MANUAL -> "Manual"
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            // Content
+            if (uiState.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (filtered.isEmpty()) {
+                TxEmptyState(
+                    message = if (uiState.searchText.isNotBlank())
+                        "No transactions matching \"${uiState.searchText}\""
+                    else "No transactions found"
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    groupedByDate.forEach { (dateStr, itemsForDate) ->
+                        stickyHeader(key = "header_$dateStr") {
+                            TxDateHeader(date = dateStr)
+                        }
+                        items(itemsForDate) { item ->
+                            when (item) {
+                                is CombinedTransactionItem.MpesaItem -> {
+                                    MpesaTxRow(tx = item.tx)
+                                }
+                                is CombinedTransactionItem.ManualItem -> {
+                                    ManualTxRow(tx = item.tx)
+                                }
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MpesaTxRow(tx: Transaction) {
+    val isIn = tx.transactionAmount > 0
+    val displayName = tx.entity.replaceFirstChar { it.uppercase() }
+    val initials = displayName.trim().split(" ")
+        .mapNotNull { it.firstOrNull()?.uppercase() }
+        .take(2).joinToString("").ifEmpty { displayName.take(2).uppercase() }
+    val avatarColor = txAvatarColor(tx.entity)
+    val amountColor = if (isIn) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(50.dp).clip(CircleShape).background(avatarColor.copy(alpha = 0.15f)))
+            Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(avatarColor), contentAlignment = Alignment.Center) {
+                Text(initials, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = tx.transactionType,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text(
+                    text = "· ${tx.date.format(DateTimeFormatter.ofPattern("d MMM"))}  ${tx.time.format(DateTimeFormatter.ofPattern("HH:mm"))}",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(amountColor))
+            Text(
+                text = "${if (isIn) "+" else "-"}Ksh ${String.format("%,.0f", tx.transactionAmount.absoluteValue)}",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = amountColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun ManualTxRow(tx: ManualTransaction) {
+    val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            val avatarColor = txAvatarColor(tx.memberName)
+            Box(modifier = Modifier.size(50.dp).clip(CircleShape).background(avatarColor.copy(alpha = 0.15f)))
+            Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(avatarColor), contentAlignment = Alignment.Center) {
+                val initials = tx.memberName.trim().split(" ")
+                    .mapNotNull { it.firstOrNull()?.uppercase() }
+                    .take(2).joinToString("").ifEmpty { tx.memberName.take(2).uppercase() }
+                Text(initials, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            // Small "edit" badge to mark as manual
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .align(Alignment.BottomEnd),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.edit),
+                    contentDescription = null,
+                    modifier = Modifier.size(10.dp),
+                    tint = Color.White
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = tx.memberName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = tx.transactionTypeName,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text(
+                    text = "· ${tx.date.format(dateFormatter)}",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                )
+            }
+            if (tx.description.isNotBlank()) {
+                Text(
+                    text = tx.description,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(amountColor))
+            Text(
+                text = "${if (tx.isOutflow) "-" else "+"}Ksh ${String.format("%,.0f", tx.amount)}",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = amountColor
+            )
         }
     }
 }

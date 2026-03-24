@@ -21,6 +21,7 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.db.models.ManualCategoryMember
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 data class MembersAdditionScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -45,7 +47,8 @@ data class MembersAdditionScreenUiState(
     val entity: String = "",
     val addAllMembersThatContainEntity: Boolean = false,
     val categoryId: String = "",
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val manualMemberAdded: Boolean = false
 )
 @RequiresApi(Build.VERSION_CODES.O)
 class MembersAdditionScreenViewModel(
@@ -435,6 +438,30 @@ class MembersAdditionScreenViewModel(
 //                Log.e("CategoryDetailsScreenViewModel", "getCategory: $e")
 //            }
         }
+    }
+
+    fun addManualMember(name: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val id = uiState.value.categoryId.toIntOrNull() ?: return@withContext
+                    dbRepository.insertManualCategoryMember(
+                        ManualCategoryMember(
+                            categoryId = id,
+                            name = name.trim(),
+                            createdAt = LocalDateTime.now()
+                        )
+                    )
+                    _uiState.update { it.copy(manualMemberAdded = true) }
+                } catch (e: Exception) {
+                    Log.e("AddManualMember", e.toString())
+                }
+            }
+        }
+    }
+
+    fun clearManualMemberAdded() {
+        _uiState.update { it.copy(manualMemberAdded = false) }
     }
 
     fun resetLoadingStatus() {

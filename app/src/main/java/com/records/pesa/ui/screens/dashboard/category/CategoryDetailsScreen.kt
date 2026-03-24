@@ -1115,16 +1115,6 @@ fun CategoryDetailsScreen(
                     Spacer(Modifier.height(16.dp))
                 }
                 item {
-                    ManualMembersCard(
-                        members = manualMembers,
-                        onAddMember = onAddManualMember,
-                        onDeleteMember = onDeleteManualMember
-                    )
-                }
-                item {
-                    Spacer(Modifier.height(16.dp))
-                }
-                item {
                     ManualTransactionsSection(
                         transactions = manualTransactions,
                         transactionTypes = transactionTypes,
@@ -1994,94 +1984,6 @@ private fun CategoryDetailsScreenPreview() {
     }
 }
 
-@Composable
-private fun ManualMembersCard(
-    members: List<ManualCategoryMember>,
-    onAddMember: (String) -> Unit,
-    onDeleteMember: (Int) -> Unit
-) {
-    var showAddDialog by remember { mutableStateOf(false) }
-    var memberName by remember { mutableStateOf("") }
-    var memberToDelete by remember { mutableStateOf<ManualCategoryMember?>(null) }
-
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false; memberName = "" },
-            title = { Text("Add Manual Member") },
-            text = {
-                OutlinedTextField(
-                    value = memberName,
-                    onValueChange = { memberName = it },
-                    label = { Text("Member name") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (memberName.isNotBlank()) {
-                        onAddMember(memberName.trim())
-                        memberName = ""
-                        showAddDialog = false
-                    }
-                }) { Text("Add") }
-            },
-            dismissButton = { TextButton(onClick = { showAddDialog = false; memberName = "" }) { Text("Cancel") } }
-        )
-    }
-
-    memberToDelete?.let { m ->
-        AlertDialog(
-            onDismissRequest = { memberToDelete = null },
-            title = { Text("Remove Member") },
-            text = { Text("Remove \"${m.name}\" from manual members?") },
-            confirmButton = { TextButton(onClick = { onDeleteMember(m.id); memberToDelete = null }) { Text("Remove") } },
-            dismissButton = { TextButton(onClick = { memberToDelete = null }) { Text("Cancel") } }
-        )
-    }
-
-    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Box(
-            Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface))
-            )
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painter = painterResource(R.drawable.account_info), contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Manual Members", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-                IconButton(onClick = { showAddDialog = true }) {
-                    Icon(painter = painterResource(R.drawable.ic_add), contentDescription = "Add member", modifier = Modifier.size(20.dp))
-                }
-            }
-        }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            if (members.isEmpty()) {
-                Text("No manual members yet", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp))
-            } else {
-                members.forEach { member ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(member.name)
-                        IconButton(onClick = { memberToDelete = member }) {
-                            Icon(painter = painterResource(R.drawable.remove), contentDescription = "Remove", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                    HorizontalDivider()
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ManualTransactionsSection(
@@ -2095,12 +1997,13 @@ private fun ManualTransactionsSection(
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
     txToDelete?.let { tx ->
         AlertDialog(
             onDismissRequest = { txToDelete = null },
             title = { Text("Delete Transaction") },
-            text = { Text("Delete this ${if (tx.isOutflow) "expense" else "income"} of KES ${tx.amount}?") },
+            text = { Text("Delete this ${if (tx.isOutflow) "expense" else "income"} of KES ${"%,.2f".format(tx.amount)}?") },
             confirmButton = { TextButton(onClick = { onDeleteTransaction(tx.id); txToDelete = null }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { txToDelete = null }) { Text("Cancel") } }
         )
@@ -2120,57 +2023,132 @@ private fun ManualTransactionsSection(
         )
     }
 
-    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    val totalOutflow = transactions.filter { it.isOutflow }.sumOf { it.amount }
+
+    ElevatedCard(
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
         Box(
-            Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface))
+            modifier = Modifier.fillMaxWidth().background(
+                Brush.linearGradient(listOf(
+                    Color(0xFF1565C0).copy(alpha = 0.08f),
+                    Color(0xFF0288D1).copy(alpha = 0.04f)
+                ))
             )
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painter = painterResource(R.drawable.edit), contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Manual Transactions", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-                IconButton(onClick = { showAddDialog = true }) {
-                    Icon(painter = painterResource(R.drawable.ic_add), contentDescription = "Add transaction", modifier = Modifier.size(20.dp))
-                }
-            }
-        }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            if (transactions.isEmpty()) {
-                Text(
-                    "No manual transactions yet. Tap + to add cash, bank or any non-M-PESA expense.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            } else {
-                transactions.forEach { tx ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(tx.memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(tx.transactionTypeName, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(tx.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(
-                            "KES ${tx.amount.toLong()}",
-                            color = if (tx.isOutflow) Color(0xFFD32F2F) else Color(0xFF388E3C),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.wallet),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
-                        IconButton(onClick = { txToDelete = tx }) {
-                            Icon(painter = painterResource(R.drawable.remove), contentDescription = "Delete", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Manual Transactions",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = { showAddDialog = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_add),
+                            contentDescription = "Add transaction",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+
+                if (transactions.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No manual transactions yet. Tap + to add cash, bank or any non-M-PESA expense.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    transactions.forEach { tx ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = tx.memberName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = tx.transactionTypeName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = tx.date.format(dateFormatter),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "KES ${"%,.2f".format(tx.amount)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
+                            )
+                            IconButton(
+                                onClick = { txToDelete = tx },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.remove),
+                                    contentDescription = "Delete",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        if (tx != transactions.last()) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         }
                     }
-                    HorizontalDivider()
+
+                    if (totalOutflow > 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text(
+                                text = "Total spent: KES ${"%,.2f".format(totalOutflow)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -2188,7 +2166,7 @@ private fun AddManualTransactionDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct()
+    val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct().sorted()
 
     var selectedMember by remember { mutableStateOf(allMembers.firstOrNull() ?: "") }
     var memberExpanded by remember { mutableStateOf(false) }

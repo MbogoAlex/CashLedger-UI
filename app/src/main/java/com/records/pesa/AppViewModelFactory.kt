@@ -399,7 +399,8 @@ object AppViewModelFactory {
         initializer {
             CategoryAllTransactionsScreenViewModel(
                 savedStateHandle = this.createSavedStateHandle(),
-                dbRepository = cashLedgerApplication().container.dbRepository
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = cashLedgerApplication().container.categoryService
             )
         }
     }

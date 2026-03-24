@@ -35,15 +35,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,6 +80,7 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactions
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.theme.CashLedgerTheme
+import kotlinx.coroutines.launch
 
 object MembersAdditionScreenDestination : AppNavigation {
     override val title: String = "Membership addition screen"
@@ -90,6 +98,8 @@ fun MembersAdditionScreenComposable(
     val context = LocalContext.current
     val viewModel: MembersAdditionScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     if (uiState.loadingStatus == LoadingStatus.SUCCESS) {
         Toast.makeText(context, "Members added successfully", Toast.LENGTH_SHORT).show()
@@ -100,43 +110,53 @@ fun MembersAdditionScreenComposable(
         viewModel.resetLoadingStatus()
     }
 
+    LaunchedEffect(uiState.manualMemberAdded) {
+        if (uiState.manualMemberAdded) {
+            coroutineScope.launch { snackbarHostState.showSnackbar("Member added") }
+            viewModel.clearManualMemberAdded()
+        }
+    }
+
     var showReviewScreen by rememberSaveable { mutableStateOf(false) }
     var addMembersThatContainsEntity by rememberSaveable { mutableStateOf(false) }
 
-    if (showReviewScreen) {
-        Box(modifier = Modifier.safeDrawingPadding()) {
-            MembersReviewScreen(
-                categoryName = uiState.category.name,
-                searchText = uiState.entity,
-                newMembers = uiState.membersToAdd,
-                loadingStatus = uiState.loadingStatus,
-                addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
-                onRemoveMember = { viewModel.removeMember(it) },
-                onConfirm = { viewModel.addMembersToCategory() },
-                onAddMembersThatContainKeyword = {
-                    addMembersThatContainsEntity = !addMembersThatContainsEntity
-                    viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
-                },
-                navigateToMembersAdditionScreen = { showReviewScreen = false }
-            )
-        }
-    } else {
-        Box(modifier = Modifier.safeDrawingPadding()) {
-            MembersAdditionScreen(
-                categoryName = uiState.category.name,
-                selectableMembers = uiState.membersToDisplay,
-                selectedCount = uiState.membersToAdd.size,
-                searchText = uiState.entity,
-                addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
-                onAddMembersThatContainKeyword = {
-                    addMembersThatContainsEntity = !addMembersThatContainsEntity
-                    viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
-                },
-                onChangeSearchText = { viewModel.updateSearchText(it) },
-                onAddMember = { viewModel.addMember(it) },
-                navigateToReviewScreen = { showReviewScreen = true },
-                navigateToPreviousScreen = navigateToPreviousScreen
-            )
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { _ ->
+        if (showReviewScreen) {
+            Box(modifier = Modifier.safeDrawingPadding()) {
+                MembersReviewScreen(
+                    categoryName = uiState.category.name,
+                    searchText = uiState.entity,
+                    newMembers = uiState.membersToAdd,
+                    loadingStatus = uiState.loadingStatus,
+                    addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
+                    onRemoveMember = { viewModel.removeMember(it) },
+                    onConfirm = { viewModel.addMembersToCategory() },
+                    onAddMembersThatContainKeyword = {
+                        addMembersThatContainsEntity = !addMembersThatContainsEntity
+                        viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
+                    },
+                    navigateToMembersAdditionScreen = { showReviewScreen = false }
+                )
+            }
+        } else {
+            Box(modifier = Modifier.safeDrawingPadding()) {
+                MembersAdditionScreen(
+                    categoryName = uiState.category.name,
+                    selectableMembers = uiState.membersToDisplay,
+                    selectedCount = uiState.membersToAdd.size,
+                    searchText = uiState.entity,
+                    addAllMembersThatContainEntity = uiState.addAllMembersThatContainEntity,
+                    onAddMembersThatContainKeyword = {
+                        addMembersThatContainsEntity = !addMembersThatContainsEntity
+                        viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
+                    },
+                    onChangeSearchText = { viewModel.updateSearchText(it) },
+                    onAddMember = { viewModel.addMember(it) },
+                    onAddManualMember = { viewModel.addManualMember(it) },
+                    navigateToReviewScreen = { showReviewScreen = true },
+                    navigateToPreviousScreen = navigateToPreviousScreen
+                )
+            }
         }
     }
 }
@@ -153,12 +173,14 @@ fun MembersAdditionScreen(
     selectableMembers: List<TransactionItem>,
     onChangeSearchText: (value: String) -> Unit,
     onAddMember: (member: TransactionItem) -> Unit,
+    onAddManualMember: (String) -> Unit = {},
     navigateToReviewScreen: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val categoryColor = txAvatarColor(categoryName.ifBlank { "C" })
+    var customMemberName by remember { mutableStateOf("") }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -277,6 +299,53 @@ fun MembersAdditionScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
+                        }
+                    }
+                }
+            }
+
+            // ── Add Custom Member card ───────────────────────────────────────
+            item {
+                ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().background(
+                            Brush.linearGradient(listOf(
+                                Color(0xFF1565C0).copy(alpha = 0.08f),
+                                Color(0xFF0288D1).copy(alpha = 0.04f)
+                            ))
+                        )
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(R.drawable.account_info),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add Custom Member", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = customMemberName,
+                                    onValueChange = { customMemberName = it },
+                                    label = { Text("Name (e.g. Mama Mboga)", fontSize = 12.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedButton(
+                                    onClick = {
+                                        if (customMemberName.isNotBlank()) {
+                                            onAddManualMember(customMemberName.trim())
+                                            customMemberName = ""
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("Add") }
+                            }
                         }
                     }
                 }
@@ -424,6 +493,15 @@ fun MembersAdditionScreen(
 
             // ── Results list ─────────────────────────────────────────────────
             if (selectableMembers.isNotEmpty()) {
+                item {
+                    Text(
+                        "M-PESA Contacts",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
                 item {
                     Text(
                         text = "${selectableMembers.size} result${if (selectableMembers.size != 1) "s" else ""}",
