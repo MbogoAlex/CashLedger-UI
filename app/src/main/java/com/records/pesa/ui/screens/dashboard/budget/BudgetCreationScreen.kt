@@ -687,7 +687,7 @@ fun BudgetCreationScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
 
-                // ── Standalone: transaction type selector (coming soon) ─────
+                // ── Standalone: informational note ────────────────────────────────
                 if (uiState.budgetType == BudgetType.STANDALONE) {
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -701,39 +701,22 @@ fun BudgetCreationScreen(
                                 ))
                             )
                         ) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(painter = painterResource(R.drawable.wallet), contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.tertiary)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("What will this budget track?", fontWeight = FontWeight.Bold, fontSize = screenFontSize(x = 14.0).sp)
-                                }
-                                Spacer(Modifier.height(10.dp))
-                                val types = listOf("All Outflows", "Send Money", "Buy Goods", "Paybill", "Withdraw", "Buy Airtime")
-                                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    types.forEach { type ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                                        ) {
-                                            Text(type, fontSize = screenFontSize(x = 12.0).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.height(12.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)).padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(painter = painterResource(R.drawable.info), contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.tertiary)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        "Standalone budgets (track spending across all categories) are coming in the next update. Your data is safe.",
-                                        fontSize = screenFontSize(x = 11.0).sp,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.info),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    text = "This budget will track expenses you manually add.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         }
                     }

@@ -603,3 +603,49 @@ val MIGRATION_51_52 = object : Migration(51, 52) {
         """.trimIndent())
     }
 }
+
+val MIGRATION_52_53 = object : Migration(52, 53) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Recreate budget table with nullable categoryId (no FK constraint)
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `budget_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `active` INTEGER NOT NULL,
+                `expenditure` REAL NOT NULL,
+                `budgetLimit` REAL NOT NULL,
+                `createdAt` TEXT NOT NULL,
+                `startDate` TEXT NOT NULL,
+                `limitDate` TEXT NOT NULL,
+                `limitReached` INTEGER NOT NULL,
+                `limitReachedAt` TEXT,
+                `exceededBy` REAL NOT NULL,
+                `categoryId` INTEGER,
+                `alertThreshold` INTEGER NOT NULL DEFAULT 80
+            )
+        """)
+        database.execSQL("""
+            INSERT INTO `budget_new` SELECT
+                `id`, `name`, `active`, `expenditure`, `budgetLimit`, `createdAt`,
+                `startDate`, `limitDate`, `limitReached`, `limitReachedAt`, `exceededBy`,
+                `categoryId`, `alertThreshold`
+            FROM `budget`
+        """)
+        database.execSQL("DROP TABLE `budget`")
+        database.execSQL("ALTER TABLE `budget_new` RENAME TO `budget`")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_categoryId` ON `budget` (`categoryId`)")
+
+        // Create manual budget transactions table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `manual_budget_transaction` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `budgetId` INTEGER NOT NULL,
+                `amount` REAL NOT NULL,
+                `description` TEXT NOT NULL,
+                `date` TEXT NOT NULL,
+                `createdAt` TEXT NOT NULL
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_manual_budget_transaction_budgetId` ON `manual_budget_transaction` (`budgetId`)")
+    }
+}

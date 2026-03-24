@@ -28,9 +28,13 @@ class BudgetCheckWorker(
                 continue
             }
 
-            val spending = container.dbRepository
-                .getOutflowForCategory(budget.categoryId, budget.startDate, today)
-                .first()
+            val spending = if (budget.categoryId != null) {
+                container.dbRepository
+                    .getOutflowForCategory(budget.categoryId, budget.startDate, today)
+                    .first()
+            } else {
+                container.dbRepository.sumManualTransactionsForBudget(budget.id)
+            }
 
             val pct = if (budget.budgetLimit > 0) spending / budget.budgetLimit * 100.0 else 0.0
 

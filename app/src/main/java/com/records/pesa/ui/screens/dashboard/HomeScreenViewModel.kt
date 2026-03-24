@@ -129,7 +129,11 @@ class HomeScreenViewModel(
                 val withProgress = budgets.map { budget ->
                     val start = budget.startDate
                     val end = budget.limitDate
-                    val spending = dbRepository.getOutflowForCategory(budget.categoryId, start, end).first()
+                    val spending = if (budget.categoryId != null) {
+                        dbRepository.getOutflowForCategory(budget.categoryId, start, end).first()
+                    } else {
+                        dbRepository.sumManualTransactionsForBudget(budget.id)
+                    }
                     val totalDays = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
                     val daysElapsed = ChronoUnit.DAYS.between(start, today).toInt().coerceIn(0, totalDays)
                     val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)
@@ -146,7 +150,7 @@ class HomeScreenViewModel(
                         else             -> BudgetStatus.ON_TRACK
                     }
                     val catName = try {
-                        categoryService.getCategoryById(budget.categoryId).first().category.name
+                        if (budget.categoryId != null) categoryService.getCategoryById(budget.categoryId).first().category.name else "Standalone"
                     } catch (e: Exception) { "" }
                     BudgetWithProgress(
                         budget = budget,

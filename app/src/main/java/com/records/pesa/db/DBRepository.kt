@@ -6,10 +6,12 @@ import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.dao.BudgetDao
 import com.records.pesa.db.dao.BudgetRecalcLogDao
+import com.records.pesa.db.dao.ManualBudgetTransactionDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.BudgetRecalcLog
+import com.records.pesa.db.models.ManualBudgetTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
@@ -103,13 +105,20 @@ interface DBRepository {
     // Budget audit log
     suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog)
     fun getLogsForBudget(budgetId: Int): Flow<List<BudgetRecalcLog>>
+
+    // Manual budget transactions
+    suspend fun insertManualTransaction(tx: ManualBudgetTransaction): Long
+    fun getManualTransactionsForBudget(budgetId: Int): Flow<List<ManualBudgetTransaction>>
+    suspend fun sumManualTransactionsForBudget(budgetId: Int): Double
+    suspend fun deleteManualTransaction(id: Int)
 }
 
 class DBRepositoryImpl(
     private val appDao: AppDao,
     private val transactionsDao: TransactionsDao,
     private val budgetDao: BudgetDao,
-    private val budgetRecalcLogDao: BudgetRecalcLogDao
+    private val budgetRecalcLogDao: BudgetRecalcLogDao,
+    private val manualBudgetTransactionDao: ManualBudgetTransactionDao
 ): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
@@ -227,5 +236,10 @@ class DBRepositoryImpl(
 
     override suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog) = budgetRecalcLogDao.insertLog(log)
     override fun getLogsForBudget(budgetId: Int) = budgetRecalcLogDao.getLogsForBudget(budgetId)
+
+    override suspend fun insertManualTransaction(tx: ManualBudgetTransaction) = manualBudgetTransactionDao.insert(tx)
+    override fun getManualTransactionsForBudget(budgetId: Int) = manualBudgetTransactionDao.getForBudget(budgetId)
+    override suspend fun sumManualTransactionsForBudget(budgetId: Int) = manualBudgetTransactionDao.sumForBudget(budgetId)
+    override suspend fun deleteManualTransaction(id: Int) = manualBudgetTransactionDao.deleteById(id)
 
 }

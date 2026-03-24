@@ -163,7 +163,33 @@ class BudgetCreationScreenViewModel(
                 }
             }
         }
-        // STANDALONE: future sprint (needs DB schema change)
+        else {
+            // STANDALONE budget (no category)
+            viewModelScope.launch {
+                _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
+                try {
+                    val newId = dbRepository.insertBudget(
+                        Budget(
+                            name = s.budgetName.trim(),
+                            active = true,
+                            expenditure = 0.0,
+                            budgetLimit = limit,
+                            createdAt = LocalDateTime.now(),
+                            startDate = s.startDate,
+                            limitDate = endDate,
+                            limitReached = false,
+                            limitReachedAt = null,
+                            exceededBy = 0.0,
+                            categoryId = null,
+                            alertThreshold = s.alertThreshold
+                        )
+                    )
+                    _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
+                }
+            }
+        }
     }
 
     init {

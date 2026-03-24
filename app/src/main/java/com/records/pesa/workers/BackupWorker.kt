@@ -213,7 +213,7 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 6 // Define the total number of tasks
+        val totalSteps = 6 // transactions, categories, keywords, mappings, deleted, budgets
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -490,14 +490,14 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
                 "id", "name", "active", "expenditure", "budgetLimit",
                 "createdAt", "startDate", "limitDate", "limitReached", "limitReachedAt",
-                "exceededBy", "categoryId"
+                "exceededBy", "categoryId", "alertThreshold"
             ))
             budgetsToBackup.forEach { budget ->
                 csvPrinter.printRecord(
                     budget.id, budget.name, budget.active, budget.expenditure,
                     budget.budgetLimit, budget.createdAt, budget.startDate, budget.limitDate,
                     budget.limitReached, budget.limitReachedAt, budget.exceededBy,
-                    budget.categoryId
+                    budget.categoryId, budget.alertThreshold
                 )
             }
             csvPrinter.flush()

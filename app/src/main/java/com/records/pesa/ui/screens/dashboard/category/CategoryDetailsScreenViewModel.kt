@@ -768,9 +768,13 @@ class CategoryDetailsScreenViewModel(
                 val today = LocalDate.now()
                 val progressMap = mutableMapOf<Int, BudgetWithProgress>()
                 for (budget in budgets) {
-                    val spending = dbRepository.getOutflowForCategory(
-                        budget.categoryId, budget.startDate, budget.limitDate
-                    ).first()
+                    val spending = if (budget.categoryId != null) {
+                        dbRepository.getOutflowForCategory(
+                            budget.categoryId, budget.startDate, budget.limitDate
+                        ).first()
+                    } else {
+                        dbRepository.sumManualTransactionsForBudget(budget.id)
+                    }
                     val totalDays = ChronoUnit.DAYS.between(budget.startDate, budget.limitDate).toInt().coerceAtLeast(1)
                     val daysElapsed = ChronoUnit.DAYS.between(budget.startDate, today).toInt().coerceIn(0, totalDays)
                     val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)

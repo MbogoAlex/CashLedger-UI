@@ -73,7 +73,7 @@ class AppContainerImpl(context: Context): AppContainer {
 
     override val dbRepository: DBRepository by lazy {
         val database = AppDatabase.getDatabase(context)
-        DBRepositoryImpl(database.appDao(), database.transactionDao(), database.budgetDao(), database.budgetRecalcLogDao())
+        DBRepositoryImpl(database.appDao(), database.transactionDao(), database.budgetDao(), database.budgetRecalcLogDao(), database.manualBudgetTransactionDao())
     }
 
     override val transactionService: TransactionService by lazy {

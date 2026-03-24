@@ -27,9 +27,13 @@ class BudgetRecalculationWorker(
             val today = LocalDate.now()
 
             for (budget in budgets) {
-                val newExpenditure = container.dbRepository
-                    .getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate))
-                    .first()
+                val manualSum = container.dbRepository.sumManualTransactionsForBudget(budget.id)
+                val mpesaOutflow = if (budget.categoryId != null) {
+                    container.dbRepository
+                        .getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate))
+                        .first()
+                } else 0.0
+                val newExpenditure = mpesaOutflow + manualSum
 
                 val limitReached = newExpenditure >= budget.budgetLimit
                 val exceededBy = max(0.0, newExpenditure - budget.budgetLimit)
