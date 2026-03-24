@@ -27,6 +27,7 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenViewModel
+import com.records.pesa.ui.screens.dashboard.category.CategoryAllTransactionsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.chart.ChartHomeScreenViewModel
@@ -393,6 +394,12 @@ object AppViewModelFactory {
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
+            )
+        }
+        initializer {
+            CategoryAllTransactionsScreenViewModel(
+                savedStateHandle = this.createSavedStateHandle(),
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
     }

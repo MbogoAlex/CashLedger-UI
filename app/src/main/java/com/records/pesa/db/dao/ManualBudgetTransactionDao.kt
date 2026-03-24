@@ -18,6 +18,9 @@ interface ManualBudgetTransactionDao {
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM manual_budget_transaction WHERE budgetId = :budgetId")
     suspend fun sumForBudget(budgetId: Int): Double
 
+    @Query("SELECT * FROM manual_budget_transaction")
+    suspend fun getAllOnce(): List<ManualBudgetTransaction>
+
     @Query("DELETE FROM manual_budget_transaction WHERE id = :id")
     suspend fun deleteById(id: Int)
 

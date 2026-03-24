@@ -444,4 +444,12 @@ interface TransactionsDao {
         endDate: LocalDate
     ): Flow<Double>
 
+    @Query("""
+        SELECT t.* FROM `transaction` t
+        INNER JOIN transactionCategoryCrossRef ref ON ref.transactionId = t.id
+        WHERE ref.categoryId = :categoryId
+        ORDER BY t.date DESC
+    """)
+    fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>>
+
 }

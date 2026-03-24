@@ -34,6 +34,8 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenCompos
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
+import com.records.pesa.ui.screens.dashboard.category.CategoryAllTransactionsScreenComposable
+import com.records.pesa.ui.screens.dashboard.category.CategoryAllTransactionsScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenComposable
@@ -439,6 +441,9 @@ fun NavigationGraph(
                 navigateToTransactionsScreen = {
                     navController.navigate("${TransactionsScreenDestination.route}/${it}")
                 },
+                navigateToAllTransactionsScreen = {
+                    navController.navigate("${CategoryAllTransactionsScreenDestination.route}/${it}")
+                },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
                 },
@@ -453,6 +458,20 @@ fun NavigationGraph(
                 },
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
+                }
+            )
+        }
+        composable(
+            CategoryAllTransactionsScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(CategoryAllTransactionsScreenDestination.categoryId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            CategoryAllTransactionsScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.navigateUp()
                 }
             )
         }

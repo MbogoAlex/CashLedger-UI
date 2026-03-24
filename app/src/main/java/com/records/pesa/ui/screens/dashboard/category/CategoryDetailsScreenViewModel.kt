@@ -8,6 +8,9 @@ import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
+import com.records.pesa.db.models.ManualCategoryMember
+import com.records.pesa.db.models.ManualTransaction
+import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.mapper.toTransaction
@@ -91,7 +94,10 @@ data class CategoryDetailsScreenUiState(
     val inlineBudgetEndDate: LocalDate? = null,
     val inlineBudgetSaving: Boolean = false,
     val inlineBudgetSaved: Boolean = false,
-    val budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap()
+    val budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
+    val manualMembers: List<ManualCategoryMember> = emptyList(),
+    val manualTransactions: List<ManualTransaction> = emptyList(),
+    val transactionTypes: List<ManualTransactionType> = emptyList()
 )
 
 class CategoryDetailsScreenViewModel(
@@ -818,6 +824,88 @@ class CategoryDetailsScreenViewModel(
         _uiState.update { it.copy(categoryId = categoryId!!) }
         loadPreferences()
         loadBudgetProgress()
+        loadManualData()
         getUserDetails()
+    }
+
+    private fun loadManualData() {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.getManualMembersForCategory(categoryIdInt).collect { members ->
+                _uiState.update { it.copy(manualMembers = members) }
+            }
+        }
+        viewModelScope.launch {
+            dbRepository.getManualTransactionsForCategory(categoryIdInt).collect { txs ->
+                _uiState.update { it.copy(manualTransactions = txs) }
+            }
+        }
+        viewModelScope.launch {
+            dbRepository.getAllManualTransactionTypes().collect { types ->
+                _uiState.update { it.copy(transactionTypes = types) }
+            }
+        }
+    }
+
+    fun addManualMember(name: String) {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.insertManualCategoryMember(
+                ManualCategoryMember(
+                    categoryId = categoryIdInt,
+                    name = name,
+                    createdAt = java.time.LocalDateTime.now()
+                )
+            )
+        }
+    }
+
+    fun deleteManualMember(id: Int) {
+        viewModelScope.launch {
+            dbRepository.deleteManualCategoryMember(id)
+        }
+    }
+
+    fun addManualTransaction(memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.insertManualCategoryTransaction(
+                ManualTransaction(
+                    categoryId = categoryIdInt,
+                    memberName = memberName,
+                    transactionTypeName = typeName,
+                    isOutflow = isOutflow,
+                    amount = amount,
+                    description = description,
+                    date = date,
+                    createdAt = java.time.LocalDateTime.now()
+                )
+            )
+        }
+    }
+
+    fun deleteManualTransaction(id: Int) {
+        viewModelScope.launch {
+            dbRepository.deleteManualCategoryTransaction(id)
+        }
+    }
+
+    fun addCustomTransactionType(name: String, isOutflow: Boolean) {
+        viewModelScope.launch {
+            dbRepository.insertManualTransactionType(
+                ManualTransactionType(
+                    name = name,
+                    isOutflow = isOutflow,
+                    isCustom = true,
+                    createdAt = java.time.LocalDateTime.now()
+                )
+            )
+        }
+    }
+
+    fun deleteCustomTransactionType(id: Int) {
+        viewModelScope.launch {
+            dbRepository.deleteCustomManualTransactionType(id)
+        }
     }
 }

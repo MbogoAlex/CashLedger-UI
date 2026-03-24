@@ -470,7 +470,8 @@ class BackupRestoreScreenViewModel(
                     limitReached = row[if (hasStartDate) 8 else 7].toBoolean(),
                     limitReachedAt = row.getOrNull(if (hasStartDate) 9 else 8)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
                     exceededBy = row[if (hasStartDate) 10 else 9].toDouble(),
-                    categoryId = row[if (hasStartDate) 11 else 10].toInt()
+                    categoryId = row[if (hasStartDate) 11 else 10].toIntOrNull(),
+                    alertThreshold = row.getOrNull(if (hasStartDate) 12 else 11)?.toIntOrNull() ?: 80
                 )
                 budgets.add(budget)
             } catch (e: Exception) {

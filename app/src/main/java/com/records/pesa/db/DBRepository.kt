@@ -7,11 +7,17 @@ import androidx.room.Update
 import com.records.pesa.db.dao.BudgetDao
 import com.records.pesa.db.dao.BudgetRecalcLogDao
 import com.records.pesa.db.dao.ManualBudgetTransactionDao
+import com.records.pesa.db.dao.ManualCategoryMemberDao
+import com.records.pesa.db.dao.ManualTransactionDao
+import com.records.pesa.db.dao.ManualTransactionTypeDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.ManualBudgetTransaction
+import com.records.pesa.db.models.ManualCategoryMember
+import com.records.pesa.db.models.ManualTransaction
+import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
@@ -111,6 +117,30 @@ interface DBRepository {
     fun getManualTransactionsForBudget(budgetId: Int): Flow<List<ManualBudgetTransaction>>
     suspend fun sumManualTransactionsForBudget(budgetId: Int): Double
     suspend fun deleteManualTransaction(id: Int)
+    suspend fun getAllManualBudgetTransactionsOnce(): List<ManualBudgetTransaction>
+
+    // Transaction types
+    fun getAllManualTransactionTypes(): Flow<List<ManualTransactionType>>
+    suspend fun getAllManualTransactionTypesOnce(): List<ManualTransactionType>
+    suspend fun insertManualTransactionType(type: ManualTransactionType): Long
+    suspend fun deleteCustomManualTransactionType(id: Int)
+
+    // Category members
+    fun getManualMembersForCategory(categoryId: Int): Flow<List<ManualCategoryMember>>
+    suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember>
+    suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long
+    suspend fun deleteManualCategoryMember(id: Int)
+
+    // Manual transactions (category-scoped)
+    fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>>
+    suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction>
+    suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long
+    suspend fun deleteManualCategoryTransaction(id: Int)
+    suspend fun sumManualOutflowForCategory(categoryId: Int): Double
+    suspend fun getAllManualTransactionsOnce(): List<ManualTransaction>
+
+    // Transactions for category (M-PESA)
+    fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>>
 }
 
 class DBRepositoryImpl(
@@ -118,7 +148,10 @@ class DBRepositoryImpl(
     private val transactionsDao: TransactionsDao,
     private val budgetDao: BudgetDao,
     private val budgetRecalcLogDao: BudgetRecalcLogDao,
-    private val manualBudgetTransactionDao: ManualBudgetTransactionDao
+    private val manualBudgetTransactionDao: ManualBudgetTransactionDao,
+    private val manualTransactionTypeDao: ManualTransactionTypeDao,
+    private val manualCategoryMemberDao: ManualCategoryMemberDao,
+    private val manualTransactionDao: ManualTransactionDao
 ): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
@@ -241,5 +274,25 @@ class DBRepositoryImpl(
     override fun getManualTransactionsForBudget(budgetId: Int) = manualBudgetTransactionDao.getForBudget(budgetId)
     override suspend fun sumManualTransactionsForBudget(budgetId: Int) = manualBudgetTransactionDao.sumForBudget(budgetId)
     override suspend fun deleteManualTransaction(id: Int) = manualBudgetTransactionDao.deleteById(id)
+    override suspend fun getAllManualBudgetTransactionsOnce(): List<ManualBudgetTransaction> = manualBudgetTransactionDao.getAllOnce()
+
+    override fun getAllManualTransactionTypes(): Flow<List<ManualTransactionType>> = manualTransactionTypeDao.getAll()
+    override suspend fun getAllManualTransactionTypesOnce(): List<ManualTransactionType> = manualTransactionTypeDao.getAllOnce()
+    override suspend fun insertManualTransactionType(type: ManualTransactionType): Long = manualTransactionTypeDao.insert(type)
+    override suspend fun deleteCustomManualTransactionType(id: Int) = manualTransactionTypeDao.deleteCustomById(id)
+
+    override fun getManualMembersForCategory(categoryId: Int): Flow<List<ManualCategoryMember>> = manualCategoryMemberDao.getForCategory(categoryId)
+    override suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember> = manualCategoryMemberDao.getAllOnce()
+    override suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long = manualCategoryMemberDao.insert(member)
+    override suspend fun deleteManualCategoryMember(id: Int) = manualCategoryMemberDao.deleteById(id)
+
+    override fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>> = manualTransactionDao.getForCategory(categoryId)
+    override suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction> = manualTransactionDao.getForCategoryOnce(categoryId)
+    override suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long = manualTransactionDao.insert(tx)
+    override suspend fun deleteManualCategoryTransaction(id: Int) = manualTransactionDao.deleteById(id)
+    override suspend fun sumManualOutflowForCategory(categoryId: Int): Double = manualTransactionDao.sumOutflowForCategory(categoryId)
+    override suspend fun getAllManualTransactionsOnce(): List<ManualTransaction> = manualTransactionDao.getAllOnce()
+
+    override fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>> = transactionsDao.getTransactionsForCategory(categoryId)
 
 }

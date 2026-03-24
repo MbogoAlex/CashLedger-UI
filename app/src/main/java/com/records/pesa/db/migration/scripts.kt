@@ -649,3 +649,56 @@ val MIGRATION_52_53 = object : Migration(52, 53) {
         database.execSQL("CREATE INDEX IF NOT EXISTS `index_manual_budget_transaction_budgetId` ON `manual_budget_transaction` (`budgetId`)")
     }
 }
+
+val MIGRATION_53_54 = object : Migration(53, 54) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `manual_transaction_type` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `isOutflow` INTEGER NOT NULL,
+                `isCustom` INTEGER NOT NULL DEFAULT 0,
+                `createdAt` TEXT NOT NULL
+            )
+        """)
+        val now = java.time.LocalDateTime.now().toString()
+        listOf(
+            Triple("Send Money", 1, 0),
+            Triple("Buy Goods & Services", 1, 0),
+            Triple("Paybill", 1, 0),
+            Triple("Withdraw", 1, 0),
+            Triple("Buy Airtime", 1, 0),
+            Triple("Other Expense", 1, 0),
+            Triple("Receive Money", 0, 0),
+            Triple("Deposit", 0, 0),
+            Triple("Other Income", 0, 0)
+        ).forEach { (name, isOutflow, isCustom) ->
+            database.execSQL("INSERT INTO `manual_transaction_type` (`name`, `isOutflow`, `isCustom`, `createdAt`) VALUES ('$name', $isOutflow, $isCustom, '$now')")
+        }
+
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `manual_category_member` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `categoryId` INTEGER NOT NULL,
+                `name` TEXT NOT NULL,
+                `createdAt` TEXT NOT NULL
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_manual_category_member_categoryId` ON `manual_category_member` (`categoryId`)")
+
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `manual_transaction` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `categoryId` INTEGER NOT NULL,
+                `memberName` TEXT NOT NULL,
+                `transactionTypeName` TEXT NOT NULL,
+                `isOutflow` INTEGER NOT NULL,
+                `amount` REAL NOT NULL,
+                `description` TEXT NOT NULL DEFAULT '',
+                `date` TEXT NOT NULL,
+                `createdAt` TEXT NOT NULL
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_manual_transaction_categoryId` ON `manual_transaction` (`categoryId`)")
+    }
+}

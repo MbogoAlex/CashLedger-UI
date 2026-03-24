@@ -15,6 +15,10 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
+import com.records.pesa.db.models.ManualBudgetTransaction
+import com.records.pesa.db.models.ManualCategoryMember
+import com.records.pesa.db.models.ManualTransaction
+import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
@@ -213,7 +217,7 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 6 // transactions, categories, keywords, mappings, deleted, budgets
+        val totalSteps = 10 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -302,6 +306,54 @@ suspend fun backup(
         }
         currentStep++
         worker.updateProgressNotification("Backing up budgets...", currentStep, totalSteps, priorityHigh)
+
+        // Manual Transaction Types
+        val manualTransactionTypes = dbRepository.getAllManualTransactionTypesOnce()
+        val manualTxTypesCsv = backupManualTransactionTypesToCSV(context, "${backUpId}_manualTransactionTypes.csv", manualTransactionTypes)
+        manualTxTypesCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up transaction types...", currentStep, totalSteps, priorityHigh)
+
+        // Manual Category Members
+        val manualCategoryMembers = dbRepository.getAllManualCategoryMembersOnce()
+        val manualMembersCsv = backupManualCategoryMembersToCSV(context, "${backUpId}_manualCategoryMembers.csv", manualCategoryMembers)
+        manualMembersCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up category members...", currentStep, totalSteps, priorityHigh)
+
+        // Manual Transactions (category-scoped)
+        val manualTransactions = dbRepository.getAllManualTransactionsOnce()
+        val manualTxsCsv = backupManualTransactionsToCSV(context, "${backUpId}_manualTransactions.csv", manualTransactions)
+        manualTxsCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up manual transactions...", currentStep, totalSteps, priorityHigh)
+
+        // Manual Budget Transactions
+        val manualBudgetTxs = dbRepository.getAllManualBudgetTransactionsOnce()
+        val manualBudgetTxsCsv = backupManualBudgetTransactionsToCSV(context, "${backUpId}_manualBudgetTransactions.csv", manualBudgetTxs)
+        manualBudgetTxsCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up budget transactions...", currentStep, totalSteps, priorityHigh)
 
         // Final Step: Update User Account
         val lastBackup = LocalDateTime.now()
@@ -506,6 +558,81 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
         return file
     } catch (e: Exception) {
         Log.e("backupBudgetsToCSV", "Error saving budgets backup: ${e.message}")
+        return null
+    }
+}
+
+fun backupManualTransactionTypesToCSV(context: Context, fileName: String, types: List<ManualTransactionType>): File? {
+    try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("id", "name", "isOutflow", "isCustom", "createdAt"))
+            types.forEach { t ->
+                csvPrinter.printRecord(t.id, t.name, if (t.isOutflow) 1 else 0, if (t.isCustom) 1 else 0, t.createdAt)
+            }
+            csvPrinter.flush()
+        }
+        return file
+    } catch (e: Exception) {
+        Log.e("backupManualTxTypes", "Error: ${e.message}")
+        return null
+    }
+}
+
+fun backupManualCategoryMembersToCSV(context: Context, fileName: String, members: List<ManualCategoryMember>): File? {
+    try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("id", "categoryId", "name", "createdAt"))
+            members.forEach { m ->
+                csvPrinter.printRecord(m.id, m.categoryId, m.name, m.createdAt)
+            }
+            csvPrinter.flush()
+        }
+        return file
+    } catch (e: Exception) {
+        Log.e("backupManualMembers", "Error: ${e.message}")
+        return null
+    }
+}
+
+fun backupManualTransactionsToCSV(context: Context, fileName: String, txs: List<ManualTransaction>): File? {
+    try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                "id", "categoryId", "memberName", "transactionTypeName", "isOutflow", "amount", "description", "date", "createdAt"
+            ))
+            txs.forEach { tx ->
+                csvPrinter.printRecord(
+                    tx.id, tx.categoryId, tx.memberName, tx.transactionTypeName,
+                    if (tx.isOutflow) 1 else 0, tx.amount, tx.description, tx.date, tx.createdAt
+                )
+            }
+            csvPrinter.flush()
+        }
+        return file
+    } catch (e: Exception) {
+        Log.e("backupManualTxs", "Error: ${e.message}")
+        return null
+    }
+}
+
+fun backupManualBudgetTransactionsToCSV(context: Context, fileName: String, txs: List<ManualBudgetTransaction>): File? {
+    try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                "id", "budgetId", "amount", "description", "date", "createdAt"
+            ))
+            txs.forEach { tx ->
+                csvPrinter.printRecord(tx.id, tx.budgetId, tx.amount, tx.description, tx.date, tx.createdAt)
+            }
+            csvPrinter.flush()
+        }
+        return file
+    } catch (e: Exception) {
+        Log.e("backupManualBudgetTxs", "Error: ${e.message}")
         return null
     }
 }

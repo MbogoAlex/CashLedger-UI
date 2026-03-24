@@ -515,10 +515,15 @@ class BudgetInfoScreenViewModel(
     private suspend fun recalculateExpenditure(budget: Budget) {
         val today = LocalDate.now()
         val manualSum = dbRepository.sumManualTransactionsForBudget(budget.id)
+        val manualOutflow = if (budget.categoryId != null) {
+            dbRepository.sumManualOutflowForCategory(budget.categoryId)
+        } else 0.0
         val mpesaOutflow = if (budget.categoryId != null) {
             dbRepository.getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate)).first()
         } else 0.0
-        val newExpenditure = mpesaOutflow + manualSum
+        val newExpenditure = mpesaOutflow + manualOutflow + if (budget.categoryId == null) {
+            manualSum
+        } else 0.0
         val newLimitReached = newExpenditure >= budget.budgetLimit
         val newExceededBy = max(0.0, newExpenditure - budget.budgetLimit)
         dbRepository.updateBudgetExpenditure(budget.id, newExpenditure, newLimitReached, newExceededBy)

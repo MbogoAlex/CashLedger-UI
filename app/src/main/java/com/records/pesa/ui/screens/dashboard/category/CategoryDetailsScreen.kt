@@ -47,6 +47,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +95,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.db.models.ManualCategoryMember
+import com.records.pesa.db.models.ManualTransaction
+import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.models.CategoryBudget
 import com.records.pesa.models.CategoryKeyword
 import com.records.pesa.models.TimePeriod
@@ -131,6 +138,7 @@ fun CategoryDetailsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
+    navigateToAllTransactionsScreen: (categoryId: String) -> Unit,
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
@@ -249,6 +257,7 @@ fun CategoryDetailsScreenComposable(
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToMembersAdditionScreen = navigateToMembersAdditionScreen,
             navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToAllTransactionsScreen = navigateToAllTransactionsScreen,
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             showInlineBudgetForm = uiState.showInlineBudgetForm,
             inlineBudgetName = uiState.inlineBudgetName,
@@ -262,7 +271,17 @@ fun CategoryDetailsScreenComposable(
             onInlineBudgetStartDateChange = { viewModel.updateInlineBudgetStartDate(it) },
             onInlineBudgetEndDateChange = { viewModel.updateInlineBudgetEndDate(it) },
             onCreateInlineBudget = { viewModel.createInlineBudget() },
-            budgetProgressMap = uiState.budgetProgressMap
+            budgetProgressMap = uiState.budgetProgressMap,
+            manualMembers = uiState.manualMembers,
+            manualTransactions = uiState.manualTransactions,
+            transactionTypes = uiState.transactionTypes,
+            onAddManualMember = { viewModel.addManualMember(it) },
+            onDeleteManualMember = { viewModel.deleteManualMember(it) },
+            onAddManualTransaction = { memberName, typeName, isOutflow, amount, description, date ->
+                viewModel.addManualTransaction(memberName, typeName, isOutflow, amount, description, date)
+            },
+            onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) },
+            onAddCustomTransactionType = { name, isOutflow -> viewModel.addCustomTransactionType(name, isOutflow) }
         )
     }
 }
@@ -299,6 +318,7 @@ fun CategoryDetailsScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
+    navigateToAllTransactionsScreen: (categoryId: String) -> Unit = {},
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit = {},
     showInlineBudgetForm: Boolean = false,
     inlineBudgetName: String = "",
@@ -313,6 +333,14 @@ fun CategoryDetailsScreen(
     onInlineBudgetEndDateChange: (LocalDate) -> Unit = {},
     onCreateInlineBudget: () -> Unit = {},
     budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
+    manualMembers: List<ManualCategoryMember> = emptyList(),
+    manualTransactions: List<ManualTransaction> = emptyList(),
+    transactionTypes: List<ManualTransactionType> = emptyList(),
+    onAddManualMember: (String) -> Unit = {},
+    onDeleteManualMember: (Int) -> Unit = {},
+    onAddManualTransaction: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit = { _, _, _, _, _, _ -> },
+    onDeleteManualTransaction: (Int) -> Unit = {},
+    onAddCustomTransactionType: (name: String, isOutflow: Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -1069,7 +1097,7 @@ fun CategoryDetailsScreen(
                 // ── View all transactions button ───────────────────────────────
                 item {
                     Button(
-                        onClick = { navigateToTransactionsScreen(category.id.toString()) },
+                        onClick = { navigateToAllTransactionsScreen(category.id.toString()) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
                     ) {
@@ -1081,6 +1109,31 @@ fun CategoryDetailsScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("View All Transactions", fontWeight = FontWeight.SemiBold)
                     }
+                }
+
+                item {
+                    Spacer(Modifier.height(16.dp))
+                }
+                item {
+                    ManualMembersCard(
+                        members = manualMembers,
+                        onAddMember = onAddManualMember,
+                        onDeleteMember = onDeleteManualMember
+                    )
+                }
+                item {
+                    Spacer(Modifier.height(16.dp))
+                }
+                item {
+                    ManualTransactionsSection(
+                        transactions = manualTransactions,
+                        transactionTypes = transactionTypes,
+                        mpesaMembers = memberStats.map { it.keyword },
+                        manualMembers = manualMembers,
+                        onAddTransaction = onAddManualTransaction,
+                        onDeleteTransaction = onDeleteManualTransaction,
+                        onAddCustomType = onAddCustomTransactionType
+                    )
                 }
 
                 item { Spacer(Modifier.height(32.dp)) }
@@ -1935,7 +1988,331 @@ private fun CategoryDetailsScreenPreview() {
             navigateToCategoryBudgetListScreen = { _, _ -> },
             navigateToPreviousScreen = {},
             navigateToMembersAdditionScreen = {},
-            navigateToTransactionsScreen = {}
+            navigateToTransactionsScreen = {},
+            navigateToAllTransactionsScreen = {}
         )
     }
+}
+
+@Composable
+private fun ManualMembersCard(
+    members: List<ManualCategoryMember>,
+    onAddMember: (String) -> Unit,
+    onDeleteMember: (Int) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var memberName by remember { mutableStateOf("") }
+    var memberToDelete by remember { mutableStateOf<ManualCategoryMember?>(null) }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false; memberName = "" },
+            title = { Text("Add Manual Member") },
+            text = {
+                OutlinedTextField(
+                    value = memberName,
+                    onValueChange = { memberName = it },
+                    label = { Text("Member name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (memberName.isNotBlank()) {
+                        onAddMember(memberName.trim())
+                        memberName = ""
+                        showAddDialog = false
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showAddDialog = false; memberName = "" }) { Text("Cancel") } }
+        )
+    }
+
+    memberToDelete?.let { m ->
+        AlertDialog(
+            onDismissRequest = { memberToDelete = null },
+            title = { Text("Remove Member") },
+            text = { Text("Remove \"${m.name}\" from manual members?") },
+            confirmButton = { TextButton(onClick = { onDeleteMember(m.id); memberToDelete = null }) { Text("Remove") } },
+            dismissButton = { TextButton(onClick = { memberToDelete = null }) { Text("Cancel") } }
+        )
+    }
+
+    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Box(
+            Modifier.fillMaxWidth().background(
+                Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface))
+            )
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painter = painterResource(R.drawable.account_info), contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Manual Members", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(painter = painterResource(R.drawable.ic_add), contentDescription = "Add member", modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            if (members.isEmpty()) {
+                Text("No manual members yet", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp))
+            } else {
+                members.forEach { member ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(member.name)
+                        IconButton(onClick = { memberToDelete = member }) {
+                            Icon(painter = painterResource(R.drawable.remove), contentDescription = "Remove", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ManualTransactionsSection(
+    transactions: List<ManualTransaction>,
+    transactionTypes: List<ManualTransactionType>,
+    mpesaMembers: List<String>,
+    manualMembers: List<ManualCategoryMember>,
+    onAddTransaction: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit,
+    onDeleteTransaction: (Int) -> Unit,
+    onAddCustomType: (name: String, isOutflow: Boolean) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
+
+    txToDelete?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { txToDelete = null },
+            title = { Text("Delete Transaction") },
+            text = { Text("Delete this ${if (tx.isOutflow) "expense" else "income"} of KES ${tx.amount}?") },
+            confirmButton = { TextButton(onClick = { onDeleteTransaction(tx.id); txToDelete = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { txToDelete = null }) { Text("Cancel") } }
+        )
+    }
+
+    if (showAddDialog) {
+        AddManualTransactionDialog(
+            transactionTypes = transactionTypes,
+            mpesaMembers = mpesaMembers,
+            manualMembers = manualMembers,
+            onAddCustomType = onAddCustomType,
+            onConfirm = { memberName, typeName, isOutflow, amount, description, date ->
+                onAddTransaction(memberName, typeName, isOutflow, amount, description, date)
+                showAddDialog = false
+            },
+            onDismiss = { showAddDialog = false }
+        )
+    }
+
+    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Box(
+            Modifier.fillMaxWidth().background(
+                Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface))
+            )
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painter = painterResource(R.drawable.edit), contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Manual Transactions", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(painter = painterResource(R.drawable.ic_add), contentDescription = "Add transaction", modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            if (transactions.isEmpty()) {
+                Text(
+                    "No manual transactions yet. Tap + to add cash, bank or any non-M-PESA expense.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else {
+                transactions.forEach { tx ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(tx.memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(tx.transactionTypeName, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(tx.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(
+                            "KES ${tx.amount.toLong()}",
+                            color = if (tx.isOutflow) Color(0xFFD32F2F) else Color(0xFF388E3C),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        IconButton(onClick = { txToDelete = tx }) {
+                            Icon(painter = painterResource(R.drawable.remove), contentDescription = "Delete", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddManualTransactionDialog(
+    transactionTypes: List<ManualTransactionType>,
+    mpesaMembers: List<String>,
+    manualMembers: List<ManualCategoryMember>,
+    onAddCustomType: (name: String, isOutflow: Boolean) -> Unit,
+    onConfirm: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct()
+
+    var selectedMember by remember { mutableStateOf(allMembers.firstOrNull() ?: "") }
+    var memberExpanded by remember { mutableStateOf(false) }
+    var selectedType by remember { mutableStateOf(transactionTypes.firstOrNull()) }
+    var amountText by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    var showCustomTypeForm by remember { mutableStateOf(false) }
+    var customTypeName by remember { mutableStateOf("") }
+    var customTypeIsOutflow by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Manual Transaction") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ExposedDropdownMenuBox(expanded = memberExpanded, onExpandedChange = { memberExpanded = it }) {
+                    OutlinedTextField(
+                        value = selectedMember,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Member") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = memberExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = memberExpanded, onDismissRequest = { memberExpanded = false }) {
+                        allMembers.forEach { m ->
+                            DropdownMenuItem(text = { Text(m) }, onClick = { selectedMember = m; memberExpanded = false })
+                        }
+                    }
+                }
+
+                Text("Transaction Type", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(transactionTypes) { type ->
+                        FilterChip(
+                            selected = selectedType?.id == type.id,
+                            onClick = { selectedType = type },
+                            label = { Text(type.name, fontSize = 12.sp) }
+                        )
+                    }
+                    item {
+                        if (showCustomTypeForm) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = customTypeName,
+                                    onValueChange = { customTypeName = it },
+                                    label = { Text("Type name") },
+                                    modifier = Modifier.width(140.dp),
+                                    singleLine = true
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                FilterChip(selected = customTypeIsOutflow, onClick = { customTypeIsOutflow = true }, label = { Text("Expense") })
+                                Spacer(Modifier.width(4.dp))
+                                FilterChip(selected = !customTypeIsOutflow, onClick = { customTypeIsOutflow = false }, label = { Text("Income") })
+                                Spacer(Modifier.width(4.dp))
+                                IconButton(onClick = {
+                                    if (customTypeName.isNotBlank()) {
+                                        onAddCustomType(customTypeName.trim(), customTypeIsOutflow)
+                                        customTypeName = ""
+                                        showCustomTypeForm = false
+                                    }
+                                }) {
+                                    Icon(painter = painterResource(R.drawable.check), contentDescription = "Save", modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        } else {
+                            FilterChip(
+                                selected = false,
+                                onClick = { showCustomTypeForm = true },
+                                label = { Text("+ Type", fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Amount (KES)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+                OutlinedTextField(
+                    value = selectedDate.format(dateFormatter),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date") },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            DatePickerDialog(
+                                context,
+                                { _, y, m, d -> selectedDate = LocalDate.of(y, m + 1, d) },
+                                selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth
+                            ).show()
+                        }) {
+                            Icon(painter = painterResource(R.drawable.calendar), contentDescription = "Pick date", modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val amount = amountText.toDoubleOrNull() ?: return@TextButton
+                val type = selectedType ?: return@TextButton
+                if (selectedMember.isNotBlank()) {
+                    onConfirm(selectedMember, type.name, type.isOutflow, amount, description, selectedDate)
+                }
+            }) { Text("Add") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
