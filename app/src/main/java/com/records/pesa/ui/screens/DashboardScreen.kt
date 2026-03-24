@@ -756,9 +756,16 @@ fun BudgetHealthWidget(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Set budgets per category and get instant alerts when you're close to the limit — before it's too late.",
+                        text = "Set budgets per category and get instant alerts when you're close to the limit.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "💡 You can also manually add cash or non-M-PESA expenses to any budget — keeping your full spending picture in one place.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(

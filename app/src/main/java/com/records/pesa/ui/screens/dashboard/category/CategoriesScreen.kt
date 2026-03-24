@@ -475,9 +475,18 @@ fun CategoriesScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "Tap + to create your first category",
+                                            text = "Categories group your M-PESA transactions and let you add your own custom expenses — cash, bank transfers, anything — for a complete financial picture.",
                                             fontSize = 13.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "Tap + to create your first category",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
                                 }

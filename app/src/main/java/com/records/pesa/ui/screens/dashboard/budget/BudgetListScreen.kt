@@ -587,10 +587,18 @@ fun BudgetListScreen(
                                     )
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        text = "Set a budget for any category — rent, groceries, transport — and get notified before you overspend. Know exactly how much you have left, every day.",
+                                        text = "Set a budget for any category — rent, groceries, transport — and get notified before you overspend.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = "💡 Budgets also let you manually add cash payments, bank transfers and any non-M-PESA expense — so your spending picture is always complete, not just what M-PESA sees.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Medium
                                     )
                                     Spacer(Modifier.height(8.dp))
                                     // Tips row
@@ -598,7 +606,7 @@ fun BudgetListScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        listOf("📊 Track spending", "🔔 Get alerts", "📅 Set periods").forEach { tip ->
+                                        listOf("📊 Track spending", "✏️ Add manually", "🔔 Get alerts").forEach { tip ->
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
