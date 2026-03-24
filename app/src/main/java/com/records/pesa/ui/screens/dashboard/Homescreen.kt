@@ -55,6 +55,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -113,6 +115,7 @@ import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import com.records.pesa.ui.screens.components.PermissionExplanationDialog
 import com.records.pesa.ui.screens.components.SubscriptionDialog
 import kotlinx.coroutines.launch
 
@@ -166,6 +169,7 @@ fun HomeScreenComposable(
     var showSubscribeDialog by rememberSaveable { mutableStateOf(false) }
     var showFreeTrialDialog by rememberSaveable { mutableStateOf(false) }
     var showBackupDialog by rememberSaveable { mutableStateOf(false) }
+    var showBatteryOptimDialog by rememberSaveable { mutableStateOf(false) }
 
     var currentTab by rememberSaveable { mutableStateOf(HomeScreenTab.HOME) }
 
@@ -173,6 +177,15 @@ fun HomeScreenComposable(
         if (uiState.screen == "backup-screen") {
             currentTab = HomeScreenTab.BACK_UP
             viewModel.resetNavigationScreen()
+        }
+
+        // Show battery optimisation explanation once — stored in SharedPreferences, no DB migration needed
+        val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("battery_optim_prompted", false)) {
+            val pm = context.getSystemService(android.os.PowerManager::class.java)
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {
+                showBatteryOptimDialog = true
+            }
         }
     }
 
@@ -206,6 +219,31 @@ fun HomeScreenComposable(
                 Toast.makeText(context, "Backup initiated - Check notification bar for progress", Toast.LENGTH_LONG).show()
             },
             onDismiss = { showBackupDialog = false }
+        )
+    }
+
+    if (showBatteryOptimDialog) {
+        PermissionExplanationDialog(
+            icon = R.drawable.refresh,
+            title = "Keep Cash Ledger Running",
+            explanation = "Cash Ledger reads your M-PESA SMS messages in the background to automatically save new transactions — even when the app is closed.\n\nOn the next screen, select \"No restrictions\" to keep the app running reliably. Without this, your phone's battery saver may stop the app after a few days.",
+            confirmLabel = "Allow background activity",
+            dismissLabel = "Maybe later",
+            onConfirm = {
+                showBatteryOptimDialog = false
+                val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("battery_optim_prompted", true).apply()
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                context.startActivity(intent)
+            },
+            onDismiss = {
+                showBatteryOptimDialog = false
+                // Mark prompted even on dismiss — don't nag every launch
+                val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("battery_optim_prompted", true).apply()
+            }
         )
     }
 

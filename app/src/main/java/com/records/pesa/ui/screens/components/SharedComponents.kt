@@ -780,3 +780,105 @@ fun SubscriptionDialog(
         dismissButton = null
     )
 }
+
+/**
+ * Generic permission explanation dialog.
+ * Shows WHY a permission is needed before the system OS prompt appears.
+ * Use this for every permission request in the app.
+ */
+@Composable
+fun PermissionExplanationDialog(
+    icon: Int,
+    title: String,
+    explanation: String,
+    confirmLabel: String = "Allow",
+    dismissLabel: String = "Not now",
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header gradient banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(primary.copy(alpha = 0.15f), tertiary.copy(alpha = 0.08f))
+                            )
+                        )
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(primary.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.Icon(
+                                painter = androidx.compose.ui.res.painterResource(icon),
+                                contentDescription = null,
+                                tint = primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = explanation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onConfirm,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(confirmLabel, fontWeight = FontWeight.SemiBold)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        dismissLabel,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = null
+    )
+}
