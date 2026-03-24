@@ -19,15 +19,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import com.records.pesa.workers.BudgetAlertTracker
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 data class BudgetInfoScreenUiState(
@@ -68,7 +71,8 @@ class BudgetInfoScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
     private val categoryService: CategoryService,
-    private val dataStoreRepository: DataStoreRepository
+    private val dataStoreRepository: DataStoreRepository,
+    private val application: android.app.Application
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetInfoScreenUiState())
@@ -101,6 +105,24 @@ class BudgetInfoScreenViewModel(
                         ?.let { LocalDate.parse(it) } ?: budget.limitDate
                 )
                 dbRepository.updateBudget(updated)
+
+                // Immediately recalculate derived fields against the new limit/dates
+                val today = LocalDate.now()
+                val newExpenditure = dbRepository
+                    .getOutflowForCategory(updated.categoryId, updated.startDate, minOf(today, updated.limitDate))
+                    .first()
+                val newLimitReached = newExpenditure >= updated.budgetLimit
+                val newExceededBy = max(0.0, newExpenditure - updated.budgetLimit)
+                dbRepository.updateBudgetExpenditure(
+                    id = updated.id,
+                    expenditure = newExpenditure,
+                    limitReached = newLimitReached,
+                    exceededBy = newExceededBy
+                )
+
+                // Reset alert tracker so fresh alerts can fire with the new limit
+                BudgetAlertTracker.clearForBudget(application, updated.id)
+
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
