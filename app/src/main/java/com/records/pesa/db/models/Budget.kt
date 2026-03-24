@@ -25,5 +25,6 @@ data class Budget(
     val limitReached: Boolean,
     val limitReachedAt: LocalDateTime?,
     val exceededBy: Double,
-    val categoryId: Int
+    val categoryId: Int,
+    val alertThreshold: Int = 80
 )

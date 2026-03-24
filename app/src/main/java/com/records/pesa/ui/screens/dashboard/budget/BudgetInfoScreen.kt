@@ -71,6 +71,7 @@ object BudgetInfoScreenDestination : AppNavigation {
 fun BudgetInfoScreenComposable(
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToAuditTrail: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -138,7 +139,8 @@ fun BudgetInfoScreenComposable(
             onEditClick = { showEditDialog = true },
             onDeleteClick = { showDeleteDialog = true },
             navigateToTransactionsScreen = navigateToTransactionsScreen,
-            navigateToPreviousScreen = navigateToPreviousScreen
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            navigateToAuditTrail = navigateToAuditTrail
         )
     }
 }
@@ -151,6 +153,7 @@ fun BudgetInfoScreen(
     onDeleteClick: () -> Unit,
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToAuditTrail: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val budget = uiState.budget
@@ -335,6 +338,67 @@ fun BudgetInfoScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("View All Transactions", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        // Audit Trail entry
+        if (budget != null) {
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    onClick = { navigateToAuditTrail(budget.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.list),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Audit Trail",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (!uiState.isPremium) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFA000),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Premium",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFFFA000),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

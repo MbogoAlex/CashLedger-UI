@@ -44,6 +44,7 @@ data class BudgetCreationScreenUiState(
     val categorySearch: String = "",
     val avgSpend3Months: Double = 0.0,
     val lastMonthSpend: Double = 0.0,
+    val alertThreshold: Int = 80,
     val newBudgetId: Int = 0,
     val saveButtonEnabled: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
@@ -99,6 +100,11 @@ class BudgetCreationScreenViewModel(
     fun updateLimitDate(date: LocalDate) { _uiState.update { it.copy(limitDate = date) }; checkFields() }
     fun resetLoadingStatus() = _uiState.update { it.copy(loadingStatus = LoadingStatus.INITIAL) }
 
+    fun setAlertThreshold(value: Int) {
+        if (!_uiState.value.isPremium) return
+        _uiState.update { it.copy(alertThreshold = value) }
+    }
+
     private fun loadCategorySpendStats(categoryId: Int) {
         viewModelScope.launch {
             val today = LocalDate.now()
@@ -147,7 +153,8 @@ class BudgetCreationScreenViewModel(
                         limitReached = false,
                         limitReachedAt = null,
                         exceededBy = 0.0,
-                        categoryId = catId
+                        categoryId = catId,
+                        alertThreshold = s.alertThreshold
                     )
                     val newId = dbRepository.insertBudget(budget)
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }

@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.records.pesa.db.dao.BudgetDao
+import com.records.pesa.db.dao.BudgetRecalcLogDao
 import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.dao.UserDao
@@ -16,7 +17,9 @@ import com.records.pesa.db.migration.MIGRATION_40_41
 import com.records.pesa.db.migration.MIGRATION_48_49
 import com.records.pesa.db.migration.MIGRATION_49_50
 import com.records.pesa.db.migration.MIGRATION_50_51
+import com.records.pesa.db.migration.MIGRATION_51_52
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
@@ -28,7 +31,7 @@ import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 
-@Database(entities = [UserDetails::class, UserSession::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class, UserPreferences::class], version = 51, exportSchema = false)
+@Database(entities = [UserDetails::class, UserSession::class, AppLaunchStatus::class, Budget::class, TransactionCategory::class, Transaction::class, CategoryKeyword::class, UserAccount::class, TransactionCategoryCrossRef::class, DeletedTransaction::class, UserPreferences::class, BudgetRecalcLog::class], version = 52, exportSchema = false)
 @TypeConverters(Coverters::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun appDao(): AppDao
@@ -36,6 +39,7 @@ abstract class AppDatabase: RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun userDao(): UserDao
     abstract fun budgetDao(): BudgetDao
+    abstract fun budgetRecalcLogDao(): BudgetRecalcLogDao
 
     companion object {
         @Volatile
@@ -60,7 +64,7 @@ abstract class AppDatabase: RoomDatabase() {
                 }
 
                 val builder = Room.databaseBuilder(context, AppDatabase::class.java, "CashLedger_db")
-                    .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41, MIGRATION_48_49, MIGRATION_49_50, MIGRATION_50_51)
+                    .addMigrations(MIGRATION_29_30, MIGRATION_30_31, MIGRATION_40_41, MIGRATION_48_49, MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52)
                     .addCallback(callback)
                     .fallbackToDestructiveMigration()
 

@@ -21,6 +21,7 @@ import com.records.pesa.ui.screens.auth.UpdatePasswordScreenViewModel
 import com.records.pesa.ui.screens.backup.BackupRestoreScreenViewModel
 import com.records.pesa.ui.screens.backup.BackupScreenViewModel
 import com.records.pesa.ui.screens.dashboard.HomeScreenViewModel
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenViewModel
@@ -384,6 +385,13 @@ object AppViewModelFactory {
                 categoryService = categoryService,
                 apiRepository = apiRepository,
                 authenticationManager = authenticationManager
+            )
+        }
+        initializer {
+            BudgetAuditTrailScreenViewModel(
+                savedStateHandle = this.createSavedStateHandle(),
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
             )
         }
     }

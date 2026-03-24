@@ -5,8 +5,10 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.records.pesa.CashLedger
+import com.records.pesa.db.models.BudgetRecalcLog
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.max
 
 /**
@@ -25,32 +27,40 @@ class BudgetRecalculationWorker(
             val today = LocalDate.now()
 
             for (budget in budgets) {
-                val spending = container.dbRepository
+                val newExpenditure = container.dbRepository
                     .getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate))
                     .first()
 
-                val limitReached = spending >= budget.budgetLimit
-                val exceededBy = max(0.0, spending - budget.budgetLimit)
-                val pct = if (budget.budgetLimit > 0) spending / budget.budgetLimit * 100.0 else 0.0
+                val limitReached = newExpenditure >= budget.budgetLimit
+                val exceededBy = max(0.0, newExpenditure - budget.budgetLimit)
+                val pct = if (budget.budgetLimit > 0) newExpenditure / budget.budgetLimit * 100.0 else 0.0
+                val thresholdPct = budget.alertThreshold.toDouble()
+
+                // Determine threshold crossed BEFORE firing alerts (to capture correctly)
+                val thresholdCrossed = when {
+                    pct >= 100.0 && !BudgetAlertTracker.hasFired(context, budget.id, "100_recalc") -> "100%"
+                    pct >= thresholdPct && !BudgetAlertTracker.hasFired(context, budget.id, "threshold_recalc") -> "${budget.alertThreshold}%"
+                    else -> null
+                }
 
                 // Update DB fields
                 container.dbRepository.updateBudgetExpenditure(
                     id = budget.id,
-                    expenditure = spending,
+                    expenditure = newExpenditure,
                     limitReached = limitReached,
                     exceededBy = exceededBy
                 )
 
-                // Budget newly crossed 80% → alert
-                if (pct >= 80.0 && !BudgetAlertTracker.hasFired(context, budget.id, "80_recalc")) {
+                // Budget newly crossed custom threshold → alert
+                if (pct >= thresholdPct && !BudgetAlertTracker.hasFired(context, budget.id, "threshold_recalc")) {
                     NotificationHelper.notify(
                         context = context,
                         id = budget.id * 10 + 4,
                         budgetId = budget.id,
                         title = "⚠️ Budget Alert: ${budget.name}",
-                        body = "${budget.name} is ${pct.toInt()}% used — KES ${spending.toLong()} of KES ${budget.budgetLimit.toLong()}."
+                        body = "${budget.name} is ${pct.toInt()}% used — KES ${newExpenditure.toLong()} of KES ${budget.budgetLimit.toLong()}."
                     )
-                    BudgetAlertTracker.markFired(context, budget.id, "80_recalc")
+                    BudgetAlertTracker.markFired(context, budget.id, "threshold_recalc")
                 }
 
                 // Budget exceeded 100% → alert
@@ -64,6 +74,18 @@ class BudgetRecalculationWorker(
                     )
                     BudgetAlertTracker.markFired(context, budget.id, "100_recalc")
                 }
+
+                // Insert audit log for every recalculation
+                container.dbRepository.insertBudgetRecalcLog(
+                    BudgetRecalcLog(
+                        budgetId = budget.id,
+                        budgetName = budget.name,
+                        timestamp = LocalDateTime.now(),
+                        oldExpenditure = budget.expenditure,
+                        newExpenditure = newExpenditure,
+                        thresholdCrossed = thresholdCrossed
+                    )
+                )
             }
             Log.d("BudgetRecalcWorker", "Recalculated ${budgets.size} budgets")
             Result.success()

@@ -586,3 +586,20 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
 
 
 
+
+val MIGRATION_51_52 = object : Migration(51, 52) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `alertThreshold` INTEGER NOT NULL DEFAULT 80")
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `budget_recalc_log` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `budgetId` INTEGER NOT NULL,
+                `budgetName` TEXT NOT NULL,
+                `timestamp` TEXT NOT NULL,
+                `oldExpenditure` REAL NOT NULL,
+                `newExpenditure` REAL NOT NULL,
+                `thresholdCrossed` TEXT
+            )
+        """.trimIndent())
+    }
+}

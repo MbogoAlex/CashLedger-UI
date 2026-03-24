@@ -5,9 +5,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.dao.BudgetDao
+import com.records.pesa.db.dao.BudgetRecalcLogDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
@@ -97,12 +99,17 @@ interface DBRepository {
     // Local spending computation
     fun getOutflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double>
     fun getInflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double>
+
+    // Budget audit log
+    suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog)
+    fun getLogsForBudget(budgetId: Int): Flow<List<BudgetRecalcLog>>
 }
 
 class DBRepositoryImpl(
     private val appDao: AppDao,
     private val transactionsDao: TransactionsDao,
-    private val budgetDao: BudgetDao
+    private val budgetDao: BudgetDao,
+    private val budgetRecalcLogDao: BudgetRecalcLogDao
 ): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
@@ -217,5 +224,8 @@ class DBRepositoryImpl(
         transactionsDao.getOutflowForCategory(categoryId, startDate, endDate)
     override fun getInflowForCategory(categoryId: Int, startDate: LocalDate, endDate: LocalDate): Flow<Double> =
         transactionsDao.getInflowForCategory(categoryId, startDate, endDate)
+
+    override suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog) = budgetRecalcLogDao.insertLog(log)
+    override fun getLogsForBudget(budgetId: Int) = budgetRecalcLogDao.getLogsForBudget(budgetId)
 
 }

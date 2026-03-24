@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -114,6 +115,7 @@ fun BudgetCreationScreenComposable(
             },
             onBudgetStartDateChange = { viewModel.updateStartDate(it) },
             onBudgetEndDateChange = { viewModel.updateLimitDate(it) },
+            onAlertThresholdChange = { viewModel.setAlertThreshold(it) },
             onCreateBudget = { viewModel.createBudget() },
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToCreateCategory = navigateToCreateCategory
@@ -135,6 +137,7 @@ fun BudgetCreationScreen(
     onBudgetLimitChange: (String) -> Unit,
     onBudgetStartDateChange: (LocalDate) -> Unit,
     onBudgetEndDateChange: (LocalDate) -> Unit,
+    onAlertThresholdChange: (Int) -> Unit,
     onCreateBudget: () -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToCreateCategory: () -> Unit,
@@ -844,6 +847,78 @@ fun BudgetCreationScreen(
                             text = "This is lower than last month's spend of ${formatMoneyValue(uiState.lastMonthSpend)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFE65100)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
+
+                // ── Alert Threshold ────────────────────────────────────────
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Alert Threshold",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = screenFontSize(x = 14.0).sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (!uiState.isPremium) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null,
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Premium",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFFFA000),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Alert me when budget is ${uiState.alertThreshold}% used",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (uiState.isPremium) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Slider(
+                    value = uiState.alertThreshold.toFloat(),
+                    onValueChange = { onAlertThresholdChange(it.toInt()) },
+                    valueRange = 10f..100f,
+                    steps = 8,
+                    enabled = uiState.isPremium,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (!uiState.isPremium) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onDismissUpgradeDialog() }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.info),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Upgrade to Premium to set a custom alert threshold",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
                 }

@@ -30,6 +30,8 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposab
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenComposable
@@ -571,6 +573,26 @@ fun NavigationGraph(
                 },
                 navigateToPreviousScreen = {
                     navController.popBackStack()
+                },
+                navigateToAuditTrail = { budgetId ->
+                    navController.navigate("${BudgetAuditTrailScreenDestination.route}/$budgetId")
+                }
+            )
+        }
+        composable(
+            BudgetAuditTrailScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetAuditTrailScreenDestination.budgetId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetAuditTrailScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.popBackStack()
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
                 }
             )
         }
