@@ -36,6 +36,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -585,12 +586,33 @@ fun BudgetCreationScreen(
                             it.name.contains(uiState.categorySearch, ignoreCase = true)
                         }
                         if (filtered.isEmpty()) {
-                            Text(
-                                text = "No categories found",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(8.dp)
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = if (uiState.categorySearch.isBlank()) "No categories yet"
+                                           else "No categories found for \"${uiState.categorySearch}\"",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = navigateToCreateCategory,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_add),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Add category")
+                                }
+                            }
                         } else {
                             filtered.take(5).forEach { cat ->
                                 Row(
