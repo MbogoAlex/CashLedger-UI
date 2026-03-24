@@ -119,6 +119,7 @@ fun BudgetInfoScreenComposable(
             onNameChange = viewModel::updateBudgetName,
             onLimitChange = viewModel::updateBudgetLimit,
             onDateChange = viewModel::updateLimitDate,
+            onThresholdChange = viewModel::updateAlertThreshold,
             onSave = viewModel::saveBudgetEdits,
             onDismiss = { showEditDialog = false; viewModel.resetLoadingStatus() }
         )
@@ -1127,6 +1128,7 @@ private fun BudgetEditDialog(
     onNameChange: (String) -> Unit,
     onLimitChange: (String) -> Unit,
     onDateChange: (String) -> Unit,
+    onThresholdChange: (Int) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1193,6 +1195,58 @@ private fun BudgetEditDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showDatePicker() }
+                )
+
+                // Alert threshold — PREMIUM feature
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Alert threshold",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (!uiState.isPremium) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(10.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Premium",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+                Text(
+                    text = "Alert me when ${uiState.alertThreshold}% of budget is used",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (uiState.isPremium) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = uiState.alertThreshold.toFloat(),
+                    onValueChange = { if (uiState.isPremium) onThresholdChange(it.toInt()) },
+                    valueRange = 10f..100f,
+                    steps = 8, // 10,20,30,40,50,60,70,80,90,100
+                    enabled = uiState.isPremium,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (uiState.loadingStatus == LoadingStatus.LOADING) {

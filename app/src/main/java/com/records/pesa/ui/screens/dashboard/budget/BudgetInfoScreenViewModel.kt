@@ -57,6 +57,7 @@ data class BudgetInfoScreenUiState(
     val budgetLimit: String = "",
     val budgetStartDate: String = "",
     val budgetLimitDate: String = "",
+    val alertThreshold: Int = 80,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val executionStatus: ExecutionStatus = ExecutionStatus.INITIAL
 )
@@ -77,6 +78,7 @@ class BudgetInfoScreenViewModel(
 
     fun updateBudgetName(name: String) = _uiState.update { it.copy(budgetName = name) }
     fun updateBudgetLimit(amount: String) = _uiState.update { it.copy(budgetLimit = amount) }
+    fun updateAlertThreshold(value: Int) = _uiState.update { it.copy(alertThreshold = value) }
     fun updateStartDate(date: String) = _uiState.update { it.copy(budgetStartDate = date) }
     fun updateLimitDate(date: String) = _uiState.update { it.copy(budgetLimitDate = date) }
 
@@ -92,6 +94,7 @@ class BudgetInfoScreenViewModel(
                 val updated = budget.copy(
                     name = _uiState.value.budgetName.ifBlank { budget.name },
                     budgetLimit = _uiState.value.budgetLimit.toDoubleOrNull() ?: budget.budgetLimit,
+                    alertThreshold = _uiState.value.alertThreshold,
                     startDate = _uiState.value.budgetStartDate.takeIf { it.isNotBlank() }
                         ?.let { LocalDate.parse(it) } ?: budget.startDate,
                     limitDate = _uiState.value.budgetLimitDate.takeIf { it.isNotBlank() }
@@ -129,6 +132,7 @@ class BudgetInfoScreenViewModel(
                             budget = budget,
                             budgetName = budget.name,
                             budgetLimit = budget.budgetLimit.toString(),
+                            alertThreshold = budget.alertThreshold,
                             budgetStartDate = budget.startDate.toString(),
                             budgetLimitDate = budget.limitDate.toString()
                         )
