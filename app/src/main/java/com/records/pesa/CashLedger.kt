@@ -8,6 +8,7 @@ import androidx.work.WorkManager
 import com.records.pesa.container.AppContainer
 import com.records.pesa.container.AppContainerImpl
 import com.records.pesa.workers.BudgetCheckWorker
+import com.records.pesa.workers.BudgetRecalculationWorker
 import com.records.pesa.workers.NotificationHelper
 import java.util.concurrent.TimeUnit
 
@@ -28,6 +29,18 @@ class CashLedger: Application() {
             "budget_check",
             ExistingPeriodicWorkPolicy.KEEP,
             budgetCheckRequest
+        )
+
+        // Budget recalculation — runs every 15 min (WorkManager minimum) so
+        // expenditure figures are always fresh before the user opens a budget screen
+        val budgetRecalcRequest = PeriodicWorkRequestBuilder<BudgetRecalculationWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "budget_recalc",
+            ExistingPeriodicWorkPolicy.KEEP,
+            budgetRecalcRequest
         )
     }
 

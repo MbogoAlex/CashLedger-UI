@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BudgetDao {
+    @Query("UPDATE budget SET expenditure = :expenditure, limitReached = :limitReached, exceededBy = :exceededBy WHERE id = :id")
+    suspend fun updateBudgetExpenditure(id: Int, expenditure: Double, limitReached: Boolean, exceededBy: Double)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBudget(budget: Budget): Long
 

@@ -86,6 +86,7 @@ interface DBRepository {
     // Budget operations
     suspend fun insertBudget(budget: Budget): Long
     suspend fun updateBudget(budget: Budget)
+    suspend fun updateBudgetExpenditure(id: Int, expenditure: Double, limitReached: Boolean, exceededBy: Double)
     suspend fun deleteBudget(budget: Budget)
     suspend fun deleteBudgetById(id: Int)
     fun getBudgetById(id: Int): Flow<Budget?>
@@ -202,6 +203,8 @@ class DBRepositoryImpl(
     // Budget operations
     override suspend fun insertBudget(budget: Budget): Long = budgetDao.insertBudget(budget)
     override suspend fun updateBudget(budget: Budget) = budgetDao.updateBudget(budget)
+    override suspend fun updateBudgetExpenditure(id: Int, expenditure: Double, limitReached: Boolean, exceededBy: Double) =
+        budgetDao.updateBudgetExpenditure(id, expenditure, limitReached, exceededBy)
     override suspend fun deleteBudget(budget: Budget) = budgetDao.deleteBudget(budget)
     override suspend fun deleteBudgetById(id: Int) = budgetDao.deleteBudgetById(id)
     override fun getBudgetById(id: Int): Flow<Budget?> = budgetDao.getBudgetById(id)
