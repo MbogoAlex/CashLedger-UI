@@ -33,48 +33,49 @@ class FetchMessagesWorker(
 
         try {
             val appContext = context.applicationContext as? CashLedger
-                ?: return Result.failure() // appContext was not found
+                ?: return Result.retry()
 
-            // Ensure AppContainer is initialized
-            appContext.container = AppContainerImpl(appContext)
-
+            // Always use the live container (never re-init — it's already initialised by CashLedger.onCreate)
             val transactionService = appContext.container.transactionService
             val categoryService = appContext.container.categoryService
             val userAccountService = appContext.container.userAccountService
+            val dbRepository = appContext.container.dbRepository
 
-            val userId = inputData.getInt("userId", -1)
-            val token = inputData.getString("token")
-            val paymentStatus = inputData.getBoolean("paymentStatus", false)
-            if(userId == -1) {
-                return Result.failure()
-            }
+            // Read user from DB directly — never depend on inputData which can be lost
+            val users = dbRepository.getUsers().first()
+            if (users.isEmpty()) return Result.retry()
+            val user = users[0]
+            if (user.backUpUserId == 0L) return Result.retry()
+
             val latestTransactionCode = transactionService.getLatestTransactionCode().first()
 
             fetchSmsMessages(
                 context = context,
                 transactionService = transactionService,
-                userAccount = userAccountService.getUserAccountByBackupId(backupId = userId.toLong()).first(),
+                userAccount = userAccountService.getUserAccountByBackupId(backupId = user.backUpUserId).first(),
                 categories = categoryService.getAllCategories().first(),
                 existing = latestTransactionCode
             )
 
-            // Once fetching is done, enqueue the posting work
-            val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
-                .setInputData(workDataOf("userId" to userId, "token" to token))
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .build()
+            // Trigger backup (cloud sync) only when network is available — separate concern
+            val token = user.token
+            if (token.isNotEmpty()) {
+                val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
+                    .setInputData(workDataOf("userId" to user.backUpUserId.toInt(), "token" to token))
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+                WorkManager.getInstance(context).enqueue(postMessagesRequest)
+            }
 
-            WorkManager.getInstance(context).enqueue(postMessagesRequest)
-            Log.d("backUpWork", "POST-MESSAGES: SUCCESS")
-
+            Log.d("FetchMessagesWorker", "SMS fetch complete for user ${user.backUpUserId}")
             return Result.success()
         } catch (e: Exception) {
-            Log.e("backUpWork", e.toString())
-            return Result.failure()
+            Log.e("FetchMessagesWorker", "doWork failed: $e")
+            return Result.retry() // retry instead of fail — keeps the periodic chain alive
         }
 
 

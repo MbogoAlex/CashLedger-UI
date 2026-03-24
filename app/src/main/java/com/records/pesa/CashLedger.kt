@@ -9,6 +9,7 @@ import com.records.pesa.container.AppContainer
 import com.records.pesa.container.AppContainerImpl
 import com.records.pesa.workers.BudgetCheckWorker
 import com.records.pesa.workers.BudgetRecalculationWorker
+import com.records.pesa.workers.FetchMessagesWorker
 import com.records.pesa.workers.NotificationHelper
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +42,18 @@ class CashLedger: Application() {
             "budget_recalc",
             ExistingPeriodicWorkPolicy.KEEP,
             budgetRecalcRequest
+        )
+
+        // Catchup SMS fetch — runs every 6 hours regardless of network.
+        // No inputData dependency so it survives WorkManager DB resets on OEM devices.
+        val smsFetchRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(6, TimeUnit.HOURS)
+            .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "fetch_and_backup_transactions_periodic",
+            ExistingPeriodicWorkPolicy.KEEP,
+            smsFetchRequest
         )
     }
 

@@ -32,29 +32,20 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
     private val workManager = WorkManager.getInstance(context)
     override suspend fun fetchAndBackupTransactions(token: String, userId: Int, paymentStatus: Boolean, priorityHigh: Boolean,) {
 
-        workManager.cancelUniqueWork("fetch_and_backup_transactions_periodic")
-
         try {
-            Log.d("backUpWork", "Fetching messages, user - $userId, token - $token")
+            Log.d("backUpWork", "Scheduling fetch_and_backup_transactions_periodic")
 
-            // Define constraints for network availability (any network)
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED) // Allows work on any network type
-                .build()
-            // Periodic work request for fetching messages
-                val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(12))
-                    .setInputData(workDataOf("userId" to userId, "token" to token, "paymentStatus" to paymentStatus, "priorityHigh" to priorityHigh))
-                    .setConstraints(constraints)
-    //                .setInitialDelay(Duration.ofSeconds(10))
+            // No network constraint — SMS reading is local; BackupWorker handles the network part
+            val fetchMessagesPeriodicRequest = PeriodicWorkRequestBuilder<FetchMessagesWorker>(Duration.ofHours(6))
                     .build()
 
-            // Enqueue the periodic work request
+            // KEEP: don't cancel existing work — if it's running, let it finish
             workManager.enqueueUniquePeriodicWork(
                 "fetch_and_backup_transactions_periodic",
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 fetchMessagesPeriodicRequest
             )
-            Log.d("backUpWork", "Backup initiated")
+            Log.d("backUpWork", "Periodic SMS fetch scheduled")
         } catch (e: Exception) {
             Log.e("backUpWork", e.toString())
         }
