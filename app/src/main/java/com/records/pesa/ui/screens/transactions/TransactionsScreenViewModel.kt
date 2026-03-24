@@ -166,6 +166,7 @@ class TransactionsScreenViewModel(
     }
 
     fun clearSearch(tab: TransactionScreenTab) {
+        if (uiState.value.entity.isEmpty()) return
         _uiState.update {
             it.copy(
                 entity = "",
