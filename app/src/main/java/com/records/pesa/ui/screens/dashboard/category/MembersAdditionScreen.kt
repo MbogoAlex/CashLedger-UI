@@ -304,7 +304,7 @@ fun MembersAdditionScreen(
                 }
             }
 
-            // ── Add Custom Member card ───────────────────────────────────────
+            // ── Add non-M-PESA member card ───────────────────────────────────
             item {
                 ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                     Box(
@@ -324,14 +324,21 @@ fun MembersAdditionScreen(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Add Custom Member", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text("Add non-M-PESA member", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                             }
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Add someone who doesn't appear in your M-PESA history — e.g. a cash vendor, shop, or person you pay outside M-PESA.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 17.sp
+                            )
+                            Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = customMemberName,
                                     onValueChange = { customMemberName = it },
-                                    label = { Text("Name (e.g. Mama Mboga)", fontSize = 12.sp) },
+                                    label = { Text("Name (e.g. Mama Mboga, Local Barber)", fontSize = 12.sp) },
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
                                     modifier = Modifier.weight(1f)
