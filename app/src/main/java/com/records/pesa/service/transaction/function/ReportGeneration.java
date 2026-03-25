@@ -366,5 +366,150 @@ public class ReportGeneration {
                 .setVerticalAlignment(VerticalAlignment.MIDDLE));
     }
 
+    // ── Report from pre-built model list (includes manual/non-M-PESA transactions) ──
+
+    public byte[] generateReportFromPrebuiltModels(
+            List<AllTransactionsReportModel> models,
+            String owner,
+            String rawStartDate,
+            String rawEndDate,
+            String reportType,
+            Context context) throws Exception {
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MMMM dd, yyyy");
+        String formattedStartDate = outputFormat.format(inputFormat.parse(rawStartDate));
+        String formattedEndDate   = outputFormat.format(inputFormat.parse(rawEndDate));
+
+        double totalIn = 0.0, totalOut = 0.0, totalTransactionCost = 0.0;
+        for (AllTransactionsReportModel m : models) {
+            if (m.getMoneyIn() != null && !"-".equals(m.getMoneyIn())) {
+                try { totalIn += Double.parseDouble(m.getMoneyIn().replace("Ksh", "")); }
+                catch (NumberFormatException ignored) {}
+            }
+            if (m.getMoneyOut() != null && !"-".equals(m.getMoneyOut())) {
+                try { totalOut += Double.parseDouble(m.getMoneyOut().replace("Ksh", "")); }
+                catch (NumberFormatException ignored) {}
+            }
+            if (m.getTransactionCost() != null && !"-".equals(m.getTransactionCost())) {
+                try { totalTransactionCost += Double.parseDouble(m.getTransactionCost().replace("Ksh", "")); }
+                catch (NumberFormatException ignored) {}
+            }
+        }
+
+        if ("csv".equalsIgnoreCase(reportType)) {
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                 PrintWriter writer = new PrintWriter(bos)) {
+
+                writer.println("Owner:," + owner);
+                writer.println("Start Date:," + formattedStartDate);
+                writer.println("End Date:," + formattedEndDate);
+                writer.println("Total in:,Ksh" + String.format("%.2f", totalIn));
+                writer.println("Total out:,Ksh" + String.format("%.2f", totalOut));
+                writer.println();
+                writer.println("Report Generated:," + new SimpleDateFormat("MMMM dd, yyyy HH:mm:ss").format(new Date()));
+                writer.println();
+                writer.println("Date,Time,Transaction Type,Category,Entity,Money In,Money Out,Transaction Cost");
+
+                for (AllTransactionsReportModel m : models) {
+                    String dt = m.getDatetime() != null ? m.getDatetime() : " ";
+                    String[] parts = dt.split(" ", 2);
+                    writer.println(String.join(",",
+                            parts.length > 0 ? parts[0] : "",
+                            parts.length > 1 ? parts[1] : "",
+                            m.getTransactionType() != null ? m.getTransactionType() : "",
+                            m.getCategory()        != null ? m.getCategory()        : "",
+                            m.getEntity()          != null ? m.getEntity()          : "",
+                            m.getMoneyIn()         != null ? m.getMoneyIn()         : "-",
+                            m.getMoneyOut()        != null ? m.getMoneyOut()        : "-",
+                            m.getTransactionCost() != null ? m.getTransactionCost() : "-"
+                    ));
+                }
+
+                writer.println(",,,,,Total In: Ksh"  + String.format("%.2f", totalIn)
+                        + ",Total Out: Ksh"          + String.format("%.2f", totalOut)
+                        + ",Total Transaction Cost: Ksh" + String.format("%.2f", totalTransactionCost));
+                writer.flush();
+                return bos.toByteArray();
+            }
+        } else {
+            return createPdfFromModels(context, models, owner,
+                    formattedStartDate, formattedEndDate,
+                    totalIn, totalOut, totalTransactionCost);
+        }
+    }
+
+    private byte[] createPdfFromModels(Context context, List<AllTransactionsReportModel> models,
+                                       String owner, String formattedStartDate, String formattedEndDate,
+                                       double totalIn, double totalOut, double totalTransactionCost) throws Exception {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(bos);
+        PdfDocument pdfDocument = new PdfDocument(writer);
+        Document document = new Document(pdfDocument);
+
+        Drawable d = getDrawable(context, R.drawable.mpesa_ledge_playstore_logo_no_bg);
+        Bitmap bitmap = ((BitmapDrawable) d).getBitmap();
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        ImageData imageData = ImageDataFactory.create(stream.toByteArray());
+        Image image = new Image(imageData);
+        image.setHeight(180); image.setWidth(180); image.setFixedPosition(1, 400, 650);
+
+        Text spacer = new Text("   ");
+        Paragraph p1 = new Paragraph()
+                .add(new Text("Owner: ").setBold().setFontColor(new DeviceRgb(31,140,49))).add(new Text(owner));
+        Paragraph p2 = new Paragraph()
+                .add(new Text("Start Date: ").setBold().setFontColor(new DeviceRgb(31,140,49))).add(new Text(formattedStartDate));
+        Paragraph p3 = new Paragraph()
+                .add(new Text("End Date: ").setBold().setFontColor(new DeviceRgb(31,140,49))).add(new Text(formattedEndDate));
+        Paragraph p4 = new Paragraph()
+                .add(new Text("Total in: "))
+                .add(new Text("Ksh" + String.format("%.2f", totalIn)).setFontColor(new DeviceRgb(31,140,49)))
+                .add(spacer)
+                .add(new Text("Total out: "))
+                .add(new Text("Ksh" + String.format("%.2f", totalOut)).setFontColor(new DeviceRgb(171,18,15)))
+                .add(spacer)
+                .add(new Text("Total transaction cost: "))
+                .add(new Text("Ksh" + String.format("%.2f", totalTransactionCost)).setFontColor(new DeviceRgb(171,18,15)));
+        Paragraph p5 = new Paragraph()
+                .add(new Text(models.size() + " row(s)"))
+                .add(spacer)
+                .add(new Text("Report generated on " + new SimpleDateFormat("MMMM dd, yyyy HH:mm:ss").format(new Date())));
+
+        document.add(image);
+        document.add(new Paragraph("Mpesa Ledger").setFontSize(22).setFontColor(new DeviceRgb(31,140,49)));
+        document.add(new Paragraph("MPESA transactions report"));
+        document.add(new Paragraph());
+        document.add(p1); document.add(p2); document.add(p3);
+        document.add(new Paragraph()); document.add(p4);
+        document.add(new Paragraph()); document.add(p5);
+        document.add(new Paragraph());
+
+        float[] columnWidth = {110f, 100f, 120f, 100f, 100f, 100f, 120f};
+        Table table = new Table(columnWidth);
+        addTableHeader(table, new DeviceRgb(31, 140, 49));
+
+        for (AllTransactionsReportModel m : models) {
+            String datetime  = m.getDatetime()        != null ? m.getDatetime()        : "";
+            String entity    = m.getEntity()          != null ? m.getEntity()          : "";
+            String txType    = m.getTransactionType() != null ? m.getTransactionType() : "";
+            String category  = m.getCategory()        != null ? m.getCategory()        : "";
+            String moneyIn   = m.getMoneyIn()         != null ? m.getMoneyIn()         : "-";
+            String moneyOut  = m.getMoneyOut()        != null ? m.getMoneyOut()        : "-";
+            String txCost    = m.getTransactionCost() != null ? m.getTransactionCost() : "-";
+
+            table.addCell(new Cell().add(new Paragraph(datetime) .setTextAlignment(TextAlignment.CENTER)).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(entity)   .setTextAlignment(TextAlignment.CENTER)).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(txType)   .setTextAlignment(TextAlignment.CENTER)).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(category) .setTextAlignment(TextAlignment.CENTER)).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(moneyIn)  .setTextAlignment(TextAlignment.CENTER).setFontColor(new DeviceRgb(31,140,49))).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(moneyOut) .setTextAlignment(TextAlignment.CENTER).setFontColor(new DeviceRgb(171,18,15))).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+            table.addCell(new Cell().add(new Paragraph(txCost)   .setTextAlignment(TextAlignment.CENTER).setFontColor(new DeviceRgb(171,18,15))).setBold().setVerticalAlignment(VerticalAlignment.MIDDLE));
+        }
+
+        document.add(table);
+        document.close();
+        return bos.toByteArray();
+    }
 
 }

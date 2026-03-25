@@ -10,6 +10,7 @@ import com.records.pesa.db.DBRepository
 import com.records.pesa.mapper.toResponseTransactionCategory
 import com.records.pesa.models.TransactionCategory
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.category.CategoryService
@@ -36,6 +37,7 @@ data class CategoriesScreenUiState(
     val endDate: String = "2024-06-15",
     val selectedCategories: List<Int> = emptyList(),
     val downLoadUri: Uri? = null,
+    val isPremium: Boolean = false,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
 )
@@ -44,7 +46,8 @@ class CategoriesScreenViewModel(
     private val dbRepository: DBRepository,
     private val categoryService: CategoryService,
     private val transactionService: TransactionService,
-    private val userAccountService: UserAccountService
+    private val userAccountService: UserAccountService,
+    private val dataStoreRepository: DataStoreRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(CategoriesScreenUiState())
     val uiState: StateFlow<CategoriesScreenUiState> = _uiState.asStateFlow()
@@ -198,102 +201,95 @@ class CategoriesScreenViewModel(
         }
     }
 
-    fun fetchReportAndSave(context: Context, saveUri: Uri?, reportType: String) {
-        val categoryReportPayload = CategoryReportPayload(
-            userId = uiState.value.userDetails.userId,
-            categoryIds = uiState.value.selectedCategories,
-            reportType = reportType,
-            startDate = uiState.value.startDate,
-            lastDate = uiState.value.endDate
-        )
-        val query = transactionService.createUserTransactionQueryForMultipleCategories(
-            userId = uiState.value.userDetails.userId,
-            entity = null,
-            categoryIds = uiState.value.selectedCategories,
-            budgetId = null,
-            transactionType = null,
-            startDate = LocalDate.parse(uiState.value.startDate),
-            endDate = LocalDate.parse(uiState.value.endDate),
-            latest = true
-        )
-        _uiState.update {
-            it.copy(
-                downloadingStatus = DownloadingStatus.LOADING
-            )
-        }
+    fun fetchReportAndSave(
+        context: Context,
+        saveUri: Uri?,
+        reportType: String,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ) {
+        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.LOADING) }
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                   val report = transactionService.generateReportForTransactionsForMultipleCategories(
-                       query = query,
-                       context = context,
-                       userAccount = userAccountService.getUserAccount(userId = uiState.value.userDetails.userId).first(),
-                       reportType = reportType,
-                       startDate = uiState.value.startDate,
-                       endDate = uiState.value.endDate
-                   )
+                    val selectedCategoryIds = uiState.value.selectedCategories
+                    // 1 — M-PESA transactions via raw query
+                    val query = transactionService.createUserTransactionQueryForMultipleCategories(
+                        userId = uiState.value.userDetails.backUpUserId.toInt(),
+                        entity = null,
+                        categoryIds = selectedCategoryIds,
+                        budgetId = null,
+                        transactionType = null,
+                        startDate = startDate,
+                        endDate = endDate,
+                        latest = true
+                    )
+                    val mpesaTxs = transactionService.getTransactionsForReport(query)
+
+                    // 2 — Manual transactions for each selected category
+                    val manualTxs = selectedCategoryIds.flatMap { catId ->
+                        dbRepository.getManualTransactionsForCategoryOnce(catId)
+                    }.filter { !it.date.isBefore(startDate) && !it.date.isAfter(endDate) }
+
+                    // 3 — Build combined model list
+                    val models = ArrayList<com.records.pesa.service.transaction.function.AllTransactionsReportModel>()
+                    for (tx in mpesaTxs) {
+                        val cat = tx.categories.joinToString(", ") { it.name }.ifBlank { "-" }
+                        val model = com.records.pesa.service.transaction.function.AllTransactionsReportModel()
+                        model.datetime = "${tx.transaction.date} ${tx.transaction.time}"
+                        model.transactionType = tx.transaction.transactionType
+                        model.category = cat
+                        model.entity = tx.transaction.entity
+                        if (tx.transaction.transactionAmount > 0) {
+                            model.moneyIn = "Ksh${tx.transaction.transactionAmount}"
+                            model.moneyOut = "-"
+                        } else {
+                            model.moneyIn = "-"
+                            model.moneyOut = "Ksh${kotlin.math.abs(tx.transaction.transactionAmount)}"
+                        }
+                        model.transactionCost = if (tx.transaction.transactionCost != 0.0)
+                            "Ksh${kotlin.math.abs(tx.transaction.transactionCost)}" else "-"
+                        models.add(model)
+                    }
+                    for (tx in manualTxs) {
+                        val model = com.records.pesa.service.transaction.function.AllTransactionsReportModel()
+                        model.datetime = "${tx.date} ${tx.time ?: ""}"
+                        model.transactionType = tx.transactionTypeName
+                        model.category = "-"
+                        model.entity = tx.memberName
+                        if (!tx.isOutflow) {
+                            model.moneyIn = "Ksh${tx.amount}"
+                            model.moneyOut = "-"
+                        } else {
+                            model.moneyIn = "-"
+                            model.moneyOut = "Ksh${tx.amount}"
+                        }
+                        model.transactionCost = "-"
+                        models.add(model)
+                    }
+                    // Sort newest first
+                    models.sortByDescending { it.datetime }
+
+                    val userAccount = userAccountService.getUserAccount(userId = uiState.value.userDetails.userId).first()
+                    val report = transactionService.generateReportFromPrebuiltModels(
+                        models = models,
+                        userAccount = userAccount,
+                        reportType = reportType,
+                        startDate = startDate.toString(),
+                        endDate = endDate.toString(),
+                        context = context
+                    )
                     if (report != null && report.isNotEmpty()) {
                         savePdfToUri(context, report, saveUri)
-                        _uiState.update {
-                            it.copy(
-                                downloadingStatus = DownloadingStatus.SUCCESS
-                            )
-                        }
+                        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.SUCCESS) }
                     } else {
-                        Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
-                        _uiState.update {
-                            it.copy(
-                                downloadingStatus = DownloadingStatus.FAIL
-                            )
-                        }
+                        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.FAIL) }
                     }
                 } catch (e: Exception) {
-                    Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
-                    _uiState.update {
-                        it.copy(
-                            downloadingStatus = DownloadingStatus.FAIL
-                        )
-                    }
+                    Log.e("REPORT_GENERATION_ERROR", "Exception: ${e.message}")
+                    _uiState.update { it.copy(downloadingStatus = DownloadingStatus.FAIL) }
                 }
             }
-//            try {
-//                val response = apiRepository.generateReportForMultipleCategories(
-//                    token = uiState.value.userDetails.token,
-//                    categoryReportPayload = categoryReportPayload
-//                )
-//                if (response.isSuccessful) {
-//                    val pdfBytes = response.body()?.bytes()
-//                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
-//                        savePdfToUri(context, pdfBytes, saveUri)
-//                        _uiState.update {
-//                            it.copy(
-//                                downloadingStatus = DownloadingStatus.SUCCESS
-//                            )
-//                        }
-//                    } else {
-//                        Log.e("REPORT_GENERATION", "PDF Bytes are null or empty")
-//                        _uiState.update {
-//                            it.copy(
-//                                downloadingStatus = DownloadingStatus.FAIL
-//                            )
-//                        }
-//                    }
-//                } else {
-//                    Log.e("REPORT_GENERATION_ERROR_RESPONSE", "Response not successful: $response")
-//                    _uiState.update {
-//                        it.copy(
-//                            downloadingStatus = DownloadingStatus.FAIL
-//                        )
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.e("REPORT_GENERATION_ERROR_EXCEPTION", "Exception: ${e.message}")
-//                _uiState.update {
-//                    it.copy(
-//                        downloadingStatus = DownloadingStatus.FAIL
-//                    )
-//                }
-//            }
         }
     }
 
@@ -342,6 +338,13 @@ class CategoriesScreenViewModel(
     init {
         getUserDetails()
         setInitialDates()
+        viewModelScope.launch {
+            dataStoreRepository.getUserPreferences().collect { prefs ->
+                val premium = prefs.permanent ||
+                    (prefs.expiryDate?.isAfter(java.time.LocalDateTime.now()) == true)
+                _uiState.update { it.copy(isPremium = premium) }
+            }
+        }
     }
 
 }

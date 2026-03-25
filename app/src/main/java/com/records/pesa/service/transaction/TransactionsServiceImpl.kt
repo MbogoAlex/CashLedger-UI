@@ -121,6 +121,26 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
         context
     )
 
+    override fun generateReportFromPrebuiltModels(
+        models: List<com.records.pesa.service.transaction.function.AllTransactionsReportModel>,
+        userAccount: UserAccount,
+        reportType: String,
+        startDate: String,
+        endDate: String,
+        context: Context
+    ): ByteArray {
+        val owner = if (userAccount.fname == null && userAccount.lname == null)
+            userAccount.phoneNumber
+        else
+            listOfNotNull(userAccount.fname, userAccount.lname).joinToString(" ")
+        return ReportGeneration().generateReportFromPrebuiltModels(
+            models, owner, startDate, endDate, reportType, context
+        )
+    }
+
+    override fun getTransactionsForReport(query: SupportSQLiteQuery): List<TransactionWithCategories> =
+        transactionsDao.getStaticUserTransactions(query)
+
     override fun createUserTransactionQueryForMultipleCategories(
         userId: Int,
         entity: String?,

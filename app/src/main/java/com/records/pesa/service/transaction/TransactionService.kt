@@ -60,6 +60,8 @@ interface TransactionService {
     fun generateAllTransactionsReport(query: SupportSQLiteQuery, userAccount: UserAccount, reportType: String, startDate: String, endDate: String, context: Context): ByteArray
 
     fun generateReportForTransactionsForMultipleCategories(query: SupportSQLiteQuery, userAccount: UserAccount, reportType: String, startDate: String, endDate: String, context: Context): ByteArray
+    fun generateReportFromPrebuiltModels(models: List<com.records.pesa.service.transaction.function.AllTransactionsReportModel>, userAccount: UserAccount, reportType: String, startDate: String, endDate: String, context: Context): ByteArray
+    fun getTransactionsForReport(query: SupportSQLiteQuery): List<TransactionWithCategories>
     fun createUserTransactionQueryForMultipleCategories(
         userId: Int,
         entity: String?,

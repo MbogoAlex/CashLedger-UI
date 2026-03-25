@@ -1,6 +1,9 @@
 package com.records.pesa.ui.screens.dashboard.budget
 
 import android.app.DatePickerDialog
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -45,6 +48,9 @@ import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.service.category.CategoryService
+import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.service.userAccount.UserAccountService
+import com.records.pesa.ui.screens.components.DownloadReportDialog
 import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
@@ -52,10 +58,14 @@ import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.dashboard.category.CombinedFilter
 import com.records.pesa.ui.screens.dashboard.category.CombinedTransactionItem
+import com.records.pesa.ui.screens.dashboard.category.DownloadingStatus
 import com.records.pesa.workers.BudgetRecalculationWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.absoluteValue
 
@@ -79,7 +89,11 @@ data class BudgetAllTransactionsUiState(
     val filter: CombinedFilter = CombinedFilter.ALL,
     val searchText: String = "",
     val isPremium: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val userId: Int = 0,
+    val backUpUserId: Long = 0,
+    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL,
+    val downloadUri: Uri? = null
 )
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -88,6 +102,8 @@ class BudgetAllTransactionsScreenViewModel(
     private val dbRepository: DBRepository,
     private val categoryService: CategoryService,
     private val dataStoreRepository: DataStoreRepository,
+    private val transactionService: TransactionService,
+    private val userAccountService: UserAccountService,
     private val application: android.app.Application
 ) : ViewModel() {
 
@@ -104,6 +120,12 @@ class BudgetAllTransactionsScreenViewModel(
                 val premium = prefs.permanent ||
                     (prefs.expiryDate?.isAfter(java.time.LocalDateTime.now()) == true)
                 _uiState.update { it.copy(isPremium = premium) }
+            }
+        }
+        viewModelScope.launch {
+            val users = dbRepository.getUsers().first()
+            if (users.isNotEmpty()) _uiState.update {
+                it.copy(userId = users[0].userId, backUpUserId = users[0].backUpUserId)
             }
         }
     }
@@ -174,6 +196,87 @@ class BudgetAllTransactionsScreenViewModel(
             )
         }
     }
+
+    fun fetchReportAndSave(
+        context: Context,
+        saveUri: Uri?,
+        reportType: String,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        visibleItems: List<CombinedTransactionItem>
+    ) {
+        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.LOADING) }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val budgetName = uiState.value.budgetName.ifBlank { "-" }
+
+                    // Use only the visible items, further narrowed by the report date range
+                    val reportItems = visibleItems.filter { item ->
+                        val d = when (item) {
+                            is CombinedTransactionItem.MpesaItem -> item.tx.date
+                            is CombinedTransactionItem.ManualItem -> item.tx.date
+                        }
+                        !d.isBefore(startDate) && !d.isAfter(endDate)
+                    }
+
+                    val models = ArrayList<com.records.pesa.service.transaction.function.AllTransactionsReportModel>()
+                    for (item in reportItems) {
+                        val model = com.records.pesa.service.transaction.function.AllTransactionsReportModel()
+                        when (item) {
+                            is CombinedTransactionItem.MpesaItem -> {
+                                val tx = item.tx
+                                model.datetime = "${tx.date} ${tx.time}"
+                                model.transactionType = tx.transactionType
+                                model.category = budgetName
+                                model.entity = tx.entity
+                                model.moneyIn = "-"
+                                model.moneyOut = "Ksh${kotlin.math.abs(tx.transactionAmount)}"
+                                model.transactionCost = if (tx.transactionCost != 0.0)
+                                    "Ksh${kotlin.math.abs(tx.transactionCost)}" else "-"
+                            }
+                            is CombinedTransactionItem.ManualItem -> {
+                                val tx = item.tx
+                                model.datetime = "${tx.date} ${tx.time ?: ""}"
+                                model.transactionType = tx.transactionTypeName
+                                model.category = budgetName
+                                model.entity = tx.memberName
+                                model.moneyIn = "-"
+                                model.moneyOut = "Ksh${tx.amount}"
+                                model.transactionCost = "-"
+                            }
+                        }
+                        models.add(model)
+                    }
+                    models.sortByDescending { it.datetime }
+
+                    val report = transactionService.generateReportFromPrebuiltModels(
+                        models = models,
+                        userAccount = userAccountService.getUserAccount(userId = uiState.value.userId).first(),
+                        reportType = reportType,
+                        startDate = startDate.toString(),
+                        endDate = endDate.toString(),
+                        context = context
+                    )
+                    if (report != null && report.isNotEmpty()) {
+                        if (saveUri != null) {
+                            context.contentResolver.openOutputStream(saveUri)?.use { it.write(report) }
+                        }
+                        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.SUCCESS, downloadUri = saveUri) }
+                    } else {
+                        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.FAIL) }
+                    }
+                } catch (e: Exception) {
+                    Log.e("BudgetAllTxReport", "Error: ${e.message}")
+                    _uiState.update { it.copy(downloadingStatus = DownloadingStatus.FAIL) }
+                }
+            }
+        }
+    }
+
+    fun resetDownloadingStatus() {
+        _uiState.update { it.copy(downloadingStatus = DownloadingStatus.INITIAL) }
+    }
 }
 
 // ─── Composable entry point ───────────────────────────────────────────────────
@@ -184,12 +287,94 @@ fun BudgetAllTransactionsScreenComposable(
 ) {
     val viewModel: BudgetAllTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var editingTx by remember { mutableStateOf<ManualTransaction?>(null) }
+    var showDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingReportType by rememberSaveable { mutableStateOf("PDF") }
+    var pendingStartDate by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
+    var pendingEndDate by remember { mutableStateOf(LocalDate.now()) }
+    var filteredSnapshot by remember { mutableStateOf<List<CombinedTransactionItem>>(emptyList()) }
+
+    val createDocumentLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.CreateDocument()
+        ) { uri: Uri? ->
+            uri?.let {
+                viewModel.fetchReportAndSave(
+                    context = context,
+                    saveUri = it,
+                    reportType = pendingReportType,
+                    startDate = pendingStartDate,
+                    endDate = pendingEndDate,
+                    visibleItems = filteredSnapshot
+                )
+            }
+        }
+
+    if (uiState.downloadingStatus == DownloadingStatus.SUCCESS) {
+        android.widget.Toast.makeText(context, "Report downloaded", android.widget.Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+        val uri = uiState.downloadUri
+        val mime = if (pendingReportType == "PDF") "application/pdf" else "text/csv"
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mime)
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(Intent.createChooser(intent, "Open with:"))
+    } else if (uiState.downloadingStatus == DownloadingStatus.FAIL) {
+        android.widget.Toast.makeText(context, "Failed to generate report", android.widget.Toast.LENGTH_SHORT).show()
+        viewModel.resetDownloadingStatus()
+    }
+
+    if (showDownloadDialog) {
+        DownloadReportDialog(
+            isPremium = uiState.isPremium,
+            onDismiss = { showDownloadDialog = false },
+            onConfirm = { type, start, end ->
+                pendingReportType = type
+                pendingStartDate = start
+                pendingEndDate = end
+                showDownloadDialog = false
+                val ext = if (type == "PDF") ".pdf" else ".csv"
+                createDocumentLauncher.launch("Budget-Transactions_${LocalDateTime.now()}$ext")
+            }
+        )
+    }
 
     val allMembers = remember(uiState) {
         (uiState.mpesaItems.map { it.entity.replaceFirstChar { c -> c.uppercase() } } +
                 uiState.manualItems.map { it.memberName }).distinct().sorted()
     }
+
+    // Compute filtered list here so it can be captured for the report
+    val filtered: List<CombinedTransactionItem> = remember(uiState) {
+        val search = uiState.searchText
+        val start = uiState.startDate
+        val end = uiState.endDate
+        val members = uiState.memberNames
+        val mpesaList = uiState.mpesaItems
+            .filter { tx ->
+                tx.transactionAmount < 0 &&
+                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
+                (members.isEmpty() || members.any { m -> tx.entity.contains(m, ignoreCase = true) || m.contains(tx.entity, ignoreCase = true) }) &&
+                (search.isBlank() || tx.entity.contains(search, ignoreCase = true) || tx.transactionType.contains(search, ignoreCase = true))
+            }
+            .map { CombinedTransactionItem.MpesaItem(it) }
+        val manualList = uiState.manualItems
+            .filter { tx ->
+                tx.isOutflow &&
+                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
+                (members.isEmpty() || tx.memberName in members) &&
+                (search.isBlank() || tx.memberName.contains(search, ignoreCase = true) || tx.description.contains(search, ignoreCase = true))
+            }
+            .map { CombinedTransactionItem.ManualItem(it) }
+        when (uiState.filter) {
+            CombinedFilter.ALL, CombinedFilter.BY_MEMBER -> mpesaList + manualList
+            CombinedFilter.MPESA -> mpesaList
+            CombinedFilter.MANUAL -> manualList
+        }
+    }
+    filteredSnapshot = filtered
 
     editingTx?.let { tx ->
         EditManualTransactionDialog(
@@ -202,12 +387,15 @@ fun BudgetAllTransactionsScreenComposable(
 
     BudgetAllTransactionsScreen(
         uiState = uiState,
+        filteredItems = filtered,
         onFilterChange = viewModel::setFilter,
         onSearchTextChange = viewModel::setSearchText,
         onStartDateChange = viewModel::setStartDate,
         onEndDateChange = viewModel::setEndDate,
         onNavigateBack = navigateToPreviousScreen,
         onEditManualTx = { editingTx = it },
+        onDownloadReport = { showDownloadDialog = true },
+        isDownloading = uiState.downloadingStatus == DownloadingStatus.LOADING,
         modifier = modifier
     )
 }
@@ -217,12 +405,15 @@ fun BudgetAllTransactionsScreenComposable(
 @Composable
 fun BudgetAllTransactionsScreen(
     uiState: BudgetAllTransactionsUiState,
+    filteredItems: List<CombinedTransactionItem> = emptyList(),
     onFilterChange: (CombinedFilter) -> Unit,
     onSearchTextChange: (String) -> Unit,
     onStartDateChange: (LocalDate) -> Unit,
     onEndDateChange: (LocalDate) -> Unit,
     onNavigateBack: () -> Unit,
     onEditManualTx: (ManualTransaction) -> Unit = {},
+    onDownloadReport: () -> Unit = {},
+    isDownloading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -237,37 +428,7 @@ fun BudgetAllTransactionsScreen(
         else { keyboard?.hide(); onSearchTextChange("") }
     }
 
-    // Filter + search
-    val filtered: List<CombinedTransactionItem> = remember(uiState) {
-        val search = uiState.searchText
-        val start = uiState.startDate
-        val end = uiState.endDate
-        val members = uiState.memberNames
-
-        val mpesaList = uiState.mpesaItems
-            .filter { tx ->
-                tx.transactionAmount < 0 &&   // expenses only
-                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
-                (members.isEmpty() || members.any { m -> tx.entity.contains(m, ignoreCase = true) || m.contains(tx.entity, ignoreCase = true) }) &&
-                (search.isBlank() || tx.entity.contains(search, ignoreCase = true) || tx.transactionType.contains(search, ignoreCase = true))
-            }
-            .map { CombinedTransactionItem.MpesaItem(it) }
-
-        val manualList = uiState.manualItems
-            .filter { tx ->
-                tx.isOutflow &&
-                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
-                (members.isEmpty() || tx.memberName in members) &&
-                (search.isBlank() || tx.memberName.contains(search, ignoreCase = true) || tx.description.contains(search, ignoreCase = true))
-            }
-            .map { CombinedTransactionItem.ManualItem(it) }
-
-        when (uiState.filter) {
-            CombinedFilter.ALL, CombinedFilter.BY_MEMBER -> mpesaList + manualList
-            CombinedFilter.MPESA -> mpesaList
-            CombinedFilter.MANUAL -> manualList
-        }
-    }
+    val filtered: List<CombinedTransactionItem> = filteredItems
 
     val groupedByDate = remember(filtered) {
         val sorted = filtered.sortedWith(
@@ -397,6 +558,19 @@ fun BudgetAllTransactionsScreen(
                                 painter = painterResource(R.drawable.search),
                                 contentDescription = "Search",
                                 modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    // Download always visible regardless of search state
+                    IconButton(onClick = onDownloadReport, enabled = !isDownloading) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                painter = painterResource(R.drawable.download),
+                                contentDescription = "Download report",
+                                modifier = Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }

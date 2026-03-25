@@ -133,7 +133,8 @@ object AppViewModelFactory {
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = categoryService,
                 transactionService = transactionService,
-                userAccountService = userAccountService
+                userAccountService = userAccountService,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
             )
         }
 
@@ -398,6 +399,8 @@ object AppViewModelFactory {
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = cashLedgerApplication().container.categoryService,
                 dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                transactionService = cashLedgerApplication().container.transactionService,
+                userAccountService = cashLedgerApplication().container.userAccountService,
                 application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
             )
         }
@@ -414,6 +417,8 @@ object AppViewModelFactory {
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = cashLedgerApplication().container.categoryService,
                 dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                transactionService = cashLedgerApplication().container.transactionService,
+                userAccountService = cashLedgerApplication().container.userAccountService,
                 application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
             )
         }

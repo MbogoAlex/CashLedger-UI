@@ -54,7 +54,10 @@ import kotlin.math.absoluteValue
 import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.transaction.TransactionItem
 import android.app.DatePickerDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -65,6 +68,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import com.records.pesa.db.models.ManualTransaction
+import com.records.pesa.models.TimePeriod
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Standard transaction card — matches DashboardScreen's TransactionCard exactly.
@@ -1100,4 +1106,306 @@ fun TxSummaryBar(
             }
         }
     }
+}
+
+// ─── Shared download report dialog ───────────────────────────────────────────
+
+/**
+ * Reusable download-report dialog used across CategoriesScreen,
+ * CategoryAllTransactionsScreen, and BudgetAllTransactionsScreen.
+ *
+ * Mirrors the period-chip style from TransactionsScreen.
+ * Free users are blocked from selecting ranges longer than one month.
+ */
+@Composable
+fun DownloadReportDialog(
+    isPremium: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (type: String, startDate: LocalDate, endDate: LocalDate) -> Unit,
+) {
+    val context = LocalContext.current
+    val fmtDisplay = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
+
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
+
+    var selectedPeriod by remember { mutableStateOf<TimePeriod>(TimePeriod.THIS_MONTH) }
+    var showPeriodMenu by remember { mutableStateOf(false) }
+    var isCustom by remember { mutableStateOf(false) }
+
+    val defaultRange = TimePeriod.THIS_MONTH.getDateRange()
+    var customStart by remember { mutableStateOf(defaultRange.first) }
+    var customEnd by remember { mutableStateOf(defaultRange.second) }
+
+    val startDate = if (isCustom) customStart else selectedPeriod.getDateRange().first
+    val endDate = if (isCustom) customEnd else selectedPeriod.getDateRange().second
+
+    val oneMonthAgo = LocalDate.now().minusMonths(1)
+    val rangeExceedsOneMonth = startDate.isBefore(oneMonthAgo)
+    val premiumBlocked = !isPremium && rangeExceedsOneMonth
+
+    val formats = listOf("PDF", "CSV")
+    var selectedFormat by remember { mutableStateOf("PDF") }
+    var showFormatMenu by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Download Report",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // ── Period picker ──────────────────────────────────────────
+                Text(
+                    text = "Period",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                            .clickable { showPeriodMenu = true }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = if (isCustom) "Custom" else selectedPeriod.getDisplayName(),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_downward),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showPeriodMenu,
+                        onDismissRequest = { showPeriodMenu = false }
+                    ) {
+                        periodOptions.forEach { period ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = period.getDisplayName(),
+                                        fontSize = 14.sp,
+                                        fontWeight = if (!isCustom && period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (!isCustom && period == selectedPeriod)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    selectedPeriod = period
+                                    isCustom = false
+                                    showPeriodMenu = false
+                                }
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.calendar),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Custom",
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            onClick = {
+                                isCustom = true
+                                showPeriodMenu = false
+                            }
+                        )
+                    }
+                }
+
+                // ── Custom date pickers ────────────────────────────────────
+                if (isCustom) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Start date
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "From",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        DatePickerDialog(
+                                            context,
+                                            { _, y, m, d -> customStart = LocalDate.of(y, m + 1, d) },
+                                            customStart.year,
+                                            customStart.monthValue - 1,
+                                            customStart.dayOfMonth
+                                        ).show()
+                                    }
+                            ) {
+                                Text(
+                                    text = customStart.format(fmtDisplay),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        // End date
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "To",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        DatePickerDialog(
+                                            context,
+                                            { _, y, m, d -> customEnd = LocalDate.of(y, m + 1, d) },
+                                            customEnd.year,
+                                            customEnd.monthValue - 1,
+                                            customEnd.dayOfMonth
+                                        ).show()
+                                    }
+                            ) {
+                                Text(
+                                    text = customEnd.format(fmtDisplay),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Date range summary ─────────────────────────────────────
+                Text(
+                    text = "${startDate.format(fmtDisplay)}  →  ${endDate.format(fmtDisplay)}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // ── Premium lock warning ───────────────────────────────────
+                if (premiumBlocked) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🔒 Premium required to download reports beyond 1 month. Upgrade to unlock.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+
+                // ── Format picker ──────────────────────────────────────────
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Format:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                                .clickable { showFormatMenu = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = selectedFormat,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_downward),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(11.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showFormatMenu,
+                            onDismissRequest = { showFormatMenu = false }
+                        ) {
+                            formats.forEach { fmt ->
+                                DropdownMenuItem(
+                                    text = { Text(fmt, fontSize = 14.sp) },
+                                    onClick = {
+                                        selectedFormat = fmt
+                                        showFormatMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedFormat, startDate, endDate) },
+                enabled = !premiumBlocked
+            ) {
+                Text("Download")
+            }
+        }
+    )
 }

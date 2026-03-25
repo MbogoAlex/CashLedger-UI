@@ -94,6 +94,7 @@ import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
 import com.records.pesa.ui.screens.components.SubscriptionDialog
+import com.records.pesa.ui.screens.components.DownloadReportDialog
 import java.time.ZoneId
 
 object CategoriesScreenDestination : AppNavigation {
@@ -131,11 +132,19 @@ fun CategoriesScreenComposable(
     var filteringOn by rememberSaveable { mutableStateOf(false) }
     var showDownloadReportDialog by rememberSaveable { mutableStateOf(false) }
     var reportType by rememberSaveable { mutableStateOf("PDF") }
+    var pendingStartDate by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
+    var pendingEndDate by remember { mutableStateOf(LocalDate.now()) }
 
     val createDocumentLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri: Uri? ->
             uri?.let {
-                viewModel.fetchReportAndSave(context = context, saveUri = it, reportType = reportType)
+                viewModel.fetchReportAndSave(
+                    context = context,
+                    saveUri = it,
+                    reportType = reportType,
+                    startDate = pendingStartDate,
+                    endDate = pendingEndDate
+                )
             }
         }
 
@@ -174,17 +183,16 @@ fun CategoriesScreenComposable(
 
     if (showDownloadReportDialog) {
         DownloadReportDialog(
-            startDate = uiState.startDate,
-            endDate = uiState.endDate,
-            onDismiss = { showDownloadReportDialog = !showDownloadReportDialog },
-            onConfirm = { type ->
+            isPremium = uiState.isPremium,
+            onDismiss = { showDownloadReportDialog = false },
+            onConfirm = { type, startDate, endDate ->
                 reportType = type
-                showDownloadReportDialog = !showDownloadReportDialog
-                if (reportType == "PDF") {
-                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.pdf")
-                } else if (reportType == "CSV") {
-                    createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}.csv")
-                }
+                pendingStartDate = startDate
+                pendingEndDate = endDate
+                showDownloadReportDialog = false
+                val suffix = if (type == "PDF") ".pdf" else ".csv"
+                val mime = if (type == "PDF") "application/pdf" else "text/csv"
+                createDocumentLauncher.launch("MPESA-Transactions_${LocalDateTime.now()}$suffix")
             }
         )
     }
@@ -968,77 +976,6 @@ fun DateRangePicker(
             }
         }
     }
-}
-
-// ─── Download report dialog ───────────────────────────────────────────────────
-
-@Composable
-private fun DownloadReportDialog(
-    startDate: String,
-    endDate: String,
-    onDismiss: () -> Unit,
-    onConfirm: (type: String) -> Unit,
-) {
-    val types = listOf("PDF", "CSV")
-    var selectedType by rememberSaveable { mutableStateOf("PDF") }
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    AlertDialog(
-        title = {
-            Text(
-                text = "Report for $startDate to $endDate",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(text = "Export to ", fontSize = screenFontSize(x = 14.0).sp)
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { expanded = !expanded }
-                    ) {
-                        Text(
-                            text = selectedType,
-                            color = MaterialTheme.colorScheme.surfaceTint,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        Icon(
-                            tint = MaterialTheme.colorScheme.surfaceTint,
-                            painter = painterResource(R.drawable.arrow_downward),
-                            contentDescription = "Select report type",
-                            modifier = Modifier.size(screenWidth(x = 24.0))
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = !expanded }
-                    ) {
-                        types.forEach {
-                            DropdownMenuItem(
-                                text = { Text(text = it, fontSize = screenFontSize(x = 14.0).sp) },
-                                onClick = {
-                                    selectedType = it
-                                    expanded = !expanded
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancel", fontSize = screenFontSize(x = 14.0).sp)
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(selectedType) }) {
-                Text(text = "Confirm", fontSize = screenFontSize(x = 14.0).sp)
-            }
-        }
-    )
 }
 
 // ─── Preview ──────────────────────────────────────────────────────────────────
