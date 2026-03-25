@@ -106,6 +106,7 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.TransactionScreenTab
 import com.records.pesa.reusables.TransactionScreenTabItem
 import com.records.pesa.reusables.dateFormatter
+import com.records.pesa.ui.screens.components.DownloadReportDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
 import com.records.pesa.ui.screens.components.TxItemRow
@@ -233,10 +234,9 @@ fun TransactionsScreenComposable(
     }
     if (showDownloadReportDialog) {
         DownloadReportDialog(
-            startDate = uiState.startDate,
-            endDate = uiState.endDate,
+            isPremium = uiState.preferences.paid || uiState.userDetails.phoneNumber == "0888888888" || uiState.preferences.permanent,
             onDismiss = { showDownloadReportDialog = false },
-            onConfirm = { type ->
+            onConfirm = { type, _, _ ->
                 reportType = type
                 showDownloadReportDialog = false
                 val fileName = "MPESA-Transactions_${LocalDateTime.now()}"
@@ -1205,49 +1205,6 @@ fun TransactionsScreenPreview() {
             navigateToTransactionDetailsScreen = {}
         )
     }
-}
-
-// ─── Download report dialog ───────────────────────────────────────────────────
-
-@Composable
-private fun DownloadReportDialog(
-    startDate: String,
-    endDate: String,
-    onDismiss: () -> Unit,
-    onConfirm: (type: String) -> Unit,
-) {
-    val types = listOf("PDF", "CSV")
-    var selectedType by rememberSaveable { mutableStateOf("PDF") }
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    AlertDialog(
-        title = { Text("Report for $startDate to $endDate", fontSize = 14.sp) },
-        text = {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Export to ", fontSize = 14.sp)
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { expanded = !expanded }
-                    ) {
-                        Text(selectedType, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
-                        Icon(painter = painterResource(R.drawable.arrow_downward), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        types.forEach {
-                            DropdownMenuItem(
-                                text = { Text(it, fontSize = 14.sp) },
-                                onClick = { selectedType = it; expanded = false }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        onDismissRequest = onDismiss,
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = { Button(onClick = { onConfirm(selectedType) }) { Text("Confirm") } }
-    )
 }
 
 // ─── Date range picker dialog ─────────────────────────────────────────────────
