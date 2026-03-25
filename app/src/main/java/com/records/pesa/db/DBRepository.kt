@@ -130,12 +130,15 @@ interface DBRepository {
     suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember>
     suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long
     suspend fun deleteManualCategoryMember(id: Int)
+    suspend fun updateManualCategoryMemberName(id: Int, newName: String)
 
     // Manual transactions (category-scoped)
     fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>>
     suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction>
     suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long
     suspend fun deleteManualCategoryTransaction(id: Int)
+    suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String)
+    suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String)
     suspend fun sumManualOutflowForCategory(categoryId: Int): Double
     suspend fun getAllManualTransactionsOnce(): List<ManualTransaction>
 
@@ -285,11 +288,14 @@ class DBRepositoryImpl(
     override suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember> = manualCategoryMemberDao.getAllOnce()
     override suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long = manualCategoryMemberDao.insert(member)
     override suspend fun deleteManualCategoryMember(id: Int) = manualCategoryMemberDao.deleteById(id)
+    override suspend fun updateManualCategoryMemberName(id: Int, newName: String) = manualCategoryMemberDao.updateName(id, newName)
 
     override fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>> = manualTransactionDao.getForCategory(categoryId)
     override suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction> = manualTransactionDao.getForCategoryOnce(categoryId)
     override suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long = manualTransactionDao.insert(tx)
     override suspend fun deleteManualCategoryTransaction(id: Int) = manualTransactionDao.deleteById(id)
+    override suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String) = manualTransactionDao.deleteByMemberAndCategory(categoryId, memberName)
+    override suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String) = manualTransactionDao.updateMemberName(categoryId, oldName, newName)
     override suspend fun sumManualOutflowForCategory(categoryId: Int): Double = manualTransactionDao.sumOutflowForCategory(categoryId)
     override suspend fun getAllManualTransactionsOnce(): List<ManualTransaction> = manualTransactionDao.getAllOnce()
 

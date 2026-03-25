@@ -1,9 +1,13 @@
 package com.records.pesa.ui.screens.dashboard.category
 
+import android.app.Application
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
@@ -23,6 +27,7 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +106,7 @@ data class CategoryDetailsScreenUiState(
 )
 
 class CategoryDetailsScreenViewModel(
+    private val application: Application,
     private val apiRepository: ApiRepository,
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
@@ -860,24 +866,43 @@ class CategoryDetailsScreenViewModel(
         }
     }
 
-    fun deleteManualMember(id: Int) {
+    fun deleteManualMember(id: Int, memberName: String) {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
         viewModelScope.launch {
+            // Cascade: delete all transactions for this member in this category
+            dbRepository.deleteManualTransactionsByMember(categoryIdInt, memberName)
             dbRepository.deleteManualCategoryMember(id)
+            // Trigger budget recalculation so category budgets reflect the change
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_member_delete",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
         }
     }
 
-    fun addManualTransaction(memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) {
+    fun editManualMemberName(id: Int, oldName: String, newName: String) {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.updateManualCategoryMemberName(id, newName)
+            // Also update memberName on all transactions for this member so history stays consistent
+            dbRepository.updateManualTransactionMemberName(categoryIdInt, oldName, newName)
+        }
+    }
+
+    fun addManualTransaction(memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) {
         val categoryIdInt = categoryId?.toIntOrNull() ?: return
         viewModelScope.launch {
             dbRepository.insertManualCategoryTransaction(
                 ManualTransaction(
                     categoryId = categoryIdInt,
                     memberName = memberName,
-                    transactionTypeName = typeName,
+                    transactionTypeName = if (isOutflow) "Expense" else "Income",
                     isOutflow = isOutflow,
                     amount = amount,
                     description = description,
                     date = date,
+                    time = time,
                     createdAt = java.time.LocalDateTime.now()
                 )
             )

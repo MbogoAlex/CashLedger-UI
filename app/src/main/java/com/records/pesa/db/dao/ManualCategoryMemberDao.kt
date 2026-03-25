@@ -20,4 +20,7 @@ interface ManualCategoryMemberDao {
 
     @Query("DELETE FROM manual_category_member WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Query("UPDATE manual_category_member SET name = :newName WHERE id = :id")
+    suspend fun updateName(id: Int, newName: String)
 }

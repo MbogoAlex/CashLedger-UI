@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 @Entity(tableName = "manual_transaction", indices = [Index(value = ["categoryId"])])
 data class ManualTransaction(
@@ -16,5 +17,6 @@ data class ManualTransaction(
     val amount: Double,
     val description: String = "",
     val date: LocalDate,
+    val time: LocalTime? = null,
     val createdAt: LocalDateTime
 )

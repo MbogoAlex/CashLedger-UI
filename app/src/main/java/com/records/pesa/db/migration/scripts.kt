@@ -702,3 +702,11 @@ val MIGRATION_53_54 = object : Migration(53, 54) {
         database.execSQL("CREATE INDEX IF NOT EXISTS `index_manual_transaction_categoryId` ON `manual_transaction` (`categoryId`)")
     }
 }
+
+
+val MIGRATION_54_55 = object : Migration(54, 55) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add optional time column to manual_transaction
+        database.execSQL("ALTER TABLE `manual_transaction` ADD COLUMN `time` TEXT DEFAULT NULL")
+    }
+}

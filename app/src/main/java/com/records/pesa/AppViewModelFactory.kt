@@ -96,6 +96,7 @@ object AppViewModelFactory {
             val categoryService: CategoryService = cashLedgerApplication().container.categoryService
             val transactionService: TransactionService = cashLedgerApplication().container.transactionService
             CategoryDetailsScreenViewModel(
+                application = cashLedgerApplication(),
                 apiRepository = apiRepository,
                 savedStateHandle = savedStateHandle,
                 dbRepository = cashLedgerApplication().container.dbRepository,

@@ -26,4 +26,10 @@ interface ManualTransactionDao {
 
     @Query("DELETE FROM manual_transaction WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Query("DELETE FROM manual_transaction WHERE categoryId = :categoryId AND memberName = :memberName")
+    suspend fun deleteByMemberAndCategory(categoryId: Int, memberName: String)
+
+    @Query("UPDATE manual_transaction SET memberName = :newName WHERE categoryId = :categoryId AND memberName = :oldName")
+    suspend fun updateMemberName(categoryId: Int, oldName: String, newName: String)
 }

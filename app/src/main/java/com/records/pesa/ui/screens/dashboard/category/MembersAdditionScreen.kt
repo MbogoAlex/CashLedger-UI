@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -112,9 +113,38 @@ fun MembersAdditionScreenComposable(
 
     LaunchedEffect(uiState.manualMemberAdded) {
         if (uiState.manualMemberAdded) {
-            coroutineScope.launch { snackbarHostState.showSnackbar("Member added") }
             viewModel.clearManualMemberAdded()
         }
+    }
+
+    var showAfterAddDialog by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.manualMemberAdded) {
+        if (uiState.manualMemberAdded) {
+            showAfterAddDialog = true
+            viewModel.clearManualMemberAdded()
+        }
+    }
+
+    if (showAfterAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAfterAddDialog = false },
+            title = { Text("Member added!", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("The member has been added to this category. Would you like to add another non-M-PESA member, or go back to the category?")
+            },
+            confirmButton = {
+                Button(onClick = { showAfterAddDialog = false }) {
+                    Text("Add another")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAfterAddDialog = false; navigateToPreviousScreen() }) {
+                    Text("Go to category")
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     var showReviewScreen by rememberSaveable { mutableStateOf(false) }

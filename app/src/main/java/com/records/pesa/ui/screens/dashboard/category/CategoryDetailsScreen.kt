@@ -175,7 +175,7 @@ fun CategoryDetailsScreenComposable(
     }
     if (showEditMemberNameDialog) {
         EditNameDialog(
-            title = "Member name", label = "Member", name = memberName,
+            title = "Member name", label = "New name", name = memberName,
             onNameChange = { memberName = it; viewModel.editMemberName(it) },
             onConfirm = { viewModel.updateMemberName(); showEditMemberNameDialog = false },
             onDismiss = { showEditMemberNameDialog = false }
@@ -274,14 +274,13 @@ fun CategoryDetailsScreenComposable(
             budgetProgressMap = uiState.budgetProgressMap,
             manualMembers = uiState.manualMembers,
             manualTransactions = uiState.manualTransactions,
-            transactionTypes = uiState.transactionTypes,
             onAddManualMember = { viewModel.addManualMember(it) },
-            onDeleteManualMember = { viewModel.deleteManualMember(it) },
-            onAddManualTransaction = { memberName, typeName, isOutflow, amount, description, date ->
-                viewModel.addManualTransaction(memberName, typeName, isOutflow, amount, description, date)
+            onDeleteManualMember = { id, name -> viewModel.deleteManualMember(id, name) },
+            onEditManualMember = { id, oldName, newName -> viewModel.editManualMemberName(id, oldName, newName) },
+            onAddManualTransaction = { memberName, isOutflow, amount, description, date, time ->
+                viewModel.addManualTransaction(memberName, isOutflow, amount, description, date, time)
             },
-            onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) },
-            onAddCustomTransactionType = { name, isOutflow -> viewModel.addCustomTransactionType(name, isOutflow) }
+            onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) }
         )
     }
 }
@@ -335,12 +334,11 @@ fun CategoryDetailsScreen(
     budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     manualMembers: List<ManualCategoryMember> = emptyList(),
     manualTransactions: List<ManualTransaction> = emptyList(),
-    transactionTypes: List<ManualTransactionType> = emptyList(),
     onAddManualMember: (String) -> Unit = {},
-    onDeleteManualMember: (Int) -> Unit = {},
-    onAddManualTransaction: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit = { _, _, _, _, _, _ -> },
+    onDeleteManualMember: (id: Int, name: String) -> Unit = { _, _ -> },
+    onEditManualMember: (id: Int, oldName: String, newName: String) -> Unit = { _, _, _ -> },
+    onAddManualTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit = { _, _, _, _, _, _ -> },
     onDeleteManualTransaction: (Int) -> Unit = {},
-    onAddCustomTransactionType: (name: String, isOutflow: Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -528,7 +526,7 @@ fun CategoryDetailsScreen(
                                     color = categoryColor, modifier = Modifier.weight(1f)
                                 )
                                 CatStatPill(
-                                    label = "${category.keywords.size} member${if (category.keywords.size != 1) "s" else ""}",
+                                label = "${category.keywords.size + manualMembers.size} member${if ((category.keywords.size + manualMembers.size) != 1) "s" else ""}",
                                     color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f)
                                 )
                             }
@@ -748,7 +746,7 @@ fun CategoryDetailsScreen(
                                             "Members", fontWeight = FontWeight.Bold, fontSize = 14.sp
                                         )
                                         Text(
-                                            "${category.keywords.size} member${if (category.keywords.size != 1) "s" else ""}",
+                                            "${category.keywords.size + manualMembers.size} member${if ((category.keywords.size + manualMembers.size) != 1) "s" else ""}",
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -794,6 +792,148 @@ fun CategoryDetailsScreen(
                                             )
                                         }
                                     }
+
+                                    // Manual (non-M-PESA) members
+                                    var manualMemberToDelete by remember { mutableStateOf<ManualCategoryMember?>(null) }
+                                    var manualMemberToEdit by remember { mutableStateOf<ManualCategoryMember?>(null) }
+                                    var editManualMemberNameText by remember { mutableStateOf("") }
+
+                                    manualMemberToDelete?.let { m ->
+                                        AlertDialog(
+                                            onDismissRequest = { manualMemberToDelete = null },
+                                            title = { Text("Remove Member") },
+                                            text = {
+                                                Text(
+                                                    "Remove \"${m.name}\"? This will also delete all manual transactions you recorded for them in this category. This cannot be undone."
+                                                )
+                                            },
+                                            confirmButton = {
+                                                Button(
+                                                    onClick = {
+                                                        onDeleteManualMember(m.id, m.name)
+                                                        manualMemberToDelete = null
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                                ) { Text("Remove") }
+                                            },
+                                            dismissButton = { TextButton(onClick = { manualMemberToDelete = null }) { Text("Cancel") } }
+                                        )
+                                    }
+
+                                    manualMemberToEdit?.let { m ->
+                                        AlertDialog(
+                                            onDismissRequest = { manualMemberToEdit = null },
+                                            title = { Text("Edit Member Name") },
+                                            text = {
+                                                OutlinedTextField(
+                                                    value = editManualMemberNameText,
+                                                    onValueChange = { editManualMemberNameText = it },
+                                                    label = { Text("New name") },
+                                                    placeholder = { Text(m.name) },
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(
+                                                        capitalization = KeyboardCapitalization.Words,
+                                                        imeAction = ImeAction.Done
+                                                    )
+                                                )
+                                            },
+                                            confirmButton = {
+                                                Button(
+                                                    onClick = {
+                                                        val newName = editManualMemberNameText.trim()
+                                                        if (newName.isNotBlank()) {
+                                                            onEditManualMember(m.id, m.name, newName)
+                                                        }
+                                                        manualMemberToEdit = null
+                                                    },
+                                                    enabled = editManualMemberNameText.isNotBlank()
+                                                ) { Text("Save") }
+                                            },
+                                            dismissButton = { TextButton(onClick = { manualMemberToEdit = null }) { Text("Cancel") } }
+                                        )
+                                    }
+
+                                    if (manualMembers.isNotEmpty()) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.edit),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                "Non-M-PESA members",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        manualMembers.forEach { member ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier.size(32.dp).clip(CircleShape)
+                                                        .background(txAvatarColor(member.name)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        member.name.take(1).uppercase(),
+                                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                                    )
+                                                }
+                                                Spacer(Modifier.width(10.dp))
+                                                Text(
+                                                    member.name,
+                                                    fontSize = 13.sp,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                IconButton(
+                                                    onClick = {
+                                                        editManualMemberNameText = member.name
+                                                        manualMemberToEdit = member
+                                                    },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.edit),
+                                                        contentDescription = "Edit ${member.name}",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = { manualMemberToDelete = member },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.remove),
+                                                        contentDescription = "Remove ${member.name}",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            }
+                                            HorizontalDivider(
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                            )
+                                        }
+                                    }
+
                                     // Add members button
                                     TextButton(
                                         onClick = { navigateToMembersAdditionScreen(category.id.toString()) },
@@ -1117,12 +1257,11 @@ fun CategoryDetailsScreen(
                 item {
                     ManualTransactionsSection(
                         transactions = manualTransactions,
-                        transactionTypes = transactionTypes,
                         mpesaMembers = memberStats.map { it.keyword },
                         manualMembers = manualMembers,
                         onAddTransaction = onAddManualTransaction,
                         onDeleteTransaction = onDeleteManualTransaction,
-                        onAddCustomType = onAddCustomTransactionType
+                        onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) }
                     )
                 }
 
@@ -1901,19 +2040,15 @@ fun EditNameDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit $title", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("Current: $name", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = name, onValueChange = onNameChange, label = { Text(label) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Done,
-                        keyboardType = KeyboardType.Text
-                    )
+            OutlinedTextField(
+                value = name, onValueChange = onNameChange, label = { Text(label) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Done,
+                    keyboardType = KeyboardType.Text
                 )
-            }
+            )
         },
         confirmButton = { Button(onClick = onConfirm) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
@@ -1988,12 +2123,11 @@ private fun CategoryDetailsScreenPreview() {
 @Composable
 private fun ManualTransactionsSection(
     transactions: List<ManualTransaction>,
-    transactionTypes: List<ManualTransactionType>,
     mpesaMembers: List<String>,
     manualMembers: List<ManualCategoryMember>,
-    onAddTransaction: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit,
+    onAddTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit,
     onDeleteTransaction: (Int) -> Unit,
-    onAddCustomType: (name: String, isOutflow: Boolean) -> Unit
+    onNavigateToAddMember: () -> Unit = {}
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
@@ -2011,12 +2145,11 @@ private fun ManualTransactionsSection(
 
     if (showAddDialog) {
         AddManualTransactionDialog(
-            transactionTypes = transactionTypes,
             mpesaMembers = mpesaMembers,
             manualMembers = manualMembers,
-            onAddCustomType = onAddCustomType,
-            onConfirm = { memberName, typeName, isOutflow, amount, description, date ->
-                onAddTransaction(memberName, typeName, isOutflow, amount, description, date)
+            onNavigateToAddMember = onNavigateToAddMember,
+            onConfirm = { memberName, isOutflow, amount, description, date, time ->
+                onAddTransaction(memberName, isOutflow, amount, description, date, time)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
@@ -2158,11 +2291,10 @@ private fun ManualTransactionsSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddManualTransactionDialog(
-    transactionTypes: List<ManualTransactionType>,
     mpesaMembers: List<String>,
     manualMembers: List<ManualCategoryMember>,
-    onAddCustomType: (name: String, isOutflow: Boolean) -> Unit,
-    onConfirm: (memberName: String, typeName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate) -> Unit,
+    onNavigateToAddMember: () -> Unit = {},
+    onConfirm: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -2170,20 +2302,19 @@ private fun AddManualTransactionDialog(
 
     var selectedMember by remember { mutableStateOf(allMembers.firstOrNull() ?: "") }
     var memberExpanded by remember { mutableStateOf(false) }
-    var selectedType by remember { mutableStateOf(transactionTypes.firstOrNull()) }
+    var isOutflow by remember { mutableStateOf(true) }
     var amountText by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-
-    var showCustomTypeForm by remember { mutableStateOf(false) }
-    var customTypeName by remember { mutableStateOf("") }
-    var customTypeIsOutflow by remember { mutableStateOf(true) }
+    var selectedTime by remember { mutableStateOf<java.time.LocalTime?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Manual Transaction") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+                // Member picker
                 ExposedDropdownMenuBox(expanded = memberExpanded, onExpandedChange = { memberExpanded = it }) {
                     OutlinedTextField(
                         value = selectedMember,
@@ -2197,53 +2328,44 @@ private fun AddManualTransactionDialog(
                         allMembers.forEach { m ->
                             DropdownMenuItem(text = { Text(m) }, onClick = { selectedMember = m; memberExpanded = false })
                         }
-                    }
-                }
-
-                Text("Transaction Type", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(transactionTypes) { type ->
-                        FilterChip(
-                            selected = selectedType?.id == type.id,
-                            onClick = { selectedType = type },
-                            label = { Text(type.name, fontSize = 12.sp) }
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_add),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "Member not here? Add one",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            },
+                            onClick = { memberExpanded = false; onNavigateToAddMember() }
                         )
                     }
-                    item {
-                        if (showCustomTypeForm) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = customTypeName,
-                                    onValueChange = { customTypeName = it },
-                                    label = { Text("Type name") },
-                                    modifier = Modifier.width(140.dp),
-                                    singleLine = true
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                FilterChip(selected = customTypeIsOutflow, onClick = { customTypeIsOutflow = true }, label = { Text("Expense") })
-                                Spacer(Modifier.width(4.dp))
-                                FilterChip(selected = !customTypeIsOutflow, onClick = { customTypeIsOutflow = false }, label = { Text("Income") })
-                                Spacer(Modifier.width(4.dp))
-                                IconButton(onClick = {
-                                    if (customTypeName.isNotBlank()) {
-                                        onAddCustomType(customTypeName.trim(), customTypeIsOutflow)
-                                        customTypeName = ""
-                                        showCustomTypeForm = false
-                                    }
-                                }) {
-                                    Icon(painter = painterResource(R.drawable.check), contentDescription = "Save", modifier = Modifier.size(18.dp))
-                                }
-                            }
-                        } else {
-                            FilterChip(
-                                selected = false,
-                                onClick = { showCustomTypeForm = true },
-                                label = { Text("+ Type", fontSize = 12.sp) }
-                            )
-                        }
-                    }
                 }
 
+                // Expense / Income toggle
+                Text("Transaction type", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = isOutflow,
+                        onClick = { isOutflow = true },
+                        label = { Text("Expense") }
+                    )
+                    FilterChip(
+                        selected = !isOutflow,
+                        onClick = { isOutflow = false },
+                        label = { Text("Income") }
+                    )
+                }
+
+                // Amount
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
@@ -2253,6 +2375,7 @@ private fun AddManualTransactionDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Date
                 val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
                 OutlinedTextField(
                     value = selectedDate.format(dateFormatter),
@@ -2273,6 +2396,37 @@ private fun AddManualTransactionDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Time (optional)
+                val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("hh:mm a") }
+                OutlinedTextField(
+                    value = selectedTime?.format(timeFormatter) ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Time (optional)") },
+                    placeholder = { Text("Tap to set time") },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selectedTime != null) {
+                                IconButton(onClick = { selectedTime = null }, modifier = Modifier.size(32.dp)) {
+                                    Icon(painter = painterResource(R.drawable.baseline_clear_24), contentDescription = "Clear time", modifier = Modifier.size(16.dp))
+                                }
+                            }
+                            IconButton(onClick = {
+                                val now = selectedTime ?: java.time.LocalTime.now()
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hour, minute -> selectedTime = java.time.LocalTime.of(hour, minute) },
+                                    now.hour, now.minute, false
+                                ).show()
+                            }) {
+                                Icon(painter = painterResource(R.drawable.calendar), contentDescription = "Pick time", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Description
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -2283,14 +2437,17 @@ private fun AddManualTransactionDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val amount = amountText.toDoubleOrNull() ?: return@TextButton
-                val type = selectedType ?: return@TextButton
-                if (selectedMember.isNotBlank()) {
-                    onConfirm(selectedMember, type.name, type.isOutflow, amount, description, selectedDate)
-                }
-            }) { Text("Add") }
+            Button(
+                onClick = {
+                    val amount = amountText.toDoubleOrNull() ?: return@Button
+                    if (selectedMember.isNotBlank() && amount > 0) {
+                        onConfirm(selectedMember, isOutflow, amount, description, selectedDate, selectedTime)
+                    }
+                },
+                enabled = selectedMember.isNotBlank() && (amountText.toDoubleOrNull() ?: 0.0) > 0
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
+
