@@ -5,10 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.print.PrintAttributes
-import android.print.PrintManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -25,7 +21,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +49,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
@@ -62,12 +60,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -85,6 +85,7 @@ import com.records.pesa.models.transaction.ItemCategory
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.ui.screens.components.EditManualTransactionDialog
+import com.records.pesa.ui.screens.components.PermissionExplanationDialog
 import kotlin.math.abs
 
 object TransactionDetailsScreenDestination : AppNavigation {
@@ -145,78 +146,228 @@ private fun copyToClipboard(context: Context, label: String, value: String) {
     Toast.makeText(context, "$label copied", Toast.LENGTH_SHORT).show()
 }
 
-private fun buildInvoiceHtml(
-    tx: TransactionItem? = null,
-    manualTx: ManualTransaction? = null,
-    isManual: Boolean = false,
-): String {
-    val isOutflow = if (isManual) manualTx?.isOutflow == true else (tx?.transactionAmount ?: 0.0) < 0
-    val amountColor = if (isOutflow) "#c0392b" else "#27ae60"
-    val sign = if (isOutflow) "-" else "+"
-    val sb = StringBuilder()
-    sb.append("""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-body{font-family:Arial,sans-serif;background:#fff;color:#222;margin:0;padding:24px;max-width:480px;}
-h1{font-size:22px;margin:0 0 2px;color:#1a237e;letter-spacing:1px;}
-.sub{font-size:12px;color:#888;margin:0 0 12px;}
-hr{border:none;border-top:2px solid #1a237e;margin:12px 0;}
-.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;}
-.label{color:#666;flex:0 0 38%;}
-.value{font-weight:600;flex:0 0 60%;text-align:right;}
-.amt{font-size:26px;font-weight:700;color:""" + amountColor + """;text-align:center;padding:14px 0 6px;}
-.entity{font-size:15px;font-weight:600;text-align:center;margin-bottom:4px;}
-.footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;}
-.badge{display:inline-block;background:#e8eaf6;color:#1a237e;border-radius:4px;padding:2px 10px;font-size:11px;font-weight:700;}
-.chip{display:inline-block;background:#e3f2fd;color:#1565c0;border-radius:12px;padding:2px 10px;font-size:12px;margin:2px;}
-</style></head><body>""")
-    sb.append("<h1>Cash Ledger</h1><p class='sub'>Transaction Invoice</p><hr/>")
-    if (!isManual && tx != null) {
-        val entity = if (!tx.nickName.isNullOrBlank()) tx.nickName else tx.entity
-        val amt = formatMoneyValue(abs(tx.transactionAmount))
-        sb.append("<div class='entity'>$entity</div>")
-        sb.append("<div class='amt'>${sign}KES $amt</div><hr/>")
-        sb.append("<div class='row'><span class='label'>Code</span><span class='value'>${tx.transactionCode}</span></div>")
-        sb.append("<div class='row'><span class='label'>Type</span><span class='value'><span class='badge'>${tx.transactionType}</span></span></div>")
-        sb.append("<div class='row'><span class='label'>Entity</span><span class='value'>${tx.entity}</span></div>")
-        sb.append("<div class='row'><span class='label'>Date</span><span class='value'>${tx.date}</span></div>")
-        sb.append("<div class='row'><span class='label'>Time</span><span class='value'>${tx.time}</span></div>")
-        sb.append("<div class='row'><span class='label'>Balance</span><span class='value'>KES ${formatMoneyValue(tx.balance)}</span></div>")
-        if (isOutflow && tx.transactionCost > 0)
-            sb.append("<div class='row'><span class='label'>Cost</span><span class='value'>KES ${formatMoneyValue(tx.transactionCost)}</span></div>")
-        if (!tx.categories.isNullOrEmpty()) {
-            val chips = tx.categories.joinToString("") { "<span class='chip'>${it.name}</span>" }
-            sb.append("<div class='row'><span class='label'>Categories</span><span class='value'>$chips</span></div>")
-        }
-        if (!tx.comment.isNullOrBlank())
-            sb.append("<div class='row'><span class='label'>Comment</span><span class='value'>${tx.comment}</span></div>")
-    } else if (isManual && manualTx != null) {
-        val amt = formatMoneyValue(manualTx.amount)
-        sb.append("<div class='entity'>${manualTx.memberName}</div>")
-        sb.append("<div class='amt'>${sign}KES $amt</div><hr/>")
-        sb.append("<div class='row'><span class='label'>Type</span><span class='value'><span class='badge'>${manualTx.transactionTypeName}</span></span></div>")
-        sb.append("<div class='row'><span class='label'>Member</span><span class='value'>${manualTx.memberName}</span></div>")
-        sb.append("<div class='row'><span class='label'>Date</span><span class='value'>${manualTx.date}</span></div>")
-        if (manualTx.time != null)
-            sb.append("<div class='row'><span class='label'>Time</span><span class='value'>${manualTx.time}</span></div>")
-        if (manualTx.description.isNotBlank())
-            sb.append("<div class='row'><span class='label'>Note</span><span class='value'>${manualTx.description}</span></div>")
+
+data class InvoiceData(
+    val entity: String,
+    val amount: String,
+    val type: String,
+    val isOutflow: Boolean,
+    val rows: List<Pair<String, String>>,   // label → value
+)
+
+private fun buildAndOpenPdf(context: Context, data: InvoiceData) {
+    val primaryColor  = android.graphics.Color.parseColor("#006A65")
+    val primaryDark   = android.graphics.Color.parseColor("#004D49")
+    val accentInflow  = android.graphics.Color.parseColor("#006A65")
+    val accentOutflow = android.graphics.Color.parseColor("#C62828")
+    val headerColor   = if (data.isOutflow) accentOutflow else accentInflow
+    val headerDark    = if (data.isOutflow) android.graphics.Color.parseColor("#8E0000") else primaryDark
+    val bgColor       = android.graphics.Color.parseColor("#F4FBF9")
+    val white         = android.graphics.Color.WHITE
+    val labelColor    = android.graphics.Color.parseColor("#6B9E9B")
+    val valueColor    = android.graphics.Color.parseColor("#1A2E2D")
+    val divColor      = android.graphics.Color.parseColor("#E0F5F3")
+
+    // A5 page in points (72dpi)
+    val pageW = 420f
+    val pageH = 595f
+
+    val pdfDoc = android.graphics.pdf.PdfDocument()
+    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW.toInt(), pageH.toInt(), 1).create()
+    val page = pdfDoc.startPage(pageInfo)
+    val canvas: android.graphics.Canvas = page.canvas
+
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+    // ── Background ──────────────────────────────────────────────────────────────
+    paint.color = bgColor
+    canvas.drawRect(0f, 0f, pageW, pageH, paint)
+
+    // ── Card shadow (approximate with a soft rect) ───────────────────────────
+    val cardL = 24f; val cardR = pageW - 24f
+    val cardT = 28f; val cardRadius = 18f
+    paint.color = android.graphics.Color.argb(30, 0, 106, 101)
+    canvas.drawRoundRect(android.graphics.RectF(cardL + 2f, cardT + 4f, cardR + 2f, pageH - 28f + 4f), cardRadius, cardRadius, paint)
+
+    // ── Card background ───────────────────────────────────────────────────────
+    paint.color = white
+    canvas.drawRoundRect(android.graphics.RectF(cardL, cardT, cardR, pageH - 28f), cardRadius, cardRadius, paint)
+
+    // ── Header gradient (approximate with two rects) ─────────────────────────
+    val headerH = 148f
+    val headerRect = android.graphics.RectF(cardL, cardT, cardR, cardT + headerH)
+    val shader = android.graphics.LinearGradient(
+        cardL, cardT, cardR, cardT + headerH,
+        headerColor, headerDark,
+        android.graphics.Shader.TileMode.CLAMP
+    )
+    paint.shader = shader
+    // clip to card corners for top
+    val path = android.graphics.Path().apply {
+        addRoundRect(android.graphics.RectF(cardL, cardT, cardR, cardT + headerH + cardRadius), cardRadius, cardRadius, android.graphics.Path.Direction.CW)
+        addRect(android.graphics.RectF(cardL, cardT + headerH - cardRadius, cardR, cardT + headerH + cardRadius), android.graphics.Path.Direction.CW)
     }
-    sb.append("<p class='footer'>Powered by Cash Ledger</p></body></html>")
-    return sb.toString()
+    canvas.save()
+    canvas.clipRect(cardL, cardT, cardR, cardT + headerH)
+    canvas.drawRoundRect(android.graphics.RectF(cardL, cardT, cardR, cardT + headerH + cardRadius * 2), cardRadius, cardRadius, paint)
+    canvas.restore()
+    paint.shader = null
+
+    // ── Decorative circle in header ───────────────────────────────────────────
+    paint.color = android.graphics.Color.argb(30, 255, 255, 255)
+    canvas.drawCircle(cardR - 10f, cardT + headerH - 10f, 60f, paint)
+    canvas.drawCircle(cardR + 10f, cardT + 20f, 30f, paint)
+
+    // ── Header text ──────────────────────────────────────────────────────────
+    paint.shader = null
+    paint.color = android.graphics.Color.argb(180, 255, 255, 255)
+    paint.textSize = 8f
+    paint.letterSpacing = 0.15f
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    canvas.drawText("CASH LEDGER  ·  RECEIPT", cardL + 18f, cardT + 22f, paint)
+
+    paint.letterSpacing = 0f
+    paint.color = white
+    paint.textSize = 15f
+    paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    // Entity — truncate if too long
+    val maxEntityW = cardR - cardL - 36f
+    val entityText = if (paint.measureText(data.entity) > maxEntityW)
+        data.entity.take(28) + "…" else data.entity
+    canvas.drawText(entityText, cardL + 18f, cardT + 52f, paint)
+
+    paint.textSize = 28f
+    paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    canvas.drawText(data.amount, cardL + 18f, cardT + 86f, paint)
+
+    // Badge
+    paint.textSize = 9f
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    val badgeText = data.type.uppercase()
+    val badgeW = paint.measureText(badgeText) + 20f
+    val badgeRect = android.graphics.RectF(cardL + 18f, cardT + 100f, cardL + 18f + badgeW, cardT + 118f)
+    paint.color = android.graphics.Color.argb(60, 255, 255, 255)
+    canvas.drawRoundRect(badgeRect, 9f, 9f, paint)
+    paint.color = white
+    canvas.drawText(badgeText, cardL + 28f, cardT + 113f, paint)
+
+    // ── Dashed divider ────────────────────────────────────────────────────────
+    paint.color = divColor
+    paint.strokeWidth = 1f
+    paint.style = android.graphics.Paint.Style.STROKE
+    val dashEffect = android.graphics.DashPathEffect(floatArrayOf(6f, 6f), 0f)
+    paint.pathEffect = dashEffect
+    canvas.drawLine(cardL + 16f, cardT + headerH, cardR - 16f, cardT + headerH, paint)
+    paint.pathEffect = null
+    paint.style = android.graphics.Paint.Style.FILL
+
+    // ── Data rows ─────────────────────────────────────────────────────────────
+    var rowY = cardT + headerH + 14f
+    val rowH = 26f
+    val labelX = cardL + 18f
+    val valueX = cardR - 18f
+
+    data.rows.forEachIndexed { i, (label, value) ->
+        if (i > 0) {
+            paint.color = divColor
+            canvas.drawLine(cardL + 16f, rowY - 4f, cardR - 16f, rowY - 4f, paint)
+        }
+        paint.color = labelColor
+        paint.textSize = 10f
+        paint.typeface = android.graphics.Typeface.DEFAULT
+        canvas.drawText(label, labelX, rowY + 12f, paint)
+
+        paint.color = valueColor
+        paint.textSize = 10.5f
+        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.textAlign = android.graphics.Paint.Align.RIGHT
+        val valText = if (paint.measureText(value) > (cardR - cardL - 120f)) value.take(32) + "…" else value
+        canvas.drawText(valText, valueX, rowY + 12f, paint)
+        paint.textAlign = android.graphics.Paint.Align.LEFT
+
+        rowY += rowH
+    }
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    val footerY = pageH - 28f - 22f
+    paint.color = divColor
+    canvas.drawLine(cardL + 16f, footerY, cardR - 16f, footerY, paint)
+    paint.color = labelColor
+    paint.textSize = 8f
+    paint.typeface = android.graphics.Typeface.DEFAULT
+    paint.textAlign = android.graphics.Paint.Align.CENTER
+    canvas.drawText("POWERED BY CASH LEDGER", pageW / 2f, footerY + 14f, paint)
+    paint.textAlign = android.graphics.Paint.Align.LEFT
+
+    pdfDoc.finishPage(page)
+
+    try {
+        val invoiceDir = java.io.File(context.cacheDir, "invoices")
+        invoiceDir.mkdirs()
+        val file = java.io.File(invoiceDir, "invoice_${System.currentTimeMillis()}.pdf")
+        java.io.FileOutputStream(file).use { pdfDoc.writeTo(it) }
+        pdfDoc.close()
+
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "com.records.pesa.provider", file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        pdfDoc.close()
+        Toast.makeText(context, "Could not open PDF viewer", Toast.LENGTH_SHORT).show()
+    }
 }
 
-private fun printInvoice(context: Context, html: String) {
-    val webView = WebView(context)
-    webView.webViewClient = object : WebViewClient() {
-        override fun onPageFinished(view: WebView, url: String) {
-            val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
-            val printAdapter = view.createPrintDocumentAdapter("Cash Ledger Invoice")
-            printManager.print("Cash Ledger Invoice", printAdapter, PrintAttributes.Builder().build())
-        }
-    }
-    webView.loadDataWithBaseURL(null, html, "text/HTML", "UTF-8", null)
-}
 
 // ── category chip palette ─────────────────────────────────────────────────────
+
+private fun TransactionItem.toInvoiceData(includeBalance: Boolean = true): InvoiceData {
+    val isOutflow = transactionAmount < 0
+    fun fmtDate(raw: String) = try {
+        java.time.LocalDate.parse(raw)
+            .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.ENGLISH))
+    } catch (_: Exception) { raw }
+    val rows = buildList {
+        add("Code" to transactionCode)
+        add("Entity" to entity)
+        add("Date" to fmtDate(date))
+        add("Time" to time.take(5))
+        if (includeBalance) add("Balance after" to formatMoneyValue(balance))
+        if (isOutflow && transactionCost > 0) add("Fee" to formatMoneyValue(transactionCost))
+        if (!categories.isNullOrEmpty()) add("Categories" to categories.joinToString(" · ") { it.name })
+        if (!comment.isNullOrBlank()) add("Note" to comment!!)
+    }
+    return InvoiceData(
+        entity = nickName?.ifBlank { null } ?: entity,
+        amount = "${if (isOutflow) "−" else "+"}${formatMoneyValue(abs(transactionAmount))}",
+        type = transactionType,
+        isOutflow = isOutflow,
+        rows = rows
+    )
+}
+
+private fun ManualTransaction.toInvoiceData(): InvoiceData {
+    fun fmtDate(raw: String) = try {
+        java.time.LocalDate.parse(raw)
+            .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.ENGLISH))
+    } catch (_: Exception) { raw }
+    val rows = buildList {
+        add("Member" to memberName)
+        add("Date" to fmtDate(date.toString()))
+        if (time != null) add("Time" to time.toString().take(5))
+        if (description.isNotBlank()) add("Note" to description)
+    }
+    return InvoiceData(
+        entity = memberName,
+        amount = "${if (isOutflow) "−" else "+"}${formatMoneyValue(amount)}",
+        type = transactionTypeName,
+        isOutflow = isOutflow,
+        rows = rows
+    )
+}
 
 private val chipPalette = listOf(
     Color(0xFF1565C0) to Color(0xFFE3F2FD),
@@ -257,6 +408,8 @@ fun TransactionDetailsScreenComposable(
     var removeFromCatId by rememberSaveable { mutableStateOf(-1) }
     var removeKeywordId by rememberSaveable { mutableStateOf(-1) }
     var showRemoveFromCatConfirm by rememberSaveable { mutableStateOf(false) }
+    var showDeleteAliasDialog by rememberSaveable { mutableStateOf(false) }
+    var showInvoiceOptionsDialog by rememberSaveable { mutableStateOf(false) }
 
     val aliasStatus = uiState.updatingAliasStatus
     val commentStatus = uiState.updatingCommentStatus
@@ -301,131 +454,125 @@ fun TransactionDetailsScreenComposable(
 
     // upgrade dialog
     if (showUpgradeDialog) {
-        AlertDialog(
-            onDismissRequest = { showUpgradeDialog = false },
-            title = { Text("Upgrade to Premium", fontWeight = FontWeight.Bold) },
-            text = { Text("Viewing multiple categories requires a premium subscription.") },
-            confirmButton = {
-                Button(onClick = { showUpgradeDialog = false }) { Text("OK") }
-            }
+        PermissionExplanationDialog(
+            icon = R.drawable.lock,
+            title = "Premium Required",
+            explanation = "Viewing multiple categories for a transaction requires a Cash Ledger Premium subscription.",
+            confirmLabel = "Upgrade",
+            dismissLabel = "Not now",
+            onConfirm = { showUpgradeDialog = false },
+            onDismiss = { showUpgradeDialog = false }
         )
     }
 
     // remove from category confirm dialog
     if (showRemoveFromCatConfirm) {
-        AlertDialog(
-            onDismissRequest = { showRemoveFromCatConfirm = false },
-            title = { Text("Remove Category", fontWeight = FontWeight.Bold) },
-            text = { Text("Remove this transaction from the selected category?") },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        if (removeFromCatId != -1 && removeKeywordId != -1)
-                            viewModel.removeFromCategory(removeFromCatId, removeKeywordId)
-                        showRemoveFromCatConfirm = false
-                        removeFromCatId = -1
-                        removeKeywordId = -1
-                    }
-                ) { Text("Remove") }
+        PermissionExplanationDialog(
+            icon = R.drawable.remove,
+            title = "Remove from Category?",
+            explanation = "This will remove this transaction's entity from the selected category.",
+            confirmLabel = "Remove",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                if (removeFromCatId != -1 && removeKeywordId != -1)
+                    viewModel.removeFromCategory(removeFromCatId, removeKeywordId)
+                showRemoveFromCatConfirm = false
+                removeFromCatId = -1
+                removeKeywordId = -1
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showRemoveFromCatConfirm = false
-                    removeFromCatId = -1
-                    removeKeywordId = -1
-                }) { Text("Cancel") }
+            onDismiss = {
+                showRemoveFromCatConfirm = false
+                removeFromCatId = -1
+                removeKeywordId = -1
             }
         )
     }
 
     // delete transaction dialog
     if (showDeleteTransactionDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteTransactionDialog = false },
-            title = { Text("Delete Transaction", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Are you sure you want to delete this transaction?")
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { deleteAllInstances = !deleteAllInstances }
-                            .padding(vertical = 8.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                if (deleteAllInstances) R.drawable.check_box_filled
-                                else R.drawable.check_box_blank
-                            ),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Delete all transactions from this entity", fontSize = 14.sp)
-                    }
-                }
+        PermissionExplanationDialog(
+            icon = R.drawable.remove,
+            title = "Delete Transaction?",
+            explanation = "This will permanently delete this transaction. This action cannot be undone.",
+            confirmLabel = "Delete",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                viewModel.deleteTransaction(
+                    uiState.transaction.transactionId!!,
+                    deleteAllInstances
+                )
+                showDeleteTransactionDialog = false
             },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        viewModel.deleteTransaction(
-                            uiState.transaction.transactionId!!,
-                            deleteAllInstances
-                        )
-                        showDeleteTransactionDialog = false
-                    }
-                ) { Text("Delete") }
+            onDismiss = { showDeleteTransactionDialog = false }
+        )
+    }
+
+    // delete alias dialog
+    if (showDeleteAliasDialog) {
+        PermissionExplanationDialog(
+            icon = R.drawable.baseline_clear_24,
+            title = "Remove Nickname?",
+            explanation = "The nickname for this entity will be cleared for all transactions.",
+            confirmLabel = "Remove",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                viewModel.deleteAlias()
+                showDeleteAliasDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteTransactionDialog = false }) { Text("Cancel") }
-            }
+            onDismiss = { showDeleteAliasDialog = false }
         )
     }
 
     // delete comment dialog
     if (showDeleteCommentDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteCommentDialog = false },
-            title = { Text("Delete Comment", fontWeight = FontWeight.Bold) },
-            text = { Text("Remove the comment from this transaction?") },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        viewModel.onDeleteComment()
-                        showDeleteCommentDialog = false
-                    }
-                ) { Text("Delete") }
+        PermissionExplanationDialog(
+            icon = R.drawable.baseline_clear_24,
+            title = "Delete Comment?",
+            explanation = "Remove the comment from this transaction?",
+            confirmLabel = "Delete",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                viewModel.onDeleteComment()
+                showDeleteCommentDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteCommentDialog = false }) { Text("Cancel") }
-            }
+            onDismiss = { showDeleteCommentDialog = false }
         )
     }
 
     // delete manual tx dialog
     if (showDeleteManualTxDialog) {
+        PermissionExplanationDialog(
+            icon = R.drawable.remove,
+            title = "Delete Transaction?",
+            explanation = "This manual transaction will be permanently deleted.",
+            confirmLabel = "Delete",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                viewModel.deleteManualTx()
+                showDeleteManualTxDialog = false
+            },
+            onDismiss = { showDeleteManualTxDialog = false }
+        )
+    }
+
+    // invoice options dialog — ask whether to include balance
+    if (showInvoiceOptionsDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteManualTxDialog = false },
-            title = { Text("Delete Transaction", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete this manual transaction?") },
+            onDismissRequest = { showInvoiceOptionsDialog = false },
+            icon = { Icon(painterResource(R.drawable.receipt), null, Modifier.size(28.dp)) },
+            title = { Text("Print Invoice", fontWeight = FontWeight.SemiBold) },
+            text = { Text("Include the M-PESA balance in the printed invoice?") },
             confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        viewModel.deleteManualTx()
-                        showDeleteManualTxDialog = false
-                    }
-                ) { Text("Delete") }
+                Button(onClick = {
+                    showInvoiceOptionsDialog = false
+                    buildAndOpenPdf(context, uiState.transaction.toInvoiceData(includeBalance = true))
+                }) { Text("Yes, include") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteManualTxDialog = false }) { Text("Cancel") }
+                OutlinedButton(onClick = {
+                    showInvoiceOptionsDialog = false
+                    buildAndOpenPdf(context, uiState.transaction.toInvoiceData(includeBalance = false))
+                }) { Text("No, hide it") }
             }
         )
     }
@@ -604,94 +751,98 @@ fun TransactionDetailsScreenComposable(
             launchShare(context, buildShareText(uiState.transaction))
     }
 
-    Box(modifier = Modifier.safeDrawingPadding()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            if (uiState.isManualTransaction) "Manual Transaction" else "Transaction",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = navigateToPreviousScreen) {
-                            Icon(
-                                painter = painterResource(R.drawable.arrow_back),
-                                contentDescription = "Back",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onShare) {
-                            Icon(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = "Share",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-            }
-        ) { innerPadding ->
-            Column(
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ── Header ──────────────────────────────────────────────────────────────
+        Surface(shadowElevation = 0.dp, tonalElevation = 0.dp) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .animateContentSize()
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
-                Spacer(Modifier.height(8.dp))
-
-                if (uiState.isManualTransaction) {
-                    ManualTransactionContent(
-                        uiState = uiState,
-                        onPrintInvoice = {
-                            printInvoice(
-                                context,
-                                buildInvoiceHtml(manualTx = uiState.manualTransaction, isManual = true)
-                            )
-                        },
-                        onEditTx = { showEditManualTxDialog = true },
-                        onDeleteTx = { showDeleteManualTxDialog = true }
-                    )
-                } else {
-                    MpesaTransactionContent(
-                        uiState = uiState,
-                        viewModel = viewModel,
-                        editAliasActive = editAliasActive,
-                        editCommentActive = editCommentActive,
-                        onToggleAlias = { editAliasActive = !editAliasActive },
-                        onToggleComment = { editCommentActive = !editCommentActive },
-                        onDeleteComment = { showDeleteCommentDialog = true },
-                        onDeleteTransaction = { showDeleteTransactionDialog = true },
-                        onAddToCategory = { showAddToCategoryDialog = true },
-                        onPrintInvoice = {
-                            printInvoice(context, buildInvoiceHtml(tx = uiState.transaction))
-                        },
-                        onCategoryClick = { cat, index ->
-                            if (!uiState.isPremium && index > 0) showUpgradeDialog = true
-                            else navigateToCategoryScreen(cat.id.toString())
-                        },
-                        onCategoryRemove = { cat ->
-                            val kwId = uiState.allCategories
-                                .find { it.category.id == cat.id }
-                                ?.keyWords?.find { it.keyword == uiState.transaction.entity }?.id ?: -1
-                            if (kwId != -1) {
-                                removeFromCatId = cat.id
-                                removeKeywordId = kwId
-                                showRemoveFromCatConfirm = true
-                            }
-                        }
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .size(22.dp)
+                            .scale(scaleX = -1f, scaleY = 1f)
                     )
                 }
-
-                Spacer(Modifier.height(32.dp))
+                Text(
+                    text = if (uiState.isManualTransaction) "Manual Transaction" else "Transaction",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp)
+                )
+                IconButton(onClick = onShare) {
+                    Icon(
+                        painter = painterResource(R.drawable.share),
+                        contentDescription = "Share",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
+        }
+        // ── Content ─────────────────────────────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .animateContentSize()
+        ) {
+            Spacer(Modifier.height(8.dp))
+
+            if (uiState.isManualTransaction) {
+                ManualTransactionContent(
+                    uiState = uiState,
+                    onPrintInvoice = {
+                        uiState.manualTransaction?.let { buildAndOpenPdf(context, it.toInvoiceData()) }
+                    },
+                    onEditTx = { showEditManualTxDialog = true },
+                    onDeleteTx = { showDeleteManualTxDialog = true }
+                )
+            } else {
+                MpesaTransactionContent(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    editAliasActive = editAliasActive,
+                    editCommentActive = editCommentActive,
+                    onToggleAlias = { editAliasActive = !editAliasActive },
+                    onDeleteAlias = { showDeleteAliasDialog = true },
+                    onToggleComment = { editCommentActive = !editCommentActive },
+                    onDeleteComment = { showDeleteCommentDialog = true },
+                    onDeleteTransaction = { showDeleteTransactionDialog = true },
+                    onAddToCategory = { showAddToCategoryDialog = true },
+                    onPrintInvoice = {
+                        showInvoiceOptionsDialog = true
+                    },
+                    onCategoryClick = { cat, index ->
+                        if (!uiState.isPremium && index > 0) showUpgradeDialog = true
+                        else navigateToCategoryScreen(cat.id.toString())
+                    },
+                    onCategoryRemove = { cat ->
+                        val kwId = uiState.allCategories
+                            .find { it.category.id == cat.id }
+                            ?.keyWords?.find { it.keyword == uiState.transaction.entity }?.id ?: -1
+                        if (kwId != -1) {
+                            removeFromCatId = cat.id
+                            removeKeywordId = kwId
+                            showRemoveFromCatConfirm = true
+                        }
+                    }
+                )
+            }
+
+            Spacer(
+                Modifier
+                    .navigationBarsPadding()
+                    .height(16.dp)
+            )
         }
     }
 }
@@ -706,6 +857,7 @@ private fun MpesaTransactionContent(
     editAliasActive: Boolean,
     editCommentActive: Boolean,
     onToggleAlias: () -> Unit,
+    onDeleteAlias: () -> Unit,
     onToggleComment: () -> Unit,
     onDeleteComment: () -> Unit,
     onDeleteTransaction: () -> Unit,
@@ -793,15 +945,15 @@ private fun MpesaTransactionContent(
     }
 
     SectionCard(title = "DETAILS") {
+        val fmtDate = remember(tx.date) {
+            try { java.time.LocalDate.parse(tx.date)
+                .format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy")) }
+            catch (_: Exception) { tx.date }
+        }
+        val fmtTime = remember(tx.time) { tx.time.take(5) }
         DetailRow("Code", tx.transactionCode, onCopy = { copyToClipboard(context, "Code", tx.transactionCode) })
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
         DetailRow("Type", tx.transactionType)
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-        DetailRow(
-            "Amount",
-            if (isOutflow) "-${formatMoneyValue(abs(tx.transactionAmount))}"
-            else "+${formatMoneyValue(tx.transactionAmount)}"
-        )
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
         DetailRow("Entity", tx.entity, onCopy = { copyToClipboard(context, "Entity", tx.entity) })
         if (phoneIsValid) {
@@ -812,50 +964,43 @@ private fun MpesaTransactionContent(
         DetailRow("Balance", formatMoneyValue(tx.balance))
         if (isOutflow && tx.transactionCost > 0) {
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DetailRow("Cost", formatMoneyValue(tx.transactionCost))
+            DetailRow("Fee", formatMoneyValue(tx.transactionCost))
         }
+        // Alias (entity nickname) belongs in Details, not Notes
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-        DetailRow("Date", tx.date)
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-        DetailRow("Time", tx.time)
-    }
-
-    SectionCard(title = "NOTES") {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp)
+                .padding(vertical = 6.dp)
         ) {
             Text(
-                "Alias",
+                "Nickname",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(0.35f)
             )
             Text(
-                tx.nickName ?: "",
+                tx.nickName?.ifBlank { "—" } ?: "—",
                 fontSize = 14.sp,
-                fontWeight = if (tx.nickName.isNullOrBlank()) FontWeight.Normal else FontWeight.Medium,
-                color = if (tx.nickName.isNullOrBlank())
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                else
-                    MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(0.55f)
             )
-            IconButton(onClick = onToggleAlias, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    painterResource(R.drawable.edit), "Edit alias", Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = onToggleAlias, modifier = Modifier.size(28.dp)) {
+                Icon(painterResource(R.drawable.edit), "Edit nickname", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            if (!tx.nickName.isNullOrBlank()) {
+                IconButton(onClick = onDeleteAlias, modifier = Modifier.size(28.dp)) {
+                    Icon(painterResource(R.drawable.baseline_clear_24), "Delete nickname", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                }
             }
         }
         if (editAliasActive) {
-            Spacer(Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.nickname,
                 onValueChange = viewModel::onChangeNickname,
-                label = { Text("Alias") },
+                label = { Text("Nickname") },
                 singleLine = true,
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -875,44 +1020,35 @@ private fun MpesaTransactionContent(
             }
             Spacer(Modifier.height(4.dp))
         }
+    }
 
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-
+    SectionCard(title = "COMMENT") {
+        // Actions row
         Row(
-            verticalAlignment = Alignment.Top,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                "Comment",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(0.35f).padding(top = 2.dp)
-            )
-            Text(
-                tx.comment ?: "",
-                fontSize = 14.sp,
-                color = if (tx.comment.isNullOrBlank())
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                else
-                    MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-            Row {
-                IconButton(onClick = onToggleComment, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        painterResource(R.drawable.edit), "Edit comment", Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (!tx.comment.isNullOrBlank()) {
-                    IconButton(onClick = onDeleteComment, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            painterResource(R.drawable.baseline_clear_24), "Delete comment", Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+            if (tx.comment.isNullOrBlank()) {
+                Text(
+                    "No comment yet",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                Text(
+                    tx.comment,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            IconButton(onClick = onToggleComment, modifier = Modifier.size(32.dp)) {
+                Icon(painterResource(R.drawable.edit), "Edit", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            if (!tx.comment.isNullOrBlank()) {
+                IconButton(onClick = onDeleteComment, modifier = Modifier.size(32.dp)) {
+                    Icon(painterResource(R.drawable.baseline_clear_24), "Delete", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -945,14 +1081,14 @@ private fun MpesaTransactionContent(
 
     // categories section
     ElevatedCard(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.elevatedCardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -960,7 +1096,7 @@ private fun MpesaTransactionContent(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     letterSpacing = 0.8.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -973,7 +1109,7 @@ private fun MpesaTransactionContent(
                     Text("Add", fontSize = 12.sp)
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             if (tx.categories.isNullOrEmpty()) {
                 Text(
                     "No categories yet. Tap Add to categorise.",
@@ -999,22 +1135,22 @@ private fun MpesaTransactionContent(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp)
+                                modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 9.dp, bottom = 9.dp)
                             ) {
                                 if (isLocked) {
                                     Icon(
                                         painterResource(R.drawable.lock),
                                         contentDescription = "Premium",
-                                        modifier = Modifier.size(12.dp),
+                                        modifier = Modifier.size(14.dp),
                                         tint = contentCol
                                     )
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(5.dp))
                                 }
-                                Text(cat.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = contentCol)
-                                Spacer(Modifier.width(4.dp))
+                                Text(cat.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = contentCol)
+                                Spacer(Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
-                                        .size(18.dp)
+                                        .size(22.dp)
                                         .clip(CircleShape)
                                         .background(contentCol.copy(alpha = 0.15f))
                                         .clickable { onCategoryRemove(cat) },
@@ -1023,7 +1159,7 @@ private fun MpesaTransactionContent(
                                     Icon(
                                         painterResource(R.drawable.baseline_clear_24),
                                         contentDescription = "Remove",
-                                        modifier = Modifier.size(10.dp),
+                                        modifier = Modifier.size(12.dp),
                                         tint = contentCol
                                     )
                                 }
@@ -1035,7 +1171,7 @@ private fun MpesaTransactionContent(
         }
     }
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         OutlinedButton(
             onClick = onPrintInvoice,
             modifier = Modifier.fillMaxWidth(),
@@ -1120,16 +1256,20 @@ private fun ManualTransactionContent(
     }
 
     SectionCard(title = "DETAILS") {
+        val fmtDate = remember(tx.date) {
+            try { tx.date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy")) }
+            catch (_: Exception) { tx.date.toString() }
+        }
         DetailRow("Member", tx.memberName, onCopy = { copyToClipboard(context, "Member", tx.memberName) })
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
         DetailRow("Type", tx.transactionTypeName)
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
         DetailRow("Amount", "${if (!isOutflow) "+" else "-"}${formatMoneyValue(tx.amount)}")
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-        DetailRow("Date", tx.date.toString())
+        DetailRow("Date", fmtDate)
         if (tx.time != null) {
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DetailRow("Time", tx.time.toString())
+            DetailRow("Time", tx.time.toString().take(5))
         }
         if (tx.description.isNotBlank()) {
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
@@ -1242,8 +1382,18 @@ private fun HeroCard(
     val badgeText = if (isOutflow) Color(0xFFB71C1C) else Color(0xFF1B5E20)
     val iconBg = if (isOutflow) Color(0xFFEF9A9A).copy(alpha = 0.35f) else Color(0xFF81C784).copy(alpha = 0.35f)
 
+    // Format date: "2026-03-24" → "24 Mar 2026"
+    val displayDate = remember(date) {
+        try {
+            val ld = java.time.LocalDate.parse(date)
+            ld.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))
+        } catch (_: Exception) { date }
+    }
+    // Format time: "12:24:15" → "12:24"
+    val displayTime = remember(time) { time.take(5) }
+
     ElevatedCard(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.elevatedCardElevation(4.dp)
     ) {
@@ -1252,11 +1402,12 @@ private fun HeroCard(
                 .fillMaxWidth()
                 .background(Brush.verticalGradient(gradientColors))
         ) {
+            // Decorative icon — bottom-end so it doesn't clash with text
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .size(64.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(12.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(iconBg),
                 contentAlignment = Alignment.Center
@@ -1266,16 +1417,21 @@ private fun HeroCard(
                         if (isOutflow) R.drawable.out_transactions else R.drawable.in_transactions
                     ),
                     contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = amountColor.copy(alpha = 0.7f)
+                    modifier = Modifier.size(24.dp),
+                    tint = amountColor.copy(alpha = 0.6f)
                 )
             }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Type badge + date on same row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Box(
                         modifier = Modifier
                             .background(badgeContainer, RoundedCornerShape(6.dp))
@@ -1283,22 +1439,41 @@ private fun HeroCard(
                     ) {
                         Text(typeBadge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = badgeText)
                     }
-                    Spacer(Modifier.weight(1f))
-                    Text(date, fontSize = 12.sp, color = amountColor.copy(alpha = 0.7f))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            displayDate,
+                            fontSize = 11.sp,
+                            color = amountColor.copy(alpha = 0.65f)
+                        )
+                        if (displayTime.isNotBlank()) {
+                            Text("·", fontSize = 11.sp, color = amountColor.copy(alpha = 0.4f))
+                            Text(
+                                displayTime,
+                                fontSize = 11.sp,
+                                color = amountColor.copy(alpha = 0.65f)
+                            )
+                        }
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(10.dp))
+                // Amount
                 Text(
                     text = "${if (isOutflow) "-" else "+"}${formatMoneyValue(abs(amount))}",
-                    fontSize = 32.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = amountColor
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(entityLabel, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = amountColor.copy(alpha = 0.85f))
-                if (time.isNotBlank()) {
-                    Spacer(Modifier.height(3.dp))
-                    Text(time, fontSize = 12.sp, color = amountColor.copy(alpha = 0.6f))
-                }
+                Spacer(Modifier.height(4.dp))
+                // Entity
+                Text(
+                    entityLabel,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = amountColor.copy(alpha = 0.85f)
+                )
             }
         }
     }
@@ -1310,7 +1485,7 @@ private fun SectionCard(
     content: @Composable () -> Unit,
 ) {
     ElevatedCard(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.elevatedCardElevation(2.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -1318,17 +1493,17 @@ private fun SectionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Text(
                 title,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 letterSpacing = 0.8.sp
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(6.dp))
             content()
         }
     }
@@ -1344,7 +1519,7 @@ private fun DetailRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 9.dp)
+            .padding(vertical = 6.dp)
     ) {
         Text(
             label,

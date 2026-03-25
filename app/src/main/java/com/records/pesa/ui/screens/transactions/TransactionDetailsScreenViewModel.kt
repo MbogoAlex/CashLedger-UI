@@ -170,12 +170,13 @@ class TransactionDetailsScreenViewModel(
     }
 
     fun onDeleteComment() {
-        _uiState.update {
-            it.copy(
-                comment = ""
-            )
-        }
+        _uiState.update { it.copy(comment = "") }
         updateTransactionComment()
+    }
+
+    fun deleteAlias() {
+        _uiState.update { it.copy(nickname = "") }
+        updateEntityNickname()
     }
 
     fun getTransaction() {
@@ -188,9 +189,12 @@ class TransactionDetailsScreenViewModel(
             withContext(Dispatchers.IO) {
                 try {
                     transactionService.getTransactionById(uiState.value.transactionId!!.toInt()).collect(){transaction ->
+                        val item = transaction.toTransactionItem()
                         _uiState.update {
                             it.copy(
-                                transaction = transaction.toTransactionItem(),
+                                transaction = item,
+                                nickname = item.nickName ?: "",
+                                comment = item.comment ?: "",
                                 loadingStatus = LoadingStatus.SUCCESS
                             )
                         }
@@ -252,7 +256,7 @@ class TransactionDetailsScreenViewModel(
             comment = null,
         )
         val query = transactionService.createUserTransactionQuery(
-            userId = uiState.value.userDetails.userId,
+            userId = uiState.value.userDetails.backUpUserId.toInt(),
             entity = uiState.value.transaction.entity,
             categoryId = null,
             budgetId = null,
@@ -265,29 +269,23 @@ class TransactionDetailsScreenViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val transactions = transactionService.getUserTransactions(query).first()
+                var failed = false
                 for(transaction in transactions) {
                     try {
                         transactionService.updateTransaction(
-                            transaction.toTransaction(uiState.value.userDetails.userId).copy(
+                            transaction.toTransaction(uiState.value.userDetails.backUpUserId.toInt()).copy(
                                 nickName = uiState.value.nickname
                             )
                         )
-
                     } catch (e: Exception) {
-                        _uiState.update {
-                            it.copy(
-                                updatingAliasStatus = UpdatingAliasStatus.FAIL
-                            )
-                        }
+                        failed = true
                     }
                 }
-
                 _uiState.update {
                     it.copy(
-                        updatingAliasStatus = UpdatingAliasStatus.SUCCESS
+                        updatingAliasStatus = if (failed) UpdatingAliasStatus.FAIL else UpdatingAliasStatus.SUCCESS
                     )
                 }
-
             }
 //            try {
 //                val response = apiRepository.updateTransaction(
@@ -341,7 +339,7 @@ class TransactionDetailsScreenViewModel(
             withContext(Dispatchers.IO) {
                 try {
                     transactionService.updateTransaction(
-                        uiState.value.transaction.toTransaction(uiState.value.userDetails.userId).copy(
+                        uiState.value.transaction.toTransaction(uiState.value.userDetails.backUpUserId.toInt()).copy(
                             comment = uiState.value.comment
                         )
                     )
