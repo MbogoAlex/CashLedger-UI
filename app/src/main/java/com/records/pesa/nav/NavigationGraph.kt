@@ -26,6 +26,8 @@ import com.records.pesa.ui.screens.backup.BackupScreenComposable
 import com.records.pesa.ui.screens.backup.BackupScreenDestination
 import com.records.pesa.ui.screens.dashboard.HomeScreenComposable
 import com.records.pesa.ui.screens.dashboard.HomeScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAllTransactionsScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAllTransactionsScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenComposable
@@ -587,8 +589,8 @@ fun NavigationGraph(
             )
         ) {
             BudgetInfoScreenComposable(
-                navigateToTransactionsScreen = {categoryId, budgetId, startDate, endDate ->
-                    navController.navigate("${TransactionsScreenDestination.route}/${categoryId}/${budgetId}/${startDate}/${endDate}")
+                navigateToBudgetAllTransactions = { budgetId ->
+                    navController.navigate("${BudgetAllTransactionsScreenDestination.route}/$budgetId")
                 },
                 navigateToPreviousScreen = {
                     navController.popBackStack()
@@ -612,6 +614,20 @@ fun NavigationGraph(
                 },
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
+                }
+            )
+        }
+        composable(
+            BudgetAllTransactionsScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetAllTransactionsScreenDestination.budgetId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetAllTransactionsScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.popBackStack()
                 }
             )
         }

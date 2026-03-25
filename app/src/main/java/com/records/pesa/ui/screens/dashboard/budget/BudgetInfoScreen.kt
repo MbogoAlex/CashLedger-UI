@@ -72,7 +72,7 @@ object BudgetInfoScreenDestination : AppNavigation {
 // ─── Top-level wiring composable ─────────────────────────────────────────────
 @Composable
 fun BudgetInfoScreenComposable(
-    navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
+    navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
     modifier: Modifier = Modifier
@@ -149,7 +149,7 @@ fun BudgetInfoScreenComposable(
             uiState = uiState,
             onEditClick = { showEditDialog = true },
             onDeleteClick = { showDeleteDialog = true },
-            navigateToTransactionsScreen = navigateToTransactionsScreen,
+            navigateToBudgetAllTransactions = navigateToBudgetAllTransactions,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToAuditTrail = navigateToAuditTrail
         )
@@ -162,7 +162,7 @@ fun BudgetInfoScreen(
     uiState: BudgetInfoScreenUiState,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
+    navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
     modifier: Modifier = Modifier
@@ -298,33 +298,43 @@ fun BudgetInfoScreen(
             }
         }
 
-        // 5. Combined Transactions (M-PESA + manual) grouped by date, sorted newest first
+        // 5. Combined Transactions preview (5 most recent) grouped by date
+        val previewLimit = 5
         val allTxDates = (uiState.transactions.map { it.date } + uiState.manualTransactions.map { it.date })
             .distinct().sortedDescending()
 
+        // Collect up to previewLimit rows across all dates
+        var rowsShown = 0
         allTxDates.forEach { date ->
+            if (rowsShown >= previewLimit) return@forEach
             val mpesaOnDate = uiState.transactions.filter { it.date == date }
                 .sortedByDescending { it.time }
             val manualOnDate = uiState.manualTransactions.filter { it.date == date }
                 .sortedByDescending { it.time }
+            val totalOnDate = mpesaOnDate.size + manualOnDate.size
+            if (totalOnDate == 0) return@forEach
 
-            if (mpesaOnDate.isNotEmpty() || manualOnDate.isNotEmpty()) {
-                item(key = "header-$date") {
-                    BudgetDateHeader(date = date)
-                }
-                items(mpesaOnDate, key = { "mpesa-${it.id}" }) { tx ->
-                    BudgetTransactionRow(
-                        transaction = tx,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                    )
-                }
-                items(manualOnDate, key = { "manual-${it.id}" }) { tx ->
-                    BudgetManualTransactionRow(
-                        tx = tx,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                    )
-                }
+            val mpesaSlice = mpesaOnDate.take((previewLimit - rowsShown).coerceAtLeast(0))
+            val manualSlice = manualOnDate.take((previewLimit - rowsShown - mpesaSlice.size).coerceAtLeast(0))
+            val sliceCount = mpesaSlice.size + manualSlice.size
+            if (sliceCount == 0) return@forEach
+
+            item(key = "header-$date") {
+                BudgetDateHeader(date = date)
             }
+            items(mpesaSlice, key = { "mpesa-${it.id}" }) { tx ->
+                BudgetTransactionRow(
+                    transaction = tx,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+            }
+            items(manualSlice, key = { "manual-${it.id}" }) { tx ->
+                BudgetManualTransactionRow(
+                    tx = tx,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+            }
+            rowsShown += sliceCount
         }
 
         if (uiState.transactions.isEmpty() && uiState.manualTransactions.isEmpty() && uiState.loadingStatus != LoadingStatus.LOADING) {
@@ -349,14 +359,7 @@ fun BudgetInfoScreen(
         if (budget != null && budget.categoryId != null) {
             item {
                 Button(
-                    onClick = {
-                        navigateToTransactionsScreen(
-                            budget.categoryId,
-                            0, // no direct transaction↔budget link; filter by categoryId + date range
-                            budget.startDate.toString(),
-                            budget.limitDate.toString()
-                        )
-                    },
+                    onClick = { navigateToBudgetAllTransactions(budget.id) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1475,7 +1478,7 @@ private fun BudgetInfoScreenPreview() {
             ),
             onEditClick = {},
             onDeleteClick = {},
-            navigateToTransactionsScreen = { _, _, _, _ -> },
+            navigateToBudgetAllTransactions = {},
             navigateToPreviousScreen = {}
         )
     }
