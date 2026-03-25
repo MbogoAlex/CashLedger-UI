@@ -2237,7 +2237,10 @@ private fun ManualTransactionsSection(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = tx.date.format(dateFormatter),
+                                    text = buildString {
+                                        append(tx.date.format(dateFormatter))
+                                        tx.time?.let { append("  ${it.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}") }
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

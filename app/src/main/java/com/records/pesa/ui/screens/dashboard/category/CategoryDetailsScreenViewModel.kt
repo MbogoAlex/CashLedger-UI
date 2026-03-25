@@ -123,6 +123,7 @@ class CategoryDetailsScreenViewModel(
     // Cache all transactions for client-side period filtering
     private var allTransactions: List<com.records.pesa.db.models.Transaction> = emptyList()
     private var allKeywords: List<CategoryKeyword> = emptyList()
+    private var allManualTransactions: List<com.records.pesa.db.models.ManualTransaction> = emptyList()
 
     // ── Period management ─────────────────────────────────────────────────────
 
@@ -286,16 +287,46 @@ class CategoryDetailsScreenViewModel(
         val prevStart = prevEnd.minusDays(daySpan)
         val prevFiltered = allTransactions.filter { !it.date.isBefore(prevStart) && !it.date.isAfter(prevEnd) }
 
-        val totalIn  = filtered.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount }
-        val totalOut = filtered.filter { it.transactionAmount < 0 }.sumOf { abs(it.transactionAmount) }
-        val prevOut  = prevFiltered.filter { it.transactionAmount < 0 }.sumOf { abs(it.transactionAmount) }
-        val prevIn   = prevFiltered.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount }
+        val totalIn  = filtered.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount } +
+                       allManualTransactions.filter { !it.isOutflow && !it.date.isBefore(start) && !it.date.isAfter(end) }.sumOf { it.amount }
+        val totalOut = filtered.filter { it.transactionAmount < 0 }.sumOf { abs(it.transactionAmount) } +
+                       allManualTransactions.filter { it.isOutflow && !it.date.isBefore(start) && !it.date.isAfter(end) }.sumOf { it.amount }
+        val prevOut  = prevFiltered.filter { it.transactionAmount < 0 }.sumOf { abs(it.transactionAmount) } +
+                       allManualTransactions.filter { it.isOutflow && !it.date.isBefore(prevStart) && !it.date.isAfter(prevEnd) }.sumOf { it.amount }
+        val prevIn   = prevFiltered.filter { it.transactionAmount > 0 }.sumOf { it.transactionAmount } +
+                       allManualTransactions.filter { !it.isOutflow && !it.date.isBefore(prevStart) && !it.date.isAfter(prevEnd) }.sumOf { it.amount }
 
         val typeBreakdown = filtered.groupBy { it.transactionType }
             .map { (t, l) -> t to l.size }.sortedByDescending { it.second }
 
         val trendData   = buildTrendData(filtered, start, end)
-        val memberStats = buildMemberStats(filtered, allKeywords)
+        val mpesaMemberStats = buildMemberStats(filtered, allKeywords)
+
+        // Manual member stats (non-M-PESA) for the same period
+        val filteredManual = allManualTransactions.filter { !it.date.isBefore(start) && !it.date.isAfter(end) }
+        val manualMemberStats = filteredManual.groupBy { it.memberName }.map { (name, txs) ->
+            MemberStat(
+                keyword = name,
+                displayName = name,
+                totalIn  = txs.filter { !it.isOutflow }.sumOf { it.amount },
+                totalOut = txs.filter { it.isOutflow }.sumOf { it.amount },
+                txCount  = txs.size
+            )
+        }
+        // Merge: if same name appears in both (unlikely but possible) sum them
+        val allMemberNames = (mpesaMemberStats.map { it.keyword } + manualMemberStats.map { it.keyword }).distinct()
+        val memberStats = allMemberNames.map { name ->
+            val mpesa  = mpesaMemberStats.firstOrNull  { it.keyword == name }
+            val manual = manualMemberStats.firstOrNull { it.keyword == name }
+            MemberStat(
+                keyword     = name,
+                displayName = mpesa?.displayName ?: name,
+                totalIn     = (mpesa?.totalIn  ?: 0.0) + (manual?.totalIn  ?: 0.0),
+                totalOut    = (mpesa?.totalOut ?: 0.0) + (manual?.totalOut ?: 0.0),
+                txCount     = (mpesa?.txCount  ?: 0)   + (manual?.txCount  ?: 0)
+            )
+        }.sortedByDescending { it.totalOut + it.totalIn }
+
         val insights    = buildInsights(filtered, prevFiltered, totalIn, totalOut, prevIn, prevOut, memberStats, period, start, end)
 
         _uiState.update {
@@ -843,7 +874,9 @@ class CategoryDetailsScreenViewModel(
         }
         viewModelScope.launch {
             dbRepository.getManualTransactionsForCategory(categoryIdInt).collect { txs ->
+                allManualTransactions = txs
                 _uiState.update { it.copy(manualTransactions = txs) }
+                recomputeStats()
             }
         }
         viewModelScope.launch {
@@ -906,12 +939,23 @@ class CategoryDetailsScreenViewModel(
                     createdAt = java.time.LocalDateTime.now()
                 )
             )
+            // Trigger budget recalculation so any linked category budget reflects the new transaction
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_add",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
         }
     }
 
     fun deleteManualTransaction(id: Int) {
         viewModelScope.launch {
             dbRepository.deleteManualCategoryTransaction(id)
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_delete",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
         }
     }
 

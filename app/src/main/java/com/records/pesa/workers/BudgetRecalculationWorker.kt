@@ -28,12 +28,15 @@ class BudgetRecalculationWorker(
 
             for (budget in budgets) {
                 val manualSum = container.dbRepository.sumManualTransactionsForBudget(budget.id)
+                val periodEnd = minOf(today, budget.limitDate)
                 val manualOutflow = if (budget.categoryId != null) {
-                    container.dbRepository.sumManualOutflowForCategory(budget.categoryId)
+                    container.dbRepository.sumManualOutflowForCategoryInPeriod(
+                        budget.categoryId, budget.startDate, periodEnd
+                    )
                 } else 0.0
                 val mpesaOutflow = if (budget.categoryId != null) {
                     container.dbRepository
-                        .getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate))
+                        .getOutflowForCategory(budget.categoryId, budget.startDate, periodEnd)
                         .first()
                 } else 0.0
                 val newExpenditure = mpesaOutflow + manualOutflow + if (budget.categoryId == null) {

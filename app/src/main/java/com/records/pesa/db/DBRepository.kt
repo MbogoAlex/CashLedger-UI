@@ -140,6 +140,7 @@ interface DBRepository {
     suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String)
     suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String)
     suspend fun sumManualOutflowForCategory(categoryId: Int): Double
+    suspend fun sumManualOutflowForCategoryInPeriod(categoryId: Int, startDate: java.time.LocalDate, endDate: java.time.LocalDate): Double
     suspend fun getAllManualTransactionsOnce(): List<ManualTransaction>
 
     // Transactions for category (M-PESA)
@@ -297,6 +298,8 @@ class DBRepositoryImpl(
     override suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String) = manualTransactionDao.deleteByMemberAndCategory(categoryId, memberName)
     override suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String) = manualTransactionDao.updateMemberName(categoryId, oldName, newName)
     override suspend fun sumManualOutflowForCategory(categoryId: Int): Double = manualTransactionDao.sumOutflowForCategory(categoryId)
+    override suspend fun sumManualOutflowForCategoryInPeriod(categoryId: Int, startDate: java.time.LocalDate, endDate: java.time.LocalDate): Double =
+        manualTransactionDao.sumOutflowForCategoryInPeriod(categoryId, startDate, endDate)
     override suspend fun getAllManualTransactionsOnce(): List<ManualTransaction> = manualTransactionDao.getAllOnce()
 
     override fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>> = transactionsDao.getTransactionsForCategory(categoryId)

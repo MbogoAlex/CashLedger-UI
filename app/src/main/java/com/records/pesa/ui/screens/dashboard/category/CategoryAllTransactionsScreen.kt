@@ -189,7 +189,31 @@ fun CategoryAllTransactionsScreen(
     }
 
     val groupedByDate = remember(filtered) {
-        filtered.groupBy { item ->
+        // Sort newest-first: by date DESC, then by time DESC (null time = earliest within day)
+        val sorted = filtered.sortedWith(
+            compareByDescending<CombinedTransactionItem> { item ->
+                when (item) {
+                    is CombinedTransactionItem.MpesaItem -> item.tx.date.toString()
+                    is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
+                }
+            }.thenComparator { a, b ->
+                val timeA: java.time.LocalTime? = when (a) {
+                    is CombinedTransactionItem.MpesaItem -> a.tx.time
+                    is CombinedTransactionItem.ManualItem -> a.tx.time
+                }
+                val timeB: java.time.LocalTime? = when (b) {
+                    is CombinedTransactionItem.MpesaItem -> b.tx.time
+                    is CombinedTransactionItem.ManualItem -> b.tx.time
+                }
+                when {
+                    timeA == null && timeB == null -> 0
+                    timeA == null -> 1   // null goes after real times
+                    timeB == null -> -1
+                    else -> timeB.compareTo(timeA) // DESC
+                }
+            }
+        )
+        sorted.groupBy { item ->
             when (item) {
                 is CombinedTransactionItem.MpesaItem -> item.tx.date.toString()
                 is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
@@ -485,7 +509,10 @@ private fun ManualTxRow(tx: ManualTransaction) {
                     )
                 }
                 Text(
-                    text = "· ${tx.date.format(dateFormatter)}",
+                    text = buildString {
+                        append("· ${tx.date.format(dateFormatter)}")
+                        tx.time?.let { append("  ${it.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}") }
+                    },
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                 )
