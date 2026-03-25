@@ -81,7 +81,8 @@ class AppContainerImpl(context: Context): AppContainer {
             database.manualBudgetTransactionDao(),
             database.manualTransactionTypeDao(),
             database.manualCategoryMemberDao(),
-            database.manualTransactionDao()
+            database.manualTransactionDao(),
+            database.budgetMemberDao()
         )
     }
 

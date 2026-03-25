@@ -217,7 +217,7 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 10 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs
+        val totalSteps = 11 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs, budget members
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -354,6 +354,18 @@ suspend fun backup(
         }
         currentStep++
         worker.updateProgressNotification("Backing up budget transactions...", currentStep, totalSteps, priorityHigh)
+
+        // Budget Members
+        val budgetMembers = dbRepository.getAllBudgetMembersOnce()
+        val budgetMembersCsv = backupBudgetMembersToCSV(context, "${backUpId}_budgetMembers.csv", budgetMembers)
+        budgetMembersCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up budget members...", currentStep, totalSteps, priorityHigh)
 
         // Final Step: Update User Account
         val lastBackup = LocalDateTime.now()
@@ -634,5 +646,22 @@ fun backupManualBudgetTransactionsToCSV(context: Context, fileName: String, txs:
     } catch (e: Exception) {
         Log.e("backupManualBudgetTxs", "Error: ${e.message}")
         return null
+    }
+}
+
+fun backupBudgetMembersToCSV(context: Context, fileName: String, members: List<com.records.pesa.db.models.BudgetMember>): File? {
+    return try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("id", "budgetId", "memberName"))
+            members.forEach { m ->
+                csvPrinter.printRecord(m.id, m.budgetId, m.memberName)
+            }
+            csvPrinter.flush()
+        }
+        file
+    } catch (e: Exception) {
+        Log.e("backupBudgetMembers", "Error: ${e.message}")
+        null
     }
 }

@@ -5,6 +5,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.dao.BudgetDao
+import com.records.pesa.db.dao.BudgetMemberDao
 import com.records.pesa.db.dao.BudgetRecalcLogDao
 import com.records.pesa.db.dao.ManualBudgetTransactionDao
 import com.records.pesa.db.dao.ManualCategoryMemberDao
@@ -13,6 +14,7 @@ import com.records.pesa.db.dao.ManualTransactionTypeDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetMember
 import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.ManualBudgetTransaction
 import com.records.pesa.db.models.ManualCategoryMember
@@ -145,6 +147,15 @@ interface DBRepository {
 
     // Transactions for category (M-PESA)
     fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>>
+
+    // Budget members
+    fun getBudgetMembers(budgetId: Int): Flow<List<BudgetMember>>
+    suspend fun getBudgetMembersOnce(budgetId: Int): List<BudgetMember>
+    suspend fun insertBudgetMembers(members: List<BudgetMember>)
+    suspend fun deleteBudgetMembers(budgetId: Int)
+    suspend fun getAllBudgetMembersOnce(): List<BudgetMember>
+    suspend fun getOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double
+    suspend fun sumManualOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double
 }
 
 class DBRepositoryImpl(
@@ -155,7 +166,8 @@ class DBRepositoryImpl(
     private val manualBudgetTransactionDao: ManualBudgetTransactionDao,
     private val manualTransactionTypeDao: ManualTransactionTypeDao,
     private val manualCategoryMemberDao: ManualCategoryMemberDao,
-    private val manualTransactionDao: ManualTransactionDao
+    private val manualTransactionDao: ManualTransactionDao,
+    private val budgetMemberDao: BudgetMemberDao
 ): DBRepository {
     override suspend fun insertUser(user: UserDetails) = appDao.insertUser(user)
 
@@ -303,5 +315,15 @@ class DBRepositoryImpl(
     override suspend fun getAllManualTransactionsOnce(): List<ManualTransaction> = manualTransactionDao.getAllOnce()
 
     override fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>> = transactionsDao.getTransactionsForCategory(categoryId)
+
+    override fun getBudgetMembers(budgetId: Int): Flow<List<BudgetMember>> = budgetMemberDao.getForBudget(budgetId)
+    override suspend fun getBudgetMembersOnce(budgetId: Int): List<BudgetMember> = budgetMemberDao.getForBudgetOnce(budgetId)
+    override suspend fun insertBudgetMembers(members: List<BudgetMember>) = budgetMemberDao.insertAll(members)
+    override suspend fun deleteBudgetMembers(budgetId: Int) = budgetMemberDao.deleteByBudget(budgetId)
+    override suspend fun getAllBudgetMembersOnce(): List<BudgetMember> = budgetMemberDao.getAllOnce()
+    override suspend fun getOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double =
+        transactionsDao.getOutflowForCategoryAndMembers(categoryId, startDate, endDate, memberNames)
+    override suspend fun sumManualOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double =
+        manualTransactionDao.sumOutflowForCategoryAndMembers(categoryId, startDate, endDate, memberNames)
 
 }

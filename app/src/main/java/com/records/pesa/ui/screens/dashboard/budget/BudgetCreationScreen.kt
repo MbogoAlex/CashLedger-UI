@@ -31,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -118,6 +119,7 @@ fun BudgetCreationScreenComposable(
             onBudgetEndDateChange = { viewModel.updateLimitDate(it) },
             onAlertThresholdChange = { viewModel.setAlertThreshold(it) },
             onCreateBudget = { viewModel.createBudget() },
+            onToggleMember = { viewModel.toggleMember(it) },
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToCreateCategory = navigateToCreateCategory
         )
@@ -140,6 +142,7 @@ fun BudgetCreationScreen(
     onBudgetEndDateChange: (LocalDate) -> Unit,
     onAlertThresholdChange: (Int) -> Unit,
     onCreateBudget: () -> Unit,
+    onToggleMember: (String) -> Unit = {},
     navigateToPreviousScreen: () -> Unit,
     navigateToCreateCategory: () -> Unit,
     modifier: Modifier = Modifier
@@ -1008,6 +1011,61 @@ fun BudgetCreationScreen(
                 }
 
                 Spacer(modifier = Modifier.height(screenHeight(x = 32.0)))
+
+                // Budget Members card
+                if (uiState.categoryMembers.isNotEmpty()) {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color(0xFF1565C0).copy(alpha = 0.08f),
+                                            Color(0xFF1565C0).copy(alpha = 0.04f)
+                                        )
+                                    )
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Budget members",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Select which members' spending this budget will track. Leave all unchecked to track the entire category.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                uiState.categoryMembers.forEach { memberName ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onToggleMember(memberName) }
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Checkbox(
+                                            checked = memberName in uiState.selectedMembers,
+                                            onCheckedChange = { onToggleMember(memberName) }
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = memberName, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Create button
                 Button(

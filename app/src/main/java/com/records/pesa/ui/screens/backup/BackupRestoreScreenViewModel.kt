@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetMember
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.Transaction
@@ -316,6 +317,26 @@ class BackupRestoreScreenViewModel(
                         }
                     }
 
+                    // Fetch and restore budget members
+                    try {
+                        val budgetMembersResponse = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_budgetMembers.csv")
+                        }
+                        val budgetMembersCsv = budgetMembersResponse?.body()?.bytes()
+                        if (budgetMembersCsv != null) {
+                            val budgetMembers = parseBudgetMembersCsv(budgetMembersCsv)
+                            for (member in budgetMembers) {
+                                try {
+                                    dbRepository.insertBudgetMembers(listOf(member))
+                                } catch (e: Exception) {
+                                    Log.e("filesRestore", "Failed to insert budget member: ${e.message}")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("filesRestore", "Budget members restore failed: ${e.message}")
+                    }
+
                     // Update restore status on completion
                     if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
 
@@ -517,6 +538,30 @@ class BackupRestoreScreenViewModel(
             crossRefs.add(crossRef)
         }
         return crossRefs
+    }
+
+    private fun parseBudgetMembersCsv(csvData: ByteArray): List<BudgetMember> {
+        val members = mutableListOf<BudgetMember>()
+        try {
+            val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+            val rows = reader.readAll()
+            if (rows.size <= 1) return members
+            for (i in 1 until rows.size) {
+                try {
+                    val row = rows[i]
+                    members.add(BudgetMember(
+                        id = row[0].toInt(),
+                        budgetId = row[1].toInt(),
+                        memberName = row[2]
+                    ))
+                } catch (e: Exception) {
+                    Log.e("filesRestore", "Failed to parse budget member row: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("filesRestore", "Failed to parse budget members CSV: ${e.message}")
+        }
+        return members
     }
 
     private fun getUserPreferences() {

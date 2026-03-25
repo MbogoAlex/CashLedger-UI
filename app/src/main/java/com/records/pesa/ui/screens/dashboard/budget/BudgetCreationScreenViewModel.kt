@@ -47,7 +47,9 @@ data class BudgetCreationScreenUiState(
     val alertThreshold: Int = 80,
     val newBudgetId: Int = 0,
     val saveButtonEnabled: Boolean = false,
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val categoryMembers: List<String> = emptyList(),
+    val selectedMembers: Set<String> = emptySet(),
 )
 
 class BudgetCreationScreenViewModel(
@@ -86,6 +88,7 @@ class BudgetCreationScreenViewModel(
             )
         }
         loadCategorySpendStats(item.id)
+        loadCategoryMembers(item.id)
         checkFields()
     }
 
@@ -118,6 +121,23 @@ class BudgetCreationScreenViewModel(
         }
     }
 
+    fun loadCategoryMembers(categoryId: Int) {
+        viewModelScope.launch {
+            val categoryWithKeywords = categoryService.getCategoryById(categoryId).first()
+            val keywords = categoryWithKeywords.keywords.map { it.keyword }
+            val manualMembers = dbRepository.getManualMembersForCategory(categoryId).first()
+            val allMembers = (keywords + manualMembers.map { it.name }).distinct()
+            _uiState.update { it.copy(categoryMembers = allMembers, selectedMembers = emptySet()) }
+        }
+    }
+
+    fun toggleMember(name: String) {
+        val current = _uiState.value.selectedMembers
+        _uiState.update {
+            it.copy(selectedMembers = if (name in current) current - name else current + name)
+        }
+    }
+
     private fun checkFields() {
         val s = _uiState.value
         val categoryOk = s.budgetType == BudgetType.STANDALONE || !s.categoryId.isNullOrBlank()
@@ -137,57 +157,35 @@ class BudgetCreationScreenViewModel(
         val s = _uiState.value
         val limit = s.budgetLimit.toDoubleOrNull() ?: return
         val endDate = s.limitDate ?: return
-        if (s.budgetType == BudgetType.CATEGORY) {
-            val catId = s.categoryId?.toIntOrNull() ?: return
-            viewModelScope.launch {
-                _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
-                try {
-                    val budget = Budget(
-                        name = s.budgetName.trim(),
-                        active = true,
-                        expenditure = 0.0,
-                        budgetLimit = limit,
-                        createdAt = LocalDateTime.now(),
-                        startDate = s.startDate,
-                        limitDate = endDate,
-                        limitReached = false,
-                        limitReachedAt = null,
-                        exceededBy = 0.0,
-                        categoryId = catId,
-                        alertThreshold = s.alertThreshold
-                    )
-                    val newId = dbRepository.insertBudget(budget)
-                    _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
+        if (s.budgetType != BudgetType.CATEGORY) return
+        val catId = s.categoryId?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
+            try {
+                val budget = Budget(
+                    name = s.budgetName.trim(),
+                    active = true,
+                    expenditure = 0.0,
+                    budgetLimit = limit,
+                    createdAt = LocalDateTime.now(),
+                    startDate = s.startDate,
+                    limitDate = endDate,
+                    limitReached = false,
+                    limitReachedAt = null,
+                    exceededBy = 0.0,
+                    categoryId = catId,
+                    alertThreshold = s.alertThreshold
+                )
+                val newId = dbRepository.insertBudget(budget)
+                val members = s.selectedMembers.map { name ->
+                    com.records.pesa.db.models.BudgetMember(budgetId = newId.toInt(), memberName = name)
                 }
-            }
-        }
-        else {
-            // STANDALONE budget (no category)
-            viewModelScope.launch {
-                _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
-                try {
-                    val newId = dbRepository.insertBudget(
-                        Budget(
-                            name = s.budgetName.trim(),
-                            active = true,
-                            expenditure = 0.0,
-                            budgetLimit = limit,
-                            createdAt = LocalDateTime.now(),
-                            startDate = s.startDate,
-                            limitDate = endDate,
-                            limitReached = false,
-                            limitReachedAt = null,
-                            exceededBy = 0.0,
-                            categoryId = null,
-                            alertThreshold = s.alertThreshold
-                        )
-                    )
-                    _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
+                if (members.isNotEmpty()) {
+                    dbRepository.insertBudgetMembers(members)
                 }
+                _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
             }
         }
     }
@@ -207,6 +205,7 @@ class BudgetCreationScreenViewModel(
                 val category = categoryService.getRawCategoryById(catId).first()
                 _uiState.update { it.copy(categoryName = category.name) }
                 loadCategorySpendStats(catId)
+                loadCategoryMembers(catId)
             }
             categoryService.getAllCategories().collect { categories ->
                 val today = LocalDate.now()

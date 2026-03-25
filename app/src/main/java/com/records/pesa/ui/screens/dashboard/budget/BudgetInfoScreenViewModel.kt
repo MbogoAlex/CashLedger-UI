@@ -66,7 +66,7 @@ data class BudgetInfoScreenUiState(
     val alertThreshold: Int = 80,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val executionStatus: ExecutionStatus = ExecutionStatus.INITIAL,
-    val manualTransactions: List<ManualBudgetTransaction> = emptyList()
+    val budgetMembers: List<com.records.pesa.db.models.BudgetMember> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -514,50 +514,29 @@ class BudgetInfoScreenViewModel(
 
     private suspend fun recalculateExpenditure(budget: Budget) {
         val today = LocalDate.now()
-        val manualSum = dbRepository.sumManualTransactionsForBudget(budget.id)
-        val manualOutflow = if (budget.categoryId != null) {
-            dbRepository.sumManualOutflowForCategory(budget.categoryId)
-        } else 0.0
-        val mpesaOutflow = if (budget.categoryId != null) {
-            dbRepository.getOutflowForCategory(budget.categoryId, budget.startDate, minOf(today, budget.limitDate)).first()
-        } else 0.0
-        val newExpenditure = mpesaOutflow + manualOutflow + if (budget.categoryId == null) {
-            manualSum
-        } else 0.0
+        val memberNames = dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
+        val categoryId = budget.categoryId ?: return
+        val mpesaOutflow = if (memberNames.isEmpty()) {
+            dbRepository.getOutflowForCategory(categoryId, budget.startDate, minOf(today, budget.limitDate)).first()
+        } else {
+            dbRepository.getOutflowForCategoryAndMembers(categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames)
+        }
+        val manualOutflow = if (memberNames.isEmpty()) {
+            dbRepository.sumManualOutflowForCategory(categoryId)
+        } else {
+            dbRepository.sumManualOutflowForCategoryAndMembers(categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames)
+        }
+        val newExpenditure = mpesaOutflow + manualOutflow
         val newLimitReached = newExpenditure >= budget.budgetLimit
         val newExceededBy = max(0.0, newExpenditure - budget.budgetLimit)
         dbRepository.updateBudgetExpenditure(budget.id, newExpenditure, newLimitReached, newExceededBy)
     }
 
-    fun addManualTransaction(amount: Double, description: String, date: LocalDate) {
-        val budget = _uiState.value.budget ?: return
-        viewModelScope.launch {
-            dbRepository.insertManualTransaction(
-                ManualBudgetTransaction(
-                    budgetId = budget.id,
-                    amount = amount,
-                    description = description,
-                    date = date,
-                    createdAt = LocalDateTime.now()
-                )
-            )
-            recalculateExpenditure(budget)
-        }
-    }
-
-    fun deleteManualTransaction(id: Int) {
-        val budget = _uiState.value.budget ?: return
-        viewModelScope.launch {
-            dbRepository.deleteManualTransaction(id)
-            recalculateExpenditure(budget)
-        }
-    }
-
-    private fun observeManualTransactions() {
+    private fun observeBudgetMembers() {
         val id = budgetIdArg?.toIntOrNull() ?: return
         viewModelScope.launch {
-            dbRepository.getManualTransactionsForBudget(id).collectLatest { txs ->
-                _uiState.update { it.copy(manualTransactions = txs) }
+            dbRepository.getBudgetMembers(id).collectLatest { members ->
+                _uiState.update { it.copy(budgetMembers = members) }
             }
         }
     }
@@ -569,7 +548,7 @@ class BudgetInfoScreenViewModel(
         }
         observePremium()
         observeBudgetAndSpending()
-        observeManualTransactions()
+        observeBudgetMembers()
     }
 }
 

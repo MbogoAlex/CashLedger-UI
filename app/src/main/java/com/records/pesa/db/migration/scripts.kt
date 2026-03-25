@@ -710,3 +710,16 @@ val MIGRATION_54_55 = object : Migration(54, 55) {
         database.execSQL("ALTER TABLE `manual_transaction` ADD COLUMN `time` TEXT DEFAULT NULL")
     }
 }
+
+val MIGRATION_55_56 = object : Migration(55, 56) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `budget_member` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `budgetId` INTEGER NOT NULL,
+                `memberName` TEXT NOT NULL
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_member_budgetId` ON `budget_member` (`budgetId`)")
+    }
+}

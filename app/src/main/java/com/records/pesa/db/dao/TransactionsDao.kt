@@ -452,4 +452,23 @@ interface TransactionsDao {
     """)
     fun getTransactionsForCategory(categoryId: Int): Flow<List<Transaction>>
 
+    @Query("""
+        SELECT COALESCE(ABS(SUM(t.transactionAmount)), 0.0)
+        FROM `transaction` t
+        INNER JOIN transactionCategoryCrossRef ref ON ref.transactionId = t.id
+        INNER JOIN categoryKeyword ck ON ck.categoryId = :categoryId
+        WHERE ref.categoryId = :categoryId
+          AND t.date >= :startDate
+          AND t.date <= :endDate
+          AND t.transactionAmount < 0
+          AND (t.sender LIKE '%' || ck.keyword || '%' OR t.recipient LIKE '%' || ck.keyword || '%')
+          AND ck.keyword IN (:memberNames)
+    """)
+    suspend fun getOutflowForCategoryAndMembers(
+        categoryId: Int,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        memberNames: List<String>
+    ): Double
+
 }

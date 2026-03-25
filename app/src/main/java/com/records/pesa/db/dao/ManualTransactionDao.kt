@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.records.pesa.db.models.ManualTransaction
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 @Dao
 interface ManualTransactionDao {
@@ -35,4 +36,7 @@ interface ManualTransactionDao {
 
     @Query("UPDATE manual_transaction SET memberName = :newName WHERE categoryId = :categoryId AND memberName = :oldName")
     suspend fun updateMemberName(categoryId: Int, oldName: String, newName: String)
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM manual_transaction WHERE categoryId = :categoryId AND isOutflow = 1 AND date >= :startDate AND date <= :endDate AND memberName IN (:memberNames)")
+    suspend fun sumOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double
 }

@@ -27,21 +27,26 @@ class BudgetRecalculationWorker(
             val today = LocalDate.now()
 
             for (budget in budgets) {
-                val manualSum = container.dbRepository.sumManualTransactionsForBudget(budget.id)
-                val periodEnd = minOf(today, budget.limitDate)
-                val manualOutflow = if (budget.categoryId != null) {
-                    container.dbRepository.sumManualOutflowForCategoryInPeriod(
-                        budget.categoryId, budget.startDate, periodEnd
-                    )
-                } else 0.0
-                val mpesaOutflow = if (budget.categoryId != null) {
+                val memberNames = container.dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
+                val categoryId = budget.categoryId ?: continue
+
+                val mpesaOutflow = if (memberNames.isEmpty()) {
                     container.dbRepository
-                        .getOutflowForCategory(budget.categoryId, budget.startDate, periodEnd)
+                        .getOutflowForCategory(categoryId, budget.startDate, minOf(today, budget.limitDate))
                         .first()
-                } else 0.0
-                val newExpenditure = mpesaOutflow + manualOutflow + if (budget.categoryId == null) {
-                    manualSum
-                } else 0.0
+                } else {
+                    container.dbRepository.getOutflowForCategoryAndMembers(
+                        categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames
+                    )
+                }
+                val manualOutflow = if (memberNames.isEmpty()) {
+                    container.dbRepository.sumManualOutflowForCategory(categoryId)
+                } else {
+                    container.dbRepository.sumManualOutflowForCategoryAndMembers(
+                        categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames
+                    )
+                }
+                val newExpenditure = mpesaOutflow + manualOutflow
 
                 val limitReached = newExpenditure >= budget.budgetLimit
                 val exceededBy = max(0.0, newExpenditure - budget.budgetLimit)

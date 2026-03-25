@@ -46,8 +46,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.db.models.Budget
-import com.records.pesa.db.models.ManualBudgetTransaction
 import com.records.pesa.db.models.Transaction
+import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
@@ -81,7 +81,6 @@ fun BudgetInfoScreenComposable(
 
     var showEditDialog   by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
-    var showAddManualTxDialog by rememberSaveable { mutableStateOf(false) }
 
     // Handle save feedback
     LaunchedEffect(uiState.loadingStatus) {
@@ -136,16 +135,6 @@ fun BudgetInfoScreenComposable(
         )
     }
 
-    if (showAddManualTxDialog) {
-        AddManualTransactionDialog(
-            onAdd = { amount, description, date ->
-                viewModel.addManualTransaction(amount, description, date)
-                showAddManualTxDialog = false
-            },
-            onDismiss = { showAddManualTxDialog = false }
-        )
-    }
-
     Box(modifier = modifier.safeDrawingPadding()) {
         BudgetInfoScreen(
             uiState = uiState,
@@ -153,10 +142,7 @@ fun BudgetInfoScreenComposable(
             onDeleteClick = { showDeleteDialog = true },
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToPreviousScreen = navigateToPreviousScreen,
-            navigateToAuditTrail = navigateToAuditTrail,
-            manualTransactions = uiState.manualTransactions,
-            onAddManualClick = { showAddManualTxDialog = true },
-            onDeleteManualClick = viewModel::deleteManualTransaction
+            navigateToAuditTrail = navigateToAuditTrail
         )
     }
 }
@@ -170,9 +156,6 @@ fun BudgetInfoScreen(
     navigateToTransactionsScreen: (categoryId: Int, budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
-    manualTransactions: List<ManualBudgetTransaction> = emptyList(),
-    onAddManualClick: () -> Unit = {},
-    onDeleteManualClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val budget = uiState.budget
@@ -274,12 +257,10 @@ fun BudgetInfoScreen(
             )
         }
 
-        // Manual Expenses Card
+        // Budget Members Card
         item {
-            ManualTransactionsCard(
-                manualTransactions = manualTransactions,
-                onAddClick = onAddManualClick,
-                onDeleteClick = onDeleteManualClick,
+            BudgetMembersCard(
+                budgetMembers = uiState.budgetMembers,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
@@ -1394,208 +1375,73 @@ private fun BudgetInfoScreenPreview() {
 }
 
 @Composable
-private fun ManualTransactionsCard(
-    manualTransactions: List<ManualBudgetTransaction>,
-    onAddClick: () -> Unit,
-    onDeleteClick: (Int) -> Unit,
+private fun BudgetMembersCard(
+    budgetMembers: List<com.records.pesa.db.models.BudgetMember>,
     modifier: Modifier = Modifier
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
     ElevatedCard(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier.fillMaxWidth()
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(
-                    Color(0xFF1565C0).copy(alpha = 0.08f),
-                    Color(0xFF0288D1).copy(alpha = 0.04f)
-                ))
-            )
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF1565C0).copy(alpha = 0.08f),
+                            Color(0xFF1565C0).copy(alpha = 0.04f)
+                        )
+                    )
+                )
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(R.drawable.wallet),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Manual Expenses",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    IconButton(onClick = onAddClick) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_add),
-                            contentDescription = "Add manual expense",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            Column {
+                Text(
+                    text = "Tracked Members",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-
-                if (manualTransactions.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No manual expenses added yet",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    manualTransactions.forEach { tx ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (budgetMembers.isEmpty()) "All category members are tracked"
+                           else "Spending for these members is counted toward this budget",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (budgetMembers.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    budgetMembers.forEach { member ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = tx.description,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = tx.date.format(dateFormatter),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = "KES ${"%,.2f".format(tx.amount)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            IconButton(
-                                onClick = { onDeleteClick(tx.id) },
-                                modifier = Modifier.size(32.dp)
+                            val avatarColor = txAvatarColor(member.memberName)
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(avatarColor)
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.remove),
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp)
+                                Text(
+                                    text = member.memberName.take(1).uppercase(),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = member.memberName,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
-                        if (tx != manualTransactions.last()) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Text(
-                            text = "Total: KES ${"%,.2f".format(manualTransactions.sumOf { it.amount })}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun AddManualTransactionDialog(
-    onAdd: (Double, String, LocalDate) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    var amount by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
-
-    val datePicker = remember {
-        val today = LocalDate.now()
-        DatePickerDialog(
-            context,
-            { _, y, m, d -> selectedDate = LocalDate.of(y, m + 1, d) },
-            today.year, today.monthValue - 1, today.dayOfMonth
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Manual Expense") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount (KES)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = selectedDate.format(dateFormatter),
-                    onValueChange = {},
-                    label = { Text("Date") },
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { datePicker.show() }) {
-                            Icon(
-                                painter = painterResource(R.drawable.calendar),
-                                contentDescription = "Pick date",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().clickable { datePicker.show() }
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val amt = amount.toDoubleOrNull()
-                    if (amt != null && amt > 0 && description.isNotBlank()) {
-                        onAdd(amt, description.trim(), selectedDate)
-                    }
-                },
-                enabled = (amount.toDoubleOrNull() ?: 0.0) > 0 && description.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }
