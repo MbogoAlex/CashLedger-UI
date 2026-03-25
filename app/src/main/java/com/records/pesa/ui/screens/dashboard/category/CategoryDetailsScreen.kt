@@ -147,6 +147,7 @@ fun CategoryDetailsScreenComposable(
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
     navigateToHomeScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -285,7 +286,8 @@ fun CategoryDetailsScreenComposable(
                 viewModel.addManualTransaction(memberName, isOutflow, amount, description, date, time)
             },
             onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) },
-            onEditManualTransaction = { viewModel.updateManualTransaction(it) }
+            onEditManualTransaction = { viewModel.updateManualTransaction(it) },
+            navigateToTransactionDetails = navigateToTransactionDetails
         )
     }
 }
@@ -346,6 +348,7 @@ fun CategoryDetailsScreen(
     onAddManualTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit = { _, _, _, _, _, _ -> },
     onDeleteManualTransaction: (Int) -> Unit = {},
     onEditManualTransaction: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
+    navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -1309,7 +1312,8 @@ fun CategoryDetailsScreen(
                         onDeleteTransaction = onDeleteManualTransaction,
                         onEditTransaction = onEditManualTransaction,
                         onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) },
-                        onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString()) }
+                        onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString()) },
+                        onNavigateToTransactionDetails = navigateToTransactionDetails
                     )
                 }
 
@@ -2416,7 +2420,8 @@ private fun RecentTransactionsSection(
     onDeleteTransaction: (Int) -> Unit,
     onEditTransaction: (ManualTransaction) -> Unit = {},
     onNavigateToAddMember: () -> Unit = {},
-    onViewAllTransactions: () -> Unit = {}
+    onViewAllTransactions: () -> Unit = {},
+    onNavigateToTransactionDetails: (String) -> Unit = {}
 ) {
     var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
     var txToEdit by remember { mutableStateOf<ManualTransaction?>(null) }
@@ -2559,12 +2564,16 @@ private fun RecentTransactionsSection(
                         }
 
                         if (!item.isManual && item.mpesa != null) {
-                            CatMpesaTxRow(transaction = item.mpesa)
+                            CatMpesaTxRow(
+                                transaction = item.mpesa,
+                                onClick = { onNavigateToTransactionDetails("${item.mpesa.id}") }
+                            )
                         } else if (item.isManual && item.manual != null) {
                             CatManualTxRow(
                                 tx = item.manual,
                                 onEdit = { txToEdit = item.manual },
-                                onDelete = { txToDelete = item.manual }
+                                onDelete = { txToDelete = item.manual },
+                                onClick = { onNavigateToTransactionDetails("m_${item.manual.id}") }
                             )
                         }
                         Spacer(Modifier.height(6.dp))
@@ -2597,6 +2606,7 @@ private fun RecentTransactionsSection(
 @Composable
 private fun CatMpesaTxRow(
     transaction: com.records.pesa.db.models.Transaction,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
@@ -2613,6 +2623,7 @@ private fun CatMpesaTxRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Box(
@@ -2668,6 +2679,7 @@ private fun CatManualTxRow(
     tx: ManualTransaction,
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
@@ -2681,6 +2693,7 @@ private fun CatManualTxRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {

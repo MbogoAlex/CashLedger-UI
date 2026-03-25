@@ -26,6 +26,9 @@ interface ManualTransactionDao {
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM manual_transaction WHERE categoryId = :categoryId AND isOutflow = 1 AND date >= :startDate AND date <= :endDate")
     suspend fun sumOutflowForCategoryInPeriod(categoryId: Int, startDate: java.time.LocalDate, endDate: java.time.LocalDate): Double
 
+    @Query("SELECT * FROM manual_transaction WHERE id = :id")
+    fun getById(id: Int): Flow<ManualTransaction>
+
     @Query("SELECT * FROM manual_transaction")
     suspend fun getAllOnce(): List<ManualTransaction>
 

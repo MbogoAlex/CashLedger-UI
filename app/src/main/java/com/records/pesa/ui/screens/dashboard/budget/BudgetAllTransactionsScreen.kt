@@ -283,6 +283,7 @@ class BudgetAllTransactionsScreenViewModel(
 @Composable
 fun BudgetAllTransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
+    navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: BudgetAllTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -395,6 +396,7 @@ fun BudgetAllTransactionsScreenComposable(
         onNavigateBack = navigateToPreviousScreen,
         onEditManualTx = { editingTx = it },
         onDownloadReport = { showDownloadDialog = true },
+        onNavigateToTransactionDetails = navigateToTransactionDetails,
         isDownloading = uiState.downloadingStatus == DownloadingStatus.LOADING,
         modifier = modifier
     )
@@ -413,6 +415,7 @@ fun BudgetAllTransactionsScreen(
     onNavigateBack: () -> Unit,
     onEditManualTx: (ManualTransaction) -> Unit = {},
     onDownloadReport: () -> Unit = {},
+    onNavigateToTransactionDetails: (String) -> Unit = {},
     isDownloading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -705,8 +708,8 @@ fun BudgetAllTransactionsScreen(
                             val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
                             BudgetPremiumTxWrapper(isLocked = isLocked) {
                                 when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx)
-                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
+                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
@@ -727,8 +730,8 @@ fun BudgetAllTransactionsScreen(
                             val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
                             BudgetPremiumTxWrapper(isLocked = isLocked) {
                                 when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx)
-                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
+                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
@@ -787,7 +790,7 @@ private fun DateChip(label: String, onClick: () -> Unit) {
 
 // ─── Row composables ─────────────────────────────────────────────────────────
 @Composable
-private fun BudgetAllMpesaTxRow(tx: Transaction) {
+private fun BudgetAllMpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
     val displayName = tx.entity.replaceFirstChar { it.uppercase() }
     val initials = displayName.trim().split(" ")
         .mapNotNull { it.firstOrNull()?.uppercase() }
@@ -798,6 +801,7 @@ private fun BudgetAllMpesaTxRow(tx: Transaction) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -856,13 +860,14 @@ private fun BudgetAllMpesaTxRow(tx: Transaction) {
 }
 
 @Composable
-private fun BudgetAllManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}) {
+private fun BudgetAllManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}, onClick: () -> Unit = {}) {
     val amountColor = MaterialTheme.colorScheme.error
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)

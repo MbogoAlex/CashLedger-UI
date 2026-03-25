@@ -137,6 +137,7 @@ interface DBRepository {
     // Manual transactions (category-scoped)
     fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>>
     suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction>
+    fun getManualTransactionById(id: Int): Flow<ManualTransaction>
     suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long
     suspend fun deleteManualCategoryTransaction(id: Int)
     suspend fun updateManualCategoryTransaction(tx: ManualTransaction)
@@ -306,6 +307,7 @@ class DBRepositoryImpl(
 
     override fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>> = manualTransactionDao.getForCategory(categoryId)
     override suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction> = manualTransactionDao.getForCategoryOnce(categoryId)
+    override fun getManualTransactionById(id: Int): Flow<ManualTransaction> = manualTransactionDao.getById(id)
     override suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long = manualTransactionDao.insert(tx)
     override suspend fun deleteManualCategoryTransaction(id: Int) = manualTransactionDao.deleteById(id)
     override suspend fun updateManualCategoryTransaction(tx: ManualTransaction) = manualTransactionDao.update(tx)

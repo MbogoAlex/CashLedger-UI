@@ -278,6 +278,7 @@ class CategoryAllTransactionsScreenViewModel(
 @Composable
 fun CategoryAllTransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
+    navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: CategoryAllTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -387,6 +388,7 @@ fun CategoryAllTransactionsScreenComposable(
         onNavigateBack = navigateToPreviousScreen,
         onEditManualTx = { editingTx = it },
         onDownloadReport = { showDownloadDialog = true },
+        onNavigateToTransactionDetails = navigateToTransactionDetails,
         isDownloading = uiState.downloadingStatus == DownloadingStatus.LOADING,
         modifier = modifier
     )
@@ -404,6 +406,7 @@ fun CategoryAllTransactionsScreen(
     onNavigateBack: () -> Unit,
     onEditManualTx: (ManualTransaction) -> Unit = {},
     onDownloadReport: () -> Unit = {},
+    onNavigateToTransactionDetails: (String) -> Unit = {},
     isDownloading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -729,8 +732,15 @@ fun CategoryAllTransactionsScreen(
                             val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
                             PremiumTxWrapper(isLocked = isLocked) {
                                 when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(tx = item.tx)
-                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
+                                        tx = item.tx,
+                                        onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") }
+                                    )
+                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(
+                                        tx = item.tx,
+                                        onEdit = { if (!isLocked) onEditManualTx(item.tx) },
+                                        onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") }
+                                    )
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
@@ -750,8 +760,15 @@ fun CategoryAllTransactionsScreen(
                             val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
                             PremiumTxWrapper(isLocked = isLocked) {
                                 when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(tx = item.tx)
-                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
+                                        tx = item.tx,
+                                        onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") }
+                                    )
+                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(
+                                        tx = item.tx,
+                                        onEdit = { if (!isLocked) onEditManualTx(item.tx) },
+                                        onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") }
+                                    )
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
@@ -797,7 +814,7 @@ private fun PremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit)
 }
 
 @Composable
-private fun MpesaTxRow(tx: Transaction) {
+private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
     val isIn = tx.transactionAmount > 0
     val displayName = tx.entity.replaceFirstChar { it.uppercase() }
     val initials = displayName.trim().split(" ")
@@ -809,6 +826,7 @@ private fun MpesaTxRow(tx: Transaction) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -864,13 +882,14 @@ private fun MpesaTxRow(tx: Transaction) {
 }
 
 @Composable
-private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}) {
+private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}, onClick: () -> Unit = {}) {
     val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)

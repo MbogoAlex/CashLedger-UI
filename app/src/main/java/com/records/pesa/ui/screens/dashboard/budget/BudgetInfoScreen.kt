@@ -76,6 +76,7 @@ fun BudgetInfoScreenComposable(
     navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
+    navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -165,6 +166,7 @@ fun BudgetInfoScreenComposable(
             navigateToBudgetAllTransactions = navigateToBudgetAllTransactions,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToAuditTrail = navigateToAuditTrail,
+            navigateToTransactionDetails = navigateToTransactionDetails,
             onEditManualTx = { editingManualTx = it }
         )
     }
@@ -179,6 +181,7 @@ fun BudgetInfoScreen(
     navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
+    navigateToTransactionDetails: (String) -> Unit = {},
     onEditManualTx: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -340,6 +343,7 @@ fun BudgetInfoScreen(
             items(mpesaSlice, key = { "mpesa-${it.id}" }) { tx ->
                 BudgetTransactionRow(
                     transaction = tx,
+                    onClick = { navigateToTransactionDetails("${tx.id}") },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )
             }
@@ -347,6 +351,7 @@ fun BudgetInfoScreen(
                 BudgetManualTransactionRow(
                     tx = tx,
                     onEdit = { onEditManualTx(tx) },
+                    onClick = { navigateToTransactionDetails("m_${tx.id}") },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )
             }
@@ -1094,6 +1099,7 @@ private fun BudgetDateHeader(date: LocalDate, modifier: Modifier = Modifier) {
 @Composable
 private fun BudgetTransactionRow(
     transaction: Transaction,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
@@ -1116,6 +1122,7 @@ private fun BudgetTransactionRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         // Avatar circle
@@ -1175,6 +1182,7 @@ private fun BudgetTransactionRow(
 private fun BudgetManualTransactionRow(
     tx: com.records.pesa.db.models.ManualTransaction,
     onEdit: () -> Unit = {},
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
@@ -1188,6 +1196,7 @@ private fun BudgetManualTransactionRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {

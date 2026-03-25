@@ -460,6 +460,9 @@ fun NavigationGraph(
                 },
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
+                },
+                navigateToTransactionDetails = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/$it")
                 }
             )
         }
@@ -474,6 +477,9 @@ fun NavigationGraph(
             CategoryAllTransactionsScreenComposable(
                 navigateToPreviousScreen = {
                     navController.navigateUp()
+                },
+                navigateToTransactionDetails = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/$it")
                 }
             )
         }
@@ -597,6 +603,9 @@ fun NavigationGraph(
                 },
                 navigateToAuditTrail = { budgetId ->
                     navController.navigate("${BudgetAuditTrailScreenDestination.route}/$budgetId")
+                },
+                navigateToTransactionDetails = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/$it")
                 }
             )
         }
@@ -628,6 +637,9 @@ fun NavigationGraph(
             BudgetAllTransactionsScreenComposable(
                 navigateToPreviousScreen = {
                     navController.popBackStack()
+                },
+                navigateToTransactionDetails = {
+                    navController.navigate("${TransactionDetailsScreenDestination.route}/$it")
                 }
             )
         }
@@ -682,6 +694,9 @@ fun NavigationGraph(
             TransactionDetailsScreenComposable(
                 navigateToPreviousScreen = {
                     navController.popBackStack()
+                },
+                navigateToCategoryScreen = {
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/$it")
                 }
             )
         }

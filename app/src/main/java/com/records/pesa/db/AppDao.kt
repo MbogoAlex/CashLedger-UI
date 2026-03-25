@@ -83,6 +83,9 @@ interface AppDao {
     @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId")
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
 
+    @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId and transactionId = :transactionId")
+    suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int)
+
     @Query("delete from categoryKeyword where id = :keywordId")
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
 
