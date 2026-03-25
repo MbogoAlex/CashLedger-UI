@@ -50,6 +50,7 @@ import com.records.pesa.R
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.ui.screens.components.txAvatarColor
+import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
@@ -83,6 +84,7 @@ fun BudgetInfoScreenComposable(
 
     var showEditDialog   by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var editingManualTx  by remember { mutableStateOf<com.records.pesa.db.models.ManualTransaction?>(null) }
 
     // Handle save feedback
     LaunchedEffect(uiState.loadingStatus) {
@@ -144,6 +146,17 @@ fun BudgetInfoScreenComposable(
         )
     }
 
+    editingManualTx?.let { tx ->
+        val allMembers = (uiState.transactions.map { it.entity.replaceFirstChar { c -> c.uppercase() } } +
+                uiState.manualTransactions.map { it.memberName }).distinct().sorted()
+        EditManualTransactionDialog(
+            tx = tx,
+            members = allMembers,
+            onSave = { updated -> viewModel.updateManualTransaction(updated); editingManualTx = null },
+            onDismiss = { editingManualTx = null }
+        )
+    }
+
     Box(modifier = modifier.safeDrawingPadding()) {
         BudgetInfoScreen(
             uiState = uiState,
@@ -151,7 +164,8 @@ fun BudgetInfoScreenComposable(
             onDeleteClick = { showDeleteDialog = true },
             navigateToBudgetAllTransactions = navigateToBudgetAllTransactions,
             navigateToPreviousScreen = navigateToPreviousScreen,
-            navigateToAuditTrail = navigateToAuditTrail
+            navigateToAuditTrail = navigateToAuditTrail,
+            onEditManualTx = { editingManualTx = it }
         )
     }
 }
@@ -165,6 +179,7 @@ fun BudgetInfoScreen(
     navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
+    onEditManualTx: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val budget = uiState.budget
@@ -331,6 +346,7 @@ fun BudgetInfoScreen(
             items(manualSlice, key = { "manual-${it.id}" }) { tx ->
                 BudgetManualTransactionRow(
                     tx = tx,
+                    onEdit = { onEditManualTx(tx) },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )
             }
@@ -1158,6 +1174,7 @@ private fun BudgetTransactionRow(
 @Composable
 private fun BudgetManualTransactionRow(
     tx: com.records.pesa.db.models.ManualTransaction,
+    onEdit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
@@ -1186,7 +1203,8 @@ private fun BudgetManualTransactionRow(
             Box(
                 modifier = Modifier.size(14.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-                    .align(Alignment.BottomEnd),
+                    .align(Alignment.BottomEnd)
+                    .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(painter = painterResource(R.drawable.edit), contentDescription = null, modifier = Modifier.size(9.dp), tint = Color.White)

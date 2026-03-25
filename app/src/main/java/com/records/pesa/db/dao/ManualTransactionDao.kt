@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.records.pesa.db.models.ManualTransaction
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -30,6 +31,9 @@ interface ManualTransactionDao {
 
     @Query("DELETE FROM manual_transaction WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Update
+    suspend fun update(tx: ManualTransaction)
 
     @Query("DELETE FROM manual_transaction WHERE categoryId = :categoryId AND memberName = :memberName")
     suspend fun deleteByMemberAndCategory(categoryId: Int, memberName: String)

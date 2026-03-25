@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -106,6 +108,7 @@ import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.components.SubscriptionDialog
+import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.ui.screens.dashboard.budget.BudgetStatus
 import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
@@ -274,13 +277,15 @@ fun CategoryDetailsScreenComposable(
             budgetProgressMap = uiState.budgetProgressMap,
             manualMembers = uiState.manualMembers,
             manualTransactions = uiState.manualTransactions,
+            categoryTransactions = uiState.categoryTransactions,
             onAddManualMember = { viewModel.addManualMember(it) },
             onDeleteManualMember = { id, name -> viewModel.deleteManualMember(id, name) },
             onEditManualMember = { id, oldName, newName -> viewModel.editManualMemberName(id, oldName, newName) },
             onAddManualTransaction = { memberName, isOutflow, amount, description, date, time ->
                 viewModel.addManualTransaction(memberName, isOutflow, amount, description, date, time)
             },
-            onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) }
+            onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) },
+            onEditManualTransaction = { viewModel.updateManualTransaction(it) }
         )
     }
 }
@@ -334,11 +339,13 @@ fun CategoryDetailsScreen(
     budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     manualMembers: List<ManualCategoryMember> = emptyList(),
     manualTransactions: List<ManualTransaction> = emptyList(),
+    categoryTransactions: List<com.records.pesa.db.models.Transaction> = emptyList(),
     onAddManualMember: (String) -> Unit = {},
     onDeleteManualMember: (id: Int, name: String) -> Unit = { _, _ -> },
     onEditManualMember: (id: Int, oldName: String, newName: String) -> Unit = { _, _, _ -> },
     onAddManualTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit = { _, _, _, _, _, _ -> },
     onDeleteManualTransaction: (Int) -> Unit = {},
+    onEditManualTransaction: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -347,6 +354,7 @@ fun CategoryDetailsScreen(
     var showMembers by rememberSaveable { mutableStateOf(true) }
     var showBudgets  by rememberSaveable { mutableStateOf(false) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM") }
+    var showManualTxDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -577,55 +585,7 @@ fun CategoryDetailsScreen(
                     }
                 }
 
-                // ── Activity bar chart ────────────────────────────────────────
-                if (trendData.isNotEmpty() && (totalIn > 0 || totalOut > 0)) {
-                    item {
-                        // Determine aggregation level from point count vs date span
-                        val daySpan = startDate.until(endDate, java.time.temporal.ChronoUnit.DAYS).toInt()
-                        val granularity = when {
-                            daySpan > 90 -> "Monthly"
-                            daySpan > 31 -> "Weekly"
-                            else         -> "Daily"
-                        }
-                        ElevatedCard(
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(
-                                            "Activity",
-                                            fontWeight = FontWeight.Bold, fontSize = 14.sp
-                                        )
-                                        Text(
-                                            "$granularity · ${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        LegendDot(color = MaterialTheme.colorScheme.tertiary, label = "In")
-                                        LegendDot(color = MaterialTheme.colorScheme.error, label = "Out")
-                                    }
-                                }
-                                TrendBarChart(
-                                    trendData = trendData,
-                                    modifier = Modifier.fillMaxWidth().height(160.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ── Member distribution donut ─────────────────────────────────
+                // ── Member distribution (IN + OUT pie charts) ────────────────
                 val membersWithActivity = memberStats.filter { it.totalOut + it.totalIn > 0 }
                 if (membersWithActivity.isNotEmpty()) {
                     item {
@@ -641,10 +601,27 @@ fun CategoryDetailsScreen(
                                     "Member Distribution",
                                     fontWeight = FontWeight.Bold, fontSize = 14.sp
                                 )
-                                MemberDonutChart(
-                                    memberStats = membersWithActivity,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    CatFlowDonut(
+                                        memberStats = membersWithActivity,
+                                        isOutflow = false,
+                                        modifier = Modifier.width(240.dp)
+                                    )
+                                    CatFlowDonut(
+                                        memberStats = membersWithActivity,
+                                        isOutflow = true,
+                                        modifier = Modifier.width(240.dp)
+                                    )
+                                    CatNetDonut(
+                                        memberStats = membersWithActivity,
+                                        modifier = Modifier.width(240.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -696,6 +673,21 @@ fun CategoryDetailsScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                    item {
+                        Button(
+                            onClick = { navigateToAllTransactionsScreen(category.id.toString()) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.transactions),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("View All Transactions", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -1234,34 +1226,90 @@ fun CategoryDetailsScreen(
                     }
                 }
 
-                // ── View all transactions button ───────────────────────────────
+                // ── Add manual transaction prompt card ────────────────────────
                 item {
-                    Button(
-                        onClick = { navigateToAllTransactionsScreen(category.id.toString()) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
+                    Spacer(Modifier.height(8.dp))
+                }
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        onClick = { showManualTxDialog = true },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.list),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("View All Transactions", fontWeight = FontWeight.SemiBold)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color(0xFF2E7D32).copy(alpha = 0.10f),
+                                            Color(0xFF388E3C).copy(alpha = 0.04f)
+                                        )
+                                    )
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF2E7D32).copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_add),
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Add Non-M-PESA Transaction",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Record cash, bank transfer, or any expense / income that didn't go through M-PESA.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_arrow_right),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
+                // ── Recent transactions section (M-PESA + Manual combined) ───
                 item {
                     Spacer(Modifier.height(16.dp))
                 }
                 item {
-                    ManualTransactionsSection(
-                        transactions = manualTransactions,
+                    RecentTransactionsSection(
+                        mpesaTransactions = categoryTransactions,
+                        manualTransactions = manualTransactions,
                         mpesaMembers = memberStats.map { it.keyword },
                         manualMembers = manualMembers,
+                        showAddDialog = showManualTxDialog,
+                        onShowAddDialog = { showManualTxDialog = true },
+                        onDismissAddDialog = { showManualTxDialog = false },
                         onAddTransaction = onAddManualTransaction,
                         onDeleteTransaction = onDeleteManualTransaction,
-                        onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) }
+                        onEditTransaction = onEditManualTransaction,
+                        onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) },
+                        onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString()) }
                     )
                 }
 
@@ -1455,6 +1503,11 @@ private fun InsightsCard(
     onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val previewCount = 3
+    val visibleInsights = if (expanded) insights else insights.take(previewCount)
+    val hasMore = insights.size > previewCount
+
     ElevatedCard(
         shape = RoundedCornerShape(20.dp),
         modifier = modifier.fillMaxWidth()
@@ -1484,7 +1537,7 @@ private fun InsightsCard(
                     }
                 }
             }
-            insights.forEach { insight ->
+            visibleInsights.forEach { insight ->
                 val isLocked = insight.requiresPremium && !isPremium
                 Box {
                     InsightRow(
@@ -1517,6 +1570,28 @@ private fun InsightsCard(
                             }
                         }
                     }
+                }
+            }
+            if (hasMore) {
+                TextButton(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 2.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (expanded) R.drawable.baseline_clear_24 else R.drawable.ic_add
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        if (expanded) "Show less"
+                        else "Show ${insights.size - previewCount} more insight${if (insights.size - previewCount > 1) "s" else ""}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -1638,6 +1713,214 @@ private fun MemberDonutChart(
                     Text(
                         "${(fraction * 100).toInt()}%",
                         fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = color
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── CatFlowDonut: single-direction donut per member ─────────────────────────
+@Composable
+private fun CatFlowDonut(
+    memberStats: List<MemberStat>,
+    isOutflow: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val surface   = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val accentColor = if (isOutflow) MaterialTheme.colorScheme.error else Color(0xFF388E3C)
+    val label = if (isOutflow) "OUT" else "IN"
+
+    val total = if (isOutflow)
+        memberStats.sumOf { it.totalOut }.coerceAtLeast(0.01)
+    else
+        memberStats.sumOf { it.totalIn }.coerceAtLeast(0.01)
+
+    var drawTarget by remember { mutableStateOf(0f) }
+    LaunchedEffect(memberStats, isOutflow) { drawTarget = 1f }
+    val drawProgress by animateFloatAsState(
+        targetValue = drawTarget,
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label = "catFlowDonut"
+    )
+
+    val segments = memberStats.take(8).mapIndexed { idx, stat ->
+        val amount = if (isOutflow) stat.totalOut else stat.totalIn
+        Triple(stat, memberColor(idx), (amount / total).toFloat())
+    }.filter { it.third > 0f }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Donut centred in its column
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Canvas(modifier = Modifier.size(130.dp)) {
+                val canvasSize  = min(size.width, size.height)
+                val strokeWidth = canvasSize * 0.18f
+                val arcRadius   = (canvasSize / 2f) - strokeWidth / 2f
+                val arcTopLeft  = Offset((size.width - arcRadius * 2) / 2f, (size.height - arcRadius * 2) / 2f)
+                val arcSize     = Size(arcRadius * 2, arcRadius * 2)
+                var startAngle  = -90f
+                val gap         = if (segments.size > 1) 2f else 0f
+
+                segments.forEach { (_, color, fraction) ->
+                    val sweep = (fraction * 360f - gap).coerceAtLeast(0f) * drawProgress
+                    drawArc(
+                        color = color, startAngle = startAngle, sweepAngle = sweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Butt),
+                        topLeft = arcTopLeft, size = arcSize
+                    )
+                    startAngle += fraction * 360f
+                }
+                drawCircle(color = surface, radius = arcRadius - strokeWidth / 2f + 2f)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accentColor,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    "KES ${String.format("%,.0f", total)}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = onSurface
+                )
+            }
+        }
+        // Legend
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            segments.take(5).forEach { (stat, color, fraction) ->
+                val amount = if (isOutflow) stat.totalOut else stat.totalIn
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stat.displayName.take(13),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "KES ${String.format("%,.0f", amount)}",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "${(fraction * 100).toInt()}%",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = color
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// ─── CatNetDonut: net (inflow - outflow) per member ──────────────────────────
+@Composable
+private fun CatNetDonut(
+    memberStats: List<MemberStat>,
+    modifier: Modifier = Modifier
+) {
+    val surface   = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val positiveColor = Color(0xFF388E3C)
+    val negativeColor = MaterialTheme.colorScheme.error
+
+    data class NetEntry(val stat: MemberStat, val net: Double, val isPositive: Boolean)
+
+    val entries = memberStats.map { stat ->
+        val net = stat.totalIn - stat.totalOut
+        NetEntry(stat, net, net >= 0)
+    }.sortedByDescending { abs(it.net) }
+
+    val totalAbsNet = entries.sumOf { abs(it.net) }.coerceAtLeast(0.01)
+
+    var drawTarget by remember { mutableStateOf(0f) }
+    LaunchedEffect(memberStats) { drawTarget = 1f }
+    val drawProgress by animateFloatAsState(
+        targetValue = drawTarget,
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label = "catNetDonut"
+    )
+
+    val segments = entries.take(8).map { entry ->
+        val fraction = (abs(entry.net) / totalAbsNet).toFloat()
+        val color = if (entry.isPositive) positiveColor else negativeColor
+        Triple(entry, color, fraction)
+    }.filter { it.third > 0f }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Canvas(modifier = Modifier.size(130.dp)) {
+                val canvasSize  = min(size.width, size.height)
+                val strokeWidth = canvasSize * 0.18f
+                val arcRadius   = (canvasSize / 2f) - strokeWidth / 2f
+                val arcTopLeft  = Offset((size.width - arcRadius * 2) / 2f, (size.height - arcRadius * 2) / 2f)
+                val arcSize     = Size(arcRadius * 2, arcRadius * 2)
+                var startAngle  = -90f
+                val gap         = if (segments.size > 1) 2f else 0f
+
+                segments.forEach { (_, color, fraction) ->
+                    val sweep = (fraction * 360f - gap).coerceAtLeast(0f) * drawProgress
+                    drawArc(
+                        color = color, startAngle = startAngle, sweepAngle = sweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Butt),
+                        topLeft = arcTopLeft, size = arcSize
+                    )
+                    startAngle += fraction * 360f
+                }
+                drawCircle(color = surface, radius = arcRadius - strokeWidth / 2f + 2f)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("NET", fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                val overallNet = memberStats.sumOf { it.totalIn - it.totalOut }
+                Text(
+                    "${if (overallNet >= 0) "+" else "-"}KES ${String.format("%,.0f", abs(overallNet))}",
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    color = if (overallNet >= 0) positiveColor else negativeColor
+                )
+            }
+        }
+        // Legend
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            segments.take(5).forEach { (entry, color, fraction) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            entry.stat.displayName.take(13),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "${if (entry.net >= 0) "+" else "-"}KES ${String.format("%,.0f", abs(entry.net))}",
+                            fontSize = 10.sp,
+                            color = color
+                        )
+                    }
+                    Text(
+                        "${(fraction * 100).toInt()}%",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = color
                     )
                 }
             }
@@ -2121,25 +2404,62 @@ private fun CategoryDetailsScreenPreview() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ManualTransactionsSection(
-    transactions: List<ManualTransaction>,
+private fun RecentTransactionsSection(
+    mpesaTransactions: List<com.records.pesa.db.models.Transaction>,
+    manualTransactions: List<ManualTransaction>,
     mpesaMembers: List<String>,
     manualMembers: List<ManualCategoryMember>,
+    showAddDialog: Boolean = false,
+    onShowAddDialog: () -> Unit = {},
+    onDismissAddDialog: () -> Unit = {},
     onAddTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit,
     onDeleteTransaction: (Int) -> Unit,
-    onNavigateToAddMember: () -> Unit = {}
+    onEditTransaction: (ManualTransaction) -> Unit = {},
+    onNavigateToAddMember: () -> Unit = {},
+    onViewAllTransactions: () -> Unit = {}
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
     var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
+    var txToEdit by remember { mutableStateOf<ManualTransaction?>(null) }
 
+    // Unified wrapper for sorting
+    data class UnifiedTx(
+        val date: LocalDate,
+        val timeNonNull: java.time.LocalTime,
+        val isManual: Boolean,
+        val mpesa: com.records.pesa.db.models.Transaction?,
+        val manual: ManualTransaction?
+    )
+
+    val unified: List<UnifiedTx> = remember(mpesaTransactions, manualTransactions) {
+        val mpesaItems = mpesaTransactions.map { tx ->
+            UnifiedTx(tx.date, tx.time, false, tx, null)
+        }
+        val manualItems = manualTransactions.map { tx ->
+            UnifiedTx(tx.date, tx.time ?: java.time.LocalTime.MIN, true, null, tx)
+        }
+        (mpesaItems + manualItems)
+            .sortedWith(compareByDescending<UnifiedTx> { it.date }.thenByDescending { it.timeNonNull })
+            .take(5)
+    }
+
+    // Confirm-delete dialog
     txToDelete?.let { tx ->
         AlertDialog(
             onDismissRequest = { txToDelete = null },
             title = { Text("Delete Transaction") },
-            text = { Text("Delete this ${if (tx.isOutflow) "expense" else "income"} of KES ${"%,.2f".format(tx.amount)}?") },
-            confirmButton = { TextButton(onClick = { onDeleteTransaction(tx.id); txToDelete = null }) { Text("Delete") } },
+            text = { Text("Delete this ${if (tx.isOutflow) "expense" else "income"} of KES ${"%,.2f".format(tx.amount)}? This will also update category and budget totals.") },
+            confirmButton = { TextButton(onClick = { onDeleteTransaction(tx.id); txToDelete = null }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { txToDelete = null }) { Text("Cancel") } }
+        )
+    }
+
+    txToEdit?.let { tx ->
+        val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct().sorted()
+        EditManualTransactionDialog(
+            tx = tx,
+            members = allMembers,
+            onSave = { updated -> onEditTransaction(updated); txToEdit = null },
+            onDismiss = { txToEdit = null }
         )
     }
 
@@ -2150,27 +2470,31 @@ private fun ManualTransactionsSection(
             onNavigateToAddMember = onNavigateToAddMember,
             onConfirm = { memberName, isOutflow, amount, description, date, time ->
                 onAddTransaction(memberName, isOutflow, amount, description, date, time)
-                showAddDialog = false
+                onDismissAddDialog()
             },
-            onDismiss = { showAddDialog = false }
+            onDismiss = onDismissAddDialog
         )
     }
 
-    val totalOutflow = transactions.filter { it.isOutflow }.sumOf { it.amount }
-
     ElevatedCard(
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(
-                    Color(0xFF1565C0).copy(alpha = 0.08f),
-                    Color(0xFF0288D1).copy(alpha = 0.04f)
-                ))
-            )
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF1565C0).copy(alpha = 0.08f),
+                            Color(0xFF0288D1).copy(alpha = 0.04f)
+                        )
+                    )
+                )
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2178,19 +2502,19 @@ private fun ManualTransactionsSection(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            painter = painterResource(R.drawable.wallet),
+                            painter = painterResource(R.drawable.transactions),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "Manual Transactions",
+                            "Recent Transactions",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    IconButton(onClick = { showAddDialog = true }) {
+                    IconButton(onClick = onShowAddDialog) {
                         Icon(
                             painter = painterResource(R.drawable.ic_add),
                             contentDescription = "Add transaction",
@@ -2205,88 +2529,235 @@ private fun ManualTransactionsSection(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 )
 
-                if (transactions.isEmpty()) {
+                if (unified.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "No manual transactions yet. Tap + to add cash, bank or any non-M-PESA expense.",
+                            "No transactions yet. Tap + to record a cash, bank, or any non-M-PESA expense or income.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
                 } else {
-                    transactions.forEach { tx ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = tx.memberName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = tx.transactionTypeName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = buildString {
-                                        append(tx.date.format(dateFormatter))
-                                        tx.time?.let { append("  ${it.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}") }
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = "KES ${"%,.2f".format(tx.amount)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
-                            )
-                            IconButton(
-                                onClick = { txToDelete = tx },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.remove),
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                        if (tx != transactions.last()) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                        }
-                    }
+                    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE d MMM") }
+                    var lastDate: LocalDate? = null
 
-                    if (totalOutflow > 0) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
+                    unified.forEach { item ->
+                        // Date header when date changes
+                        if (item.date != lastDate) {
+                            lastDate = item.date
                             Text(
-                                text = "Total spent: KES ${"%,.2f".format(totalOutflow)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
+                                text = item.date.format(dateFormatter),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
                             )
                         }
+
+                        if (!item.isManual && item.mpesa != null) {
+                            CatMpesaTxRow(transaction = item.mpesa)
+                        } else if (item.isManual && item.manual != null) {
+                            CatManualTxRow(
+                                tx = item.manual,
+                                onEdit = { txToEdit = item.manual },
+                                onDelete = { txToDelete = item.manual }
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+
+                // View All button
+                TextButton(
+                    onClick = onViewAllTransactions,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.list),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("View All Transactions", fontWeight = FontWeight.SemiBold)
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun CatMpesaTxRow(
+    transaction: com.records.pesa.db.models.Transaction,
+    modifier: Modifier = Modifier
+) {
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    val isOutflow = transaction.transactionAmount < 0
+    val amountColor = if (isOutflow) MaterialTheme.colorScheme.error else Color(0xFF388E3C)
+    val prefix = if (isOutflow) "-" else "+"
+    val displayName = (transaction.nickName?.trim()?.ifBlank { null }
+        ?: transaction.entity.trim().ifBlank { null }
+        ?: transaction.transactionType)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Text(
+                text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = displayName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = transaction.transactionType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Text(
+                    text = "· ${transaction.time.format(timeFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Text(
+            text = "$prefix${String.format("%,.2f", abs(transaction.transactionAmount))}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = amountColor
+        )
+    }
+}
+
+@Composable
+private fun CatManualTxRow(
+    tx: ManualTransaction,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
+    val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF388E3C)
+    val prefix = if (tx.isOutflow) "-" else "+"
+    val avatarColor = txAvatarColor(tx.memberName)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = tx.memberName.take(1).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .align(Alignment.BottomEnd)
+                    .clickable(onClick = onEdit),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.edit),
+                    contentDescription = "Edit manual transaction",
+                    modifier = Modifier.size(9.dp),
+                    tint = Color.White
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                tx.memberName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    tx.transactionTypeName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                tx.time?.let {
+                    Text(
+                        "· ${it.format(timeFormatter)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (tx.description.isNotBlank()) {
+                Text(
+                    tx.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Text(
+            "$prefix${String.format("%,.2f", tx.amount)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = amountColor
+        )
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.remove),
+                contentDescription = "Delete transaction",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }

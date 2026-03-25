@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -33,18 +34,25 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.service.category.CategoryService
+import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
+import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.dashboard.category.CombinedFilter
 import com.records.pesa.ui.screens.dashboard.category.CombinedTransactionItem
+import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -67,9 +75,10 @@ data class BudgetAllTransactionsUiState(
     val endDate: LocalDate = LocalDate.now(),
     val mpesaItems: List<Transaction> = emptyList(),
     val manualItems: List<ManualTransaction> = emptyList(),
-    val memberNames: List<String> = emptyList(),   // empty = all members
+    val memberNames: List<String> = emptyList(),
     val filter: CombinedFilter = CombinedFilter.ALL,
     val searchText: String = "",
+    val isPremium: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -77,7 +86,9 @@ data class BudgetAllTransactionsUiState(
 class BudgetAllTransactionsScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val dataStoreRepository: DataStoreRepository,
+    private val application: android.app.Application
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetAllTransactionsUiState())
@@ -88,6 +99,13 @@ class BudgetAllTransactionsScreenViewModel(
 
     init {
         loadBudget()
+        viewModelScope.launch {
+            dataStoreRepository.getUserPreferences().collect { prefs ->
+                val premium = prefs.permanent ||
+                    (prefs.expiryDate?.isAfter(java.time.LocalDateTime.now()) == true)
+                _uiState.update { it.copy(isPremium = premium) }
+            }
+        }
     }
 
     private fun loadBudget() {
@@ -145,6 +163,17 @@ class BudgetAllTransactionsScreenViewModel(
     fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date) }
     fun setFilter(filter: CombinedFilter) = _uiState.update { it.copy(filter = filter) }
     fun setSearchText(text: String) = _uiState.update { it.copy(searchText = text) }
+
+    fun updateManualTransaction(tx: ManualTransaction) {
+        viewModelScope.launch {
+            dbRepository.updateManualCategoryTransaction(tx)
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_update",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
+        }
+    }
 }
 
 // ─── Composable entry point ───────────────────────────────────────────────────
@@ -155,6 +184,21 @@ fun BudgetAllTransactionsScreenComposable(
 ) {
     val viewModel: BudgetAllTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+    var editingTx by remember { mutableStateOf<ManualTransaction?>(null) }
+
+    val allMembers = remember(uiState) {
+        (uiState.mpesaItems.map { it.entity.replaceFirstChar { c -> c.uppercase() } } +
+                uiState.manualItems.map { it.memberName }).distinct().sorted()
+    }
+
+    editingTx?.let { tx ->
+        EditManualTransactionDialog(
+            tx = tx,
+            members = allMembers,
+            onSave = { updated -> viewModel.updateManualTransaction(updated); editingTx = null },
+            onDismiss = { editingTx = null }
+        )
+    }
 
     BudgetAllTransactionsScreen(
         uiState = uiState,
@@ -163,6 +207,7 @@ fun BudgetAllTransactionsScreenComposable(
         onStartDateChange = viewModel::setStartDate,
         onEndDateChange = viewModel::setEndDate,
         onNavigateBack = navigateToPreviousScreen,
+        onEditManualTx = { editingTx = it },
         modifier = modifier
     )
 }
@@ -177,14 +222,15 @@ fun BudgetAllTransactionsScreen(
     onStartDateChange: (LocalDate) -> Unit,
     onEndDateChange: (LocalDate) -> Unit,
     onNavigateBack: () -> Unit,
+    onEditManualTx: (ManualTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showSearch by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-
     val dateFmt = remember { DateTimeFormatter.ofPattern("d MMM yy") }
+    val freeLimit: LocalDate = remember { LocalDate.now().minusMonths(1) }
 
     LaunchedEffect(showSearch) {
         if (showSearch) focusRequester.requestFocus()
@@ -217,7 +263,7 @@ fun BudgetAllTransactionsScreen(
             .map { CombinedTransactionItem.ManualItem(it) }
 
         when (uiState.filter) {
-            CombinedFilter.ALL -> mpesaList + manualList
+            CombinedFilter.ALL, CombinedFilter.BY_MEMBER -> mpesaList + manualList
             CombinedFilter.MPESA -> mpesaList
             CombinedFilter.MANUAL -> manualList
         }
@@ -253,6 +299,18 @@ fun BudgetAllTransactionsScreen(
                 is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
             }
         }.entries.sortedByDescending { it.key }
+    }
+
+    val groupedByMember = remember(filtered) {
+        filtered.groupBy { item ->
+            when (item) {
+                is CombinedTransactionItem.MpesaItem -> {
+                    val tx = item.tx
+                    (tx.nickName?.trim()?.ifBlank { null } ?: tx.entity.trim().replaceFirstChar { it.uppercase() }.ifBlank { "Unknown" })
+                }
+                is CombinedTransactionItem.ManualItem -> item.tx.memberName
+            }
+        }.entries.sortedBy { it.key }
     }
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -399,22 +457,45 @@ fun BudgetAllTransactionsScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CombinedFilter.values().forEach { f ->
+                listOf(CombinedFilter.ALL, CombinedFilter.MPESA, CombinedFilter.MANUAL, CombinedFilter.BY_MEMBER).forEach { f ->
                     FilterChip(
                         selected = uiState.filter == f,
                         onClick = { onFilterChange(f) },
+                        leadingIcon = if (f == CombinedFilter.BY_MEMBER) ({
+                            Icon(painter = painterResource(R.drawable.contact), contentDescription = null, modifier = Modifier.size(14.dp))
+                        }) else null,
                         label = {
                             Text(
                                 when (f) {
                                     CombinedFilter.ALL -> "All"
                                     CombinedFilter.MPESA -> "M-PESA"
                                     CombinedFilter.MANUAL -> "Manual"
+                                    CombinedFilter.BY_MEMBER -> "By Member"
                                 }
                             )
                         }
                     )
                 }
             }
+
+            // ── Summary bar ───────────────────────────────────────────────────
+            val summaryIn = remember(filtered) {
+                filtered.sumOf { item ->
+                    when (item) {
+                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount > 0) item.tx.transactionAmount else 0.0
+                        is CombinedTransactionItem.ManualItem -> if (!item.tx.isOutflow) item.tx.amount else 0.0
+                    }
+                }
+            }
+            val summaryOut = remember(filtered) {
+                filtered.sumOf { item ->
+                    when (item) {
+                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount < 0) kotlin.math.abs(item.tx.transactionAmount) else 0.0
+                        is CombinedTransactionItem.ManualItem -> if (item.tx.isOutflow) item.tx.amount else 0.0
+                    }
+                }
+            }
+            TxSummaryBar(totalIn = summaryIn, totalOut = summaryOut)
 
             // ── Content ───────────────────────────────────────────────────────
             if (uiState.isLoading) {
@@ -427,6 +508,37 @@ fun BudgetAllTransactionsScreen(
                         "No transactions matching \"${uiState.searchText}\""
                     else "No expenses in this date range"
                 )
+            } else if (uiState.filter == CombinedFilter.BY_MEMBER) {
+                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 80.dp)) {
+                    groupedByMember.forEach { (memberName, memberItems) ->
+                        stickyHeader(key = "member_$memberName") {
+                            Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(modifier = Modifier.size(28.dp).clip(CircleShape).background(txAvatarColor(memberName)), contentAlignment = Alignment.Center) {
+                                        Text(memberName.take(1).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                    Text(memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${memberItems.size} tx", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        items(memberItems) { item ->
+                            val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
+                            val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
+                            BudgetPremiumTxWrapper(isLocked = isLocked) {
+                                when (item) {
+                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx)
+                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                }
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+                        }
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -437,16 +549,44 @@ fun BudgetAllTransactionsScreen(
                             TxDateHeader(date = dateStr)
                         }
                         items(itemsForDate) { item ->
-                            when (item) {
-                                is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx)
-                                is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx)
+                            val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
+                            val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
+                            BudgetPremiumTxWrapper(isLocked = isLocked) {
+                                when (item) {
+                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx)
+                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                }
                             }
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f)
-                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// ─── Premium blur wrapper ────────────────────────────────────────────────────
+@Composable
+private fun BudgetPremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit) {
+    Box {
+        Box(modifier = if (isLocked) Modifier.blur(6.dp) else Modifier) { content() }
+        if (isLocked) {
+            Box(
+                modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        "🔒 Premium — upgrade to view",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
                 }
             }
         }
@@ -542,7 +682,7 @@ private fun BudgetAllMpesaTxRow(tx: Transaction) {
 }
 
 @Composable
-private fun BudgetAllManualTxRow(tx: ManualTransaction) {
+private fun BudgetAllManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}) {
     val amountColor = MaterialTheme.colorScheme.error
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
@@ -571,7 +711,8 @@ private fun BudgetAllManualTxRow(tx: ManualTransaction) {
                     .size(16.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-                    .align(Alignment.BottomEnd),
+                    .align(Alignment.BottomEnd)
+                    .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

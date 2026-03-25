@@ -53,6 +53,18 @@ import com.records.pesa.R
 import kotlin.math.absoluteValue
 import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.transaction.TransactionItem
+import android.app.DatePickerDialog
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import com.records.pesa.db.models.ManualTransaction
 
 /**
  * Standard transaction card — matches DashboardScreen's TransactionCard exactly.
@@ -881,4 +893,211 @@ fun PermissionExplanationDialog(
         confirmButton = {},
         dismissButton = null
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditManualTransactionDialog(
+    tx: ManualTransaction,
+    members: List<String>,
+    onSave: (ManualTransaction) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedMember by remember { mutableStateOf(tx.memberName) }
+    var memberExpanded by remember { mutableStateOf(false) }
+    var isOutflow by remember { mutableStateOf(tx.isOutflow) }
+    var amountText by remember { mutableStateOf(tx.amount.toString()) }
+    var description by remember { mutableStateOf(tx.description) }
+    var selectedDate by remember { mutableStateOf(tx.date) }
+    var selectedTime by remember { mutableStateOf(tx.time) }
+    val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy") }
+    val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("hh:mm a") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Transaction") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ExposedDropdownMenuBox(expanded = memberExpanded, onExpandedChange = { memberExpanded = it }) {
+                    OutlinedTextField(
+                        value = selectedMember,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Member") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = memberExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = memberExpanded, onDismissRequest = { memberExpanded = false }) {
+                        members.forEach { m ->
+                            DropdownMenuItem(text = { Text(m) }, onClick = { selectedMember = m; memberExpanded = false })
+                        }
+                    }
+                }
+
+                Text("Transaction type", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = isOutflow, onClick = { isOutflow = true }, label = { Text("Expense") })
+                    FilterChip(selected = !isOutflow, onClick = { isOutflow = false }, label = { Text("Income") })
+                }
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Amount (KES)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = selectedDate.format(dateFormatter),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date") },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            DatePickerDialog(
+                                context,
+                                { _, y, m, d -> selectedDate = java.time.LocalDate.of(y, m + 1, d) },
+                                selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth
+                            ).show()
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.calendar),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = selectedTime?.format(timeFormatter) ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Time (optional)") },
+                    placeholder = { Text("Tap to set time") },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selectedTime != null) {
+                                IconButton(onClick = { selectedTime = null }, modifier = Modifier.size(32.dp)) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.baseline_clear_24),
+                                        contentDescription = "Clear",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            IconButton(onClick = {
+                                val now = selectedTime ?: java.time.LocalTime.now()
+                                android.app.TimePickerDialog(context, { _, h, min -> selectedTime = java.time.LocalTime.of(h, min) }, now.hour, now.minute, false).show()
+                            }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.calendar),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amount = amountText.toDoubleOrNull() ?: return@Button
+                    if (selectedMember.isNotBlank() && amount > 0) {
+                        onSave(
+                            tx.copy(
+                                memberName = selectedMember,
+                                isOutflow = isOutflow,
+                                transactionTypeName = if (isOutflow) "Expense" else "Income",
+                                amount = amount,
+                                description = description,
+                                date = selectedDate,
+                                time = selectedTime
+                            )
+                        )
+                    }
+                },
+                enabled = selectedMember.isNotBlank() && (amountText.toDoubleOrNull() ?: 0.0) > 0
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun TxSummaryBar(
+    totalIn: Double,
+    totalOut: Double,
+    modifier: Modifier = Modifier
+) {
+    val net = totalIn - totalOut
+    val netColor = if (net >= 0) Color(0xFF388E3C) else MaterialTheme.colorScheme.error
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // IN
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF388E3C).copy(alpha = 0.08f)),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text("IN", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF388E3C), letterSpacing = 0.5.sp)
+                Text(
+                    "KES ${String.format("%,.0f", totalIn)}",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF388E3C), maxLines = 1
+                )
+            }
+        }
+        // OUT
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f)),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text("OUT", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error, letterSpacing = 0.5.sp)
+                Text(
+                    "KES ${String.format("%,.0f", totalOut)}",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error, maxLines = 1
+                )
+            }
+        }
+        // NET
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = netColor.copy(alpha = 0.08f)),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text("NET", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = netColor, letterSpacing = 0.5.sp)
+                Text(
+                    "${if (net >= 0) "+" else ""}KES ${String.format("%,.0f", net)}",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = netColor, maxLines = 1
+                )
+            }
+        }
+    }
 }

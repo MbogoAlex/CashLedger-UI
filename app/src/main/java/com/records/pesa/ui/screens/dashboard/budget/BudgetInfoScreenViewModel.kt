@@ -37,6 +37,10 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.records.pesa.workers.BudgetRecalculationWorker
 
 data class BudgetInfoScreenUiState(
     val userDetails: UserDetails = UserDetails(),
@@ -138,6 +142,18 @@ class BudgetInfoScreenViewModel(
             } catch (e: Exception) {
                 _uiState.update { it.copy(executionStatus = ExecutionStatus.FAIL) }
             }
+        }
+    }
+
+    fun updateManualTransaction(tx: ManualCategoryTx) {
+        viewModelScope.launch {
+            dbRepository.updateManualCategoryTransaction(tx)
+            BudgetAlertTracker.clearForBudget(application, _uiState.value.budget?.id ?: return@launch)
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_update",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
         }
     }
 

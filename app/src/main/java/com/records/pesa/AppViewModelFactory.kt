@@ -21,6 +21,7 @@ import com.records.pesa.ui.screens.auth.UpdatePasswordScreenViewModel
 import com.records.pesa.ui.screens.backup.BackupRestoreScreenViewModel
 import com.records.pesa.ui.screens.backup.BackupScreenViewModel
 import com.records.pesa.ui.screens.dashboard.HomeScreenViewModel
+import com.records.pesa.ui.screens.dashboard.budget.BudgetAllTransactionsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
@@ -116,7 +117,8 @@ object AppViewModelFactory {
                 savedStateHandle = savedStateHandle,
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = categoryService,
-                transactionService = transactionService
+                transactionService = transactionService,
+                application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
             )
         }
 
@@ -391,6 +393,15 @@ object AppViewModelFactory {
             )
         }
         initializer {
+            BudgetAllTransactionsScreenViewModel(
+                savedStateHandle = this.createSavedStateHandle(),
+                dbRepository = cashLedgerApplication().container.dbRepository,
+                categoryService = cashLedgerApplication().container.categoryService,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
+            )
+        }
+        initializer {
             BudgetAuditTrailScreenViewModel(
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository,
@@ -401,7 +412,9 @@ object AppViewModelFactory {
             CategoryAllTransactionsScreenViewModel(
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository,
-                categoryService = cashLedgerApplication().container.categoryService
+                categoryService = cashLedgerApplication().container.categoryService,
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
             )
         }
     }

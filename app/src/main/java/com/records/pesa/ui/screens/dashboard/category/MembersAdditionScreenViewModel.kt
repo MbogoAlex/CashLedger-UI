@@ -22,6 +22,10 @@ import com.records.pesa.reusables.transactionCategory
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.db.models.ManualCategoryMember
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,7 +60,8 @@ class MembersAdditionScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
     private val transactionService: TransactionService,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val application: android.app.Application
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(MembersAdditionScreenUiState())
@@ -262,9 +267,13 @@ class MembersAdditionScreenViewModel(
                         loadingStatus = LoadingStatus.SUCCESS
                     )
                 }
-            }
-//            try {
-//               val response = apiRepository.addCategoryMembers(
+                // Trigger budget recalculation — adding M-PESA members changes category outflow
+                WorkManager.getInstance(application).enqueueUniqueWork(
+                    "budget_recalc_mpesa_member_add",
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+                )
+            }  // end withContext(Dispatchers.IO)
 //                   token = uiState.value.userDetails.token,
 //                   categoryId = uiState.value.categoryId.toInt(),
 //                   category = category

@@ -1,8 +1,10 @@
 package com.records.pesa.ui.screens.dashboard.category
 
+import android.app.DatePickerDialog
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,10 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,18 +34,26 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.service.category.CategoryService
+import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
+import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
+import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.absoluteValue
 
@@ -52,7 +64,7 @@ object CategoryAllTransactionsScreenDestination : AppNavigation {
     val routeWithArgs = "$route/{$categoryId}"
 }
 
-enum class CombinedFilter { ALL, MPESA, MANUAL }
+enum class CombinedFilter { ALL, MPESA, MANUAL, BY_MEMBER }
 
 sealed class CombinedTransactionItem {
     data class MpesaItem(val tx: Transaction) : CombinedTransactionItem()
@@ -65,13 +77,18 @@ data class CategoryAllTransactionsUiState(
     val manualItems: List<ManualTransaction> = emptyList(),
     val filter: CombinedFilter = CombinedFilter.ALL,
     val searchText: String = "",
+    val startDate: LocalDate = LocalDate.now().withDayOfMonth(1),
+    val endDate: LocalDate = LocalDate.now(),
+    val isPremium: Boolean = false,
     val isLoading: Boolean = true
 )
 
 class CategoryAllTransactionsScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val dataStoreRepository: DataStoreRepository,
+    private val application: android.app.Application
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoryAllTransactionsUiState())
@@ -83,6 +100,13 @@ class CategoryAllTransactionsScreenViewModel(
     init {
         loadCategoryName()
         loadData()
+        viewModelScope.launch {
+            dataStoreRepository.getUserPreferences().collect { prefs ->
+                val premium = prefs.permanent ||
+                    (prefs.expiryDate?.isAfter(java.time.LocalDateTime.now()) == true)
+                _uiState.update { it.copy(isPremium = premium) }
+            }
+        }
     }
 
     private fun loadCategoryName() {
@@ -123,8 +147,22 @@ class CategoryAllTransactionsScreenViewModel(
         _uiState.update { it.copy(filter = filter) }
     }
 
+    fun setStartDate(date: LocalDate) = _uiState.update { it.copy(startDate = date) }
+    fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date) }
+
     fun setSearchText(text: String) {
         _uiState.update { it.copy(searchText = text) }
+    }
+
+    fun updateManualTransaction(tx: ManualTransaction) {
+        viewModelScope.launch {
+            dbRepository.updateManualCategoryTransaction(tx)
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_update",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
+        }
     }
 }
 
@@ -135,12 +173,30 @@ fun CategoryAllTransactionsScreenComposable(
 ) {
     val viewModel: CategoryAllTransactionsScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+    var editingTx by remember { mutableStateOf<ManualTransaction?>(null) }
+
+    val allMembers = remember(uiState) {
+        (uiState.mpesaItems.map { it.entity.replaceFirstChar { c -> c.uppercase() } } +
+                uiState.manualItems.map { it.memberName }).distinct().sorted()
+    }
+
+    editingTx?.let { tx ->
+        EditManualTransactionDialog(
+            tx = tx,
+            members = allMembers,
+            onSave = { updated -> viewModel.updateManualTransaction(updated); editingTx = null },
+            onDismiss = { editingTx = null }
+        )
+    }
 
     CategoryAllTransactionsScreen(
         uiState = uiState,
         onFilterChange = { viewModel.setFilter(it) },
+        onStartDateChange = viewModel::setStartDate,
+        onEndDateChange = viewModel::setEndDate,
         onSearchTextChange = { viewModel.setSearchText(it) },
         onNavigateBack = navigateToPreviousScreen,
+        onEditManualTx = { editingTx = it },
         modifier = modifier
     )
 }
@@ -150,10 +206,17 @@ fun CategoryAllTransactionsScreenComposable(
 fun CategoryAllTransactionsScreen(
     uiState: CategoryAllTransactionsUiState,
     onFilterChange: (CombinedFilter) -> Unit,
+    onStartDateChange: (LocalDate) -> Unit = {},
+    onEndDateChange: (LocalDate) -> Unit = {},
     onSearchTextChange: (String) -> Unit,
     onNavigateBack: () -> Unit,
+    onEditManualTx: (ManualTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val dateFmt = remember { DateTimeFormatter.ofPattern("d MMM yy") }
+    // Free users: 1-month limit — transactions older than this are blurred
+    val freeLimit: LocalDate = remember { LocalDate.now().minusMonths(1) }
     var showSearch by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -165,24 +228,27 @@ fun CategoryAllTransactionsScreen(
 
     val filtered: List<CombinedTransactionItem> = remember(uiState) {
         val search = uiState.searchText
-        val mpesaList = uiState.mpesaItems.let { list ->
-            if (search.isBlank()) list
-            else list.filter { tx ->
-                tx.entity?.contains(search, ignoreCase = true) == true ||
-                tx.transactionType.contains(search, ignoreCase = true)
-            }
-        }.map { CombinedTransactionItem.MpesaItem(it) }
+        val start = uiState.startDate
+        val end = uiState.endDate
 
-        val manualList = uiState.manualItems.let { list ->
-            if (search.isBlank()) list
-            else list.filter { tx ->
-                tx.memberName.contains(search, ignoreCase = true) ||
-                tx.transactionTypeName.contains(search, ignoreCase = true)
+        val mpesaList = uiState.mpesaItems
+            .filter { tx ->
+                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
+                (search.isBlank() || tx.entity?.contains(search, ignoreCase = true) == true ||
+                 tx.transactionType.contains(search, ignoreCase = true))
             }
-        }.map { CombinedTransactionItem.ManualItem(it) }
+            .map { CombinedTransactionItem.MpesaItem(it) }
+
+        val manualList = uiState.manualItems
+            .filter { tx ->
+                !tx.date.isBefore(start) && !tx.date.isAfter(end) &&
+                (search.isBlank() || tx.memberName.contains(search, ignoreCase = true) ||
+                 tx.transactionTypeName.contains(search, ignoreCase = true))
+            }
+            .map { CombinedTransactionItem.ManualItem(it) }
 
         when (uiState.filter) {
-            CombinedFilter.ALL -> (mpesaList + manualList)
+            CombinedFilter.ALL, CombinedFilter.BY_MEMBER -> (mpesaList + manualList)
             CombinedFilter.MPESA -> mpesaList
             CombinedFilter.MANUAL -> manualList
         }
@@ -219,6 +285,18 @@ fun CategoryAllTransactionsScreen(
                 is CombinedTransactionItem.ManualItem -> item.tx.date.toString()
             }
         }.entries.sortedByDescending { it.key }
+    }
+
+    val groupedByMember = remember(filtered) {
+        filtered.groupBy { item ->
+            when (item) {
+                is CombinedTransactionItem.MpesaItem -> {
+                    val tx = item.tx
+                    (tx.nickName?.trim()?.ifBlank { null } ?: tx.entity.trim().replaceFirstChar { it.uppercase() }.ifBlank { "Unknown" })
+                }
+                is CombinedTransactionItem.ManualItem -> item.tx.memberName
+            }
+        }.entries.sortedBy { it.key }
     }
 
     Box(
@@ -313,29 +391,117 @@ fun CategoryAllTransactionsScreen(
                 }
             }
 
-            // Filter chips
+            // ── Date range row ────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.calendar),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.clickable {
+                        DatePickerDialog(
+                            context,
+                            { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
+                            uiState.startDate.year,
+                            uiState.startDate.monthValue - 1,
+                            uiState.startDate.dayOfMonth
+                        ).show()
+                    }
+                ) {
+                    Text(
+                        uiState.startDate.format(dateFmt),
+                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Text("→", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.clickable {
+                        DatePickerDialog(
+                            context,
+                            { _, y, m, d -> onEndDateChange(LocalDate.of(y, m + 1, d)) },
+                            uiState.endDate.year,
+                            uiState.endDate.monthValue - 1,
+                            uiState.endDate.dayOfMonth
+                        ).show()
+                    }
+                ) {
+                    Text(
+                        uiState.endDate.format(dateFmt),
+                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${filtered.size} tx",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Filter chips — All | M-PESA | Manual | By Member
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CombinedFilter.values().forEach { f ->
                     FilterChip(
                         selected = uiState.filter == f,
                         onClick = { onFilterChange(f) },
+                        leadingIcon = if (f == CombinedFilter.BY_MEMBER) ({
+                            Icon(
+                                painter = painterResource(R.drawable.contact),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }) else null,
                         label = {
                             Text(
                                 when (f) {
                                     CombinedFilter.ALL -> "All"
                                     CombinedFilter.MPESA -> "M-PESA"
                                     CombinedFilter.MANUAL -> "Manual"
+                                    CombinedFilter.BY_MEMBER -> "By Member"
                                 }
                             )
                         }
                     )
                 }
             }
+
+            // Summary bar
+            val summaryIn = remember(filtered) {
+                filtered.sumOf { item ->
+                    when (item) {
+                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount > 0) item.tx.transactionAmount else 0.0
+                        is CombinedTransactionItem.ManualItem -> if (!item.tx.isOutflow) item.tx.amount else 0.0
+                    }
+                }
+            }
+            val summaryOut = remember(filtered) {
+                filtered.sumOf { item ->
+                    when (item) {
+                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount < 0) kotlin.math.abs(item.tx.transactionAmount) else 0.0
+                        is CombinedTransactionItem.ManualItem -> if (item.tx.isOutflow) item.tx.amount else 0.0
+                    }
+                }
+            }
+            TxSummaryBar(totalIn = summaryIn, totalOut = summaryOut)
 
             // Content
             if (uiState.isLoading) {
@@ -348,6 +514,48 @@ fun CategoryAllTransactionsScreen(
                         "No transactions matching \"${uiState.searchText}\""
                     else "No transactions found"
                 )
+            } else if (uiState.filter == CombinedFilter.BY_MEMBER) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    groupedByMember.forEach { (memberName, memberItems) ->
+                        stickyHeader(key = "member_$memberName") {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    val avatarColor = txAvatarColor(memberName)
+                                    Box(
+                                        modifier = Modifier.size(28.dp).clip(CircleShape).background(avatarColor),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(memberName.take(1).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                    Text(memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${memberItems.size} tx", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        items(memberItems) { item ->
+                            val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
+                            PremiumTxWrapper(isLocked = isLocked) {
+                                when (item) {
+                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(tx = item.tx)
+                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
+                                }
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+                        }
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -358,20 +566,49 @@ fun CategoryAllTransactionsScreen(
                             TxDateHeader(date = dateStr)
                         }
                         items(itemsForDate) { item ->
-                            when (item) {
-                                is CombinedTransactionItem.MpesaItem -> {
-                                    MpesaTxRow(tx = item.tx)
-                                }
-                                is CombinedTransactionItem.ManualItem -> {
-                                    ManualTxRow(tx = item.tx)
+                            val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
+                            PremiumTxWrapper(isLocked = isLocked) {
+                                when (item) {
+                                    is CombinedTransactionItem.MpesaItem -> MpesaTxRow(tx = item.tx)
+                                    is CombinedTransactionItem.ManualItem -> ManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) })
                                 }
                             }
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f)
-                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+private fun itemDate(item: CombinedTransactionItem): LocalDate = when (item) {
+    is CombinedTransactionItem.MpesaItem -> item.tx.date
+    is CombinedTransactionItem.ManualItem -> item.tx.date
+}
+
+@Composable
+private fun PremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit) {
+    Box {
+        Box(modifier = if (isLocked) Modifier.blur(6.dp) else Modifier) { content() }
+        if (isLocked) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        "🔒 Premium — upgrade to view",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
                 }
             }
         }
@@ -446,7 +683,7 @@ private fun MpesaTxRow(tx: Transaction) {
 }
 
 @Composable
-private fun ManualTxRow(tx: ManualTransaction) {
+private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}) {
     val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
@@ -472,7 +709,8 @@ private fun ManualTxRow(tx: ManualTransaction) {
                     .size(16.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-                    .align(Alignment.BottomEnd),
+                    .align(Alignment.BottomEnd)
+                    .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

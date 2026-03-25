@@ -102,6 +102,7 @@ data class CategoryDetailsScreenUiState(
     val budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     val manualMembers: List<ManualCategoryMember> = emptyList(),
     val manualTransactions: List<ManualTransaction> = emptyList(),
+    val categoryTransactions: List<com.records.pesa.db.models.Transaction> = emptyList(),
     val transactionTypes: List<ManualTransactionType> = emptyList()
 )
 
@@ -233,6 +234,13 @@ class CategoryDetailsScreenViewModel(
                 val transactions = transactionService.getTransactionsByEntity(entity = keyword.keyword).first()
                 for (tx in transactions) dbRepository.deleteTransactionFromCategoryMapping(tx.id)
                 dbRepository.deleteCategoryKeywordByKeywordId(keywordId = keywordId)
+                // Instant budget recalculation — removing an M-PESA member changes category outflow
+                recalculateBudgetsForCategory()
+                WorkManager.getInstance(application).enqueueUniqueWork(
+                    "budget_recalc_mpesa_member_remove",
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+                )
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
@@ -333,7 +341,8 @@ class CategoryDetailsScreenViewModel(
             it.copy(
                 totalIn = totalIn, totalOut = totalOut, txCount = filtered.size,
                 typeBreakdown = typeBreakdown, trendData = trendData,
-                memberStats = memberStats, insights = insights
+                memberStats = memberStats, insights = insights,
+                categoryTransactions = filtered
             )
         }
     }
@@ -909,7 +918,8 @@ class CategoryDetailsScreenViewModel(
             // Cascade: delete all transactions for this member in this category
             dbRepository.deleteManualTransactionsByMember(categoryIdInt, memberName)
             dbRepository.deleteManualCategoryMember(id)
-            // Trigger budget recalculation so category budgets reflect the change
+            // Instant recalculation so budget card updates immediately
+            recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
                 "budget_recalc_manual_member_delete",
                 ExistingWorkPolicy.REPLACE,
@@ -943,7 +953,8 @@ class CategoryDetailsScreenViewModel(
                     createdAt = java.time.LocalDateTime.now()
                 )
             )
-            // Trigger budget recalculation so any linked category budget reflects the new transaction
+            // Instant recalculation — budget card updates without waiting for WorkManager
+            recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
                 "budget_recalc_manual_tx_add",
                 ExistingWorkPolicy.REPLACE,
@@ -955,10 +966,57 @@ class CategoryDetailsScreenViewModel(
     fun deleteManualTransaction(id: Int) {
         viewModelScope.launch {
             dbRepository.deleteManualCategoryTransaction(id)
+            // Instant recalculation
+            recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
                 "budget_recalc_manual_tx_delete",
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
+        }
+    }
+
+    fun updateManualTransaction(tx: com.records.pesa.db.models.ManualTransaction) {
+        viewModelScope.launch {
+            dbRepository.updateManualCategoryTransaction(tx)
+            // Instant recalculation
+            recalculateBudgetsForCategory()
+            WorkManager.getInstance(application).enqueueUniqueWork(
+                "budget_recalc_manual_tx_update",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+            )
+        }
+    }
+
+    /**
+     * Recalculates all budgets linked to this category IMMEDIATELY (no WorkManager latency).
+     * Call after any manual-transaction or member mutation so the budget card updates instantly.
+     * WorkManager is still enqueued separately as a broad backup sweep.
+     */
+    private suspend fun recalculateBudgetsForCategory() {
+        val categoryIdInt = categoryId?.toIntOrNull() ?: return
+        val today = LocalDate.now()
+        val budgets = dbRepository.getBudgetsByCategoryId(categoryIdInt).first()
+        for (budget in budgets) {
+            val memberNames = dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
+            val end = minOf(today, budget.limitDate)
+            val mpesaOutflow = if (memberNames.isEmpty()) {
+                dbRepository.getOutflowForCategory(categoryIdInt, budget.startDate, end).first()
+            } else {
+                dbRepository.getOutflowForCategoryAndMembers(categoryIdInt, budget.startDate, end, memberNames)
+            }
+            val manualOutflow = if (memberNames.isEmpty()) {
+                dbRepository.sumManualOutflowForCategoryInPeriod(categoryIdInt, budget.startDate, end)
+            } else {
+                dbRepository.sumManualOutflowForCategoryAndMembers(categoryIdInt, budget.startDate, end, memberNames)
+            }
+            val newExpenditure = mpesaOutflow + manualOutflow
+            dbRepository.updateBudgetExpenditure(
+                id = budget.id,
+                expenditure = newExpenditure,
+                limitReached = newExpenditure >= budget.budgetLimit,
+                exceededBy = maxOf(0.0, newExpenditure - budget.budgetLimit)
             )
         }
     }

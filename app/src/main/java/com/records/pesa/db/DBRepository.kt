@@ -139,6 +139,7 @@ interface DBRepository {
     suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction>
     suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long
     suspend fun deleteManualCategoryTransaction(id: Int)
+    suspend fun updateManualCategoryTransaction(tx: ManualTransaction)
     suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String)
     suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String)
     suspend fun sumManualOutflowForCategory(categoryId: Int): Double
@@ -307,6 +308,7 @@ class DBRepositoryImpl(
     override suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction> = manualTransactionDao.getForCategoryOnce(categoryId)
     override suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long = manualTransactionDao.insert(tx)
     override suspend fun deleteManualCategoryTransaction(id: Int) = manualTransactionDao.deleteById(id)
+    override suspend fun updateManualCategoryTransaction(tx: ManualTransaction) = manualTransactionDao.update(tx)
     override suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String) = manualTransactionDao.deleteByMemberAndCategory(categoryId, memberName)
     override suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String) = manualTransactionDao.updateMemberName(categoryId, oldName, newName)
     override suspend fun sumManualOutflowForCategory(categoryId: Int): Double = manualTransactionDao.sumOutflowForCategory(categoryId)
