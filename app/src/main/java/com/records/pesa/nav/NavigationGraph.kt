@@ -443,8 +443,8 @@ fun NavigationGraph(
                 navigateToTransactionsScreen = {
                     navController.navigate("${TransactionsScreenDestination.route}/${it}")
                 },
-                navigateToAllTransactionsScreen = {
-                    navController.navigate("${CategoryAllTransactionsScreenDestination.route}/${it}")
+                navigateToAllTransactionsScreen = { catId, startDate, endDate ->
+                    navController.navigate("${CategoryAllTransactionsScreenDestination.route}/$catId/$startDate/$endDate")
                 },
                 navigateToHomeScreen = {
                     navController.navigate(HomeScreenDestination.route)
@@ -470,6 +470,12 @@ fun NavigationGraph(
             CategoryAllTransactionsScreenDestination.routeWithArgs,
             arguments = listOf(
                 navArgument(CategoryAllTransactionsScreenDestination.categoryId) {
+                    type = NavType.StringType
+                },
+                navArgument(CategoryAllTransactionsScreenDestination.startDate) {
+                    type = NavType.StringType
+                },
+                navArgument(CategoryAllTransactionsScreenDestination.endDate) {
                     type = NavType.StringType
                 }
             )
@@ -595,8 +601,8 @@ fun NavigationGraph(
             )
         ) {
             BudgetInfoScreenComposable(
-                navigateToBudgetAllTransactions = { budgetId ->
-                    navController.navigate("${BudgetAllTransactionsScreenDestination.route}/$budgetId")
+                navigateToBudgetAllTransactions = { budgetId, startDate, endDate ->
+                    navController.navigate("${BudgetAllTransactionsScreenDestination.route}/$budgetId/$startDate/$endDate")
                 },
                 navigateToPreviousScreen = {
                     navController.popBackStack()
@@ -630,6 +636,12 @@ fun NavigationGraph(
             BudgetAllTransactionsScreenDestination.routeWithArgs,
             arguments = listOf(
                 navArgument(BudgetAllTransactionsScreenDestination.budgetId) {
+                    type = NavType.StringType
+                },
+                navArgument(BudgetAllTransactionsScreenDestination.startDate) {
+                    type = NavType.StringType
+                },
+                navArgument(BudgetAllTransactionsScreenDestination.endDate) {
                     type = NavType.StringType
                 }
             )

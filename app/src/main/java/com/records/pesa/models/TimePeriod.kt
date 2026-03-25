@@ -16,6 +16,7 @@ sealed class TimePeriod {
     object LAST_MONTH : TimePeriod()
     object THIS_YEAR : TimePeriod()
     object ENTIRE : TimePeriod()
+    object CUSTOM : TimePeriod()
     data class SPECIFIC_YEAR(val year: Int) : TimePeriod()
     
     /**
@@ -68,6 +69,8 @@ sealed class TimePeriod {
 
             is ENTIRE -> LocalDate.of(2000, 1, 1) to now
 
+            is CUSTOM -> now.withDayOfMonth(1) to now
+
             is SPECIFIC_YEAR -> {
                 val startOfYear = LocalDate.of(year, 1, 1)
                 val endOfYear = LocalDate.of(year, 12, 31)
@@ -91,6 +94,7 @@ sealed class TimePeriod {
             is LAST_MONTH -> "Last Month"
             is THIS_YEAR -> "This Year"
             is ENTIRE -> "Entire"
+            is CUSTOM -> "Custom"
             is SPECIFIC_YEAR -> year.toString()
         }
     }
@@ -111,6 +115,7 @@ sealed class TimePeriod {
             is LAST_MONTH -> "Last Month (${start.format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy"))})"
             is THIS_YEAR -> "This Year (${start.year})"
             is ENTIRE -> "All time"
+            is CUSTOM -> "Custom range"
             is SPECIFIC_YEAR -> "Year $year"
         }
     }

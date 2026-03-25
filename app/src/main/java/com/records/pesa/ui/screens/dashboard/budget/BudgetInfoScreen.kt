@@ -55,6 +55,7 @@ import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.ExecutionStatus
 import com.records.pesa.reusables.LoadingStatus
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.ui.screens.dashboard.category.InsightItem
 import com.records.pesa.ui.screens.dashboard.category.TrendPoint
 import java.time.LocalDate
@@ -73,7 +74,7 @@ object BudgetInfoScreenDestination : AppNavigation {
 // ─── Top-level wiring composable ─────────────────────────────────────────────
 @Composable
 fun BudgetInfoScreenComposable(
-    navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
+    navigateToBudgetAllTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
@@ -167,7 +168,8 @@ fun BudgetInfoScreenComposable(
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToAuditTrail = navigateToAuditTrail,
             navigateToTransactionDetails = navigateToTransactionDetails,
-            onEditManualTx = { editingManualTx = it }
+            onEditManualTx = { editingManualTx = it },
+            onPeriodSelected = { viewModel.selectPeriod(it) }
         )
     }
 }
@@ -178,11 +180,12 @@ fun BudgetInfoScreen(
     uiState: BudgetInfoScreenUiState,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    navigateToBudgetAllTransactions: (budgetId: Int) -> Unit,
+    navigateToBudgetAllTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
     onEditManualTx: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
+    onPeriodSelected: (TimePeriod) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val budget = uiState.budget
@@ -379,11 +382,19 @@ fun BudgetInfoScreen(
         // 6. View all transactions button
         if (budget != null && budget.categoryId != null) {
             item {
+                BudgetPeriodPickerCard(
+                    selectedPeriod = uiState.selectedPeriod,
+                    isPremium = uiState.isPremium,
+                    onPeriodSelected = onPeriodSelected,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+            item {
                 Button(
-                    onClick = { navigateToBudgetAllTransactions(budget.id) },
+                    onClick = { navigateToBudgetAllTransactions(budget.id, uiState.periodStartDate.toString(), uiState.periodEndDate.toString()) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(
@@ -1505,7 +1516,7 @@ private fun BudgetInfoScreenPreview() {
             ),
             onEditClick = {},
             onDeleteClick = {},
-            navigateToBudgetAllTransactions = {},
+            navigateToBudgetAllTransactions = { _, _, _ -> },
             navigateToPreviousScreen = {}
         )
     }
@@ -1576,6 +1587,111 @@ private fun BudgetMembersCard(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun BudgetPeriodPickerCard(
+    selectedPeriod: TimePeriod,
+    isPremium: Boolean,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
+    var showMenu by remember { mutableStateOf(false) }
+    var showSubscriptionDialog by remember { mutableStateOf(false) }
+
+    if (showSubscriptionDialog) {
+        com.records.pesa.ui.screens.components.SubscriptionDialog(
+            onDismiss = { showSubscriptionDialog = false },
+            onConfirm = { showSubscriptionDialog = false }
+        )
+    }
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "View transactions for:",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Box {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(primaryColor.copy(alpha = 0.10f))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        ) { showMenu = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = selectedPeriod.getDisplayName().uppercase(),
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = primaryColor, letterSpacing = 1.sp
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_downward),
+                        contentDescription = "Select period",
+                        tint = primaryColor, modifier = Modifier.size(11.dp)
+                    )
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    periodOptions.forEach { period ->
+                        val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = period.getDisplayName(),
+                                        fontSize = 14.sp,
+                                        fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (period == selectedPeriod) primaryColor else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (requiresPremium) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.lock),
+                                            contentDescription = "Premium",
+                                            modifier = Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                showMenu = false
+                                if (requiresPremium) showSubscriptionDialog = true
+                                else onPeriodSelected(period)
+                            }
+                        )
                     }
                 }
             }

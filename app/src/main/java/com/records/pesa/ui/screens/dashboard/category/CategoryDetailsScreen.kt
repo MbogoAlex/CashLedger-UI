@@ -141,7 +141,7 @@ fun CategoryDetailsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
-    navigateToAllTransactionsScreen: (categoryId: String) -> Unit,
+    navigateToAllTransactionsScreen: (categoryId: String, startDate: String, endDate: String) -> Unit,
     navigateToCategoryBudgetListScreen: (categoryId: String, categoryName: String) -> Unit,
     navigateToBudgetCreationScreen: (categoryId: String) -> Unit,
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit,
@@ -324,7 +324,7 @@ fun CategoryDetailsScreen(
     navigateToPreviousScreen: () -> Unit,
     navigateToMembersAdditionScreen: (categoryId: String) -> Unit,
     navigateToTransactionsScreen: (categoryId: String) -> Unit,
-    navigateToAllTransactionsScreen: (categoryId: String) -> Unit = {},
+    navigateToAllTransactionsScreen: (categoryId: String, startDate: String, endDate: String) -> Unit = { _, _, _ -> },
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit = {},
     showInlineBudgetForm: Boolean = false,
     inlineBudgetName: String = "",
@@ -680,7 +680,7 @@ fun CategoryDetailsScreen(
                     }
                     item {
                         Button(
-                            onClick = { navigateToAllTransactionsScreen(category.id.toString()) },
+                            onClick = { navigateToAllTransactionsScreen(category.id.toString(), startDate.toString(), endDate.toString()) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -1312,7 +1312,7 @@ fun CategoryDetailsScreen(
                         onDeleteTransaction = onDeleteManualTransaction,
                         onEditTransaction = onEditManualTransaction,
                         onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) },
-                        onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString()) },
+                        onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString(), startDate.toString(), endDate.toString()) },
                         onNavigateToTransactionDetails = navigateToTransactionDetails
                     )
                 }
@@ -1355,7 +1355,7 @@ private fun CatPeriodPicker(
             TimePeriod.TODAY, TimePeriod.YESTERDAY,
             TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
             TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
-            TimePeriod.THIS_YEAR
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
         )
     }
     var showPeriodMenu by remember { mutableStateOf(false) }
@@ -1415,7 +1415,7 @@ private fun CatPeriodPicker(
                             onDismissRequest = { showPeriodMenu = false }
                         ) {
                             periodOptions.forEach { period ->
-                                val requiresPremium = !isPremium && period == TimePeriod.THIS_YEAR
+                                val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -2401,7 +2401,7 @@ private fun CategoryDetailsScreenPreview() {
             navigateToPreviousScreen = {},
             navigateToMembersAdditionScreen = {},
             navigateToTransactionsScreen = {},
-            navigateToAllTransactionsScreen = {}
+            navigateToAllTransactionsScreen = { _, _, _ -> }
         )
     }
 }

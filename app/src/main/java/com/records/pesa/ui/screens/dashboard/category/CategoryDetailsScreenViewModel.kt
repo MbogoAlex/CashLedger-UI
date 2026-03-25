@@ -131,7 +131,7 @@ class CategoryDetailsScreenViewModel(
     fun selectPeriod(period: TimePeriod) {
         val isPremium = uiState.value.isPremium
         // Non-premium: cap at THIS_MONTH (max 30-day periods only)
-        val safePeriod = if (!isPremium && period is TimePeriod.THIS_YEAR) TimePeriod.THIS_MONTH else period
+        val safePeriod = if (!isPremium && (period is TimePeriod.LAST_MONTH || period is TimePeriod.THIS_YEAR || period is TimePeriod.ENTIRE)) TimePeriod.THIS_MONTH else period
         val (start, end) = safePeriod.getDateRange()
         _uiState.update {
             it.copy(

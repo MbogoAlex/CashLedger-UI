@@ -46,6 +46,9 @@ import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.Transaction
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
@@ -56,6 +59,7 @@ import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
 import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
+import com.records.pesa.ui.screens.dashboard.category.AllTxnsPeriodRow
 import com.records.pesa.ui.screens.dashboard.category.CombinedFilter
 import com.records.pesa.ui.screens.dashboard.category.CombinedTransactionItem
 import com.records.pesa.ui.screens.dashboard.category.DownloadingStatus
@@ -74,13 +78,16 @@ object BudgetAllTransactionsScreenDestination : AppNavigation {
     override val title = "Budget Transactions"
     override val route = "budget-all-transactions-screen"
     const val budgetId = "budgetId"
-    val routeWithArgs = "$route/{$budgetId}"
+    const val startDate = "startDate"
+    const val endDate = "endDate"
+    val routeWithArgs = "$route/{$budgetId}/{$startDate}/{$endDate}"
 }
 
 // ─── UiState ─────────────────────────────────────────────────────────────────
 data class BudgetAllTransactionsUiState(
     val budgetName: String = "",
     val categoryId: Int? = null,
+    val selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
     val startDate: LocalDate = LocalDate.now().minusMonths(1),
     val endDate: LocalDate = LocalDate.now(),
     val mpesaItems: List<Transaction> = emptyList(),
@@ -114,6 +121,14 @@ class BudgetAllTransactionsScreenViewModel(
         ?.toIntOrNull() ?: 0
 
     init {
+        // Initialize dates from nav args if provided
+        val navStart = savedStateHandle.get<String>(BudgetAllTransactionsScreenDestination.startDate)
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val navEnd = savedStateHandle.get<String>(BudgetAllTransactionsScreenDestination.endDate)
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        if (navStart != null && navEnd != null) {
+            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM) }
+        }
         loadBudget()
         viewModelScope.launch {
             dataStoreRepository.getUserPreferences().collect { prefs ->
@@ -135,12 +150,14 @@ class BudgetAllTransactionsScreenViewModel(
             try {
                 dbRepository.getBudgetById(budgetIdInt).filterNotNull().collectLatest { budget ->
                     val members = dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
+                    // Only set dates from budget if nav args didn't provide them
+                    val hasNavDates = _uiState.value.selectedPeriod == TimePeriod.CUSTOM
                     _uiState.update {
                         it.copy(
                             budgetName = budget.name,
                             categoryId = budget.categoryId,
-                            startDate = budget.startDate,
-                            endDate = budget.limitDate,
+                            startDate = if (hasNavDates) it.startDate else budget.startDate,
+                            endDate = if (hasNavDates) it.endDate else budget.limitDate,
                             memberNames = members,
                             isLoading = false
                         )
@@ -181,10 +198,17 @@ class BudgetAllTransactionsScreenViewModel(
         }
     }
 
-    fun setStartDate(date: LocalDate) = _uiState.update { it.copy(startDate = date) }
-    fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date) }
+    fun setStartDate(date: LocalDate) = _uiState.update { it.copy(startDate = date, selectedPeriod = TimePeriod.CUSTOM) }
+    fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date, selectedPeriod = TimePeriod.CUSTOM) }
     fun setFilter(filter: CombinedFilter) = _uiState.update { it.copy(filter = filter) }
     fun setSearchText(text: String) = _uiState.update { it.copy(searchText = text) }
+
+    fun updatePeriod(period: TimePeriod) {
+        val isPremium = _uiState.value.isPremium
+        val safePeriod = if (!isPremium && (period is TimePeriod.LAST_MONTH || period is TimePeriod.THIS_YEAR || period is TimePeriod.ENTIRE)) TimePeriod.THIS_MONTH else period
+        val (start, end) = safePeriod.getDateRange()
+        _uiState.update { it.copy(selectedPeriod = safePeriod, startDate = start, endDate = end) }
+    }
 
     fun updateManualTransaction(tx: ManualTransaction) {
         viewModelScope.launch {
@@ -386,6 +410,14 @@ fun BudgetAllTransactionsScreenComposable(
         )
     }
 
+    var showSubscriptionDialog by rememberSaveable { mutableStateOf(false) }
+    if (showSubscriptionDialog) {
+        com.records.pesa.ui.screens.components.SubscriptionDialog(
+            onDismiss = { showSubscriptionDialog = false },
+            onConfirm = { showSubscriptionDialog = false }
+        )
+    }
+
     BudgetAllTransactionsScreen(
         uiState = uiState,
         filteredItems = filtered,
@@ -393,6 +425,8 @@ fun BudgetAllTransactionsScreenComposable(
         onSearchTextChange = viewModel::setSearchText,
         onStartDateChange = viewModel::setStartDate,
         onEndDateChange = viewModel::setEndDate,
+        onPeriodSelected = { viewModel.updatePeriod(it) },
+        onShowSubscriptionDialog = { showSubscriptionDialog = true },
         onNavigateBack = navigateToPreviousScreen,
         onEditManualTx = { editingTx = it },
         onDownloadReport = { showDownloadDialog = true },
@@ -412,6 +446,8 @@ fun BudgetAllTransactionsScreen(
     onSearchTextChange: (String) -> Unit,
     onStartDateChange: (LocalDate) -> Unit,
     onEndDateChange: (LocalDate) -> Unit,
+    onPeriodSelected: (TimePeriod) -> Unit = {},
+    onShowSubscriptionDialog: () -> Unit = {},
     onNavigateBack: () -> Unit,
     onEditManualTx: (ManualTransaction) -> Unit = {},
     onDownloadReport: () -> Unit = {},
@@ -545,12 +581,16 @@ fun BudgetAllTransactionsScreen(
                                 text = "Transactions",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             if (uiState.budgetName.isNotBlank()) {
                                 Text(
                                     text = uiState.budgetName,
                                     fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -580,57 +620,26 @@ fun BudgetAllTransactionsScreen(
                 }
             }
 
-            // ── Date range row ────────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.calendar),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-                DateChip(
-                    label = uiState.startDate.format(dateFmt),
-                    onClick = {
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
-                            uiState.startDate.year,
-                            uiState.startDate.monthValue - 1,
-                            uiState.startDate.dayOfMonth
-                        ).show()
-                    }
-                )
-                Text("→", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                DateChip(
-                    label = uiState.endDate.format(dateFmt),
-                    onClick = {
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d -> onEndDateChange(LocalDate.of(y, m + 1, d)) },
-                            uiState.endDate.year,
-                            uiState.endDate.monthValue - 1,
-                            uiState.endDate.dayOfMonth
-                        ).show()
-                    }
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "${filtered.size} txn${if (filtered.size != 1) "s" else ""}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // ── Period picker row ────────────────────────────────────────────
+            AllTxnsPeriodRow(
+                selectedPeriod = uiState.selectedPeriod,
+                startDate = uiState.startDate,
+                endDate = uiState.endDate,
+                txCount = filtered.size,
+                isPremium = uiState.isPremium,
+                context = context,
+                dateFmt = dateFmt,
+                onPeriodSelected = onPeriodSelected,
+                onStartDateChange = onStartDateChange,
+                onEndDateChange = onEndDateChange,
+                onShowSubscriptionDialog = onShowSubscriptionDialog
+            )
 
             // ── Filter chips ──────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -706,7 +715,7 @@ fun BudgetAllTransactionsScreen(
                         items(memberItems) { item ->
                             val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
                             val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
-                            BudgetPremiumTxWrapper(isLocked = isLocked) {
+                            BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
                                 when (item) {
                                     is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
                                     is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
@@ -728,7 +737,7 @@ fun BudgetAllTransactionsScreen(
                         items(itemsForDate) { item ->
                             val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
                             val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
-                            BudgetPremiumTxWrapper(isLocked = isLocked) {
+                            BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
                                 when (item) {
                                     is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
                                     is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
@@ -745,12 +754,13 @@ fun BudgetAllTransactionsScreen(
 
 // ─── Premium blur wrapper ────────────────────────────────────────────────────
 @Composable
-private fun BudgetPremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit) {
+private fun BudgetPremiumTxWrapper(isLocked: Boolean, onLockedClick: () -> Unit = {}, content: @Composable () -> Unit) {
     Box {
         Box(modifier = if (isLocked) Modifier.blur(6.dp) else Modifier) { content() }
         if (isLocked) {
             Box(
-                modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                    .clickable(onClick = onLockedClick),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(

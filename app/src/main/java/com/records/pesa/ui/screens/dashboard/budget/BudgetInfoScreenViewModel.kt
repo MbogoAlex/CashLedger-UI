@@ -9,6 +9,7 @@ import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.ManualBudgetTransaction
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.models.dbModel.UserDetails
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.ExecutionStatus
 import com.records.pesa.reusables.LoadingStatus
@@ -76,7 +77,11 @@ data class BudgetInfoScreenUiState(
     val budgetMembers: List<com.records.pesa.db.models.BudgetMember> = emptyList(),
     // For edit dialog member management
     val allCategoryMembers: List<String> = emptyList(),
-    val editSelectedMembers: Set<String> = emptySet()
+    val editSelectedMembers: Set<String> = emptySet(),
+    // Period selection for navigating to AllTransactions
+    val selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
+    val periodStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
+    val periodEndDate: LocalDate = LocalDate.now()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -99,6 +104,13 @@ class BudgetInfoScreenViewModel(
     fun updateAlertThreshold(value: Int) = _uiState.update { it.copy(alertThreshold = value) }
     fun updateStartDate(date: String) = _uiState.update { it.copy(budgetStartDate = date) }
     fun updateLimitDate(date: String) = _uiState.update { it.copy(budgetLimitDate = date) }
+
+    fun selectPeriod(period: TimePeriod) {
+        val isPremium = _uiState.value.isPremium
+        val safePeriod = if (!isPremium && (period is TimePeriod.LAST_MONTH || period is TimePeriod.THIS_YEAR || period is TimePeriod.ENTIRE)) TimePeriod.THIS_MONTH else period
+        val (start, end) = safePeriod.getDateRange()
+        _uiState.update { it.copy(selectedPeriod = safePeriod, periodStartDate = start, periodEndDate = end) }
+    }
 
     fun resetLoadingStatus() = _uiState.update {
         it.copy(loadingStatus = LoadingStatus.INITIAL, executionStatus = ExecutionStatus.INITIAL)

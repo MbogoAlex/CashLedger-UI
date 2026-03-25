@@ -52,10 +52,14 @@ import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
 import com.records.pesa.ui.screens.components.DownloadReportDialog
 import com.records.pesa.ui.screens.components.EditManualTransactionDialog
+import com.records.pesa.ui.screens.components.SubscriptionDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
 import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.ui.screens.dashboard.category.DownloadingStatus
 import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +75,9 @@ object CategoryAllTransactionsScreenDestination : AppNavigation {
     override val title = "All Transactions"
     override val route = "category-all-transactions-screen"
     const val categoryId = "categoryId"
-    val routeWithArgs = "$route/{$categoryId}"
+    const val startDate = "startDate"
+    const val endDate = "endDate"
+    val routeWithArgs = "$route/{$categoryId}/{$startDate}/{$endDate}"
 }
 
 enum class CombinedFilter { ALL, MPESA, MANUAL, BY_MEMBER }
@@ -87,6 +93,7 @@ data class CategoryAllTransactionsUiState(
     val manualItems: List<ManualTransaction> = emptyList(),
     val filter: CombinedFilter = CombinedFilter.ALL,
     val searchText: String = "",
+    val selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
     val startDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     val endDate: LocalDate = LocalDate.now(),
     val isPremium: Boolean = false,
@@ -114,6 +121,14 @@ class CategoryAllTransactionsScreenViewModel(
         ?.toIntOrNull() ?: 0
 
     init {
+        // Initialize dates from nav args if provided
+        val navStart = savedStateHandle.get<String>(CategoryAllTransactionsScreenDestination.startDate)
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val navEnd = savedStateHandle.get<String>(CategoryAllTransactionsScreenDestination.endDate)
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        if (navStart != null && navEnd != null) {
+            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM) }
+        }
         loadCategoryName()
         loadData()
         viewModelScope.launch {
@@ -169,8 +184,15 @@ class CategoryAllTransactionsScreenViewModel(
         _uiState.update { it.copy(filter = filter) }
     }
 
-    fun setStartDate(date: LocalDate) = _uiState.update { it.copy(startDate = date) }
-    fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date) }
+    fun setStartDate(date: LocalDate) = _uiState.update { it.copy(startDate = date, selectedPeriod = TimePeriod.CUSTOM) }
+    fun setEndDate(date: LocalDate) = _uiState.update { it.copy(endDate = date, selectedPeriod = TimePeriod.CUSTOM) }
+
+    fun updatePeriod(period: TimePeriod) {
+        val isPremium = _uiState.value.isPremium
+        val safePeriod = if (!isPremium && (period is TimePeriod.LAST_MONTH || period is TimePeriod.THIS_YEAR || period is TimePeriod.ENTIRE)) TimePeriod.THIS_MONTH else period
+        val (start, end) = safePeriod.getDateRange()
+        _uiState.update { it.copy(selectedPeriod = safePeriod, startDate = start, endDate = end) }
+    }
 
     fun setSearchText(text: String) {
         _uiState.update { it.copy(searchText = text) }
@@ -369,6 +391,8 @@ fun CategoryAllTransactionsScreenComposable(
     }
     filteredSnapshot = filtered
 
+    var showSubscriptionDialog by rememberSaveable { mutableStateOf(false) }
+
     editingTx?.let { tx ->
         EditManualTransactionDialog(
             tx = tx,
@@ -378,12 +402,21 @@ fun CategoryAllTransactionsScreenComposable(
         )
     }
 
+    if (showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = { showSubscriptionDialog = false },
+            onConfirm = { showSubscriptionDialog = false }
+        )
+    }
+
     CategoryAllTransactionsScreen(
         uiState = uiState,
         filteredItems = filtered,
         onFilterChange = { viewModel.setFilter(it) },
         onStartDateChange = viewModel::setStartDate,
         onEndDateChange = viewModel::setEndDate,
+        onPeriodSelected = { viewModel.updatePeriod(it) },
+        onShowSubscriptionDialog = { showSubscriptionDialog = true },
         onSearchTextChange = { viewModel.setSearchText(it) },
         onNavigateBack = navigateToPreviousScreen,
         onEditManualTx = { editingTx = it },
@@ -402,6 +435,8 @@ fun CategoryAllTransactionsScreen(
     onFilterChange: (CombinedFilter) -> Unit,
     onStartDateChange: (LocalDate) -> Unit = {},
     onEndDateChange: (LocalDate) -> Unit = {},
+    onPeriodSelected: (TimePeriod) -> Unit = {},
+    onShowSubscriptionDialog: () -> Unit = {},
     onSearchTextChange: (String) -> Unit,
     onNavigateBack: () -> Unit,
     onEditManualTx: (ManualTransaction) -> Unit = {},
@@ -540,12 +575,16 @@ fun CategoryAllTransactionsScreen(
                                 text = "All Transactions",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             if (uiState.categoryName.isNotBlank()) {
                                 Text(
                                     uiState.categoryName,
                                     fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -575,72 +614,27 @@ fun CategoryAllTransactionsScreen(
                 }
             }
 
-            // ── Date range row ────────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.calendar),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.clickable {
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
-                            uiState.startDate.year,
-                            uiState.startDate.monthValue - 1,
-                            uiState.startDate.dayOfMonth
-                        ).show()
-                    }
-                ) {
-                    Text(
-                        uiState.startDate.format(dateFmt),
-                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-                Text("→", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.clickable {
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d -> onEndDateChange(LocalDate.of(y, m + 1, d)) },
-                            uiState.endDate.year,
-                            uiState.endDate.monthValue - 1,
-                            uiState.endDate.dayOfMonth
-                        ).show()
-                    }
-                ) {
-                    Text(
-                        uiState.endDate.format(dateFmt),
-                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    "${filtered.size} tx",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // ── Period picker row ────────────────────────────────────────────
+            AllTxnsPeriodRow(
+                selectedPeriod = uiState.selectedPeriod,
+                startDate = uiState.startDate,
+                endDate = uiState.endDate,
+                txCount = filtered.size,
+                isPremium = uiState.isPremium,
+                context = context,
+                dateFmt = dateFmt,
+                onPeriodSelected = onPeriodSelected,
+                onStartDateChange = onStartDateChange,
+                onEndDateChange = onEndDateChange,
+                onShowSubscriptionDialog = onShowSubscriptionDialog
+            )
 
-            // Filter chips — All | M-PESA | Manual | By Member
+            // Filter chips — All | M-PESA | Manual | By Member (scrollable)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CombinedFilter.values().forEach { f ->
@@ -730,7 +724,7 @@ fun CategoryAllTransactionsScreen(
                         }
                         items(memberItems) { item ->
                             val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
-                            PremiumTxWrapper(isLocked = isLocked) {
+                            PremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
                                 when (item) {
                                     is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
                                         tx = item.tx,
@@ -758,7 +752,7 @@ fun CategoryAllTransactionsScreen(
                         }
                         items(itemsForDate) { item ->
                             val isLocked = !uiState.isPremium && itemDate(item).isBefore(freeLimit)
-                            PremiumTxWrapper(isLocked = isLocked) {
+                            PremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
                                 when (item) {
                                     is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
                                         tx = item.tx,
@@ -786,14 +780,15 @@ private fun itemDate(item: CombinedTransactionItem): LocalDate = when (item) {
 }
 
 @Composable
-private fun PremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit) {
+private fun PremiumTxWrapper(isLocked: Boolean, onLockedClick: () -> Unit = {}, content: @Composable () -> Unit) {
     Box {
         Box(modifier = if (isLocked) Modifier.blur(6.dp) else Modifier) { content() }
         if (isLocked) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                    .clickable(onClick = onLockedClick),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
@@ -809,6 +804,155 @@ private fun PremiumTxWrapper(isLocked: Boolean, content: @Composable () -> Unit)
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun AllTxnsPeriodRow(
+    selectedPeriod: TimePeriod,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    txCount: Int,
+    isPremium: Boolean,
+    context: android.content.Context,
+    dateFmt: java.time.format.DateTimeFormatter,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onStartDateChange: (LocalDate) -> Unit,
+    onEndDateChange: (LocalDate) -> Unit,
+    onShowSubscriptionDialog: () -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
+    var showMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Period dropdown chip
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(primaryColor.copy(alpha = 0.10f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    ) { showMenu = true }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = selectedPeriod.getDisplayName().uppercase(),
+                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    color = primaryColor, letterSpacing = 1.sp
+                )
+                Icon(
+                    painter = painterResource(R.drawable.arrow_downward),
+                    contentDescription = "Select period",
+                    tint = primaryColor, modifier = Modifier.size(11.dp)
+                )
+            }
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                periodOptions.forEach { period ->
+                    val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = period.getDisplayName(),
+                                    fontSize = 14.sp,
+                                    fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (period == selectedPeriod) primaryColor else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (requiresPremium) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.lock),
+                                        contentDescription = "Premium",
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            if (requiresPremium) onShowSubscriptionDialog()
+                            else onPeriodSelected(period)
+                        }
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                // Custom date pickers
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, modifier = Modifier.size(14.dp), tint = primaryColor)
+                            Text("${startDate.format(dateFmt)}  →  ${endDate.format(dateFmt)}", fontSize = 13.sp)
+                        }
+                    },
+                    onClick = {
+                        showMenu = false
+                        DatePickerDialog(
+                            context,
+                            { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
+                            startDate.year, startDate.monthValue - 1, startDate.dayOfMonth
+                        ).show()
+                    }
+                )
+            }
+        }
+        Text(
+            "${txCount} tx",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(1f))
+        // Current date range as chips
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.clickable {
+                DatePickerDialog(
+                    context,
+                    { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
+                    startDate.year, startDate.monthValue - 1, startDate.dayOfMonth
+                ).show()
+            }
+        ) {
+            Text(startDate.format(dateFmt), fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        }
+        Text("→", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.clickable {
+                DatePickerDialog(
+                    context,
+                    { _, y, m, d -> onEndDateChange(LocalDate.of(y, m + 1, d)) },
+                    endDate.year, endDate.monthValue - 1, endDate.dayOfMonth
+                ).show()
+            }
+        ) {
+            Text(endDate.format(dateFmt), fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
         }
     }
 }
