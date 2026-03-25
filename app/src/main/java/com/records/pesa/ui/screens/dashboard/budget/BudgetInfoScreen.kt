@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Checkbox
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -121,9 +123,16 @@ fun BudgetInfoScreenComposable(
             onLimitChange = viewModel::updateBudgetLimit,
             onDateChange = viewModel::updateLimitDate,
             onThresholdChange = viewModel::updateAlertThreshold,
-            onSave = viewModel::saveBudgetEdits,
+            onToggleMember = viewModel::toggleEditMember,
+            onSave = {
+                viewModel.saveBudgetEdits()
+                viewModel.saveEditedMembers()
+            },
             onDismiss = { showEditDialog = false; viewModel.resetLoadingStatus() }
         )
+        LaunchedEffect(showEditDialog) {
+            viewModel.loadCategoryMembersForEdit()
+        }
     }
 
     if (showDeleteDialog) {
@@ -289,24 +298,36 @@ fun BudgetInfoScreen(
             }
         }
 
-        // 5. Recent Transactions grouped by date
-        val grouped = uiState.transactions
-            .sortedByDescending { it.date }
-            .groupBy { it.date }
+        // 5. Combined Transactions (M-PESA + manual) grouped by date, sorted newest first
+        val allTxDates = (uiState.transactions.map { it.date } + uiState.manualTransactions.map { it.date })
+            .distinct().sortedDescending()
 
-        grouped.forEach { (date, txList) ->
-            item(key = date.toString()) {
-                BudgetDateHeader(date = date)
-            }
-            items(txList, key = { it.id }) { tx ->
-                BudgetTransactionRow(
-                    transaction = tx,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                )
+        allTxDates.forEach { date ->
+            val mpesaOnDate = uiState.transactions.filter { it.date == date }
+                .sortedByDescending { it.time }
+            val manualOnDate = uiState.manualTransactions.filter { it.date == date }
+                .sortedByDescending { it.time }
+
+            if (mpesaOnDate.isNotEmpty() || manualOnDate.isNotEmpty()) {
+                item(key = "header-$date") {
+                    BudgetDateHeader(date = date)
+                }
+                items(mpesaOnDate, key = { "mpesa-${it.id}" }) { tx ->
+                    BudgetTransactionRow(
+                        transaction = tx,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                }
+                items(manualOnDate, key = { "manual-${it.id}" }) { tx ->
+                    BudgetManualTransactionRow(
+                        tx = tx,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
 
-        if (uiState.transactions.isEmpty() && uiState.loadingStatus != LoadingStatus.LOADING) {
+        if (uiState.transactions.isEmpty() && uiState.manualTransactions.isEmpty() && uiState.loadingStatus != LoadingStatus.LOADING) {
             item {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -1130,6 +1151,59 @@ private fun BudgetTransactionRow(
     }
 }
 
+// ─── Manual Transaction row ───────────────────────────────────────────────────
+@Composable
+private fun BudgetManualTransactionRow(
+    tx: com.records.pesa.db.models.ManualTransaction,
+    modifier: Modifier = Modifier
+) {
+    val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
+    val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF388E3C)
+    val prefix = if (tx.isOutflow) "-" else "+"
+    val avatarColor = txAvatarColor(tx.memberName)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor), contentAlignment = Alignment.Center) {
+                Text(
+                    text = tx.memberName.take(1).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            // Small "edit" badge marks as manual
+            Box(
+                modifier = Modifier.size(14.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .align(Alignment.BottomEnd),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(painter = painterResource(R.drawable.edit), contentDescription = null, modifier = Modifier.size(9.dp), tint = Color.White)
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(tx.memberName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(tx.transactionTypeName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                tx.time?.let { Text("· ${it.format(timeFormatter)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            if (tx.description.isNotBlank()) {
+                Text(tx.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Text("$prefix${formatMoneyValue(tx.amount)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = amountColor)
+    }
+}
+
 // ─── Edit Dialog ──────────────────────────────────────────────────────────────
 @Composable
 private fun BudgetEditDialog(
@@ -1138,6 +1212,7 @@ private fun BudgetEditDialog(
     onLimitChange: (String) -> Unit,
     onDateChange: (String) -> Unit,
     onThresholdChange: (Int) -> Unit,
+    onToggleMember: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1264,6 +1339,38 @@ private fun BudgetEditDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    }
+                }
+
+                // Member management
+                if (uiState.allCategoryMembers.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        "Tracked members",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Select members whose spending counts toward this budget. Leave all unchecked to track the whole category.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    uiState.allCategoryMembers.forEach { memberName ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleMember(memberName) }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = memberName in uiState.editSelectedMembers,
+                                onCheckedChange = { onToggleMember(memberName) }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(memberName, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }

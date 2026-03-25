@@ -40,7 +40,9 @@ class BudgetRecalculationWorker(
                     )
                 }
                 val manualOutflow = if (memberNames.isEmpty()) {
-                    container.dbRepository.sumManualOutflowForCategory(categoryId)
+                    container.dbRepository.sumManualOutflowForCategoryInPeriod(
+                        categoryId, budget.startDate, minOf(today, budget.limitDate)
+                    )
                 } else {
                     container.dbRepository.sumManualOutflowForCategoryAndMembers(
                         categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames

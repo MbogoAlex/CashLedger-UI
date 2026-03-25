@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import com.records.pesa.db.models.ManualTransaction as ManualCategoryTx
 import com.records.pesa.workers.BudgetAlertTracker
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -56,6 +58,7 @@ data class BudgetInfoScreenUiState(
     val projectedTotal: Double = 0.0,
     // Chart + insights
     val transactions: List<Transaction> = emptyList(),
+    val manualTransactions: List<com.records.pesa.db.models.ManualTransaction> = emptyList(),
     val trendData: List<TrendPoint> = emptyList(),
     val insights: List<InsightItem> = emptyList(),
     // Edit fields
@@ -66,7 +69,10 @@ data class BudgetInfoScreenUiState(
     val alertThreshold: Int = 80,
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val executionStatus: ExecutionStatus = ExecutionStatus.INITIAL,
-    val budgetMembers: List<com.records.pesa.db.models.BudgetMember> = emptyList()
+    val budgetMembers: List<com.records.pesa.db.models.BudgetMember> = emptyList(),
+    // For edit dialog member management
+    val allCategoryMembers: List<String> = emptyList(),
+    val editSelectedMembers: Set<String> = emptySet()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -158,15 +164,40 @@ class BudgetInfoScreenViewModel(
                     } else {
                         flowOf(0.0)
                     }
-                    val manualFlow = dbRepository.getManualTransactionsForBudget(budget.id)
-                    combine(outflowFlow, manualFlow) { outflow, manualTxs ->
-                        outflow + manualTxs.sumOf { it.amount }
+                    // Use category-scoped manual transactions (not old ManualBudgetTransaction)
+                    val manualCategoryFlow: kotlinx.coroutines.flow.Flow<List<ManualCategoryTx>> = if (budget.categoryId != null) {
+                        dbRepository.getManualTransactionsForCategory(budget.categoryId)
+                            .map { txList: List<ManualCategoryTx> ->
+                                txList.filter { tx -> tx.isOutflow && !tx.date.isBefore(start) && !tx.date.isAfter(end) }
+                            }
+                    } else {
+                        flowOf(emptyList())
+                    }
+                    combine(outflowFlow, manualCategoryFlow) { mpesaOut: Double, manualTxs: List<ManualCategoryTx> ->
+                        mpesaOut + manualTxs.sumOf { it.amount }
                     }
                 }
                 .collectLatest { spending ->
                     val budget = _uiState.value.budget ?: return@collectLatest
                     recomputeAll(budget, spending)
                 }
+        }
+
+        // Also observe manual category transactions for display (live refresh)
+        viewModelScope.launch {
+            dbRepository.getBudgetById(id).filterNotNull().flatMapLatest { budget ->
+                val categoryId = budget.categoryId ?: return@flatMapLatest flowOf(emptyList<ManualCategoryTx>())
+                dbRepository.getManualTransactionsForCategory(categoryId).map { txList: List<ManualCategoryTx> ->
+                    val memberNames = dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
+                    txList.filter { tx ->
+                        tx.isOutflow &&
+                        !tx.date.isBefore(budget.startDate) && !tx.date.isAfter(budget.limitDate) &&
+                        (memberNames.isEmpty() || tx.memberName in memberNames)
+                    }.sortedByDescending { it.date }
+                }
+            }.collectLatest { manualTxs: List<ManualCategoryTx> ->
+                _uiState.update { it.copy(manualTransactions = manualTxs) }
+            }
         }
     }
 
@@ -206,7 +237,7 @@ class BudgetInfoScreenViewModel(
             )
         }
 
-        // Load transactions and build chart + insights
+        // Load transactions (M-PESA + manual) and build chart + insights
         viewModelScope.launch {
             val transactions = if (budget.categoryId != null) {
                 categoryService.getCategoryWithTransactions(budget.categoryId)
@@ -228,7 +259,8 @@ class BudgetInfoScreenViewModel(
                 totalDays = totalDays,
                 remaining = remaining,
                 isOverBudget = isOverBudget,
-                overage = overage
+                overage = overage,
+                percentUsed = percentUsed
             )
 
             _uiState.update {
@@ -315,7 +347,8 @@ class BudgetInfoScreenViewModel(
         totalDays: Int,
         remaining: Double,
         isOverBudget: Boolean,
-        overage: Double
+        overage: Double,
+        percentUsed: Int = if (budget.budgetLimit > 0) ((spending / budget.budgetLimit) * 100).roundToInt().coerceAtLeast(0) else 0
     ): List<InsightItem> {
         val insights = mutableListOf<InsightItem>()
         val dateFmt = DateTimeFormatter.ofPattern("EEE d MMM")
@@ -498,9 +531,6 @@ class BudgetInfoScreenViewModel(
     private fun Budget.dailyAllowance(remaining: Double, daysLeft: Int) =
         if (daysLeft > 0) remaining / daysLeft else 0.0
 
-    private fun Int.toPercent() = "${this}%"
-    private val percentUsed: Int get() = _uiState.value.percentUsed
-
     private fun observePremium() {
         viewModelScope.launch {
             dataStoreRepository.getUserPreferences().collect { prefs ->
@@ -538,6 +568,46 @@ class BudgetInfoScreenViewModel(
             dbRepository.getBudgetMembers(id).collectLatest { members ->
                 _uiState.update { it.copy(budgetMembers = members) }
             }
+        }
+    }
+
+    fun loadCategoryMembersForEdit() {
+        val budgetId = budgetIdArg?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            val budget = dbRepository.getBudgetById(budgetId).first() ?: return@launch
+            val categoryId = budget.categoryId ?: return@launch
+            val cwt = categoryService.getCategoryWithTransactions(categoryId).first()
+            val mpesaNames = cwt.keyWords.map { it.keyword }
+            val manualNames = dbRepository.getManualMembersForCategory(categoryId).first().map { it.name }
+            val allNames = (mpesaNames + manualNames).distinct().sorted()
+            val currentMembers = dbRepository.getBudgetMembersOnce(budgetId).map { it.memberName }.toSet()
+            _uiState.update {
+                it.copy(
+                    allCategoryMembers = allNames,
+                    editSelectedMembers = currentMembers
+                )
+            }
+        }
+    }
+
+    fun toggleEditMember(name: String) {
+        val current = _uiState.value.editSelectedMembers.toMutableSet()
+        if (name in current) current.remove(name) else current.add(name)
+        _uiState.update { it.copy(editSelectedMembers = current) }
+    }
+
+    fun saveEditedMembers() {
+        val budgetId = budgetIdArg?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.deleteBudgetMembers(budgetId)
+            val selected = _uiState.value.editSelectedMembers
+            if (selected.isNotEmpty()) {
+                dbRepository.insertBudgetMembers(selected.map {
+                    com.records.pesa.db.models.BudgetMember(budgetId = budgetId, memberName = it)
+                })
+            }
+            val budget = dbRepository.getBudgetById(budgetId).first() ?: return@launch
+            recalculateExpenditure(budget)
         }
     }
 

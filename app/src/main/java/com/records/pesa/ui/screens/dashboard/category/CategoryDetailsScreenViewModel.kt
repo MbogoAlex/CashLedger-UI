@@ -812,9 +812,13 @@ class CategoryDetailsScreenViewModel(
                 val progressMap = mutableMapOf<Int, BudgetWithProgress>()
                 for (budget in budgets) {
                     val spending = if (budget.categoryId != null) {
-                        dbRepository.getOutflowForCategory(
+                        val mpesaOut = dbRepository.getOutflowForCategory(
                             budget.categoryId, budget.startDate, budget.limitDate
                         ).first()
+                        val manualOut = dbRepository.sumManualOutflowForCategoryInPeriod(
+                            budget.categoryId, budget.startDate, budget.limitDate
+                        )
+                        mpesaOut + manualOut
                     } else {
                         dbRepository.sumManualTransactionsForBudget(budget.id)
                     }
