@@ -21,12 +21,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.ui.draw.scale
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -48,7 +51,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetCycleLog
 import com.records.pesa.db.models.Transaction
+import com.records.pesa.functions.formatLocalDate
+import com.records.pesa.functions.RecurrenceHelper
+import com.records.pesa.functions.RecurrenceType
 import com.records.pesa.ui.screens.components.txAvatarColor
 import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.functions.formatMoneyValue
@@ -61,7 +68,6 @@ import com.records.pesa.ui.screens.dashboard.category.TrendPoint
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
-import kotlin.math.ceil
 
 // ─── Navigation destination ───────────────────────────────────────────────────
 object BudgetInfoScreenDestination : AppNavigation {
@@ -76,6 +82,8 @@ object BudgetInfoScreenDestination : AppNavigation {
 fun BudgetInfoScreenComposable(
     navigateToBudgetAllTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    navigateToCategoryDetails: (categoryId: String) -> Unit = {},
+    navigateToCycleHistory: (budgetId: String) -> Unit = {},
     navigateToAuditTrail: (Int) -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -164,12 +172,14 @@ fun BudgetInfoScreenComposable(
             uiState = uiState,
             onEditClick = { showEditDialog = true },
             onDeleteClick = { showDeleteDialog = true },
+            onPauseClick = { viewModel.togglePauseBudget() },
             navigateToBudgetAllTransactions = navigateToBudgetAllTransactions,
             navigateToPreviousScreen = navigateToPreviousScreen,
             navigateToAuditTrail = navigateToAuditTrail,
             navigateToTransactionDetails = navigateToTransactionDetails,
             onEditManualTx = { editingManualTx = it },
-            onPeriodSelected = { viewModel.selectPeriod(it) }
+            navigateToCategoryDetails = navigateToCategoryDetails,
+            navigateToCycleHistory = navigateToCycleHistory
         )
     }
 }
@@ -180,15 +190,18 @@ fun BudgetInfoScreen(
     uiState: BudgetInfoScreenUiState,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onPauseClick: () -> Unit = {},
     navigateToBudgetAllTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     navigateToAuditTrail: (Int) -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
     onEditManualTx: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
-    onPeriodSelected: (TimePeriod) -> Unit = {},
+    navigateToCategoryDetails: (categoryId: String) -> Unit = {},
+    navigateToCycleHistory: (budgetId: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val budget = uiState.budget
+    val isPaused = budget?.active == false
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -234,6 +247,16 @@ fun BudgetInfoScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (budget != null && budget.isRecurring) {
+                    IconButton(onClick = onPauseClick) {
+                        Icon(
+                            painter = painterResource(if (isPaused) R.drawable.ic_play else R.drawable.ic_pause),
+                            contentDescription = if (isPaused) "Resume budget" else "Pause budget",
+                            modifier = Modifier.size(18.dp),
+                            tint = if (isPaused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         painter = painterResource(R.drawable.remove),
@@ -246,7 +269,65 @@ fun BudgetInfoScreen(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-        // ── Scrollable content ────────────────────────────────────────────
+        // Category breadcrumb — tap to go back to parent category
+        if (budget?.categoryId != null && uiState.categoryName.isNotBlank()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { navigateToCategoryDetails(budget.categoryId.toString()) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.categories),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = uiState.categoryName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_right),
+                    contentDescription = "Go to category",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        }
+
+        // ── Paused banner ─────────────────────────────────────────────────
+        if (isPaused) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_pause),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(
+                    text = "This budget is paused — spending is not being tracked and it won't auto-reset.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onPauseClick) {
+                    Text("Resume", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 32.dp)
@@ -267,7 +348,18 @@ fun BudgetInfoScreen(
             )
         }
 
-        // 3. Spending Trend Chart
+        // 3. Recurring budget info card (shown only for recurring budgets)
+        if (budget != null && budget.isRecurring && !budget.recurrenceType.isNullOrBlank()) {
+            item {
+                BudgetRecurrenceCard(
+                    budget = budget,
+                    cycleHistory = uiState.cycleHistory,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+        }
+
+        // 4. Spending Trend Chart
         item {
             SpendingTrendCard(
                 trendData = uiState.trendData,
@@ -382,16 +474,8 @@ fun BudgetInfoScreen(
         // 6. View all transactions button
         if (budget != null && budget.categoryId != null) {
             item {
-                BudgetPeriodPickerCard(
-                    selectedPeriod = uiState.selectedPeriod,
-                    isPremium = uiState.isPremium,
-                    onPeriodSelected = onPeriodSelected,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-            item {
                 Button(
-                    onClick = { navigateToBudgetAllTransactions(budget.id, uiState.periodStartDate.toString(), uiState.periodEndDate.toString()) },
+                    onClick = { navigateToBudgetAllTransactions(budget.id, budget.startDate.toString(), budget.limitDate.toString()) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -469,7 +553,19 @@ fun BudgetInfoScreen(
             }
         }
 
-        // 7. Danger Zone
+        // 7. Cycle History (recurring budgets only) — show last 3, navigate to full list
+        if (budget != null && budget.isRecurring && uiState.cycleHistory.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                BudgetCycleHistorySection(
+                    cycleHistory = uiState.cycleHistory,
+                    onViewAll = { navigateToCycleHistory(budget.id.toString()) },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+
+        // 8. Danger Zone
         item {
             Spacer(modifier = Modifier.height(16.dp))
             Column(
@@ -719,7 +815,7 @@ private fun HeroStatChip(
     }
 }
 
-// ─── Spending Trend Chart ─────────────────────────────────────────────────────
+// ─── Spending Trend Chart (simple cumulative line) ───────────────────────────
 @Composable
 private fun SpendingTrendCard(
     trendData: List<TrendPoint>,
@@ -728,17 +824,13 @@ private fun SpendingTrendCard(
     isPremium: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val greenColor  = Color(0xFF388E3C)
-    val orangeColor = Color(0xFFE65100)
-    val redColor    = Color(0xFFB71C1C)
-    val gridColor   = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-    val limitColor  = Color(0xFFFF8F00)
-    val onSurface   = MaterialTheme.colorScheme.onSurface
+    val budget = dailyLimitLine  // budget limit per day (budgetLimit / totalDays)
+    val primaryColor   = MaterialTheme.colorScheme.primary
+    val limitColor     = Color(0xFFFF8F00)
+    val overColor      = Color(0xFFB71C1C)
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier.fillMaxWidth()
-    ) {
+    Card(shape = RoundedCornerShape(16.dp), modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -747,215 +839,153 @@ private fun SpendingTrendCard(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Spending Trend",
+                    "Daily Spending",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // How-to-read caption
-            Text(
-                text = "Each bar = spending per period. The dashed line = daily limit to stay on budget. " +
-                    "🟢 Within limit  🟠 Slightly over  🔴 Over limit",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp,
-                lineHeight = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (trendData.isEmpty()) {
-                Box(
-                    contentAlignment = Alignment.Center,
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "No transactions in this budget period yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                ) {
-                    Text(
-                        text = "No transactions in this budget period yet",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                val maxVal = trendData.maxOf { it.totalOut }.coerceAtLeast(dailyLimitLine).coerceAtLeast(1.0)
-                val showN  = if (trendData.size <= 7) 1 else ceil(trendData.size / 7.0).toInt()
-
-                Box {
-                    // Chart area
-                    Column {
-                        // Y-axis max label
-                        Text(
-                            text = formatMoneyValue(maxVal),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 9.sp
-                        )
-                        Canvas(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(140.dp)
-                                .run { if (!isPremium) alpha(1f) else this }
-                        ) {
-                            val w = size.width
-                            val h = size.height
-                            val barCount = trendData.size
-                            val gap = 4.dp.toPx()
-                            val barW = ((w - gap * (barCount + 1)) / barCount).coerceAtLeast(4f)
-
-                            // Draw daily limit dashed line using dailyLimitLine (fixed: budgetLimit / totalDays)
-                            if (dailyLimitLine > 0) {
-                                val limitY = h - (dailyLimitLine / maxVal).toFloat() * h
-                                drawLine(
-                                    color = limitColor,
-                                    start = Offset(0f, limitY),
-                                    end = Offset(w, limitY),
-                                    strokeWidth = 1.5.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
-                                )
-                            }
-
-                            trendData.forEachIndexed { i, point ->
-                                val barH = (point.totalOut / maxVal).toFloat() * h
-                                val left = gap + i * (barW + gap)
-                                val top  = h - barH
-                                // Use dailyLimitLine (not dailyBudget) so coloring is accurate
-                                // even when budget is over and remaining=0
-                                val barColor = when {
-                                    dailyLimitLine <= 0                        -> greenColor
-                                    point.totalOut > dailyLimitLine * 1.5     -> redColor
-                                    point.totalOut > dailyLimitLine            -> orangeColor
-                                    else                                       -> greenColor
-                                }
-                                drawRoundRect(
-                                    color = barColor,
-                                    topLeft = Offset(left, top),
-                                    size = Size(barW, barH.coerceAtLeast(2f)),
-                                    cornerRadius = CornerRadius(2.dp.toPx())
-                                )
-                            }
-                        }
-
-                        // X-axis labels
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            trendData.forEachIndexed { i, point ->
-                                val show = i % showN == 0
-                                Text(
-                                    text = if (show) point.label else "",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 8.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-
-                    // Premium gate overlay (covers lower half)
-                    if (!isPremium) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .align(Alignment.BottomCenter)
-                                .clip(RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0f),
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.lock),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Unlock full trend history → Go Premium",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Legend
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    LegendDot(color = greenColor, label = "Within limit")
-                    LegendDot(color = orangeColor, label = "Slightly over")
-                    LegendDot(color = redColor, label = "Over limit")
-                    LegendDot(color = limitColor, label = "Daily limit", isDash = true)
-                }
+                        .padding(vertical = 24.dp),
+                    textAlign = TextAlign.Center
+                )
+                return@Column
             }
-        }
-    }
-}
 
-@Composable
-private fun LegendDot(
-    color: Color,
-    label: String,
-    isDash: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-    ) {
-        if (isDash) {
-            Canvas(modifier = Modifier.size(16.dp, 2.dp)) {
-                drawLine(
-                    color = color,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 3f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f))
+            Spacer(Modifier.height(16.dp))
+
+            // Build cumulative totals
+            val cumulativePoints = trendData.runningFold(0.0) { acc, p -> acc + p.totalOut }.drop(1)
+            val maxY = cumulativePoints.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
+            val budgetLimit = dailyLimitLine * trendData.size   // total budget limit
+
+            // Show limit line value label
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "KES 0",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = surfaceVariant,
+                    fontSize = 9.sp
+                )
+                val limitLabel = formatMoneyValue(budgetLimit)
+                Text(
+                    "Limit: $limitLabel",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = limitColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val currentVal = cumulativePoints.lastOrNull() ?: 0.0
+                Text(
+                    "Spent: ${formatMoneyValue(currentVal)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (currentVal > budgetLimit) overColor else primaryColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
-        } else {
-            Box(
+
+            Spacer(Modifier.height(4.dp))
+
+            val chartMaxY = maxOf(maxY, budgetLimit).coerceAtLeast(1.0)
+
+            Canvas(
                 modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
+                    .fillMaxWidth()
+                    .height(120.dp)
+            ) {
+                val w = size.width
+                val h = size.height
+                val n = cumulativePoints.size
+
+                // Budget limit horizontal line
+                if (budgetLimit > 0) {
+                    val limitY = h - (budgetLimit / chartMaxY).toFloat() * h
+                    drawLine(
+                        color = limitColor,
+                        start = Offset(0f, limitY),
+                        end = Offset(w, limitY),
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f))
+                    )
+                }
+
+                if (n < 2) return@Canvas
+
+                // Points
+                val pts = cumulativePoints.mapIndexed { i, v ->
+                    Offset(
+                        x = i.toFloat() / (n - 1) * w,
+                        y = h - (v / chartMaxY).toFloat() * h
+                    )
+                }
+
+                // Filled area under line
+                val fillPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(pts.first().x, h)
+                    pts.forEach { lineTo(it.x, it.y) }
+                    lineTo(pts.last().x, h)
+                    close()
+                }
+                val lastVal = cumulativePoints.last()
+                val lineCol = if (lastVal > budgetLimit) overColor else primaryColor
+                drawPath(
+                    path = fillPath,
+                    color = lineCol.copy(alpha = 0.12f)
+                )
+
+                // Line
+                for (i in 0 until pts.size - 1) {
+                    drawLine(
+                        color = lineCol,
+                        start = pts[i],
+                        end = pts[i + 1],
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                // End dot
+                drawCircle(color = lineCol, radius = 4.dp.toPx(), center = pts.last())
+                drawCircle(color = androidx.compose.ui.graphics.Color.White, radius = 2.dp.toPx(), center = pts.last())
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // X-axis: just show first and last date labels
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    trendData.first().label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = surfaceVariant
+                )
+                Text(
+                    trendData.last().label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = surfaceVariant
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 9.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
+
 
 // ─── Smart Insights Card ──────────────────────────────────────────────────────
 @Composable
@@ -1693,6 +1723,239 @@ private fun BudgetPeriodPickerCard(
                             }
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+// ─── Recurring budget info card ───────────────────────────────────────────────
+@Composable
+private fun BudgetRecurrenceCard(
+    budget: Budget,
+    cycleHistory: List<BudgetCycleLog>,
+    modifier: Modifier = Modifier,
+) {
+    val recurrenceType = budget.recurrenceType ?: return
+    val nextCycleStart = RecurrenceHelper.nextCycleStartDate(budget.limitDate)
+    val nextCycleEnd = RecurrenceHelper.nextCycleEndDate(nextCycleStart, recurrenceType, budget.recurrenceIntervalDays)
+    val typeLabel = RecurrenceType.fromString(recurrenceType)?.displayName ?: recurrenceType
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.refresh),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = "Recurring • $typeLabel",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                SurfaceChip(label = "Cycle ${budget.cycleNumber}")
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            RecurrenceInfoRow(label = "Current cycle", value = "${formatLocalDate(budget.startDate)} → ${formatLocalDate(budget.limitDate)}")
+            RecurrenceInfoRow(label = "Next cycle starts", value = formatLocalDate(nextCycleStart))
+            RecurrenceInfoRow(label = "Next cycle ends", value = formatLocalDate(nextCycleEnd))
+            RecurrenceInfoRow(label = "Resets", value = RecurrenceHelper.summaryLabel(recurrenceType, budget.recurrenceIntervalDays))
+            if (cycleHistory.isNotEmpty()) {
+                RecurrenceInfoRow(label = "Completed cycles", value = "${cycleHistory.size}")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurrenceInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun SurfaceChip(label: String) {
+    Surface(
+        shape = RoundedCornerShape(50.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+// ─── Cycle history section ────────────────────────────────────────────────────
+@Composable
+private fun BudgetCycleHistorySection(
+    cycleHistory: List<BudgetCycleLog>,
+    onViewAll: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val sorted  = cycleHistory.sortedByDescending { it.cycleNumber }
+    val preview = 3
+    val shown   = sorted.take(preview)
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Cycle History",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = "Each completed cycle is archived here so you can track your spending over time.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        shown.forEachIndexed { index, log ->
+            BudgetCycleLogCard(log = log)
+            if (index < shown.lastIndex) {
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+        if (sorted.size > preview) {
+            TextButton(
+                onClick = onViewAll,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    text = "View all ${sorted.size} cycles →",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun BudgetCycleLogCard(
+    log: BudgetCycleLog,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val isOverBudget = log.finalExpenditure > log.budgetLimit
+    val pct = if (log.budgetLimit > 0) (log.finalExpenditure / log.budgetLimit * 100).toInt() else 0
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isOverBudget)
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Cycle ${log.cycleNumber}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = if (isOverBudget) "Over budget" else "Under budget",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text(
+                text = "${formatLocalDate(log.cycleStartDate)} → ${formatLocalDate(log.cycleEndDate)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LinearProgressIndicator(
+                progress = { (pct / 100f).coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(50.dp)),
+                color = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Spent: ${formatMoneyValue(log.finalExpenditure)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Limit: ${formatMoneyValue(log.budgetLimit)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (onClick != null) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "View transactions",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
                 }
             }
         }

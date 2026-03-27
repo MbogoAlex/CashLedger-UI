@@ -90,6 +90,7 @@ data class BudgetAllTransactionsUiState(
     val selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
     val startDate: LocalDate = LocalDate.now().minusMonths(1),
     val endDate: LocalDate = LocalDate.now(),
+    val isDateLocked: Boolean = false,
     val mpesaItems: List<Transaction> = emptyList(),
     val manualItems: List<ManualTransaction> = emptyList(),
     val memberNames: List<String> = emptyList(),
@@ -127,7 +128,7 @@ class BudgetAllTransactionsScreenViewModel(
         val navEnd = savedStateHandle.get<String>(BudgetAllTransactionsScreenDestination.endDate)
             ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
         if (navStart != null && navEnd != null) {
-            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM) }
+            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM, isDateLocked = true) }
         }
         loadBudget()
         viewModelScope.launch {
@@ -621,19 +622,47 @@ fun BudgetAllTransactionsScreen(
             }
 
             // ── Period picker row ────────────────────────────────────────────
-            AllTxnsPeriodRow(
-                selectedPeriod = uiState.selectedPeriod,
-                startDate = uiState.startDate,
-                endDate = uiState.endDate,
-                txCount = filtered.size,
-                isPremium = uiState.isPremium,
-                context = context,
-                dateFmt = dateFmt,
-                onPeriodSelected = onPeriodSelected,
-                onStartDateChange = onStartDateChange,
-                onEndDateChange = onEndDateChange,
-                onShowSubscriptionDialog = onShowSubscriptionDialog
-            )
+            if (uiState.isDateLocked) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.calendar),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "${uiState.startDate.format(dateFmt)} – ${uiState.endDate.format(dateFmt)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = "${filtered.size} transactions",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                AllTxnsPeriodRow(
+                    selectedPeriod = uiState.selectedPeriod,
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    txCount = filtered.size,
+                    isPremium = uiState.isPremium,
+                    context = context,
+                    dateFmt = dateFmt,
+                    onPeriodSelected = onPeriodSelected,
+                    onStartDateChange = onStartDateChange,
+                    onEndDateChange = onEndDateChange,
+                    onShowSubscriptionDialog = onShowSubscriptionDialog
+                )
+            }
 
             // ── Filter chips ──────────────────────────────────────────────────
             Row(

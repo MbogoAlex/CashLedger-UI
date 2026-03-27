@@ -113,11 +113,9 @@ class BudgetListScreenViewModel(
                 val withProgress = budgets.map { budget ->
                     val start = budget.startDate
                     val end = budget.limitDate
-                    val spending = if (budget.categoryId != null) {
-                        dbRepository.getOutflowForCategory(budget.categoryId, start, end).first()
-                    } else {
-                        dbRepository.sumManualTransactionsForBudget(budget.id)
-                    }
+                    // budget.expenditure is the single source of truth — computed by BudgetRecalculationWorker
+                    // (member-filtered, includes both M-PESA and manual transactions)
+                    val spending = budget.expenditure
                     val totalDays = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
                     val daysElapsed = ChronoUnit.DAYS.between(start, today).toInt().coerceIn(0, totalDays)
                     val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)

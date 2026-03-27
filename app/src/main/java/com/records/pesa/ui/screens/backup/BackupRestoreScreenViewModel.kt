@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetCycleLog
 import com.records.pesa.db.models.BudgetMember
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
@@ -337,6 +338,28 @@ class BackupRestoreScreenViewModel(
                         Log.e("filesRestore", "Budget members restore failed: ${e.message}")
                     }
 
+                    // Fetch and restore budget cycle logs (recurring budget history)
+                    try {
+                        val cycleLogsResponse = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_budgetCycleLogs.csv")
+                        }
+                        val cycleLogsCsv = cycleLogsResponse?.body()?.bytes()
+                        if (cycleLogsCsv != null) {
+                            val cycleLogs = parseBudgetCycleLogsCsv(cycleLogsCsv)
+                            for (log in cycleLogs) {
+                                try {
+                                    dbRepository.insertBudgetCycleLog(log)
+                                } catch (e: Exception) {
+                                    Log.e("filesRestore", "Failed to insert cycle log: ${e.message}")
+                                }
+                            }
+                            Log.d("filesRestore", "Restored ${cycleLogs.size} budget cycle logs")
+                        }
+                    } catch (e: Exception) {
+                        // Cycle logs are optional — older backups won't have this file
+                        Log.d("filesRestore", "No budget cycle logs to restore (may be older backup): ${e.message}")
+                    }
+
                     // Update restore status on completion
                     if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
 
@@ -492,7 +515,12 @@ class BackupRestoreScreenViewModel(
                     limitReachedAt = row.getOrNull(if (hasStartDate) 9 else 8)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
                     exceededBy = row[if (hasStartDate) 10 else 9].toDouble(),
                     categoryId = row[if (hasStartDate) 11 else 10].toIntOrNull(),
-                    alertThreshold = row.getOrNull(if (hasStartDate) 12 else 11)?.toIntOrNull() ?: 80
+                    alertThreshold = row.getOrNull(if (hasStartDate) 12 else 11)?.toIntOrNull() ?: 80,
+                    // Recurrence fields (cols 13-16, absent in older backups — default to non-recurring)
+                    isRecurring = row.getOrNull(13)?.toBoolean() ?: false,
+                    recurrenceType = row.getOrNull(14)?.takeIf { it.isNotBlank() },
+                    recurrenceIntervalDays = row.getOrNull(15)?.toIntOrNull(),
+                    cycleNumber = row.getOrNull(16)?.toIntOrNull() ?: 1,
                 )
                 budgets.add(budget)
             } catch (e: Exception) {
@@ -562,6 +590,38 @@ class BackupRestoreScreenViewModel(
             Log.e("filesRestore", "Failed to parse budget members CSV: ${e.message}")
         }
         return members
+    }
+
+    private fun parseBudgetCycleLogsCsv(csvData: ByteArray): List<BudgetCycleLog> {
+        val logs = mutableListOf<BudgetCycleLog>()
+        try {
+            val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+            val rows = reader.readAll()
+            if (rows.size <= 1) return logs
+            for (i in 1 until rows.size) {
+                try {
+                    val row = rows[i]
+                    logs.add(BudgetCycleLog(
+                        id = row[0].toInt(),
+                        budgetId = row[1].toInt(),
+                        budgetName = row[2],
+                        cycleNumber = row[3].toInt(),
+                        cycleStartDate = LocalDate.parse(row[4]),
+                        cycleEndDate = LocalDate.parse(row[5]),
+                        budgetLimit = row[6].toDouble(),
+                        finalExpenditure = row[7].toDouble(),
+                        limitReached = row[8].toBoolean(),
+                        exceededBy = row[9].toDouble(),
+                        closedAt = LocalDateTime.parse(row[10])
+                    ))
+                } catch (e: Exception) {
+                    Log.e("filesRestore", "Failed to parse cycle log row: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("filesRestore", "Failed to parse budget cycle logs CSV: ${e.message}")
+        }
+        return logs
     }
 
     private fun getUserPreferences() {

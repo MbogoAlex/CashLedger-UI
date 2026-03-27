@@ -23,6 +23,7 @@ import com.records.pesa.ui.screens.backup.BackupScreenViewModel
 import com.records.pesa.ui.screens.dashboard.HomeScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAllTransactionsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenViewModel
+import com.records.pesa.ui.screens.dashboard.budget.BudgetCycleHistoryScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetCreationScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenViewModel
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenViewModel
@@ -184,7 +185,8 @@ object AppViewModelFactory {
                 savedStateHandle = savedStateHandle,
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 categoryService = cashLedgerApplication().container.categoryService,
-                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
+                dataStoreRepository = cashLedgerApplication().container.dataStoreRepository,
+                application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application,
             )
         }
 
@@ -409,6 +411,12 @@ object AppViewModelFactory {
                 savedStateHandle = this.createSavedStateHandle(),
                 dbRepository = cashLedgerApplication().container.dbRepository,
                 dataStoreRepository = cashLedgerApplication().container.dataStoreRepository
+            )
+        }
+        initializer {
+            BudgetCycleHistoryScreenViewModel(
+                savedStateHandle = this.createSavedStateHandle(),
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
         initializer {

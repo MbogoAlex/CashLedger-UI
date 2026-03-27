@@ -41,6 +41,7 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -269,11 +270,19 @@ fun CategoryDetailsScreenComposable(
             inlineBudgetStartDate = uiState.inlineBudgetStartDate,
             inlineBudgetEndDate = uiState.inlineBudgetEndDate,
             inlineBudgetSaving = uiState.inlineBudgetSaving,
+            inlineBudgetIsRecurring = uiState.inlineBudgetIsRecurring,
+            inlineBudgetRecurrenceType = uiState.inlineBudgetRecurrenceType,
+            inlineBudgetRecurrenceIntervalDays = uiState.inlineBudgetRecurrenceIntervalDays,
+            inlineBudgetSelectedMembers = uiState.inlineBudgetSelectedMembers,
             onToggleInlineBudgetForm = { viewModel.toggleInlineBudgetForm() },
             onInlineBudgetNameChange = { viewModel.updateInlineBudgetName(it) },
             onInlineBudgetLimitChange = { viewModel.updateInlineBudgetLimit(it) },
             onInlineBudgetStartDateChange = { viewModel.updateInlineBudgetStartDate(it) },
             onInlineBudgetEndDateChange = { viewModel.updateInlineBudgetEndDate(it) },
+            onToggleInlineBudgetRecurring = { viewModel.toggleInlineBudgetRecurring() },
+            onInlineBudgetRecurrenceTypeChange = { viewModel.setInlineBudgetRecurrenceType(it) },
+            onInlineBudgetRecurrenceIntervalDaysChange = { viewModel.setInlineBudgetRecurrenceIntervalDays(it) },
+            onToggleInlineBudgetMember = { viewModel.toggleInlineBudgetMember(it) },
             onCreateInlineBudget = { viewModel.createInlineBudget() },
             budgetProgressMap = uiState.budgetProgressMap,
             manualMembers = uiState.manualMembers,
@@ -332,11 +341,19 @@ fun CategoryDetailsScreen(
     inlineBudgetStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
     inlineBudgetEndDate: LocalDate? = null,
     inlineBudgetSaving: Boolean = false,
+    inlineBudgetIsRecurring: Boolean = false,
+    inlineBudgetRecurrenceType: String? = null,
+    inlineBudgetRecurrenceIntervalDays: Int = 0,
+    inlineBudgetSelectedMembers: Set<String> = emptySet(),
     onToggleInlineBudgetForm: () -> Unit = {},
     onInlineBudgetNameChange: (String) -> Unit = {},
     onInlineBudgetLimitChange: (String) -> Unit = {},
     onInlineBudgetStartDateChange: (LocalDate) -> Unit = {},
     onInlineBudgetEndDateChange: (LocalDate) -> Unit = {},
+    onToggleInlineBudgetRecurring: () -> Unit = {},
+    onInlineBudgetRecurrenceTypeChange: (String) -> Unit = {},
+    onInlineBudgetRecurrenceIntervalDaysChange: (Int) -> Unit = {},
+    onToggleInlineBudgetMember: (String) -> Unit = {},
     onCreateInlineBudget: () -> Unit = {},
     budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     manualMembers: List<ManualCategoryMember> = emptyList(),
@@ -590,7 +607,9 @@ fun CategoryDetailsScreen(
 
                 // ── Member distribution (IN + OUT pie charts) ────────────────
                 val membersWithActivity = memberStats.filter { it.totalOut + it.totalIn > 0 }
-                if (membersWithActivity.isNotEmpty()) {
+                val hasInflow  = membersWithActivity.sumOf { it.totalIn } > 0
+                val hasOutflow = membersWithActivity.sumOf { it.totalOut } > 0
+                if (membersWithActivity.isNotEmpty() && (hasInflow || hasOutflow)) {
                     item {
                         ElevatedCard(
                             shape = RoundedCornerShape(20.dp),
@@ -610,20 +629,26 @@ fun CategoryDetailsScreen(
                                         .horizontalScroll(rememberScrollState()),
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    CatFlowDonut(
-                                        memberStats = membersWithActivity,
-                                        isOutflow = false,
-                                        modifier = Modifier.width(240.dp)
-                                    )
-                                    CatFlowDonut(
-                                        memberStats = membersWithActivity,
-                                        isOutflow = true,
-                                        modifier = Modifier.width(240.dp)
-                                    )
-                                    CatNetDonut(
-                                        memberStats = membersWithActivity,
-                                        modifier = Modifier.width(240.dp)
-                                    )
+                                    if (hasInflow) {
+                                        CatFlowDonut(
+                                            memberStats = membersWithActivity,
+                                            isOutflow = false,
+                                            modifier = Modifier.width(240.dp)
+                                        )
+                                    }
+                                    if (hasOutflow) {
+                                        CatFlowDonut(
+                                            memberStats = membersWithActivity,
+                                            isOutflow = true,
+                                            modifier = Modifier.width(240.dp)
+                                        )
+                                    }
+                                    if (hasInflow && hasOutflow) {
+                                        CatNetDonut(
+                                            memberStats = membersWithActivity,
+                                            modifier = Modifier.width(240.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1146,6 +1171,109 @@ fun CategoryDetailsScreen(
                                                 ),
                                                 modifier = Modifier.fillMaxWidth()
                                             )
+                                            // ── Recurrence (premium) — before dates ───────────────
+                                            if (!isPremium) {
+                                                ElevatedCard(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { onShowSubscriptionDialog() },
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = CardDefaults.elevatedCardColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                    ),
+                                                    elevation = CardDefaults.elevatedCardElevation(0.dp),
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(10.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.lock),
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(16.dp),
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                        )
+                                                        Column {
+                                                            Text(
+                                                                "Recurring — Premium",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                            )
+                                                            Text(
+                                                                "Auto-reset this budget on a schedule. Upgrade to enable.",
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                fontSize = 11.sp,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            "Repeat this budget",
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                        )
+                                                        Text(
+                                                            if (inlineBudgetIsRecurring)
+                                                                "Auto-resets each cycle. History is saved."
+                                                            else
+                                                                "Turn on to make this budget recurring.",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            fontSize = 11.sp,
+                                                        )
+                                                    }
+                                                    androidx.compose.material3.Switch(
+                                                        checked = inlineBudgetIsRecurring,
+                                                        onCheckedChange = { onToggleInlineBudgetRecurring() },
+                                                    )
+                                                }
+                                                if (inlineBudgetIsRecurring) {
+                                                    Text(
+                                                        "Reset every:",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .horizontalScroll(rememberScrollState()),
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    ) {
+                                                        com.records.pesa.functions.RecurrenceType.entries.forEach { type ->
+                                                            FilterChip(
+                                                                selected = inlineBudgetRecurrenceType == type.name,
+                                                                onClick = { onInlineBudgetRecurrenceTypeChange(type.name) },
+                                                                label = { Text(type.displayName, fontSize = 11.sp) },
+                                                            )
+                                                        }
+                                                    }
+                                                    if (inlineBudgetRecurrenceType == com.records.pesa.functions.RecurrenceType.CUSTOM.name) {
+                                                        OutlinedTextField(
+                                                            value = if (inlineBudgetRecurrenceIntervalDays > 0) inlineBudgetRecurrenceIntervalDays.toString() else "",
+                                                            onValueChange = { v -> v.toIntOrNull()?.let { onInlineBudgetRecurrenceIntervalDaysChange(it) } },
+                                                            label = { Text("Interval in days", fontSize = 12.sp) },
+                                                            placeholder = { Text("e.g. 45", fontSize = 12.sp) },
+                                                            keyboardOptions = KeyboardOptions.Default.copy(
+                                                                keyboardType = KeyboardType.Number,
+                                                                imeAction = ImeAction.Done
+                                                            ),
+                                                            singleLine = true,
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                        )
+                                                    }
+                                                }
+                                            }
                                             // Start date picker
                                             OutlinedTextField(
                                                 value = inlineBudgetStartDate.toString(),
@@ -1174,28 +1302,31 @@ fun CategoryDetailsScreen(
                                                 shape = RoundedCornerShape(12.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             )
-                                            // End date picker
+                                            // End date — auto-computed and locked when recurring
                                             OutlinedTextField(
                                                 value = inlineBudgetEndDate?.toString() ?: "",
                                                 onValueChange = {},
                                                 readOnly = true,
-                                                label = { Text("End date") },
-                                                placeholder = { Text("Tap to pick a date", fontSize = 12.sp) },
+                                                enabled = !inlineBudgetIsRecurring,
+                                                label = { Text(if (inlineBudgetIsRecurring) "Cycle ends (auto)" else "End date") },
+                                                placeholder = { Text(if (inlineBudgetIsRecurring) "Set by recurrence type" else "Tap to pick a date", fontSize = 12.sp) },
                                                 trailingIcon = {
-                                                    IconButton(onClick = {
-                                                        DatePickerDialog(
-                                                            context,
-                                                            { _, year, month, day ->
-                                                                onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
-                                                            },
-                                                            today.year, today.monthValue - 1, today.dayOfMonth
-                                                        ).show()
-                                                    }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.calendar),
-                                                            contentDescription = "Pick end date",
-                                                            modifier = Modifier.size(18.dp)
-                                                        )
+                                                    if (!inlineBudgetIsRecurring) {
+                                                        IconButton(onClick = {
+                                                            DatePickerDialog(
+                                                                context,
+                                                                { _, year, month, day ->
+                                                                    onInlineBudgetEndDateChange(LocalDate.of(year, month + 1, day))
+                                                                },
+                                                                today.year, today.monthValue - 1, today.dayOfMonth
+                                                            ).show()
+                                                        }) {
+                                                            Icon(
+                                                                painter = painterResource(R.drawable.calendar),
+                                                                contentDescription = "Pick end date",
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                        }
                                                     }
                                                 },
                                                 shape = RoundedCornerShape(12.dp),
@@ -1204,7 +1335,44 @@ fun CategoryDetailsScreen(
                                             val canSave = inlineBudgetName.isNotBlank() &&
                                                 (inlineBudgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
                                                 inlineBudgetEndDate != null &&
-                                                inlineBudgetEndDate.isAfter(inlineBudgetStartDate)
+                                                (!inlineBudgetIsRecurring || !inlineBudgetRecurrenceType.isNullOrBlank())
+                                            // ── Member filter ──────────────────────────────
+                                            val allCategoryMembers = (memberStats.map { it.keyword } +
+                                                manualMembers.map { it.name }).distinct()
+                                            if (allCategoryMembers.isNotEmpty()) {
+                                                Spacer(Modifier.height(8.dp))
+                                                Text(
+                                                    "Filter by member (optional)",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    if (inlineBudgetSelectedMembers.isEmpty())
+                                                        "No member selected — the budget will track the entire category."
+                                                    else
+                                                        "Only the selected member's expenses will be tracked by this budget.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(bottom = 4.dp)
+                                                )
+                                                allCategoryMembers.forEach { name ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable { onToggleInlineBudgetMember(name) }
+                                                            .padding(vertical = 4.dp)
+                                                    ) {
+                                                        Checkbox(
+                                                            checked = name in inlineBudgetSelectedMembers,
+                                                            onCheckedChange = { onToggleInlineBudgetMember(name) }
+                                                        )
+                                                        Spacer(Modifier.width(8.dp))
+                                                        Text(name, style = MaterialTheme.typography.bodyMedium)
+                                                    }
+                                                }
+                                                Spacer(Modifier.height(4.dp))
+                                            }
                                             Button(
                                                 onClick = onCreateInlineBudget,
                                                 enabled = canSave && !inlineBudgetSaving,

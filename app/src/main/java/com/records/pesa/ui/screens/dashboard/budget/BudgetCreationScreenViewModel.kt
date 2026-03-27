@@ -1,15 +1,22 @@
 package com.records.pesa.ui.screens.dashboard.budget
 
+import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
+import com.records.pesa.functions.RecurrenceHelper
+import com.records.pesa.functions.RecurrenceType
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.category.CategoryService
+import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,10 +37,9 @@ data class CategoryPickerItem(
 
 data class BudgetCreationScreenUiState(
     val userDetails: UserDetails = UserDetails(),
-    val step: Int = 0,
+    val step: Int = 1,
     val budgetType: BudgetType = BudgetType.CATEGORY,
     val isPremium: Boolean = false,
-    val showUpgradeDialog: Boolean = false,
     val budgetName: String = "",
     val budgetLimit: String = "",
     val startDate: LocalDate = LocalDate.now().withDayOfMonth(1),
@@ -50,6 +56,11 @@ data class BudgetCreationScreenUiState(
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
     val categoryMembers: List<String> = emptyList(),
     val selectedMembers: Set<String> = emptySet(),
+    // Recurrence
+    val isRecurring: Boolean = false,
+    val recurrenceType: String = RecurrenceType.MONTHLY.name,
+    val recurrenceIntervalDays: Int = 30,
+    val nextCyclePreviewEnd: LocalDate? = null,  // preview of when 2nd cycle ends
 )
 
 class BudgetCreationScreenViewModel(
@@ -57,7 +68,8 @@ class BudgetCreationScreenViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dbRepository: DBRepository,
     private val categoryService: CategoryService,
-    private val dataStoreRepository: DataStoreRepository
+    private val dataStoreRepository: DataStoreRepository,
+    private val application: Application,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetCreationScreenUiState())
@@ -66,16 +78,12 @@ class BudgetCreationScreenViewModel(
     private val categoryIdArg: String? = savedStateHandle[BudgetCreationScreenDestination.categoryId]
 
     fun selectBudgetType(type: BudgetType) {
-        if (type == BudgetType.STANDALONE && !_uiState.value.isPremium) {
-            _uiState.update { it.copy(showUpgradeDialog = true) }
-            return
-        }
-        _uiState.update { it.copy(budgetType = type, step = 1) }
+        _uiState.update { it.copy(budgetType = type) }
     }
 
-    fun dismissUpgradeDialog() = _uiState.update { it.copy(showUpgradeDialog = false) }
+    fun dismissUpgradeDialog() = Unit
 
-    fun goToStep0() = _uiState.update { it.copy(step = 0) }
+    fun goToStep0() = Unit
 
     fun updateCategorySearch(query: String) = _uiState.update { it.copy(categorySearch = query) }
 
@@ -99,13 +107,65 @@ class BudgetCreationScreenViewModel(
 
     fun updateBudgetName(name: String) { _uiState.update { it.copy(budgetName = name) }; checkFields() }
     fun updateBudgetLimit(amount: String) { _uiState.update { it.copy(budgetLimit = amount) }; checkFields() }
-    fun updateStartDate(date: LocalDate) { _uiState.update { it.copy(startDate = date) }; checkFields() }
-    fun updateLimitDate(date: LocalDate) { _uiState.update { it.copy(limitDate = date) }; checkFields() }
+    fun updateStartDate(date: LocalDate) {
+        _uiState.update { it.copy(startDate = date) }
+        // If recurring, auto-compute end date to match the recurrence type
+        autoSetLimitDateIfRecurring()
+        checkFields()
+    }
+    fun updateLimitDate(date: LocalDate) {
+        // Only allow manual end date when NOT recurring
+        if (!_uiState.value.isRecurring) {
+            _uiState.update { it.copy(limitDate = date) }
+            refreshRecurrencePreview()
+            checkFields()
+        }
+    }
     fun resetLoadingStatus() = _uiState.update { it.copy(loadingStatus = LoadingStatus.INITIAL) }
+
+    fun toggleRecurring() {
+        _uiState.update { it.copy(isRecurring = !it.isRecurring, recurrenceType = if (!it.isRecurring) RecurrenceType.MONTHLY.name else it.recurrenceType) }
+        autoSetLimitDateIfRecurring()
+    }
+
+    fun setRecurrenceType(type: String) {
+        _uiState.update { it.copy(recurrenceType = type) }
+        autoSetLimitDateIfRecurring()
+    }
+
+    fun setRecurrenceIntervalDays(days: Int) {
+        _uiState.update { it.copy(recurrenceIntervalDays = days.coerceAtLeast(1)) }
+        autoSetLimitDateIfRecurring()
+    }
+
+    /** When recurring is on, lock the end date to match the recurrence type from the start date. */
+    private fun autoSetLimitDateIfRecurring() {
+        val s = _uiState.value
+        if (!s.isRecurring || s.recurrenceType.isNullOrBlank()) {
+            refreshRecurrencePreview()
+            return
+        }
+        val autoEnd = RecurrenceHelper.nextCycleEndDate(s.startDate, s.recurrenceType, s.recurrenceIntervalDays.takeIf { it > 0 })
+        _uiState.update { it.copy(limitDate = autoEnd) }
+        refreshRecurrencePreview()
+        checkFields()
+    }
 
     fun setAlertThreshold(value: Int) {
         if (!_uiState.value.isPremium) return
         _uiState.update { it.copy(alertThreshold = value) }
+    }
+
+    private fun refreshRecurrencePreview() {
+        val s = _uiState.value
+        val end = s.limitDate
+        if (!s.isRecurring || end == null || s.recurrenceType.isNullOrBlank()) {
+            _uiState.update { it.copy(nextCyclePreviewEnd = null) }
+            return
+        }
+        val nextStart = RecurrenceHelper.nextCycleStartDate(end)
+        val nextEnd = RecurrenceHelper.nextCycleEndDate(nextStart, s.recurrenceType, s.recurrenceIntervalDays.takeIf { it > 0 })
+        _uiState.update { it.copy(nextCyclePreviewEnd = nextEnd) }
     }
 
     private fun loadCategorySpendStats(categoryId: Int) {
@@ -140,15 +200,15 @@ class BudgetCreationScreenViewModel(
 
     private fun checkFields() {
         val s = _uiState.value
-        val categoryOk = s.budgetType == BudgetType.STANDALONE || !s.categoryId.isNullOrBlank()
         _uiState.update {
             it.copy(
                 saveButtonEnabled = s.budgetName.isNotBlank() &&
                     s.budgetLimit.isNotBlank() &&
                     (s.budgetLimit.toDoubleOrNull() ?: 0.0) > 0.0 &&
                     s.limitDate != null &&
-                    s.limitDate.isAfter(s.startDate) &&
-                    categoryOk
+                    !s.limitDate.isBefore(s.startDate) && // allow same day (daily recurrence)
+                    !s.categoryId.isNullOrBlank() &&
+                    (!s.isRecurring || !s.recurrenceType.isNullOrBlank())
             )
         }
     }
@@ -157,7 +217,6 @@ class BudgetCreationScreenViewModel(
         val s = _uiState.value
         val limit = s.budgetLimit.toDoubleOrNull() ?: return
         val endDate = s.limitDate ?: return
-        if (s.budgetType != BudgetType.CATEGORY) return
         val catId = s.categoryId?.toIntOrNull() ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
@@ -174,7 +233,11 @@ class BudgetCreationScreenViewModel(
                     limitReachedAt = null,
                     exceededBy = 0.0,
                     categoryId = catId,
-                    alertThreshold = s.alertThreshold
+                    alertThreshold = s.alertThreshold,
+                    isRecurring = s.isRecurring,
+                    recurrenceType = if (s.isRecurring) s.recurrenceType else null,
+                    recurrenceIntervalDays = if (s.isRecurring && s.recurrenceType == RecurrenceType.CUSTOM.name) s.recurrenceIntervalDays else null,
+                    cycleNumber = 1,
                 )
                 val newId = dbRepository.insertBudget(budget)
                 val members = s.selectedMembers.map { name ->
@@ -183,6 +246,12 @@ class BudgetCreationScreenViewModel(
                 if (members.isNotEmpty()) {
                     dbRepository.insertBudgetMembers(members)
                 }
+                // Immediately calculate expenditure so the budget screen shows real figures
+                WorkManager.getInstance(application).enqueueUniqueWork(
+                    "budget_recalc_on_create",
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
+                )
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS, newBudgetId = newId.toInt()) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }

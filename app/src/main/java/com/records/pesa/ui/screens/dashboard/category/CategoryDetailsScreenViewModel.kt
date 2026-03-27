@@ -99,6 +99,10 @@ data class CategoryDetailsScreenUiState(
     val inlineBudgetEndDate: LocalDate? = null,
     val inlineBudgetSaving: Boolean = false,
     val inlineBudgetSaved: Boolean = false,
+    val inlineBudgetIsRecurring: Boolean = false,
+    val inlineBudgetRecurrenceType: String? = null,
+    val inlineBudgetRecurrenceIntervalDays: Int = 0,
+    val inlineBudgetSelectedMembers: Set<String> = emptySet(),
     val budgetProgressMap: Map<Int, BudgetWithProgress> = emptyMap(),
     val manualMembers: List<ManualCategoryMember> = emptyList(),
     val manualTransactions: List<ManualTransaction> = emptyList(),
@@ -754,15 +758,60 @@ class CategoryDetailsScreenViewModel(
                 inlineBudgetLimit = "",
                 inlineBudgetStartDate = LocalDate.now().withDayOfMonth(1),
                 inlineBudgetEndDate = null,
-                inlineBudgetSaved = false
+                inlineBudgetSaved = false,
+                inlineBudgetIsRecurring = false,
+                inlineBudgetRecurrenceType = null,
+                inlineBudgetRecurrenceIntervalDays = 0,
+                inlineBudgetSelectedMembers = emptySet(),
             )
         }
     }
 
     fun updateInlineBudgetName(name: String) = _uiState.update { it.copy(inlineBudgetName = name) }
     fun updateInlineBudgetLimit(limit: String) = _uiState.update { it.copy(inlineBudgetLimit = limit) }
-    fun updateInlineBudgetStartDate(date: LocalDate) = _uiState.update { it.copy(inlineBudgetStartDate = date) }
-    fun updateInlineBudgetEndDate(date: LocalDate) = _uiState.update { it.copy(inlineBudgetEndDate = date) }
+    fun updateInlineBudgetStartDate(date: LocalDate) {
+        _uiState.update { it.copy(inlineBudgetStartDate = date) }
+        autoSetInlineBudgetEndDate()
+    }
+    fun updateInlineBudgetEndDate(date: LocalDate) {
+        if (!_uiState.value.inlineBudgetIsRecurring) {
+            _uiState.update { it.copy(inlineBudgetEndDate = date) }
+        }
+    }
+    fun toggleInlineBudgetMember(name: String) = _uiState.update {
+        val current = it.inlineBudgetSelectedMembers
+        it.copy(inlineBudgetSelectedMembers = if (name in current) current - name else current + name)
+    }
+
+    fun toggleInlineBudgetRecurring() {
+        _uiState.update {
+            it.copy(
+                inlineBudgetIsRecurring = !it.inlineBudgetIsRecurring,
+                inlineBudgetRecurrenceType = if (!it.inlineBudgetIsRecurring) com.records.pesa.functions.RecurrenceType.MONTHLY.name else null,
+                inlineBudgetRecurrenceIntervalDays = 0,
+            )
+        }
+        autoSetInlineBudgetEndDate()
+    }
+    fun setInlineBudgetRecurrenceType(type: String) {
+        _uiState.update { it.copy(inlineBudgetRecurrenceType = type) }
+        autoSetInlineBudgetEndDate()
+    }
+    fun setInlineBudgetRecurrenceIntervalDays(days: Int) {
+        _uiState.update { it.copy(inlineBudgetRecurrenceIntervalDays = days) }
+        autoSetInlineBudgetEndDate()
+    }
+
+    private fun autoSetInlineBudgetEndDate() {
+        val s = _uiState.value
+        if (!s.inlineBudgetIsRecurring || s.inlineBudgetRecurrenceType.isNullOrBlank()) return
+        val autoEnd = com.records.pesa.functions.RecurrenceHelper.nextCycleEndDate(
+            s.inlineBudgetStartDate,
+            s.inlineBudgetRecurrenceType,
+            s.inlineBudgetRecurrenceIntervalDays.takeIf { it > 0 }
+        )
+        _uiState.update { it.copy(inlineBudgetEndDate = autoEnd) }
+    }
 
     fun createInlineBudget() {
         val catId = _uiState.value.categoryId.toIntOrNull() ?: return
@@ -771,20 +820,40 @@ class CategoryDetailsScreenViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(inlineBudgetSaving = true) }
             try {
-                dbRepository.insertBudget(
+                val s = _uiState.value
+                val newId = dbRepository.insertBudget(
                     Budget(
-                        name = _uiState.value.inlineBudgetName.trim(),
+                        name = s.inlineBudgetName.trim(),
                         active = true,
                         expenditure = 0.0,
                         budgetLimit = limit,
                         createdAt = LocalDateTime.now(),
-                        startDate = _uiState.value.inlineBudgetStartDate,
+                        startDate = s.inlineBudgetStartDate,
                         limitDate = endDate,
                         limitReached = false,
                         limitReachedAt = null,
                         exceededBy = 0.0,
-                        categoryId = catId
+                        categoryId = catId,
+                        isRecurring = s.inlineBudgetIsRecurring,
+                        recurrenceType = if (s.inlineBudgetIsRecurring) s.inlineBudgetRecurrenceType else null,
+                        recurrenceIntervalDays = if (s.inlineBudgetIsRecurring &&
+                            s.inlineBudgetRecurrenceType == com.records.pesa.functions.RecurrenceType.CUSTOM.name)
+                            s.inlineBudgetRecurrenceIntervalDays.takeIf { it > 0 } else null,
+                        cycleNumber = 1,
                     )
+                )
+                if (s.inlineBudgetSelectedMembers.isNotEmpty()) {
+                    dbRepository.insertBudgetMembers(
+                        s.inlineBudgetSelectedMembers.map { name ->
+                            com.records.pesa.db.models.BudgetMember(budgetId = newId.toInt(), memberName = name)
+                        }
+                    )
+                }
+                // Immediately calculate expenditure so budget shows real figures
+                WorkManager.getInstance(application).enqueueUniqueWork(
+                    "budget_recalc_on_inline_create",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    androidx.work.OneTimeWorkRequestBuilder<BudgetRecalculationWorker>().build()
                 )
                 _uiState.update {
                     it.copy(
@@ -794,7 +863,11 @@ class CategoryDetailsScreenViewModel(
                         inlineBudgetName = "",
                         inlineBudgetLimit = "",
                         inlineBudgetStartDate = LocalDate.now().withDayOfMonth(1),
-                        inlineBudgetEndDate = null
+                        inlineBudgetEndDate = null,
+                        inlineBudgetIsRecurring = false,
+                        inlineBudgetRecurrenceType = null,
+                        inlineBudgetRecurrenceIntervalDays = 0,
+                        inlineBudgetSelectedMembers = emptySet(),
                     )
                 }
             } catch (e: Exception) {
@@ -820,17 +893,8 @@ class CategoryDetailsScreenViewModel(
                 val today = LocalDate.now()
                 val progressMap = mutableMapOf<Int, BudgetWithProgress>()
                 for (budget in budgets) {
-                    val spending = if (budget.categoryId != null) {
-                        val mpesaOut = dbRepository.getOutflowForCategory(
-                            budget.categoryId, budget.startDate, budget.limitDate
-                        ).first()
-                        val manualOut = dbRepository.sumManualOutflowForCategoryInPeriod(
-                            budget.categoryId, budget.startDate, budget.limitDate
-                        )
-                        mpesaOut + manualOut
-                    } else {
-                        dbRepository.sumManualTransactionsForBudget(budget.id)
-                    }
+                    // budget.expenditure is the single source of truth, computed by BudgetRecalculationWorker
+                    val spending = budget.expenditure
                     val totalDays = ChronoUnit.DAYS.between(budget.startDate, budget.limitDate).toInt().coerceAtLeast(1)
                     val daysElapsed = ChronoUnit.DAYS.between(budget.startDate, today).toInt().coerceIn(0, totalDays)
                     val daysLeft = (totalDays - daysElapsed).coerceAtLeast(0)

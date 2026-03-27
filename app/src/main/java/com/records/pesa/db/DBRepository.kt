@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.records.pesa.db.dao.BudgetDao
 import com.records.pesa.db.dao.BudgetMemberDao
+import com.records.pesa.db.dao.BudgetCycleLogDao
 import com.records.pesa.db.dao.BudgetRecalcLogDao
 import com.records.pesa.db.dao.ManualBudgetTransactionDao
 import com.records.pesa.db.dao.ManualCategoryMemberDao
@@ -14,6 +15,7 @@ import com.records.pesa.db.dao.ManualTransactionTypeDao
 import com.records.pesa.db.dao.TransactionsDao
 import com.records.pesa.db.models.AggregatedTransaction
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetCycleLog
 import com.records.pesa.db.models.BudgetMember
 import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.ManualBudgetTransaction
@@ -114,6 +116,13 @@ interface DBRepository {
     suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog)
     fun getLogsForBudget(budgetId: Int): Flow<List<BudgetRecalcLog>>
 
+    // Budget cycle history (completed recurring cycles)
+    suspend fun insertBudgetCycleLog(log: BudgetCycleLog)
+    fun getBudgetCycleLogs(budgetId: Int): Flow<List<BudgetCycleLog>>
+    suspend fun getBudgetCycleLogsOnce(budgetId: Int): List<BudgetCycleLog>
+    suspend fun deleteBudgetCycleLogs(budgetId: Int)
+    suspend fun getAllBudgetCycleLogsOnce(): List<BudgetCycleLog>
+
     // Manual budget transactions
     suspend fun insertManualTransaction(tx: ManualBudgetTransaction): Long
     fun getManualTransactionsForBudget(budgetId: Int): Flow<List<ManualBudgetTransaction>>
@@ -165,6 +174,7 @@ class DBRepositoryImpl(
     private val transactionsDao: TransactionsDao,
     private val budgetDao: BudgetDao,
     private val budgetRecalcLogDao: BudgetRecalcLogDao,
+    private val budgetCycleLogDao: BudgetCycleLogDao,
     private val manualBudgetTransactionDao: ManualBudgetTransactionDao,
     private val manualTransactionTypeDao: ManualTransactionTypeDao,
     private val manualCategoryMemberDao: ManualCategoryMemberDao,
@@ -287,6 +297,12 @@ class DBRepositoryImpl(
 
     override suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog) = budgetRecalcLogDao.insertLog(log)
     override fun getLogsForBudget(budgetId: Int) = budgetRecalcLogDao.getLogsForBudget(budgetId)
+
+    override suspend fun insertBudgetCycleLog(log: BudgetCycleLog) = budgetCycleLogDao.insertLog(log)
+    override fun getBudgetCycleLogs(budgetId: Int) = budgetCycleLogDao.getLogsForBudget(budgetId)
+    override suspend fun getBudgetCycleLogsOnce(budgetId: Int) = budgetCycleLogDao.getLogsForBudgetOnce(budgetId)
+    override suspend fun deleteBudgetCycleLogs(budgetId: Int) = budgetCycleLogDao.deleteLogsForBudget(budgetId)
+    override suspend fun getAllBudgetCycleLogsOnce() = budgetCycleLogDao.getAllOnce()
 
     override suspend fun insertManualTransaction(tx: ManualBudgetTransaction) = manualBudgetTransactionDao.insert(tx)
     override fun getManualTransactionsForBudget(budgetId: Int) = manualBudgetTransactionDao.getForBudget(budgetId)

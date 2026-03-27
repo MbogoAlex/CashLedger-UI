@@ -34,6 +34,8 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetInfoScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetAuditTrailScreenDestination
+import com.records.pesa.ui.screens.dashboard.budget.BudgetCycleHistoryScreenComposable
+import com.records.pesa.ui.screens.dashboard.budget.BudgetCycleHistoryScreenDestination
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenComposable
 import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenDestination
 import com.records.pesa.ui.screens.dashboard.category.CategoryAllTransactionsScreenComposable
@@ -607,6 +609,12 @@ fun NavigationGraph(
                 navigateToPreviousScreen = {
                     navController.popBackStack()
                 },
+                navigateToCategoryDetails = { categoryId ->
+                    navController.navigate("${CategoryDetailsScreenDestination.route}/$categoryId")
+                },
+                navigateToCycleHistory = { budgetId ->
+                    navController.navigate("${BudgetCycleHistoryScreenDestination.route}/$budgetId")
+                },
                 navigateToAuditTrail = { budgetId ->
                     navController.navigate("${BudgetAuditTrailScreenDestination.route}/$budgetId")
                 },
@@ -629,6 +637,23 @@ fun NavigationGraph(
                 },
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
+                }
+            )
+        }
+        composable(
+            BudgetCycleHistoryScreenDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(BudgetCycleHistoryScreenDestination.budgetId) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            BudgetCycleHistoryScreenComposable(
+                navigateToPreviousScreen = {
+                    navController.popBackStack()
+                },
+                navigateToBudgetTransactions = { budgetId, startDate, endDate ->
+                    navController.navigate("${BudgetAllTransactionsScreenDestination.route}/$budgetId/$startDate/$endDate")
                 }
             )
         }

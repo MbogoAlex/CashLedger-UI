@@ -13,6 +13,7 @@ import com.records.pesa.CashLedger
 import com.records.pesa.R
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
+import com.records.pesa.db.models.BudgetCycleLog
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.ManualBudgetTransaction
@@ -217,7 +218,7 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 11 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs, budget members
+        val totalSteps = 12 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs, budget members, cycle logs
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -367,7 +368,17 @@ suspend fun backup(
         currentStep++
         worker.updateProgressNotification("Backing up budget members...", currentStep, totalSteps, priorityHigh)
 
-        // Final Step: Update User Account
+        // Budget Cycle Logs (recurring budget history)
+        val budgetCycleLogs = dbRepository.getAllBudgetCycleLogsOnce()
+        val budgetCycleLogsCsv = backupBudgetCycleLogsToCSV(context, "${backUpId}_budgetCycleLogs.csv", budgetCycleLogs)
+        budgetCycleLogsCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up budget cycle history...", currentStep, totalSteps, priorityHigh)
         val lastBackup = LocalDateTime.now()
         val totalItems = transactions.size + categories.size + categoryKeywords.size + transactionCategoryMappings.size
 
@@ -554,14 +565,16 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
                 "id", "name", "active", "expenditure", "budgetLimit",
                 "createdAt", "startDate", "limitDate", "limitReached", "limitReachedAt",
-                "exceededBy", "categoryId", "alertThreshold"
+                "exceededBy", "categoryId", "alertThreshold",
+                "isRecurring", "recurrenceType", "recurrenceIntervalDays", "cycleNumber"
             ))
             budgetsToBackup.forEach { budget ->
                 csvPrinter.printRecord(
                     budget.id, budget.name, budget.active, budget.expenditure,
                     budget.budgetLimit, budget.createdAt, budget.startDate, budget.limitDate,
                     budget.limitReached, budget.limitReachedAt, budget.exceededBy,
-                    budget.categoryId, budget.alertThreshold
+                    budget.categoryId, budget.alertThreshold,
+                    budget.isRecurring, budget.recurrenceType, budget.recurrenceIntervalDays, budget.cycleNumber
                 )
             }
             csvPrinter.flush()
@@ -662,6 +675,32 @@ fun backupBudgetMembersToCSV(context: Context, fileName: String, members: List<c
         file
     } catch (e: Exception) {
         Log.e("backupBudgetMembers", "Error: ${e.message}")
+        null
+    }
+}
+
+fun backupBudgetCycleLogsToCSV(context: Context, fileName: String, logs: List<BudgetCycleLog>): File? {
+    return try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                "id", "budgetId", "budgetName", "cycleNumber",
+                "cycleStartDate", "cycleEndDate", "budgetLimit",
+                "finalExpenditure", "limitReached", "exceededBy", "closedAt"
+            ))
+            logs.forEach { log ->
+                csvPrinter.printRecord(
+                    log.id, log.budgetId, log.budgetName, log.cycleNumber,
+                    log.cycleStartDate, log.cycleEndDate, log.budgetLimit,
+                    log.finalExpenditure, log.limitReached, log.exceededBy, log.closedAt
+                )
+            }
+            csvPrinter.flush()
+        }
+        Log.d("backupBudgetCycleLogs", "Cycle logs backed up: ${logs.size} records")
+        file
+    } catch (e: Exception) {
+        Log.e("backupBudgetCycleLogs", "Error: ${e.message}")
         null
     }
 }

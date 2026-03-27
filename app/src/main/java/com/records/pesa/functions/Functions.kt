@@ -24,7 +24,15 @@ fun formatIsoDateTime2(dateTime: LocalDateTime): String {
 }
 
 fun formatLocalDate(dateTime: LocalDate): String {
-    val formatter = DateTimeFormatter.ofPattern("d'th' MMMM, yyyy", Locale.ENGLISH)
+    val day = dateTime.dayOfMonth
+    val suffix = when {
+        day in 11..13 -> "th"
+        day % 10 == 1 -> "st"
+        day % 10 == 2 -> "nd"
+        day % 10 == 3 -> "rd"
+        else -> "th"
+    }
+    val formatter = DateTimeFormatter.ofPattern("d'$suffix' MMMM, yyyy", Locale.ENGLISH)
     return dateTime.format(formatter)
 }
 

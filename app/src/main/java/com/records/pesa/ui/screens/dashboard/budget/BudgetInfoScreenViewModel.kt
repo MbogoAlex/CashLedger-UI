@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens.dashboard.budget
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,7 +82,10 @@ data class BudgetInfoScreenUiState(
     // Period selection for navigating to AllTransactions
     val selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
     val periodStartDate: LocalDate = LocalDate.now().withDayOfMonth(1),
-    val periodEndDate: LocalDate = LocalDate.now()
+    val periodEndDate: LocalDate = LocalDate.now(),
+    // Recurring budget cycle history
+    val cycleHistory: List<com.records.pesa.db.models.BudgetCycleLog> = emptyList(),
+    val categoryName: String = "",
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -149,10 +153,23 @@ class BudgetInfoScreenViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(executionStatus = ExecutionStatus.LOADING) }
             try {
+                dbRepository.deleteBudgetCycleLogs(budget.id)
                 dbRepository.deleteBudget(budget)
                 _uiState.update { it.copy(executionStatus = ExecutionStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(executionStatus = ExecutionStatus.FAIL) }
+            }
+        }
+    }
+
+    fun togglePauseBudget() {
+        val budget = _uiState.value.budget ?: return
+        viewModelScope.launch {
+            try {
+                dbRepository.updateBudget(budget.copy(active = !budget.active))
+                // No executionStatus change needed — the budget flow will auto-update the UI
+            } catch (e: Exception) {
+                Log.e("BudgetInfoVM", "togglePauseBudget failed: $e")
             }
         }
     }
@@ -171,10 +188,13 @@ class BudgetInfoScreenViewModel(
 
     private fun observeBudgetAndSpending() {
         val id = budgetIdArg?.toIntOrNull() ?: return
+
+        // budget.expenditure is the single source of truth — computed by BudgetRecalculationWorker.
+        // When the worker updates it, getBudgetById() emits the fresh value and the UI rebuilds.
         viewModelScope.launch {
             dbRepository.getBudgetById(id)
                 .filterNotNull()
-                .flatMapLatest { budget ->
+                .collectLatest { budget ->
                     _uiState.update {
                         it.copy(
                             budget = budget,
@@ -185,45 +205,51 @@ class BudgetInfoScreenViewModel(
                             budgetLimitDate = budget.limitDate.toString()
                         )
                     }
-                    val start = budget.startDate
-                    val end = budget.limitDate
-                    val outflowFlow = if (budget.categoryId != null) {
-                        dbRepository.getOutflowForCategory(budget.categoryId, start, end)
-                    } else {
-                        flowOf(0.0)
+                    // Load category name for breadcrumb
+                    if (budget.categoryId != null && _uiState.value.categoryName.isBlank()) {
+                        try {
+                            val cat = categoryService.getCategoryById(budget.categoryId).first()
+                            _uiState.update { it.copy(categoryName = cat.category.name) }
+                        } catch (_: Exception) {}
                     }
-                    // Use category-scoped manual transactions (not old ManualBudgetTransaction)
-                    val manualCategoryFlow: kotlinx.coroutines.flow.Flow<List<ManualCategoryTx>> = if (budget.categoryId != null) {
-                        dbRepository.getManualTransactionsForCategory(budget.categoryId)
-                            .map { txList: List<ManualCategoryTx> ->
-                                txList.filter { tx -> tx.isOutflow && !tx.date.isBefore(start) && !tx.date.isAfter(end) }
-                            }
-                    } else {
-                        flowOf(emptyList())
-                    }
-                    combine(outflowFlow, manualCategoryFlow) { mpesaOut: Double, manualTxs: List<ManualCategoryTx> ->
-                        mpesaOut + manualTxs.sumOf { it.amount }
-                    }
-                }
-                .collectLatest { spending ->
-                    val budget = _uiState.value.budget ?: return@collectLatest
-                    recomputeAll(budget, spending)
+                    recomputeAll(budget, budget.expenditure)
                 }
         }
 
-        // Also observe manual category transactions for display (live refresh)
+        // Observe M-PESA transactions for display, filtered by members reactively
+        viewModelScope.launch {
+            dbRepository.getBudgetById(id).filterNotNull().flatMapLatest { budget ->
+                val categoryId = budget.categoryId ?: return@flatMapLatest flowOf(emptyList<Transaction>())
+                dbRepository.getBudgetMembers(budget.id).flatMapLatest { members ->
+                    val memberNames = members.map { it.memberName }
+                    kotlinx.coroutines.flow.flow {
+                        val allTxs = categoryService.getCategoryWithTransactions(categoryId).first().transactions
+                        emit(allTxs.filter { tx ->
+                            tx.date >= budget.startDate && tx.date <= budget.limitDate &&
+                            (memberNames.isEmpty() || memberNames.any { m -> tx.entity.contains(m, ignoreCase = true) })
+                        }.sortedByDescending { it.date })
+                    }
+                }
+            }.collectLatest { txs ->
+                _uiState.update { it.copy(transactions = txs) }
+            }
+        }
+
+        // Observe manual transactions for display, filtered by members reactively
         viewModelScope.launch {
             dbRepository.getBudgetById(id).filterNotNull().flatMapLatest { budget ->
                 val categoryId = budget.categoryId ?: return@flatMapLatest flowOf(emptyList<ManualCategoryTx>())
-                dbRepository.getManualTransactionsForCategory(categoryId).map { txList: List<ManualCategoryTx> ->
-                    val memberNames = dbRepository.getBudgetMembersOnce(budget.id).map { it.memberName }
-                    txList.filter { tx ->
-                        tx.isOutflow &&
-                        !tx.date.isBefore(budget.startDate) && !tx.date.isAfter(budget.limitDate) &&
-                        (memberNames.isEmpty() || tx.memberName in memberNames)
-                    }.sortedByDescending { it.date }
+                dbRepository.getBudgetMembers(budget.id).flatMapLatest { members ->
+                    val memberNames = members.map { it.memberName }
+                    dbRepository.getManualTransactionsForCategory(categoryId).map { txList ->
+                        txList.filter { tx ->
+                            tx.isOutflow &&
+                            !tx.date.isBefore(budget.startDate) && !tx.date.isAfter(budget.limitDate) &&
+                            (memberNames.isEmpty() || tx.memberName in memberNames)
+                        }.sortedByDescending { it.date }
+                    }
                 }
-            }.collectLatest { manualTxs: List<ManualCategoryTx> ->
+            }.collectLatest { manualTxs ->
                 _uiState.update { it.copy(manualTransactions = manualTxs) }
             }
         }
@@ -293,7 +319,8 @@ class BudgetInfoScreenViewModel(
 
             _uiState.update {
                 it.copy(
-                    transactions = transactions,
+                    // Don't overwrite transactions here — they are managed reactively
+                    // by observeBudgetAndSpending() with member filtering applied
                     trendData = trendData,
                     insights = insights
                 )
@@ -580,7 +607,7 @@ class BudgetInfoScreenViewModel(
             dbRepository.getOutflowForCategoryAndMembers(categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames)
         }
         val manualOutflow = if (memberNames.isEmpty()) {
-            dbRepository.sumManualOutflowForCategory(categoryId)
+            dbRepository.sumManualOutflowForCategoryInPeriod(categoryId, budget.startDate, minOf(today, budget.limitDate))
         } else {
             dbRepository.sumManualOutflowForCategoryAndMembers(categoryId, budget.startDate, minOf(today, budget.limitDate), memberNames)
         }
@@ -595,6 +622,15 @@ class BudgetInfoScreenViewModel(
         viewModelScope.launch {
             dbRepository.getBudgetMembers(id).collectLatest { members ->
                 _uiState.update { it.copy(budgetMembers = members) }
+            }
+        }
+    }
+
+    private fun observeCycleHistory() {
+        val id = budgetIdArg?.toIntOrNull() ?: return
+        viewModelScope.launch {
+            dbRepository.getBudgetCycleLogs(id).collectLatest { logs ->
+                _uiState.update { it.copy(cycleHistory = logs) }
             }
         }
     }
@@ -647,6 +683,7 @@ class BudgetInfoScreenViewModel(
         observePremium()
         observeBudgetAndSpending()
         observeBudgetMembers()
+        observeCycleHistory()
     }
 }
 

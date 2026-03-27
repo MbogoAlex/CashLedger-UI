@@ -21,5 +21,9 @@ data class Budget(
     val limitReachedAt: LocalDateTime?,
     val exceededBy: Double,
     val categoryId: Int?,
-    val alertThreshold: Int = 80
+    val alertThreshold: Int = 80,
+    val isRecurring: Boolean = false,
+    val recurrenceType: String? = null,      // DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
+    val recurrenceIntervalDays: Int? = null, // only used when recurrenceType == "CUSTOM"
+    val cycleNumber: Int = 1                 // increments each time the budget resets for a new cycle
 )

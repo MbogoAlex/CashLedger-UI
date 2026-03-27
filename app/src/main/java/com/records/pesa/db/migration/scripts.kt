@@ -723,3 +723,32 @@ val MIGRATION_55_56 = object : Migration(55, 56) {
         database.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_member_budgetId` ON `budget_member` (`budgetId`)")
     }
 }
+
+
+val MIGRATION_56_57 = object : Migration(56, 57) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add recurrence fields to existing budget table
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `isRecurring` INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `recurrenceType` TEXT DEFAULT NULL")
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `recurrenceIntervalDays` INTEGER DEFAULT NULL")
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `cycleNumber` INTEGER NOT NULL DEFAULT 1")
+
+        // Create budget_cycle_log table to store completed cycle history
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `budget_cycle_log` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `budgetId` INTEGER NOT NULL,
+                `budgetName` TEXT NOT NULL,
+                `cycleNumber` INTEGER NOT NULL,
+                `cycleStartDate` TEXT NOT NULL,
+                `cycleEndDate` TEXT NOT NULL,
+                `budgetLimit` REAL NOT NULL,
+                `finalExpenditure` REAL NOT NULL,
+                `limitReached` INTEGER NOT NULL,
+                `exceededBy` REAL NOT NULL,
+                `closedAt` TEXT NOT NULL
+            )
+        """)
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_cycle_log_budgetId` ON `budget_cycle_log` (`budgetId`)")
+    }
+}
