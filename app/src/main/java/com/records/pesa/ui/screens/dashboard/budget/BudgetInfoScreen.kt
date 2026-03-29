@@ -560,6 +560,13 @@ fun BudgetInfoScreen(
                 BudgetCycleHistorySection(
                     cycleHistory = uiState.cycleHistory,
                     onViewAll = { navigateToCycleHistory(budget.id.toString()) },
+                    onCycleClick = { log ->
+                        navigateToBudgetAllTransactions(
+                            budget.id,
+                            log.cycleStartDate.toString(),
+                            log.cycleEndDate.toString()
+                        )
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
@@ -1821,6 +1828,7 @@ private fun SurfaceChip(label: String) {
 private fun BudgetCycleHistorySection(
     cycleHistory: List<BudgetCycleLog>,
     onViewAll: () -> Unit = {},
+    onCycleClick: (BudgetCycleLog) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val sorted  = cycleHistory.sortedByDescending { it.cycleNumber }
@@ -1841,7 +1849,10 @@ private fun BudgetCycleHistorySection(
         )
         Spacer(modifier = Modifier.height(2.dp))
         shown.forEachIndexed { index, log ->
-            BudgetCycleLogCard(log = log)
+            BudgetCycleLogCard(
+                log = log,
+                onClick = { onCycleClick(log) }
+            )
             if (index < shown.lastIndex) {
                 Spacer(modifier = Modifier.height(6.dp))
             }

@@ -12,5 +12,7 @@ data class BudgetRecalcLog(
     val timestamp: LocalDateTime,
     val oldExpenditure: Double,
     val newExpenditure: Double,
-    val thresholdCrossed: String?
+    val thresholdCrossed: String?,
+    val cycleStartDate: String? = null,
+    val cycleEndDate: String? = null
 )

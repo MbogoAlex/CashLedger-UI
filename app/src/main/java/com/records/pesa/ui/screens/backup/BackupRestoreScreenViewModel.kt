@@ -7,6 +7,7 @@ import com.opencsv.CSVReader
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.BudgetCycleLog
+import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.BudgetMember
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
@@ -360,6 +361,27 @@ class BackupRestoreScreenViewModel(
                         Log.d("filesRestore", "No budget cycle logs to restore (may be older backup): ${e.message}")
                     }
 
+                    // Fetch and restore budget recalc logs (audit trail)
+                    try {
+                        val recalcLogsResponse = authenticationManager.executeWithAuth { token ->
+                            apiRepository.getFile(token, "${userId}_budgetRecalcLogs.csv")
+                        }
+                        val recalcLogsCsv = recalcLogsResponse?.body()?.bytes()
+                        if (recalcLogsCsv != null) {
+                            val recalcLogs = parseBudgetRecalcLogsCsv(recalcLogsCsv)
+                            for (log in recalcLogs) {
+                                try {
+                                    dbRepository.insertBudgetRecalcLog(log)
+                                } catch (e: Exception) {
+                                    Log.e("filesRestore", "Failed to insert recalc log: ${e.message}")
+                                }
+                            }
+                            Log.d("filesRestore", "Restored ${recalcLogs.size} budget recalc logs")
+                        }
+                    } catch (e: Exception) {
+                        Log.d("filesRestore", "No budget recalc logs to restore (may be older backup): ${e.message}")
+                    }
+
                     // Update restore status on completion
                     if (uiState.value.totalItemsRestored == uiState.value.totalItemsToRestore) {
 
@@ -620,6 +642,36 @@ class BackupRestoreScreenViewModel(
             }
         } catch (e: Exception) {
             Log.e("filesRestore", "Failed to parse budget cycle logs CSV: ${e.message}")
+        }
+        return logs
+    }
+
+    private fun parseBudgetRecalcLogsCsv(csvData: ByteArray): List<BudgetRecalcLog> {
+        val logs = mutableListOf<BudgetRecalcLog>()
+        try {
+            val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+            val rows = reader.readAll()
+            if (rows.size <= 1) return logs
+            for (i in 1 until rows.size) {
+                try {
+                    val row = rows[i]
+                    logs.add(BudgetRecalcLog(
+                        id = row[0].toInt(),
+                        budgetId = row[1].toInt(),
+                        budgetName = row[2],
+                        timestamp = LocalDateTime.parse(row[3]),
+                        oldExpenditure = row[4].toDouble(),
+                        newExpenditure = row[5].toDouble(),
+                        thresholdCrossed = row[6].takeIf { it.isNotBlank() },
+                        cycleStartDate = row.getOrNull(7)?.takeIf { it.isNotBlank() },
+                        cycleEndDate = row.getOrNull(8)?.takeIf { it.isNotBlank() }
+                    ))
+                } catch (e: Exception) {
+                    Log.e("filesRestore", "Failed to parse recalc log row: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("filesRestore", "Failed to parse budget recalc logs CSV: ${e.message}")
         }
         return logs
     }

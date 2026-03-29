@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -500,11 +501,13 @@ fun CategoriesScreen(
                                 }
                             }
                         } else {
-                            items(filteredCategories, key = { it.id }) { category ->
+                            itemsIndexed(filteredCategories, key = { _, it -> it.id }) { index, category ->
+                                val isLocked = index != 0 && !premium
                                 CategoryItemRow(
                                     category = category,
                                     isSelected = category.id in selectedCategories,
                                     filteringOn = filteringOn,
+                                    isLocked = isLocked,
                                     onToggleSelection = {
                                         if (category.id in selectedCategories)
                                             onRemoveCategory(category.id)
@@ -512,7 +515,8 @@ fun CategoriesScreen(
                                             onAddCategory(category.id)
                                     },
                                     onClick = {
-                                        navigateToCategoryDetailsScreen(category.id.toString())
+                                        if (isLocked) onShowSubscriptionDialog()
+                                        else navigateToCategoryDetailsScreen(category.id.toString())
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -732,6 +736,7 @@ private fun CategoryItemRow(
     category: TransactionCategory,
     isSelected: Boolean,
     filteringOn: Boolean,
+    isLocked: Boolean = false,
     onToggleSelection: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -854,23 +859,32 @@ private fun CategoryItemRow(
             }
         }
 
-        // Right: money in / money out
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(
-                text = "+Ksh ${String.format("%,.0f", totalIn)}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.tertiary
+        // Right: lock icon (locked) or money in / money out
+        if (isLocked) {
+            Icon(
+                painter = painterResource(R.drawable.lock),
+                contentDescription = "Premium",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
             )
-            Text(
-                text = "-Ksh ${String.format("%,.0f", totalOut)}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
-            )
+        } else {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = "+Ksh ${String.format("%,.0f", totalIn)}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Text(
+                    text = "-Ksh ${String.format("%,.0f", totalOut)}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }

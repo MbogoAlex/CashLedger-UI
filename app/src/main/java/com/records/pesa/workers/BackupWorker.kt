@@ -14,6 +14,7 @@ import com.records.pesa.R
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.Budget
 import com.records.pesa.db.models.BudgetCycleLog
+import com.records.pesa.db.models.BudgetRecalcLog
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.DeletedTransaction
 import com.records.pesa.db.models.ManualBudgetTransaction
@@ -379,6 +380,18 @@ suspend fun backup(
         }
         currentStep++
         worker.updateProgressNotification("Backing up budget cycle history...", currentStep, totalSteps, priorityHigh)
+
+        // Budget Recalc Logs (audit trail)
+        val budgetRecalcLogs = dbRepository.getAllBudgetRecalcLogsOnce()
+        val budgetRecalcLogsCsv = backupBudgetRecalcLogsToCSV(context, "${backUpId}_budgetRecalcLogs.csv", budgetRecalcLogs)
+        budgetRecalcLogsCsv?.let {
+            val parts = mutableListOf(it.toMultipartBody("file"))
+            authenticationManager.executeWithAuth { token ->
+                apiRepository.uploadFiles(token, parts)
+            }
+        }
+        currentStep++
+        worker.updateProgressNotification("Backing up audit trail...", currentStep, totalSteps, priorityHigh)
         val lastBackup = LocalDateTime.now()
         val totalItems = transactions.size + categories.size + categoryKeywords.size + transactionCategoryMappings.size
 
@@ -701,6 +714,32 @@ fun backupBudgetCycleLogsToCSV(context: Context, fileName: String, logs: List<Bu
         file
     } catch (e: Exception) {
         Log.e("backupBudgetCycleLogs", "Error: ${e.message}")
+        null
+    }
+}
+
+fun backupBudgetRecalcLogsToCSV(context: Context, fileName: String, logs: List<BudgetRecalcLog>): File? {
+    return try {
+        val file = getInternalStorageFile(context, fileName)
+        FileWriter(file).use { writer ->
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+                "id", "budgetId", "budgetName", "timestamp",
+                "oldExpenditure", "newExpenditure", "thresholdCrossed",
+                "cycleStartDate", "cycleEndDate"
+            ))
+            logs.forEach { log ->
+                csvPrinter.printRecord(
+                    log.id, log.budgetId, log.budgetName, log.timestamp,
+                    log.oldExpenditure, log.newExpenditure, log.thresholdCrossed,
+                    log.cycleStartDate, log.cycleEndDate
+                )
+            }
+            csvPrinter.flush()
+        }
+        Log.d("backupBudgetRecalcLogs", "Recalc logs backed up: ${logs.size} records")
+        file
+    } catch (e: Exception) {
+        Log.e("backupBudgetRecalcLogs", "Error: ${e.message}")
         null
     }
 }

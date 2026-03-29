@@ -752,3 +752,10 @@ val MIGRATION_56_57 = object : Migration(56, 57) {
         database.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_cycle_log_budgetId` ON `budget_cycle_log` (`budgetId`)")
     }
 }
+
+val MIGRATION_57_58 = object : Migration(57, 58) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE `budget_recalc_log` ADD COLUMN `cycleStartDate` TEXT DEFAULT NULL")
+        database.execSQL("ALTER TABLE `budget_recalc_log` ADD COLUMN `cycleEndDate` TEXT DEFAULT NULL")
+    }
+}

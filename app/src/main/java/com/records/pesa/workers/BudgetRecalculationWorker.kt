@@ -211,7 +211,9 @@ class BudgetRecalculationWorker(
                             timestamp = LocalDateTime.now(),
                             oldExpenditure = budget.expenditure,
                             newExpenditure = newExpenditure,
-                            thresholdCrossed = thresholdCrossed
+                            thresholdCrossed = thresholdCrossed,
+                            cycleStartDate = budget.startDate.toString(),
+                            cycleEndDate = budget.limitDate.toString()
                         )
                     )
                 }

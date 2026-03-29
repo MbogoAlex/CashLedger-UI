@@ -15,6 +15,9 @@ interface BudgetRecalcLogDao {
     @Query("SELECT * FROM budget_recalc_log WHERE budgetId = :budgetId ORDER BY timestamp DESC")
     fun getLogsForBudget(budgetId: Int): Flow<List<BudgetRecalcLog>>
 
+    @Query("SELECT * FROM budget_recalc_log ORDER BY timestamp DESC")
+    suspend fun getAllLogsOnce(): List<BudgetRecalcLog>
+
     @Query("SELECT * FROM budget_recalc_log ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentLogs(limit: Int = 50): Flow<List<BudgetRecalcLog>>
 

@@ -115,6 +115,7 @@ interface DBRepository {
     // Budget audit log
     suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog)
     fun getLogsForBudget(budgetId: Int): Flow<List<BudgetRecalcLog>>
+    suspend fun getAllBudgetRecalcLogsOnce(): List<BudgetRecalcLog>
 
     // Budget cycle history (completed recurring cycles)
     suspend fun insertBudgetCycleLog(log: BudgetCycleLog)
@@ -297,6 +298,7 @@ class DBRepositoryImpl(
 
     override suspend fun insertBudgetRecalcLog(log: BudgetRecalcLog) = budgetRecalcLogDao.insertLog(log)
     override fun getLogsForBudget(budgetId: Int) = budgetRecalcLogDao.getLogsForBudget(budgetId)
+    override suspend fun getAllBudgetRecalcLogsOnce(): List<BudgetRecalcLog> = budgetRecalcLogDao.getAllLogsOnce()
 
     override suspend fun insertBudgetCycleLog(log: BudgetCycleLog) = budgetCycleLogDao.insertLog(log)
     override fun getBudgetCycleLogs(budgetId: Int) = budgetCycleLogDao.getLogsForBudget(budgetId)

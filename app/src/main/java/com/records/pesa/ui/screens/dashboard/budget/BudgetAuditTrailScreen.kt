@@ -44,7 +44,10 @@ object BudgetAuditTrailScreenDestination : AppNavigation {
 
 data class BudgetAuditTrailUiState(
     val isPremium: Boolean = false,
+    val budgetId: Int = 0,
     val budgetName: String = "",
+    val budgetStartDate: String? = null,
+    val budgetEndDate: String? = null,
     val logs: List<BudgetRecalcLog> = emptyList(),
     val isLoading: Boolean = true
 )
@@ -61,6 +64,7 @@ class BudgetAuditTrailScreenViewModel(
     private val budgetIdArg: Int = savedStateHandle.get<String>(BudgetAuditTrailScreenDestination.budgetId)?.toIntOrNull() ?: 0
 
     init {
+        _uiState.update { it.copy(budgetId = budgetIdArg) }
         viewModelScope.launch {
             dataStoreRepository.getUserPreferences().collect { prefs ->
                 val isPremium = prefs.permanent ||
@@ -70,7 +74,14 @@ class BudgetAuditTrailScreenViewModel(
         }
         viewModelScope.launch {
             dbRepository.getBudgetById(budgetIdArg).collect { budget ->
-                _uiState.update { it.copy(budgetName = budget?.name ?: "", isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        budgetName = budget?.name ?: "",
+                        budgetStartDate = budget?.startDate?.toString(),
+                        budgetEndDate = budget?.limitDate?.toString(),
+                        isLoading = false
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -85,6 +96,7 @@ class BudgetAuditTrailScreenViewModel(
 fun BudgetAuditTrailScreenComposable(
     navigateToPreviousScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToBudgetTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val viewModel: BudgetAuditTrailScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -94,6 +106,7 @@ fun BudgetAuditTrailScreenComposable(
         uiState = uiState,
         navigateToPreviousScreen = navigateToPreviousScreen,
         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
+        navigateToBudgetTransactions = navigateToBudgetTransactions,
         modifier = modifier
     )
 }
@@ -103,6 +116,7 @@ fun BudgetAuditTrailScreen(
     uiState: BudgetAuditTrailUiState,
     navigateToPreviousScreen: () -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
+    navigateToBudgetTransactions: (budgetId: Int, startDate: String, endDate: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -225,12 +239,15 @@ fun BudgetAuditTrailScreen(
                     }
                 }
             }
+        } else if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         } else {
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.logs.isEmpty()) {
+            val changedLogs = remember(uiState.logs) {
+                uiState.logs.filter { it.oldExpenditure != it.newExpenditure }
+            }
+            if (changedLogs.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -246,12 +263,12 @@ fun BudgetAuditTrailScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "No recalculation logs yet",
+                            text = "No changes recorded yet",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Logs will appear here after each budget recalculation",
+                            text = "Entries appear here when spending changes",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -264,8 +281,15 @@ fun BudgetAuditTrailScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(uiState.logs) { log ->
-                        AuditLogEntry(log = log)
+                    items(changedLogs) { log ->
+                        val start = log.cycleStartDate ?: uiState.budgetStartDate
+                        val end = log.cycleEndDate ?: uiState.budgetEndDate
+                        AuditLogEntry(
+                            log = log,
+                            onClick = if (start != null && end != null) {
+                                { navigateToBudgetTransactions(uiState.budgetId, start, end) }
+                            } else null
+                        )
                     }
                 }
             }
@@ -276,12 +300,20 @@ fun BudgetAuditTrailScreen(
 @Composable
 private fun AuditLogEntry(
     log: BudgetRecalcLog,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")
-    ElevatedCard(
+    val increased = log.newExpenditure > log.oldExpenditure
+    Card(
         shape = RoundedCornerShape(12.dp),
-        modifier = modifier.fillMaxWidth()
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -325,12 +357,54 @@ private fun AuditLogEntry(
                     }
                 }
             }
-            Text(
-                text = "KES ${String.format("%,.2f", log.oldExpenditure)} → KES ${String.format("%,.2f", log.newExpenditure)}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (increased) R.drawable.ic_arrow_right else R.drawable.ic_arrow_right
+                    ),
+                    contentDescription = null,
+                    tint = if (increased) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier
+                        .size(14.dp)
+                        .then(
+                            if (!increased) Modifier.scale(scaleX = 1f, scaleY = -1f) else Modifier
+                        )
+                )
+                Text(
+                    text = "KES ${String.format("%,.2f", log.oldExpenditure)} → KES ${String.format("%,.2f", log.newExpenditure)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (increased) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                )
+            }
+            if (onClick != null) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "View transactions",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
         }
     }
 }

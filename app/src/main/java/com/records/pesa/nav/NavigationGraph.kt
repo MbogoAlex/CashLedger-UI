@@ -637,6 +637,9 @@ fun NavigationGraph(
                 },
                 navigateToSubscriptionScreen = {
                     navController.navigate(SubscriptionScreenDestination.route)
+                },
+                navigateToBudgetTransactions = { budgetId, startDate, endDate ->
+                    navController.navigate("${BudgetAllTransactionsScreenDestination.route}/$budgetId/$startDate/$endDate")
                 }
             )
         }
