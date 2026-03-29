@@ -11,6 +11,7 @@ import com.records.pesa.workers.BudgetCheckWorker
 import com.records.pesa.workers.BudgetRecalculationWorker
 import com.records.pesa.workers.FetchMessagesWorker
 import com.records.pesa.workers.NotificationHelper
+import com.records.pesa.workers.SubscriptionExpiryWorker
 import java.util.concurrent.TimeUnit
 
 class CashLedger: Application() {
@@ -54,6 +55,17 @@ class CashLedger: Application() {
             "fetch_and_backup_transactions_periodic",
             ExistingPeriodicWorkPolicy.KEEP,
             smsFetchRequest
+        )
+
+        // Subscription expiry reminders — runs every 12 hours
+        val subscriptionExpiryRequest = PeriodicWorkRequestBuilder<SubscriptionExpiryWorker>(12, TimeUnit.HOURS)
+            .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "subscription_expiry_check",
+            ExistingPeriodicWorkPolicy.KEEP,
+            subscriptionExpiryRequest
         )
     }
 

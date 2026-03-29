@@ -10,6 +10,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.records.pesa.ui.screens.DashboardScreenComposable
 import com.records.pesa.ui.screens.DashboardScreenDestination
 import com.records.pesa.ui.screens.SplashScreenComposable
@@ -728,6 +729,11 @@ fun NavigationGraph(
             arguments = listOf(
                 navArgument(TransactionDetailsScreenDestination.transactionId) {
                     type = NavType.StringType
+                }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "cashledger://transaction-details-screen/{${TransactionDetailsScreenDestination.transactionId}}"
                 }
             )
         ) {

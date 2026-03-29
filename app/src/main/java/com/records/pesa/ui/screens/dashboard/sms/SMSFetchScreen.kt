@@ -178,6 +178,16 @@ fun SmsFetchScreenComposable(
         }
     }
 
+    // RECEIVE_SMS must be explicitly requested so the BroadcastReceiver gets broadcasts.
+    // It is in the same permission group as READ_SMS so Android auto-grants it, but only
+    // after we explicitly call launch() at least once.
+    LaunchedEffect(smsReadPermissionState.status.isGranted, smsReceivePermissionState.status.isGranted) {
+        if (smsReadPermissionState.status.isGranted && !smsReceivePermissionState.status.isGranted) {
+            Log.d("SMSFetchScreen", "Requesting RECEIVE_SMS permission")
+            smsReceivePermissionHandler.launch(Manifest.permission.RECEIVE_SMS)
+        }
+    }
+
     // After SMS permission is granted, request phone state permission
     LaunchedEffect(smsReadPermissionState.status.isGranted, phoneStatePermissionState.status.isGranted) {
         if (smsReadPermissionState.status.isGranted && !phoneStatePermissionState.status.isGranted) {

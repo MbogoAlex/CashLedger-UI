@@ -24,7 +24,7 @@ import java.util.Locale
 
 @Dao
 interface TransactionsDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTransaction(transaction: Transaction): Long
     fun insertTransactionBlocking(transaction: Transaction): Long {
         return runBlocking {
@@ -342,7 +342,7 @@ interface TransactionsDao {
         FROM `transaction` 
         ORDER BY year DESC
     """)
-    suspend fun getDistinctYearsWithTransactions(): List<Int>
+    fun getDistinctYearsWithTransactions(): Flow<List<Int>>
 
     /**
      * Get total money IN for a specific date range

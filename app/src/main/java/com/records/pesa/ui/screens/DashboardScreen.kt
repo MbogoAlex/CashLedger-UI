@@ -1,5 +1,6 @@
 package com.records.pesa.ui.screens
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -43,6 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -88,6 +91,7 @@ import com.records.pesa.composables.TopPeopleSection
 import com.records.pesa.functions.formatLocalDate
 import com.records.pesa.functions.formatMoneyValue
 import com.records.pesa.functions.dialUssd
+import com.records.pesa.functions.hasCallPhonePermission
 import com.records.pesa.models.TimePeriod
 import com.records.pesa.models.TransactionTypeSummary
 import com.records.pesa.models.TransactionCategory
@@ -138,6 +142,15 @@ fun DashboardScreenComposable(
     val context = LocalContext.current
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    // Auto-navigate when the SMS pipeline inserts a new transaction
+    val navigateToTransactionId = uiState.navigateToTransactionId
+    LaunchedEffect(navigateToTransactionId) {
+        if (navigateToTransactionId != null) {
+            navigateToTransactionDetailsScreen(navigateToTransactionId.toString())
+            viewModel.clearTransactionNavigation()
+        }
+    }
 
     val appVersion = 143.0
 
@@ -375,9 +388,16 @@ fun DashboardScreen(
 
         // USSD Quick Action Button
         val context = LocalContext.current
+        val callPhoneLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { _ -> context.dialUssd("*334#") }
         UssdQuickActionButton(
             onClick = {
-                context.dialUssd("*334#")
+                if (context.hasCallPhonePermission()) {
+                    context.dialUssd("*334#")
+                } else {
+                    callPhoneLauncher.launch(Manifest.permission.CALL_PHONE)
+                }
             },
             modifier = Modifier.fillMaxWidth()
         )
@@ -594,7 +614,8 @@ fun CategoriesSection(
                             .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
                             .take(2).joinToString("").ifEmpty { category.name.take(2).uppercase() }
                         val avatarColor = txAvatarColor(category.name)
-                        val budget = category.budgets.firstOrNull()
+                        val budgetCount = category.budgets.size
+                        val anyLimitReached = category.budgets.any { it.limitReached }
 
                         if (index > 0) {
                             HorizontalDivider(
@@ -646,19 +667,19 @@ fun CategoriesSection(
                                     ) {
                                         Text("${category.transactions.size} txn", fontSize = 10.sp, fontWeight = FontWeight.Medium, color = primary)
                                     }
-                                    if (budget != null) {
+                                    if (budgetCount > 0) {
                                         Box(
                                             modifier = Modifier.clip(RoundedCornerShape(4.dp))
                                                 .background(
-                                                    if (budget.limitReached) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                                    if (anyLimitReached) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                                                     else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
                                                 )
                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
                                             Text(
-                                                "Budget: Ksh ${String.format("%,.0f", budget.budgetLimit)}",
+                                                if (budgetCount == 1) "1 budget" else "$budgetCount budgets",
                                                 fontSize = 10.sp, fontWeight = FontWeight.Medium,
-                                                color = if (budget.limitReached) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                                                color = if (anyLimitReached) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
                                             )
                                         }
                                     }

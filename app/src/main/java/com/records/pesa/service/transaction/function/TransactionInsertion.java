@@ -317,6 +317,9 @@ public class TransactionInsertion {
         if(!deletedItems.contains(transaction.getEntity().toLowerCase())) {
             long transactionId = transactionsDao.insertTransactionBlocking(transaction);
 
+            // -1 means the transactionCode already exists (IGNORE conflict) — skip, do not re-map categories
+            if (transactionId == -1L) return;
+
             Transaction transaction1 = transactionsDao.getStaticTransactionById((int) transactionId);
 
             if(!categories.isEmpty()) {

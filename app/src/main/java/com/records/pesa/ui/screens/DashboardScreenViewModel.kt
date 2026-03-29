@@ -26,6 +26,7 @@ import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.service.auth.AuthenticationManager
 import com.records.pesa.service.category.CategoryService
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.TransactionInsertedEvent
 import com.records.pesa.workers.WorkersRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,6 +81,7 @@ data class DashboardScreenUiState(
     val moneyInCategories: List<TransactionTypeSummary> = emptyList(),
     val moneyOutCategories: List<TransactionTypeSummary> = emptyList(),
     val periodTransactions: List<TransactionItem> = emptyList(),
+    val navigateToTransactionId: Int? = null,
 )
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -95,6 +97,8 @@ class DashboardScreenViewModel(
     val uiState: StateFlow<DashboardScreenUiState> = _uiState.asStateFlow()
 
     private var filterJob: Job? = null
+    private var balanceJob: Job? = null
+    private var todayExpenditureJob: Job? = null
     private var initialPaidStatus: Boolean? = null
 
     fun updatePassword(password: String) {
@@ -152,23 +156,44 @@ class DashboardScreenViewModel(
 
 
     fun initializeValues() {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                try {
-                    val today = transactionService.getTodayExpenditure(LocalDate.now()).first()
-                    val currentBalance = transactionService.getCurrentBalance().first()
-                    val firstTransaction = transactionService.getFirstTransaction().first()
+        // Live balance — re-emits from Room whenever any transaction is inserted/updated/deleted
+        balanceJob?.cancel()
+        balanceJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                transactionService.getCurrentBalance().collect { balance ->
+                    _uiState.update { it.copy(currentBalance = balance) }
+                }
+            } catch (e: Exception) {
+                Log.e("INITIALIZATION_ERROR", e.toString())
+            }
+        }
+
+        // Live today totals — re-emits from Room on every transaction change for today
+        todayExpenditureJob?.cancel()
+        todayExpenditureJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                transactionService.getTodayExpenditure(LocalDate.now()).collect { today ->
                     _uiState.update {
                         it.copy(
                             totalMoneyIn = today.totalIn,
                             totalMoneyOut = today.totalOut,
-                            currentBalance = currentBalance,
-                            firstTransactionDate = formatLocalDate(firstTransaction.date)
+                            todayTotalIn = today.totalIn,
+                            todayTotalOut = today.totalOut,
                         )
                     }
-                } catch (e: Exception) {
-                    Log.e("INITIALIZATION_ERROR", e.toString())
                 }
+            } catch (e: Exception) {
+                Log.e("INITIALIZATION_ERROR", e.toString())
+            }
+        }
+
+        // First transaction date — one-shot is fine, rarely changes
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val firstTransaction = transactionService.getFirstTransaction().first()
+                _uiState.update { it.copy(firstTransactionDate = formatLocalDate(firstTransaction.date)) }
+            } catch (e: Exception) {
+                Log.e("INITIALIZATION_ERROR", e.toString())
             }
         }
     }
@@ -503,6 +528,10 @@ class DashboardScreenViewModel(
         _uiState.update { it.copy(showSubscriptionActivatedDialog = false) }
     }
 
+    fun clearTransactionNavigation() {
+        _uiState.update { it.copy(navigateToTransactionId = null) }
+    }
+
     private fun initialzeApp() {
         viewModelScope.launch {
             while (uiState.value.userDetails == null) {
@@ -521,9 +550,8 @@ class DashboardScreenViewModel(
     private fun loadAvailableYears() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val years = dbRepository.getDistinctYearsWithTransactions()
-                _uiState.update {
-                    it.copy(availableYears = years)
+                dbRepository.getDistinctYearsWithTransactions().collect { years ->
+                    _uiState.update { it.copy(availableYears = years) }
                 }
             } catch (e: Exception) {
                 Log.e("LOAD_YEARS_ERROR", e.toString())
@@ -687,6 +715,13 @@ class DashboardScreenViewModel(
         calculatePeriodTransactions()
         calculateChartData()
 //        checkAppVersion()
+
+        // When the SMS pipeline inserts a new transaction, navigate to its details screen
+        viewModelScope.launch {
+            TransactionInsertedEvent.flow.collect { transactionId ->
+                _uiState.update { it.copy(navigateToTransactionId = transactionId) }
+            }
+        }
     }
     
     /**

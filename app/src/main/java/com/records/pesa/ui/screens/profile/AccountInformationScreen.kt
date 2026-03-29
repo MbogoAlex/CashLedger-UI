@@ -3,9 +3,13 @@ package com.records.pesa.ui.screens.profile
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,20 +19,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,6 +48,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -47,19 +57,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.functions.formatIsoDateTime2
 import com.records.pesa.reusables.LoadingStatus
-import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
-import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
+import com.records.pesa.ui.screens.components.SubscriptionDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun AccountInformationScreenComposable(
@@ -68,6 +78,9 @@ fun AccountInformationScreenComposable(
     navigateToLoginScreen: () -> Unit,
     navigateToBackupScreen: () -> Unit,
     navigateToSubscriptionPaymentScreen: () -> Unit,
+    onSwitchTheme: () -> Unit = {},
+    darkMode: Boolean = false,
+    isPremium: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = navigateToHomeScreen)
@@ -75,102 +88,70 @@ fun AccountInformationScreenComposable(
     val viewModel: AccountInformationScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
 
-    var showEditFirstNameDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var showEditLastNameDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var showEditEmailDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var logoutLoading by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showLogoutDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var showEditFirstNameDialog by rememberSaveable { mutableStateOf(false) }
+    var showEditLastNameDialog  by rememberSaveable { mutableStateOf(false) }
+    var showEditEmailDialog     by rememberSaveable { mutableStateOf(false) }
+    var logoutLoading           by rememberSaveable { mutableStateOf(false) }
+    var showLogoutDialog        by rememberSaveable { mutableStateOf(false) }
+    var showSubscriptionDialog  by rememberSaveable { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
-    if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+    val isPremiumFinal = isPremium ||
+        uiState.preferences.permanent ||
+        (uiState.preferences.expiryDate?.isAfter(LocalDateTime.now()) == true)
+
+    if (uiState.loadingStatus == LoadingStatus.SUCCESS) {
         showEditFirstNameDialog = false
-        showEditLastNameDialog = false
-        showEditFirstNameDialog = false
-        showEditEmailDialog = false
+        showEditLastNameDialog  = false
+        showEditEmailDialog     = false
         Toast.makeText(context, uiState.successMessage, Toast.LENGTH_SHORT).show()
         viewModel.resetLoadingStatus()
-    } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+    } else if (uiState.loadingStatus == LoadingStatus.FAIL) {
         showEditFirstNameDialog = false
-        showEditLastNameDialog = false
-        showEditFirstNameDialog = false
-        showEditEmailDialog = false
+        showEditLastNameDialog  = false
+        showEditEmailDialog     = false
         Toast.makeText(context, uiState.successMessage, Toast.LENGTH_SHORT).show()
         viewModel.resetLoadingStatus()
     }
 
-    if(showEditFirstNameDialog) {
+    if (showEditFirstNameDialog) {
         EditDialog(
-            heading = "Edit your first name",
+            heading = "First name",
             label = "First name",
             value = uiState.firstName,
-            onChangeValue = {
-                viewModel.updateFirstName(it)
-            },
-            onConfirm = {
-                viewModel.updateUserDetails()
-            },
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    showEditFirstNameDialog = !showEditFirstNameDialog
-                }
-            },
+            onChangeValue = { viewModel.updateFirstName(it) },
+            onConfirm = { viewModel.updateUserDetails() },
+            onDismiss = { if (uiState.loadingStatus != LoadingStatus.LOADING) showEditFirstNameDialog = false },
             loadingStatus = uiState.loadingStatus
         )
     }
 
-    if(showEditLastNameDialog) {
+    if (showEditLastNameDialog) {
         EditDialog(
-            heading = "Edit your surname",
-            label = "Surname",
+            heading = "Last name",
+            label = "Last name",
             value = uiState.lastName,
-            onChangeValue = {
-                viewModel.updateLastName(it)
-            },
-            onConfirm = {
-                viewModel.updateUserDetails()
-            },
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    showEditLastNameDialog = !showEditLastNameDialog
-                }
-            },
+            onChangeValue = { viewModel.updateLastName(it) },
+            onConfirm = { viewModel.updateUserDetails() },
+            onDismiss = { if (uiState.loadingStatus != LoadingStatus.LOADING) showEditLastNameDialog = false },
             loadingStatus = uiState.loadingStatus
         )
     }
-    if(showEditEmailDialog) {
+
+    if (showEditEmailDialog) {
         EditDialog(
-            heading = "Edit your email",
+            heading = "Email address",
             label = "Email",
             value = uiState.email,
-            onChangeValue = {
-                viewModel.updateEmail(it)
-            },
-            onConfirm = {
-                viewModel.updateUserDetails()
-            },
-            onDismiss = {
-                if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                    showEditEmailDialog = !showEditEmailDialog
-                }
-            },
+            onChangeValue = { viewModel.updateEmail(it) },
+            onConfirm = { viewModel.updateUserDetails() },
+            onDismiss = { if (uiState.loadingStatus != LoadingStatus.LOADING) showEditEmailDialog = false },
             loadingStatus = uiState.loadingStatus
         )
     }
 
-    if(showLogoutDialog) {
+    if (showLogoutDialog) {
         LogoutDialog(
             clearLoginDetails = uiState.clearLoginDetails,
             onClearLoginDetails = viewModel::updateClearLoginDetails,
@@ -178,63 +159,66 @@ fun AccountInformationScreenComposable(
             onConfirm = {
                 logoutLoading = true
                 val phoneNumber = uiState.userDetails!!.phoneNumber
-                val password = uiState.userDetails!!.password
-                showLogoutDialog = !showLogoutDialog
+                val password    = uiState.userDetails!!.password
+                showLogoutDialog = false
                 scope.launch {
                     viewModel.logout()
                     delay(2000)
-                    logoutLoading = !logoutLoading
+                    logoutLoading = false
                     Toast.makeText(context, "Logging out", Toast.LENGTH_SHORT).show()
-                    if(uiState.clearLoginDetails) {
-                        while(uiState.userDetails?.phoneNumber?.isNotEmpty() == true || uiState.userDetails?.password?.isNotEmpty() == true) {
-                            delay(1000)
-                        }
+                    if (uiState.clearLoginDetails) {
+                        while (uiState.userDetails?.phoneNumber?.isNotEmpty() == true ||
+                               uiState.userDetails?.password?.isNotEmpty() == true) { delay(1000) }
                         navigateToLoginScreen()
                     } else {
-                        try {
-                            navigateToLoginScreenWithArgs(phoneNumber, password)
-                        } catch (e: Exception) {
-                            Log.e("failedToLogout", e.toString())
-                        }
+                        try { navigateToLoginScreenWithArgs(phoneNumber, password) }
+                        catch (e: Exception) { Log.e("failedToLogout", e.toString()) }
                     }
                 }
             },
-            onDismiss = {
-                showLogoutDialog = !showLogoutDialog
+            onDismiss = { showLogoutDialog = false }
+        )
+    }
+
+    if (showSubscriptionDialog) {
+        SubscriptionDialog(
+            onDismiss = { showSubscriptionDialog = false },
+            onConfirm = {
+                showSubscriptionDialog = false
+                navigateToSubscriptionPaymentScreen()
             }
         )
     }
-    
-    Box(
-        modifier = Modifier
-            .safeDrawingPadding()
-    ) {
+
+    Box(modifier = Modifier.safeDrawingPadding()) {
         AccountInformationScreen(
             lastPaymentDate = uiState.preferences.paidAt,
             expiryDate = uiState.preferences.expiryDate,
             paid = uiState.preferences.expiryDate?.isAfter(uiState.preferences.paidAt) ?: false,
             permanent = uiState.preferences.permanent,
-            onEditFirstName = {
-                showEditFirstNameDialog = !showEditFirstNameDialog
-            },
-            onEditLastName = {
-                showEditLastNameDialog = !showEditLastNameDialog
-            },
-            onEditEmail = {
-                showEditEmailDialog = !showEditEmailDialog
-            },
-            firstName = uiState.userDetails?.firstName ?: "Enter first name",
-            lastName = uiState.userDetails?.lastName ?: "Enter surname",
-            email = uiState.userDetails?.email ?: "Enter email",
-            phoneNumber = uiState.userDetails?.phoneNumber ?: "Enter phone number",
+            onEditFirstName = { showEditFirstNameDialog = true },
+            onEditLastName  = { showEditLastNameDialog = true },
+            onEditEmail     = { showEditEmailDialog = true },
+            firstName   = uiState.userDetails?.firstName ?: "",
+            lastName    = uiState.userDetails?.lastName ?: "",
+            email       = uiState.userDetails?.email ?: "",
+            phoneNumber = uiState.userDetails?.phoneNumber ?: "",
             logoutLoading = logoutLoading,
-            onLogout = {
-                showLogoutDialog = !showLogoutDialog
+            onLogout = { showLogoutDialog = true },
+            navigateToSubscriptionPaymentScreen = navigateToSubscriptionPaymentScreen,
+            onSwitchTheme = {
+                if (isPremiumFinal) {
+                    onSwitchTheme()
+                } else {
+                    showSubscriptionDialog = true
+                }
             },
-            navigateToSubscriptionPaymentScreen = navigateToSubscriptionPaymentScreen
+            darkMode = darkMode,
+            isPremium = isPremiumFinal,
         )
     }
 }
+
 
 @Composable
 fun AccountInformationScreen(
@@ -252,277 +236,391 @@ fun AccountInformationScreen(
     onLogout: () -> Unit,
     logoutLoading: Boolean,
     navigateToSubscriptionPaymentScreen: () -> Unit,
+    onSwitchTheme: () -> Unit = {},
+    darkMode: Boolean = false,
+    isPremium: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = screenWidth(x = 32.0),
-                vertical = screenHeight(x = 8.0)
-            )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                enabled = false,
-                onClick = { /*TODO*/ }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            }
-            Spacer(modifier = Modifier.width(screenWidth(x = 5.0)))
-            Text(
-                text = "Account details",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
+    val isAdmin = phoneNumber == "0888888888"
+    val initials = buildString {
+        firstName.firstOrNull()?.let { append(it.uppercaseChar()) }
+        lastName.firstOrNull()?.let { append(it.uppercaseChar()) }
+    }.ifEmpty { "?" }
 
-        Column(
-            modifier = if(phoneNumber == "0888888888") modifier
-                 else Modifier
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                text = "First name",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            ElevatedCard {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(screenWidth(x = 20.0))
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = firstName,
-                        fontSize = screenFontSize(x = 14.0).sp
+    val subStatus = when {
+        permanent -> "Lifetime"
+        expiryDate?.isAfter(LocalDateTime.now()) == true -> "Active"
+        expiryDate?.isBefore(LocalDateTime.now()) == true -> "Expired"
+        else -> "Free"
+    }
+    val subColor = when (subStatus) {
+        "Lifetime" -> MaterialTheme.colorScheme.primary
+        "Active"   -> Color(0xFF2E7D32)
+        "Expired"  -> MaterialTheme.colorScheme.error
+        else       -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 96.dp)
+    ) {
+
+        // ── Hero header ─────────────────────────────────────────────────────
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        tint = MaterialTheme.colorScheme.surfaceTint,
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
+                    .padding(vertical = 28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .clickable {
-                                onEditFirstName()
-                            }
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-            Text(
-                text = "Surname",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            ElevatedCard {
-                Row(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 20.0))
-                        .fillMaxWidth()
-                ) {
+                            .size(80.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    ) {
+                        Text(
+                            text = initials,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     Text(
-                        text = lastName,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = "$firstName $lastName".trim().ifEmpty { "—" },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        tint = MaterialTheme.colorScheme.surfaceTint,
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .clickable {
-                                onEditLastName()
-                            }
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-            Text(
-                text = "Email",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            ElevatedCard {
-                Row(
-                    modifier = Modifier
-                        .padding(screenHeight(x = 20.0))
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = email,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        tint = MaterialTheme.colorScheme.surfaceTint,
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .clickable {
-                                onEditEmail()
-                            }
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-            Text(
-                text = "Phone number",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            ElevatedCard {
-                Row(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 20.0))
-                        .fillMaxWidth()
-                ) {
                     Text(
                         text = phoneNumber,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        tint = Color.LightGray,
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(screenWidth(x = 24.0))
-                    )
-                }
-            }
-            if(phoneNumber != "0888888888") {
-                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-                Column {
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(screenWidth(x = 16.0))
+                    // Subscription badge
+                    if (!isAdmin) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = subColor.copy(alpha = 0.12f),
                         ) {
                             Text(
-                                text = "My subscription",
-                                fontSize = screenFontSize(x = 18.0).sp,
-                                fontWeight = FontWeight.Bold
+                                text = subStatus,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = subColor,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                             )
-                            Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                            if(permanent) {
-                                Text(
-                                    text = "Lifetime, No expiry",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = screenFontSize(x = 14.0).sp
+                        }
+                    }
+                    // Dark mode quick toggle in header
+                    Spacer(Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.clickable(onClick = onSwitchTheme)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(if (darkMode) R.drawable.nightlight else R.drawable.lightmode),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (darkMode) "Dark mode" else "Light mode",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (!isPremium) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFA000),
+                                    modifier = Modifier.size(12.dp)
                                 )
-                                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                Text(text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}")
-                            } else {
-                                if(expiryDate?.isBefore(LocalDateTime.now()) == true) {
-                                    Text(
-                                        text = "Expired",
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Text(
-                                        text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}",
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Text(
-                                        text = "Expired on: ${if(expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Button(
-                                        onClick = navigateToSubscriptionPaymentScreen,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "Renew",
-                                            fontSize = screenFontSize(x = 14.0).sp
-                                        )
-                                    }
-                                } else if(expiryDate?.isAfter(LocalDateTime.now()) == true) {
-                                    Text(
-                                        text = "Active",
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Text(
-                                        text = "Last payment: ${if(lastPaymentDate != null) formatIsoDateTime2(lastPaymentDate) else "N/A"}",
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Text(
-                                        text = "Expires on: ${if(expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                    )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-                                } else {
-                                    Text(
-                                        text = "Limited access",
-                                        fontSize = screenFontSize(x = 14.0).sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                                    Button(
-                                        onClick = navigateToSubscriptionPaymentScreen,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "Upgrade",
-                                            fontSize = screenFontSize(x = 14.0).sp
-                                        )
+        // ── Personal information ─────────────────────────────────────────────
+        item {
+            SectionHeader(title = "Personal information")
+        }
+        item {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            ) {
+                InfoRow(label = "First name", value = firstName, onEdit = onEditFirstName)
+                RowDivider()
+                InfoRow(label = "Last name", value = lastName, onEdit = onEditLastName)
+                RowDivider()
+                InfoRow(label = "Email", value = email.ifEmpty { "Not set" }, onEdit = onEditEmail)
+                RowDivider()
+                InfoRow(label = "Phone number", value = phoneNumber, onEdit = null)
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+
+        // ── Subscription ─────────────────────────────────────────────────────
+        if (!isAdmin) {
+            item { SectionHeader(title = "Subscription") }
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                    elevation = CardDefaults.cardElevation(0.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(
+                                painter = painterResource(R.drawable.star),
+                                contentDescription = null,
+                                tint = subColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = when (subStatus) {
+                                    "Lifetime" -> "Lifetime Premium"
+                                    "Active"   -> "Premium — Active"
+                                    "Expired"  -> "Subscription Expired"
+                                    else       -> "Free Plan"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = subColor
+                            )
+                        }
+                        if (lastPaymentDate != null) {
+                            Text(
+                                text = "Last payment: ${formatIsoDateTime2(lastPaymentDate)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        when (subStatus) {
+                            "Active" -> {
+                                val daysLeft = if (expiryDate != null)
+                                    ChronoUnit.DAYS.between(LocalDateTime.now(), expiryDate) else null
+                                Text(
+                                    text = "Expires: ${if (expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (daysLeft != null) {
+                                    val daysColor = when {
+                                        daysLeft <= 3  -> MaterialTheme.colorScheme.error
+                                        daysLeft <= 7  -> Color(0xFFF57F17) // amber
+                                        else           -> Color(0xFF2E7D32) // green
                                     }
+                                    Text(
+                                        text = when {
+                                            daysLeft <= 0L -> "Expires today!"
+                                            daysLeft == 1L -> "1 day remaining"
+                                            else           -> "$daysLeft days remaining"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = daysColor
+                                    )
+                                }
+                            }
+                            "Expired" -> {
+                                Text(
+                                    text = "Expired: ${if (expiryDate != null) formatIsoDateTime2(expiryDate) else "N/A"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Button(
+                                    onClick = navigateToSubscriptionPaymentScreen,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Renew Subscription", fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            "Free" -> {
+                                Spacer(Modifier.height(4.dp))
+                                Button(
+                                    onClick = navigateToSubscriptionPaymentScreen,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Upgrade to Premium", fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
                     }
-
                 }
-                Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-
+                Spacer(Modifier.height(20.dp))
             }
-            Spacer(modifier = Modifier.weight(1f))
-            OutlinedButton(
-                enabled = !logoutLoading,
-                onClick = onLogout,
+        }
+
+        // ── Appearance ───────────────────────────────────────────────────────
+        item { SectionHeader(title = "Appearance") }
+        item {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
             ) {
-                if(logoutLoading) {
-                    Text(
-                        text = "Logging out...",
-                        fontSize = screenFontSize(x = 14.0).sp
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(10.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.nightlight),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Dark mode",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (!isPremium) {
+                            Text(
+                                text = "Premium feature",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (isPremium) {
+                        Switch(checked = darkMode, onCheckedChange = { onSwitchTheme() })
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.lock),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+        }
+
+        // ── Logout ───────────────────────────────────────────────────────────
+        item {
+            OutlinedButton(
+                onClick = onLogout,
+                enabled = !logoutLoading,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (logoutLoading) 0.4f else 1f)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                if (logoutLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.error
                     )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Logging out...")
                 } else {
-                    Text(
-                        text = "Log out",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
+                    Text("Log out", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    )
+}
+
+@Composable
+private fun InfoRow(label: String, value: String, onEdit: (() -> Unit)?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onEdit != null) Modifier.clickable(onClick = onEdit) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        if (onEdit != null) {
+            Icon(
+                painter = painterResource(R.drawable.edit),
+                contentDescription = "Edit $label",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
 
 @Composable
 fun EditDialog(
@@ -535,58 +633,96 @@ fun EditDialog(
     loadingStatus: LoadingStatus,
     modifier: Modifier = Modifier
 ) {
+    val accentColor = MaterialTheme.colorScheme.primary
+
     AlertDialog(
-        title = {
-            Text(
-                text = heading,
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            OutlinedTextField(
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                },
-                value = value,
-                onValueChange = onChangeValue,
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Text
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-        },
         onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(
-                enabled = loadingStatus != LoadingStatus.LOADING,
-                onClick = onDismiss
+        modifier = modifier,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Dismiss",
-                    fontSize = screenFontSize(x = 14.0).sp
+                // Icon header band
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(accentColor, accentColor.copy(alpha = 0.7f))
+                            )
+                        )
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.edit),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Text(
+                            text = "Edit $heading",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    label = { Text(text = label) },
+                    value = value,
+                    onValueChange = onChangeValue,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                        keyboardType = KeyboardType.Text
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            Button(
-                enabled = value.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
-                onClick = onConfirm
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(
-                        text = "Saving...",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Save",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
+                Button(
+                    enabled = value.isNotEmpty() && loadingStatus != LoadingStatus.LOADING,
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (loadingStatus == LoadingStatus.LOADING) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Saving...")
+                    } else {
+                        Text("Save changes", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                TextButton(
+                    enabled = loadingStatus != LoadingStatus.LOADING,
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -602,88 +738,126 @@ fun LogoutDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AlertDialog(
-        title = {
-            Text(
-                text = "Logout",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "Are you sure you want to log out?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
+    val errorColor = MaterialTheme.colorScheme.error
 
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                if(clearLoginDetails) {
-                    Text(
-                        text = "Your login details will be cleared",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else {
-                    Text(
-                        text = "Your login details will be retained",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-//                    modifier = Modifier
-//                        .padding(screenWidth(x = 10.0))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Icon header band
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(errorColor, errorColor.copy(alpha = 0.7f))
+                            )
+                        )
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if(clearLoginDetails) {
-                        IconButton(onClick = onClearLoginDetails) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.check_box_filled),
-                                contentDescription = "Clear login details: true",
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
+                                painter = painterResource(R.drawable.logout),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
-                    } else {
-                        IconButton(onClick = onClearLoginDetails) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.check_box_blank),
-                                contentDescription = "Clear login details: false",
-                                modifier = Modifier
-                                    .size(screenWidth(x = 24.0))
+                        Text(
+                            text = "Log out",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                Text(
+                    text = "Are you sure you want to log out?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                // Remember me toggle
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onClearLoginDetails() }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (!clearLoginDetails) R.drawable.check_box_filled else R.drawable.check_box_blank
+                            ),
+                            contentDescription = null,
+                            tint = if (!clearLoginDetails) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Remember me?",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (!clearLoginDetails) "Your credentials will be saved"
+                                       else "You will need to sign in again",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-//                    Spacer(modifier = Modifier.width(screenWidth(x = 4.0)))
-                    Text(
-                        text = "Clear your login details",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         },
-        onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Dismiss",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
         confirmButton = {
-            Button(
-                onClick = onConfirm
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "Log out")
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = errorColor)
+                ) {
+                    Text("Yes, log out", fontWeight = FontWeight.SemiBold)
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     )
 }
+
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

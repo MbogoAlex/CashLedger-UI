@@ -55,8 +55,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
-import android.os.PowerManager
-import android.provider.Settings
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -166,10 +166,15 @@ fun HomeScreenComposable(
         }
     }
 
+    val callPhoneRequestHandler = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> /* result handled silently; button will auto-dial on next tap */ }
+
     var showSubscribeDialog by rememberSaveable { mutableStateOf(false) }
     var showFreeTrialDialog by rememberSaveable { mutableStateOf(false) }
     var showBackupDialog by rememberSaveable { mutableStateOf(false) }
-    var showBatteryOptimDialog by rememberSaveable { mutableStateOf(false) }
+    var showCallPermDialog by rememberSaveable { mutableStateOf(false) }
+    var showNotificationPermDialog by rememberSaveable { mutableStateOf(false) }
 
     var currentTab by rememberSaveable { mutableStateOf(HomeScreenTab.HOME) }
 
@@ -179,14 +184,58 @@ fun HomeScreenComposable(
             viewModel.resetNavigationScreen()
         }
 
-        // Show battery optimisation explanation once — stored in SharedPreferences, no DB migration needed
-        val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("battery_optim_prompted", false)) {
-            val pm = context.getSystemService(android.os.PowerManager::class.java)
-            if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {
-                showBatteryOptimDialog = true
+        // Show permissions sequentially: notifications first, then CALL_PHONE.
+        if (!notificationPermissionState.status.isGranted) {
+            showNotificationPermDialog = true
+        } else {
+            // Notification already granted — check CALL_PHONE next
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                != PackageManager.PERMISSION_GRANTED) {
+                showCallPermDialog = true
             }
         }
+    }
+
+    if (showNotificationPermDialog) {
+        PermissionExplanationDialog(
+            icon = R.drawable.star,
+            title = "Enable Notifications",
+            explanation = "Cash Ledger needs notification permission to alert you the moment an M-PESA transaction is detected — even when the app is in the background.\n\nWithout this, transaction alerts will be silently dropped.",
+            confirmLabel = "Allow",
+            dismissLabel = "Not now",
+            onConfirm = {
+                showNotificationPermDialog = false
+                notificationRequestHandler.launch(Manifest.permission.POST_NOTIFICATIONS)
+                // Chain to CALL_PHONE next
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    showCallPermDialog = true
+                }
+            },
+            onDismiss = {
+                showNotificationPermDialog = false
+                // Chain to CALL_PHONE next
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    showCallPermDialog = true
+                }
+            }
+        )
+    }
+
+    if (showCallPermDialog) {
+        PermissionExplanationDialog(
+            icon = R.drawable.refresh,
+            title = "Allow Making Calls",
+            explanation = "Cash Ledger uses this permission to automatically open the M-PESA USSD menu (*334#) when you tap \"Make a Transaction\" — without you having to press the call button manually.",
+            confirmLabel = "Allow",
+            dismissLabel = "Not now",
+            onConfirm = {
+                showCallPermDialog = false
+                callPhoneRequestHandler.launch(Manifest.permission.CALL_PHONE)
+            },
+            onDismiss = { showCallPermDialog = false }
+        )
     }
 
     if (showFreeTrialDialog) {
@@ -219,31 +268,6 @@ fun HomeScreenComposable(
                 Toast.makeText(context, "Backup initiated - Check notification bar for progress", Toast.LENGTH_LONG).show()
             },
             onDismiss = { showBackupDialog = false }
-        )
-    }
-
-    if (showBatteryOptimDialog) {
-        PermissionExplanationDialog(
-            icon = R.drawable.refresh,
-            title = "Keep Cash Ledger Running",
-            explanation = "Cash Ledger reads your M-PESA SMS messages in the background to automatically save new transactions — even when the app is closed.\n\nOn the next screen, select \"No restrictions\" to keep the app running reliably. Without this, your phone's battery saver may stop the app after a few days.",
-            confirmLabel = "Allow background activity",
-            dismissLabel = "Maybe later",
-            onConfirm = {
-                showBatteryOptimDialog = false
-                val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("battery_optim_prompted", true).apply()
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
-                context.startActivity(intent)
-            },
-            onDismiss = {
-                showBatteryOptimDialog = false
-                // Mark prompted even on dismiss — don't nag every launch
-                val prefs = context.getSharedPreferences("cash_ledger_prefs", android.content.Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("battery_optim_prompted", true).apply()
-            }
         )
     }
 
@@ -447,7 +471,9 @@ fun HomeScreen(
                         navigateToLoginScreenWithArgs = navigateToLoginScreenWithArgs,
                         navigateToLoginScreen = navigateToLoginScreen,
                         navigateToBackupScreen = navigateToBackupScreen,
-                        navigateToSubscriptionPaymentScreen = navigateToSubscriptionScreen
+                        navigateToSubscriptionPaymentScreen = navigateToSubscriptionScreen,
+                        onSwitchTheme = onSwitchTheme,
+                        darkMode = darkTheme,
                     )
                 }
                 HomeScreenTab.BACK_UP -> {

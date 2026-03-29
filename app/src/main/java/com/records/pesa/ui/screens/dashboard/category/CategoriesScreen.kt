@@ -752,7 +752,8 @@ private fun CategoryItemRow(
         .mapNotNull { it.firstOrNull()?.uppercase() }
         .take(2).joinToString("").ifEmpty { category.name.take(2).uppercase() }
     val avatarColor = txAvatarColor(category.name)
-    val budget = category.budgets.firstOrNull()
+    val budgetCount = category.budgets.size
+    val anyLimitReached = category.budgets.any { it.limitReached }
 
     Row(
         modifier = modifier
@@ -834,13 +835,13 @@ private fun CategoryItemRow(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                // Budget pill (if budget exists)
-                if (budget != null) {
+                // Budget count pill (if any budgets exist)
+                if (budgetCount > 0) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(
-                                if (budget.limitReached)
+                                if (anyLimitReached)
                                     MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                                 else
                                     MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
@@ -848,10 +849,10 @@ private fun CategoryItemRow(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "Budget: Ksh ${String.format("%,.0f", budget.budgetLimit)}",
+                            text = if (budgetCount == 1) "1 budget" else "$budgetCount budgets",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (budget.limitReached) MaterialTheme.colorScheme.error
+                            color = if (anyLimitReached) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.tertiary
                         )
                     }

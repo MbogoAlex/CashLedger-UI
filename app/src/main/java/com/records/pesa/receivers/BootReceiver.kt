@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import com.records.pesa.workers.BudgetCheckWorker
 import com.records.pesa.workers.BudgetRecalculationWorker
 import com.records.pesa.workers.FetchMessagesWorker
+import com.records.pesa.workers.SubscriptionExpiryWorker
 import java.util.concurrent.TimeUnit
 
 /**
@@ -45,6 +46,14 @@ class BootReceiver : BroadcastReceiver() {
             "budget_recalc",
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<BudgetRecalculationWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
+                .build()
+        )
+
+        wm.enqueueUniquePeriodicWork(
+            "subscription_expiry_check",
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<SubscriptionExpiryWorker>(12, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
                 .build()
         )

@@ -470,9 +470,9 @@ private fun calculateNetFlow(moneyIn: String, moneyOut: String): String {
         val net = inValue - outValue
         
         if (net >= 0) {
-            "+${String.format("%,.0f", net)}"
+            "+Ksh ${String.format("%,.0f", net)}"
         } else {
-            "${String.format("%,.0f", net)}"
+            "-Ksh ${String.format("%,.0f", kotlin.math.abs(net))}"
         }
     } catch (e: Exception) {
         "0"

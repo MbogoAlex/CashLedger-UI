@@ -20,6 +20,7 @@ import com.records.pesa.models.MessageData
 import com.records.pesa.models.SmsMessage
 import com.records.pesa.reusables.SmsProviders
 import com.records.pesa.service.transaction.TransactionService
+import com.records.pesa.workers.NotificationHelper
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,11 +30,20 @@ class FetchMessagesWorker(
     private val context: Context,
     private val params: WorkerParameters,
 ): CoroutineWorker(context, params) {
+
+    companion object {
+        const val KEY_SMS_BODY   = "smsBody"
+        const val KEY_SMS_SENDER = "smsSender"
+    }
+
     override suspend fun doWork(): Result {
 
         try {
             val appContext = context.applicationContext as? CashLedger
-                ?: return Result.retry()
+                ?: run {
+                    Log.e("CashLedger_SMS", "Worker: applicationContext is not CashLedger — retrying")
+                    return Result.retry()
+                }
 
             // Always use the live container (never re-init — it's already initialised by CashLedger.onCreate)
             val transactionService = appContext.container.transactionService
@@ -43,19 +53,84 @@ class FetchMessagesWorker(
 
             // Read user from DB directly — never depend on inputData which can be lost
             val users = dbRepository.getUsers().first()
-            if (users.isEmpty()) return Result.retry()
+            if (users.isEmpty()) {
+                Log.e("CashLedger_SMS", "Worker: no users in DB — retrying")
+                return Result.retry()
+            }
             val user = users[0]
-            if (user.backUpUserId == 0L) return Result.retry()
+            Log.d("CashLedger_SMS", "Worker: running for userId=${user.userId} backUpUserId=${user.backUpUserId}")
 
             val latestTransactionCode = transactionService.getLatestTransactionCode().first()
+            Log.d("CashLedger_SMS", "Worker: latestCode in DB = $latestTransactionCode")
 
-            fetchSmsMessages(
-                context = context,
-                transactionService = transactionService,
-                userAccount = userAccountService.getUserAccountByBackupId(backupId = user.backUpUserId).first(),
-                categories = categoryService.getAllCategories().first(),
-                existing = latestTransactionCode
-            )
+            val userAccount = userAccountService.getUserAccount(userId = user.userId).first()
+            val categories  = categoryService.getAllCategories().first()
+
+            // Two paths:
+            // 1. Real-time (from receiver): SMS body is in inputData — process it directly,
+            //    no inbox read needed, no timing race with the Messages app.
+            // 2. Manual sync (from Dashboard button): no inputData — do a full inbox scan.
+            val inlineSmsBody   = inputData.getString(KEY_SMS_BODY)
+            val inlineSmsSender = inputData.getString(KEY_SMS_SENDER) ?: ""
+
+            val inserted: List<SmsMessage> = if (!inlineSmsBody.isNullOrBlank()) {
+                Log.d("CashLedger_SMS", "Worker: processing inline SMS from broadcast")
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                val now = Date()
+                val sms = SmsMessage(
+                    body = inlineSmsBody,
+                    date = dateFormat.format(now),
+                    time = timeFormat.format(now),
+                    senderAddress = inlineSmsSender
+                )
+                filterMessagesToSend(
+                    messages = listOf(sms),
+                    transactionService = transactionService,
+                    userAccount = userAccount,
+                    categories = categories,
+                    existing = latestTransactionCode
+                )
+            } else {
+                Log.d("CashLedger_SMS", "Worker: no inline SMS — scanning full inbox")
+                fetchSmsMessages(
+                    context = context,
+                    transactionService = transactionService,
+                    userAccount = userAccount,
+                    categories = categories,
+                    existing = latestTransactionCode
+                )
+            }
+
+            Log.d("CashLedger_SMS", "Worker: inserted ${inserted.size} new transaction(s)")
+
+            // Fire a notification for each newly inserted transaction
+            if (inserted.isNotEmpty()) {
+                val codeRegex = Regex("\\b\\w{10}\\b")
+                for (sms in inserted) {
+                    try {
+                        // Use original case — DB stores the code as-is from the SMS
+                        val code = codeRegex.find(sms.body)?.value ?: continue
+                        val tx = transactionService.getTransactionByCode(code).first()
+                        val amount = String.format("%,.2f", Math.abs(tx.transactionAmount))
+                        val body = if (tx.transactionAmount < 0) {
+                            "Ksh $amount to ${tx.entity}"
+                        } else {
+                            "Ksh $amount from ${tx.entity}"
+                        }
+                        Log.d("CashLedger_SMS", "Worker: notifying — ${tx.transactionType} $body")
+                        NotificationHelper.notifyTransaction(
+                            context = context,
+                            transactionId = tx.id,
+                            title = "M-PESA ${tx.transactionType}",
+                            body = body
+                        )
+                        TransactionInsertedEvent.emit(tx.id)
+                    } catch (e: Exception) {
+                        Log.w("CashLedger_SMS", "Worker: notification skipped: $e")
+                    }
+                }
+            }
 
             // Trigger backup (cloud sync) only when network is available — separate concern
             val token = user.token
@@ -71,18 +146,18 @@ class FetchMessagesWorker(
                 WorkManager.getInstance(context).enqueue(postMessagesRequest)
             }
 
-            Log.d("FetchMessagesWorker", "SMS fetch complete for user ${user.backUpUserId}")
+            Log.d("CashLedger_SMS", "Worker: complete ✓")
             return Result.success()
         } catch (e: Exception) {
-            Log.e("FetchMessagesWorker", "doWork failed: $e")
-            return Result.retry() // retry instead of fail — keeps the periodic chain alive
+            Log.e("CashLedger_SMS", "Worker: doWork crashed — $e")
+            return Result.retry()
         }
 
 
     }
 }
 
-fun fetchSmsMessages(context: Context, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?) {
+fun fetchSmsMessages(context: Context, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?): List<SmsMessage> {
     val messages = mutableListOf<SmsMessage>()
     val uri = Uri.parse("content://sms/inbox")
     val projection = arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.ADDRESS)
@@ -121,7 +196,7 @@ fun fetchSmsMessages(context: Context, transactionService: TransactionService, u
         existing = existing
     )
     Log.d("MESSAGES_ADDITION", "ADDED ${messagesToSend.size} MESSAGES")
-
+    return messagesToSend
 }
 
 fun filterMessagesToSend(messages: List<SmsMessage>, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?): List<SmsMessage> {

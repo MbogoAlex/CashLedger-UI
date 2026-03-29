@@ -154,9 +154,9 @@ fun TransactionCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = if (transaction.transactionAmount > 0)
-                        "+${String.format("%,.0f", transaction.transactionAmount)}"
+                        "+Ksh ${String.format("%,.0f", transaction.transactionAmount)}"
                     else
-                        String.format("%,.0f", transaction.transactionAmount),
+                        "-Ksh ${String.format("%,.0f", kotlin.math.abs(transaction.transactionAmount))}",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (transaction.transactionAmount > 0)
@@ -337,7 +337,7 @@ fun TopPeopleSection(
                             maxLines = 1
                         )
                         Text(
-                            text = "+${String.format("%,.0f", amount)}",
+                            text = "+Ksh ${String.format("%,.0f", amount)}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.tertiary
@@ -375,7 +375,7 @@ fun TopPeopleSection(
                             maxLines = 1
                         )
                         Text(
-                            text = "-${String.format("%,.0f", amount)}",
+                            text = "-Ksh ${String.format("%,.0f", amount)}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error

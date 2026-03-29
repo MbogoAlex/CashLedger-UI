@@ -111,16 +111,10 @@ class MainActivityViewModel(
     fun switchDarkTheme() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                dataStoreRepository.saveUserPreferences(
-                    _uiState.value.preferences!!.copy(
-                        darkMode = !uiState.value.preferences!!.darkMode
-                    )
-                )
-                dbRepository.updateUserPreferences(
-                    _uiState.value.preferences!!.copy(
-                        darkMode = !uiState.value.preferences!!.darkMode
-                    )
-                )
+                val current = _uiState.value.preferences ?: return@withContext
+                val updated = current.copy(darkMode = !current.darkMode)
+                dataStoreRepository.saveUserPreferences(updated)
+                dbRepository.updateUserPreferences(updated)
             }
         }
     }

@@ -826,7 +826,7 @@ private fun ContactAvatarCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = String.format("%,.0f", abs(item.amount)),
+                text = "Ksh ${String.format("%,.0f", abs(item.amount))}",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = amountColor,

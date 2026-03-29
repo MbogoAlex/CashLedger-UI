@@ -90,7 +90,7 @@ interface DBRepository {
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
     
     // Time Period Selector methods
-    suspend fun getDistinctYearsWithTransactions(): List<Int>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
+    fun getDistinctYearsWithTransactions(): Flow<List<Int>>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
     suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double
     suspend fun getTransactionTypeBreakdown(startDate: LocalDate, endDate: LocalDate): List<TransactionTypeData>
     suspend fun getTotalTransactionCount(): Int
@@ -269,7 +269,7 @@ class DBRepositoryImpl(
     override suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int) = appDao.deleteCategoryKeywordByKeywordId(keywordId)
 
     // Time Period Selector implementations
-    override suspend fun getDistinctYearsWithTransactions(): List<Int> = transactionsDao.getDistinctYearsWithTransactions()
+    override fun getDistinctYearsWithTransactions(): Flow<List<Int>> = transactionsDao.getDistinctYearsWithTransactions()
     override fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> = transactionsDao.getTransactionsBetweenDates(startDate, endDate)
     override suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalInForPeriod(startDate, endDate)
     override suspend fun getTotalOutForPeriod(startDate: LocalDate, endDate: LocalDate): Double = transactionsDao.getTotalOutForPeriod(startDate, endDate)
