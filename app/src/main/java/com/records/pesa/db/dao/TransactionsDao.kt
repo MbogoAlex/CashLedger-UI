@@ -68,6 +68,9 @@ interface TransactionsDao {
     @Query("select transactionCode from `transaction` order by date desc, time desc limit 1")
     fun getLatestTransactionCode(): Flow<String?>
 
+    @Query("select transactionCode from `transaction`")
+    fun getAllTransactionCodes(): Flow<List<String>>
+
     @Query("select balance from `transaction` order by date desc, time desc limit 1")
     fun getCurrentBalance(): Flow<Double>
 

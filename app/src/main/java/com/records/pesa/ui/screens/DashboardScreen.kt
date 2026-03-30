@@ -116,6 +116,10 @@ import java.time.LocalDate
 import com.records.pesa.ui.screens.components.SubscriptionDialog
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.animateColorAsState
+import com.records.pesa.ui.screens.backup.BackupRestoreScreenViewModel
+import com.records.pesa.ui.screens.backup.RestoreStatus
+import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenViewModel
+import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.ui.screens.components.txAvatarColor
 import java.time.Month
 
@@ -142,6 +146,71 @@ fun DashboardScreenComposable(
     val context = LocalContext.current
     val viewModel: DashboardScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
+
+    // Background restore + SMS fetch — run once on first entry, progress shown on the card
+    val restoreVm: BackupRestoreScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val restoreState by restoreVm.uiState.collectAsState()
+    val smsFetchVm: SmsFetchScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
+    val smsFetchState by smsFetchVm.uiState.collectAsState()
+
+    val hasExistingTransactions = uiState.hasExistingTransactions
+
+    // Only restore from cloud if this is a fresh install (no local transactions).
+    // For returning users, skip straight to SMS inbox scan.
+    LaunchedEffect(hasExistingTransactions) {
+        if (hasExistingTransactions == true) {
+            // Returning user — skip restore, scan SMS inbox directly
+            smsFetchVm.fetchSmsMessages(context)
+        } else if (hasExistingTransactions == false) {
+            // Fresh install — restore from cloud first, then SMS scan
+            restoreVm.initializeData()
+        }
+        // null = still checking, wait
+    }
+    LaunchedEffect(restoreState.restoreStatus) {
+        if (restoreState.restoreStatus == RestoreStatus.SUCCESS ||
+            restoreState.restoreStatus == RestoreStatus.FAIL) {
+            smsFetchVm.fetchSmsMessages(context)
+        }
+    }
+
+    // Combined progress: for fresh installs restore is 0–50%, SMS fetch is 50–100%.
+    // For returning users (hasExistingTransactions == true) SMS fetch is 0–100%.
+    val isFreshInstall = hasExistingTransactions == false
+    val loadingProgress: Float? = when {
+        // Still determining whether to restore or not
+        hasExistingTransactions == null -> 0f
+        // Fresh install: restore phase (0–50%)
+        isFreshInstall && restoreState.restoreStatus == RestoreStatus.LOADING -> {
+            val p = if (restoreState.totalItemsToRestore > 0)
+                (restoreState.totalItemsRestored.toFloat() / restoreState.totalItemsToRestore).coerceIn(0f, 1f)
+            else 0f
+            p * 0.5f
+        }
+        // SMS fetch running (50–100% for fresh install, 0–100% for returning user)
+        smsFetchState.loadingStatus == LoadingStatus.LOADING -> {
+            val p = if (smsFetchState.messagesSize > 0)
+                (smsFetchState.messagesSent / smsFetchState.messagesSize).coerceIn(0f, 1f)
+            else 0f
+            if (isFreshInstall) 0.5f + p * 0.5f else p
+        }
+        // Done
+        smsFetchState.loadingStatus == LoadingStatus.SUCCESS -> null
+        smsFetchState.loadingStatus == LoadingStatus.FAIL -> null
+        restoreState.restoreStatus == RestoreStatus.FAIL -> null
+        // Restore done, SMS not started yet (brief gap)
+        isFreshInstall && restoreState.restoreStatus == RestoreStatus.SUCCESS -> 0.5f
+        // hasExistingTransactions is known but SMS fetch hasn't flipped to LOADING yet —
+        // keep the overlay visible to avoid a flicker between null→LOADING
+        smsFetchState.loadingStatus == LoadingStatus.INITIAL && hasExistingTransactions != null -> 0f
+        else -> null
+    }
+    val loadingLabel: String = when {
+        isFreshInstall && restoreState.restoreStatus == RestoreStatus.LOADING -> "Restoring your data…"
+        smsFetchState.loadingStatus == LoadingStatus.LOADING -> "Reading M-PESA messages…"
+        else -> "Setting up…"
+    }
+    val isLoadingTransactions = loadingProgress != null
 
     // Auto-navigate when the SMS pipeline inserts a new transaction
     val navigateToTransactionId = uiState.navigateToTransactionId
@@ -296,7 +365,10 @@ fun DashboardScreenComposable(
             budgets = budgets,
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             navigateToAllBudgets = navigateToAllBudgets,
-            navigateToBudgetCreationScreen = navigateToBudgetCreationScreen
+            navigateToBudgetCreationScreen = navigateToBudgetCreationScreen,
+            loadingProgress = loadingProgress,
+            loadingLabel = loadingLabel,
+            isLoadingTransactions = isLoadingTransactions
         )
     }
 }
@@ -346,6 +418,9 @@ fun DashboardScreen(
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit = {},
     navigateToAllBudgets: () -> Unit = {},
     navigateToBudgetCreationScreen: () -> Unit = {},
+    loadingProgress: Float? = null,
+    loadingLabel: String = "Setting up…",
+    isLoadingTransactions: Boolean = false,
     modifier: Modifier = Modifier
 ) {
 
@@ -383,6 +458,8 @@ fun DashboardScreen(
             selectedTimePeriod = selectedTimePeriod,
             availableYears = availableYears,
             onPeriodSelected = onPeriodSelected,
+            loadingProgress = loadingProgress,
+            loadingLabel = loadingLabel,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -407,6 +484,7 @@ fun DashboardScreen(
             transactions = transactions,
             onSeeAllClick = navigateToTransactionsScreen,
             onTransactionClick = navigateToTransactionDetailsScreen,
+            isLoading = isLoadingTransactions,
             modifier = Modifier.fillMaxWidth()
         )
 

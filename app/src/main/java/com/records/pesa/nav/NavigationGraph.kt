@@ -72,7 +72,7 @@ fun NavigationGraph(
     ) {
         composable(SplashScreenDestination.route) {
             SplashScreenComposable(
-                navigateToSmsFetchScreen = { navController.navigate(SMSFetchScreenDestination.route) },
+                navigateToSmsFetchScreen = { navController.navigate(HomeScreenDestination.route) },
                 navigateToRegistrationScreen = {
                     navController.navigate(RegistrationScreenDestination.route)
                 },

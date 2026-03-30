@@ -115,6 +115,8 @@ class SmsFetchScreenViewModel(
 
 
     fun fetchSmsMessages(context: Context) {
+        _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
+        viewModelScope.launch(Dispatchers.IO) {
         val messages = mutableListOf<SmsMessage>()
         val uri = Uri.parse("content://sms/inbox")
         val projection = arrayOf(
@@ -168,62 +170,43 @@ class SmsFetchScreenViewModel(
             }
         }
 
-
-        val messagesToSend = filterMessagesToSend(messages)
-        Log.d("MESSAGES_ADDITION", "ADDED ${messagesToSend.size} M-PESA MESSAGES")
+        filterMessagesToSend(messages)
+        Log.d("MESSAGES_ADDITION", "FETCHED ${messages.size} financial SMS messages")
 
         // Always trigger comprehensive SMS submission for ALL financial providers
         // This is independent of M-PESA transaction processing above
         if(uiState.value.preferences?.hasSubmittedMessages == false) {
             startBackgroundSmsSubmissionWithRetry()
         }
-
+        } // end IO
     }
 
-    private fun filterMessagesToSend(messages: List<SmsMessage>): List<SmsMessage> {
-        val messagesToSend = mutableListOf<SmsMessage>()
-        val newTransactionCodes = getNewTransactionCodes(messages);
-        Log.d("NEW_MESSAGES", "GOT ${newTransactionCodes.size} MESSAGES")
-        viewModelScope.launch {
-            Dispatchers.IO
-            val existing: String? = transactionsService.getLatestTransactionCode().first()
-            Log.d("EXISTING", existing.toString())
-            if(newTransactionCodes.isNotEmpty() && !existing.isNullOrEmpty()) {
-                for(code in newTransactionCodes) {
-                    Log.d("COMPARISON", "${code["code"]} $existing")
-                    if(code["code"] == existing.lowercase()) {
-                        Log.d("BREAK_LOOP", "BREAK")
-                        break
-                    }
-                    messagesToSend.add(code["message"] as SmsMessage)
-                }
-            } else if(existing.isNullOrEmpty() && newTransactionCodes.isNotEmpty()) {
-                messagesToSend.addAll(newTransactionCodes.map { it["message"] as SmsMessage })
-                Log.d("NEW_TRANSACTIONS_CODE_SIZE", newTransactionCodes.size.toString())
-                Log.d("MESSAGES_TO_SEND_SIZE", messagesToSend.size.toString())
-            }
-            if(messagesToSend.isNotEmpty()) {
-                _uiState.update {
-                    it.copy(
-                        messagesSize = messagesToSend.size.toFloat()
-                    )
-                }
-                extractAndInsertTransactions(messagesToSend)
-//
-            } else {
-                _uiState.update {
-                    it.copy(
-                        messagesSize = 1.0f,
-                        messagesSent = 1.0f,
-                        counterOn = true,
-                        loadingStatus = LoadingStatus.SUCCESS
-                    )
-                }
-            }
+    private suspend fun filterMessagesToSend(messages: List<SmsMessage>) {
+        val newTransactionCodes = getNewTransactionCodes(messages)
+        Log.d("NEW_MESSAGES", "GOT ${newTransactionCodes.size} MESSAGES WITH CODES")
+        val existingCodes = transactionsService.getAllTransactionCodes().first()
+            .map { it.lowercase() }.toHashSet()
+        Log.d("EXISTING", "${existingCodes.size} codes already in DB")
 
+        val messagesToSend = newTransactionCodes
+            .filter { it["code"] as String !in existingCodes }
+            .map { it["message"] as SmsMessage }
+
+        Log.d("MESSAGES_TO_SEND_SIZE", messagesToSend.size.toString())
+
+        if (messagesToSend.isNotEmpty()) {
+            _uiState.update { it.copy(messagesSize = messagesToSend.size.toFloat()) }
+            extractAndInsertTransactions(messagesToSend)
+        } else {
+            _uiState.update {
+                it.copy(
+                    messagesSize = 1.0f,
+                    messagesSent = 1.0f,
+                    counterOn = true,
+                    loadingStatus = LoadingStatus.SUCCESS
+                )
+            }
         }
-
-        return messagesToSend;
     }
 
     fun extractAndInsertTransactions(messages: List<SmsMessage>) {
@@ -235,16 +218,14 @@ class SmsFetchScreenViewModel(
                 val categories = categoryService.getAllCategories().first()
                 for(message in messages) {
                     count += 1
-                    Log.d("COUNT_VALUE", uiState.value.messagesSent.toString())
                     try {
                         transactionsService.extractTransactionDetails(message.toMessageData(), userAccount, categories.map { it.toTransactionCategory() })
                     } catch (e: Exception) {
                         Log.e("transactionInsertException", e.toString())
                     }
-                    _uiState.update {
-                        it.copy(
-                            messagesSent = count.toFloat()
-                        )
+                    // Update progress every 50 messages to avoid flooding recompositions
+                    if (count % 50 == 0 || count == messages.size) {
+                        _uiState.update { it.copy(messagesSent = count.toFloat()) }
                     }
                 }
                 _uiState.update {

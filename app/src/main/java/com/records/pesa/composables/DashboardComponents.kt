@@ -1,5 +1,6 @@
 package com.records.pesa.composables
 
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -20,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -60,6 +62,8 @@ fun HeroBalanceCard(
     selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
     availableYears: List<Int> = emptyList(),
     onPeriodSelected: (TimePeriod) -> Unit = {},
+    loadingProgress: Float? = null,   // null = done; 0f–1f = show progress bar
+    loadingLabel: String = "Setting up…",
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -77,14 +81,21 @@ fun HeroBalanceCard(
         ),
         label = "offset"
     )
-    
+
+    // Wrap in Box so the loading overlay can sit on top of the card
+    Box(modifier = modifier) {
     ElevatedCard(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
                 spotColor = primaryColor.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(24.dp)
+            )
+            .then(
+                if (loadingProgress != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                    Modifier.blur(8.dp)
+                else Modifier
             ),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.elevatedCardColors(
@@ -317,7 +328,47 @@ fun HeroBalanceCard(
                 }
             }
         }
+    } // end ElevatedCard
+
+    // Loading overlay — centered on top of the blurred card
+    if (loadingProgress != null) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.3f else 0.75f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(horizontal = 32.dp)
+            ) {
+                Text(
+                    text = loadingLabel,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                LinearProgressIndicator(
+                    progress = { loadingProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                )
+                Text(
+                    text = "${(loadingProgress * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
+    } // end outer Box
 }
 
 /**
@@ -331,7 +382,7 @@ fun AnimatedCounter(
     modifier: Modifier = Modifier
 ) {
     val displayValue = if (showValue) targetValue else "*".repeat(targetValue.length.coerceAtMost(15))
-    
+
     Text(
         text = displayValue,
         style = style,
@@ -547,13 +598,20 @@ fun RecentTransactionsSection(
     transactions: List<TransactionItem>,
     onSeeAllClick: () -> Unit,
     onTransactionClick: (String) -> Unit,
+    isLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val tertiary = MaterialTheme.colorScheme.tertiary
 
+    Box(modifier = modifier) {
     ElevatedCard(
-        modifier = modifier,
+        modifier = Modifier.fillMaxWidth()
+            .then(
+                if (isLoading && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                    Modifier.blur(6.dp)
+                else Modifier
+            ),
         shape = RoundedCornerShape(16.dp)
     ) {
         Box(
@@ -651,6 +709,34 @@ fun RecentTransactionsSection(
             }
         }
     }
+
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.35f else 0.80f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 3.dp,
+                    color = primary
+                )
+                Text(
+                    text = "Loading transactions…",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+    } // end outer Box
 }
 
 /**

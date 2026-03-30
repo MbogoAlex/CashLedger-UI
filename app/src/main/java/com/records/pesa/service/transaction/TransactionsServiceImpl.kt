@@ -41,6 +41,7 @@ class TransactionsServiceImpl(private val transactionsDao: TransactionsDao, priv
     override fun getUserTransactions(query: SupportSQLiteQuery): Flow<List<TransactionWithCategories>> = transactionsDao.getUserTransactions(query)
     override fun getSortedTransactions(query: SupportSQLiteQuery): Flow<List<AggregatedTransaction>> = transactionsDao.getSortedTransactions(query)
     override fun getLatestTransactionCode(): Flow<String?> = transactionsDao.getLatestTransactionCode()
+    override fun getAllTransactionCodes(): Flow<List<String>> = transactionsDao.getAllTransactionCodes()
     override fun getFirstTransaction(): Flow<Transaction> = transactionsDao.getFirstTransaction()
     override fun createUserTransactionQuery(
         userId: Int,

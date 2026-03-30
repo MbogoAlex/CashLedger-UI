@@ -82,6 +82,7 @@ data class DashboardScreenUiState(
     val moneyOutCategories: List<TransactionTypeSummary> = emptyList(),
     val periodTransactions: List<TransactionItem> = emptyList(),
     val navigateToTransactionId: Int? = null,
+    val hasExistingTransactions: Boolean? = null,  // null = not yet checked
 )
 class DashboardScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -532,6 +533,17 @@ class DashboardScreenViewModel(
         _uiState.update { it.copy(navigateToTransactionId = null) }
     }
 
+    private fun checkHasExistingTransactions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val count = dbRepository.getTotalTransactionCount()
+                _uiState.update { it.copy(hasExistingTransactions = count > 0) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(hasExistingTransactions = false) }
+            }
+        }
+    }
+
     private fun initialzeApp() {
         viewModelScope.launch {
             while (uiState.value.userDetails == null) {
@@ -714,6 +726,7 @@ class DashboardScreenViewModel(
         calculateTransactionTypeBreakdown()
         calculatePeriodTransactions()
         calculateChartData()
+        checkHasExistingTransactions()
 //        checkAppVersion()
 
         // When the SMS pipeline inserts a new transaction, navigate to its details screen

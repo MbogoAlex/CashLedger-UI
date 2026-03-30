@@ -29,6 +29,8 @@ interface TransactionService {
 
     fun getLatestTransactionCode(): Flow<String?>
 
+    fun getAllTransactionCodes(): Flow<List<String>>
+
     fun getFirstTransaction(): Flow<Transaction>
 
     fun createUserTransactionQuery(

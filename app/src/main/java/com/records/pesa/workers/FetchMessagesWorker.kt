@@ -60,8 +60,8 @@ class FetchMessagesWorker(
             val user = users[0]
             Log.d("CashLedger_SMS", "Worker: running for userId=${user.userId} backUpUserId=${user.backUpUserId}")
 
-            val latestTransactionCode = transactionService.getLatestTransactionCode().first()
-            Log.d("CashLedger_SMS", "Worker: latestCode in DB = $latestTransactionCode")
+            val existingCodes = transactionService.getAllTransactionCodes().first().map { it.lowercase() }.toHashSet()
+            Log.d("CashLedger_SMS", "Worker: ${existingCodes.size} codes already in DB")
 
             val userAccount = userAccountService.getUserAccount(userId = user.userId).first()
             val categories  = categoryService.getAllCategories().first()
@@ -89,7 +89,7 @@ class FetchMessagesWorker(
                     transactionService = transactionService,
                     userAccount = userAccount,
                     categories = categories,
-                    existing = latestTransactionCode
+                    existingCodes = existingCodes
                 )
             } else {
                 Log.d("CashLedger_SMS", "Worker: no inline SMS — scanning full inbox")
@@ -98,7 +98,7 @@ class FetchMessagesWorker(
                     transactionService = transactionService,
                     userAccount = userAccount,
                     categories = categories,
-                    existing = latestTransactionCode
+                    existingCodes = existingCodes
                 )
             }
 
@@ -157,7 +157,7 @@ class FetchMessagesWorker(
     }
 }
 
-fun fetchSmsMessages(context: Context, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?): List<SmsMessage> {
+fun fetchSmsMessages(context: Context, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existingCodes: HashSet<String>): List<SmsMessage> {
     val messages = mutableListOf<SmsMessage>()
     val uri = Uri.parse("content://sms/inbox")
     val projection = arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.ADDRESS)
@@ -187,39 +187,29 @@ fun fetchSmsMessages(context: Context, transactionService: TransactionService, u
         }
     }
 
-
     val messagesToSend = filterMessagesToSend(
         messages = messages,
         transactionService = transactionService,
         userAccount = userAccount,
         categories = categories,
-        existing = existing
+        existingCodes = existingCodes
     )
     Log.d("MESSAGES_ADDITION", "ADDED ${messagesToSend.size} MESSAGES")
     return messagesToSend
 }
 
-fun filterMessagesToSend(messages: List<SmsMessage>, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existing: String?): List<SmsMessage> {
-    val messagesToSend = mutableListOf<SmsMessage>()
-    val newTransactionCodes = getNewTransactionCodes(messages);
-    Log.d("NEW_MESSAGES", "GOT ${newTransactionCodes.size} MESSAGES")
+fun filterMessagesToSend(messages: List<SmsMessage>, transactionService: TransactionService, userAccount: UserAccount, categories: List<CategoryWithTransactions>, existingCodes: HashSet<String>): List<SmsMessage> {
+    val newTransactionCodes = getNewTransactionCodes(messages)
+    Log.d("CashLedger_SMS", "filterMessagesToSend: ${messages.size} SMS parsed, ${newTransactionCodes.size} have codes, ${existingCodes.size} already in DB")
 
-    Log.d("EXISTING", existing.toString())
-    if(newTransactionCodes.isNotEmpty() && !existing.isNullOrEmpty()) {
-        for(code in newTransactionCodes) {
-            Log.d("COMPARISON", "${code["code"]} $existing")
-            if(code["code"] == existing.lowercase()) {
-                Log.d("BREAK_LOOP", "BREAK")
-                break
-            }
-            messagesToSend.add(code["message"] as SmsMessage)
-        }
-    } else if(existing.isNullOrEmpty() && newTransactionCodes.isNotEmpty()) {
-        messagesToSend.addAll(newTransactionCodes.map { it["message"] as SmsMessage })
-        Log.d("NEW_TRANSACTIONS_CODE_SIZE", newTransactionCodes.size.toString())
-        Log.d("MESSAGES_TO_SEND_SIZE", messagesToSend.size.toString())
-    }
-    if(messagesToSend.isNotEmpty()) {
+    // Keep only messages whose code is not already in the DB — O(1) per lookup
+    val messagesToSend = newTransactionCodes
+        .filter { it["code"] as String !in existingCodes }
+        .map { it["message"] as SmsMessage }
+
+    Log.d("CashLedger_SMS", "filterMessagesToSend: ${messagesToSend.size} new transaction(s) to insert")
+
+    if (messagesToSend.isNotEmpty()) {
         extractAndInsertTransactions(
             messages = messagesToSend,
             userAccount = userAccount,
@@ -228,7 +218,7 @@ fun filterMessagesToSend(messages: List<SmsMessage>, transactionService: Transac
         )
     }
 
-    return messagesToSend;
+    return messagesToSend
 }
 
 fun extractAndInsertTransactions(messages: List<SmsMessage>, userAccount: UserAccount, categories: List<CategoryWithTransactions>, transactionsService: TransactionService) {
