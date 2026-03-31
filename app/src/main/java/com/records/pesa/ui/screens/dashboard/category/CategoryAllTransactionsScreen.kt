@@ -693,25 +693,6 @@ fun CategoryAllTransactionsScreen(
                         )
                     }
 
-                    // Date range picker
-                    if (showDateRangePicker) {
-                        item {
-                            DateRangePickerDialog(
-                                premium = uiState.isPremium,
-                                startDate = uiState.startDate,
-                                endDate = uiState.endDate,
-                                defaultStartDate = null,
-                                defaultEndDate = null,
-                                onChangeStartDate = { onStartDateChange(it) },
-                                onChangeLastDate = { onEndDateChange(it) },
-                                onDismiss = { showDateRangePicker = false },
-                                onConfirm = { showDateRangePicker = false },
-                                onShowSubscriptionDialog = onShowSubscriptionDialog,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
                     // Sticky filter + period bar
                     stickyHeader {
                         CatFilterAndPeriodBar(
@@ -818,6 +799,44 @@ fun CategoryAllTransactionsScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
                     }
+                }
+            }
+        }
+
+        // ── Date range picker overlay ─────────────────────────────────────────
+        if (showDateRangePicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { showDateRangePicker = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                ) {
+                    DateRangePickerDialog(
+                        premium = uiState.isPremium,
+                        startDate = uiState.startDate,
+                        endDate = uiState.endDate,
+                        defaultStartDate = null,
+                        defaultEndDate = null,
+                        onChangeStartDate = { onStartDateChange(it) },
+                        onChangeLastDate = { onEndDateChange(it) },
+                        onDismiss = { showDateRangePicker = false },
+                        onConfirm = { showDateRangePicker = false },
+                        onShowSubscriptionDialog = onShowSubscriptionDialog,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

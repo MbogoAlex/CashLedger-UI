@@ -122,6 +122,8 @@ fun TransactionsHubScreenComposable(
         userId = uiState.userDetails.id.toString(),
         isPremium = uiState.isPremium,
         onShowSubscriptionDialog = navigateToSubscriptionScreen,
+        topContactsShowIn = uiState.topContactsShowIn,
+        onTopContactsToggle = { viewModel.setTopContactsShowIn(it) },
         onPeriodSelected = { viewModel.updateSelectedPeriod(it) },
         onChangeStartDate = { viewModel.changeStartDate(it) },
         onChangeLastDate = { viewModel.changeEndDate(it) },
@@ -154,6 +156,8 @@ fun TransactionsHubScreen(
     userId: String = "",
     isPremium: Boolean = false,
     onShowSubscriptionDialog: () -> Unit = {},
+    topContactsShowIn: Boolean = true,
+    onTopContactsToggle: (Boolean) -> Unit = {},
     onPeriodSelected: (TimePeriod) -> Unit,
     onChangeStartDate: (java.time.LocalDate) -> Unit = {},
     onChangeLastDate: (java.time.LocalDate) -> Unit = {},
@@ -164,7 +168,6 @@ fun TransactionsHubScreen(
     navigateToEntityTransactions: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var topContactsShowIn by remember { mutableStateOf(true) }
     val contacts = if (topContactsShowIn) topMoneyIn else topMoneyOut
     val listState = rememberLazyListState()
     val primary = MaterialTheme.colorScheme.primary
@@ -240,25 +243,6 @@ fun TransactionsHubScreen(
             )
         }
 
-        // Date range picker
-        if (showDateRangePicker) {
-            item {
-                DateRangePickerDialog(
-                    premium = isPremium,
-                    startDate = startDateParsed,
-                    endDate = endDateParsed,
-                    defaultStartDate = null,
-                    defaultEndDate = null,
-                    onChangeStartDate = { showDateRangePicker = false; onChangeStartDate(it) },
-                    onChangeLastDate = { showDateRangePicker = false; onChangeLastDate(it) },
-                    onDismiss = { showDateRangePicker = false },
-                    onConfirm = { showDateRangePicker = false },
-                    onShowSubscriptionDialog = onShowSubscriptionDialog,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
         // ── Recent Activity ───────────────────────────────────────────────────
         item {
             Spacer(modifier = Modifier.height(8.dp))
@@ -325,13 +309,13 @@ fun TransactionsHubScreen(
                                     label = "Received",
                                     selected = topContactsShowIn,
                                     selectedBg = MaterialTheme.colorScheme.tertiary,
-                                    onClick = { topContactsShowIn = true }
+                                    onClick = { onTopContactsToggle(true) }
                                 )
                                 ContactToggleChip(
                                     label = "Sent",
                                     selected = !topContactsShowIn,
                                     selectedBg = MaterialTheme.colorScheme.error,
-                                    onClick = { topContactsShowIn = false }
+                                    onClick = { onTopContactsToggle(false) }
                                 )
                             }
                         }
@@ -679,6 +663,44 @@ fun TransactionsHubScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // ── Date range picker overlay ─────────────────────────────────────────
+        if (showDateRangePicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { showDateRangePicker = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                ) {
+                    DateRangePickerDialog(
+                        premium = isPremium,
+                        startDate = startDateParsed,
+                        endDate = endDateParsed,
+                        defaultStartDate = null,
+                        defaultEndDate = null,
+                        onChangeStartDate = { showDateRangePicker = false; onChangeStartDate(it) },
+                        onChangeLastDate = { showDateRangePicker = false; onChangeLastDate(it) },
+                        onDismiss = { showDateRangePicker = false },
+                        onConfirm = { showDateRangePicker = false },
+                        onShowSubscriptionDialog = onShowSubscriptionDialog,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

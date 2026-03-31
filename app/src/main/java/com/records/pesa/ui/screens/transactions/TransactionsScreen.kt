@@ -552,25 +552,6 @@ fun TransactionsScreen(
                         )
                     }
 
-                    // Date picker
-                    if (showDateRangePicker) {
-                        item {
-                            DateRangePickerDialog(
-                                premium = premium,
-                                startDate = startDate,
-                                endDate = endDate,
-                                defaultStartDate = defaultStartDate,
-                                defaultEndDate = defaultEndDate,
-                                onChangeStartDate = onChangeStartDate,
-                                onChangeLastDate = onChangeLastDate,
-                                onDismiss = onDismissDatePicker,
-                                onConfirm = onDismissDatePicker,
-                                onShowSubscriptionDialog = onShowSubscriptionDialog,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
                     // Sticky tab + filter row
                     stickyHeader {
                         TxTabAndFilterRow(
@@ -681,10 +662,46 @@ fun TransactionsScreen(
                 }
             }
         }
+
+        // ── Date picker overlay ──────────────────────────────────────────────
+        if (showDateRangePicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onDismissDatePicker() },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                ) {
+                    DateRangePickerDialog(
+                        premium = premium,
+                        startDate = startDate,
+                        endDate = endDate,
+                        defaultStartDate = defaultStartDate,
+                        defaultEndDate = defaultEndDate,
+                        onChangeStartDate = onChangeStartDate,
+                        onChangeLastDate = onChangeLastDate,
+                        onDismiss = onDismissDatePicker,
+                        onConfirm = onDismissDatePicker,
+                        onShowSubscriptionDialog = onShowSubscriptionDialog,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
-
-// ─── Hero summary card ────────────────────────────────────────────────────────
 
 @Composable
 private fun TxHeroCard(

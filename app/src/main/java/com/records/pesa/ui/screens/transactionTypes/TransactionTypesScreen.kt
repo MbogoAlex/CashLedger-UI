@@ -72,7 +72,12 @@ import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.models.TimePeriod
 import com.records.pesa.models.TransactionTypeSummary
+import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
 import com.records.pesa.ui.screens.transactions.TransactionCostCard
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.scale
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.min
 
 // ─── Type colour palette ──────────────────────────────────────────────────────
@@ -100,11 +105,12 @@ fun TransactionTypesScreenComposable(
     navigateToTransactionsScreen: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     navigateToSubscriptionScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
+    navigateToPreviousScreen: () -> Unit,
     initialStartDate: String? = null,
     initialEndDate: String? = null,
     modifier: Modifier = Modifier
 ) {
-    BackHandler(onBack = navigateToHomeScreen)
+    BackHandler(onBack = navigateToPreviousScreen)
 
     val viewModel: TransactionTypesScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
     val uiState by viewModel.uiState.collectAsState()
@@ -125,6 +131,11 @@ fun TransactionTypesScreenComposable(
         startDate       = uiState.startDate,
         endDate         = uiState.endDate,
         onPeriodSelected = { viewModel.updateSelectedPeriod(it) },
+        onChangeStartDate = { viewModel.updateStartDate(it) },
+        onChangeEndDate   = { viewModel.updateEndDate(it) },
+        isPremium = uiState.preferences.paid || uiState.preferences.permanent,
+        onShowSubscriptionScreen = navigateToSubscriptionScreen,
+        navigateToPreviousScreen = navigateToPreviousScreen,
         onNavigateToTransactions = navigateToTransactionsScreen,
         modifier = modifier
     )
@@ -143,10 +154,16 @@ fun TransactionTypesScreen(
     startDate: String,
     endDate: String,
     onPeriodSelected: (TimePeriod) -> Unit,
+    onChangeStartDate: (LocalDate) -> Unit = {},
+    onChangeEndDate: (LocalDate) -> Unit = {},
+    isPremium: Boolean = false,
+    onShowSubscriptionScreen: () -> Unit = {},
+    navigateToPreviousScreen: () -> Unit = {},
     onNavigateToTransactions: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showIn by rememberSaveable { mutableStateOf(true) }
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
     val entries = if (showIn) moneyInEntries else moneyOutEntries
     val total   = if (showIn) allMoneyIn else allMoneyOut
     val listState = rememberLazyListState()
@@ -157,199 +174,310 @@ fun TransactionTypesScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            // ── Page header ───────────────────────────────────────────────────
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 16.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Transaction Types",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = selectedTimePeriod.getDetailedLabel(),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                    // Period chip
-                    PeriodChip(
-                        selectedTimePeriod = selectedTimePeriod,
-                        onPeriodSelected = onPeriodSelected
-                    )
-                }
-            }
-
-            // ── Hero summary card ──────────────────────────────────────────────
-            item {
-                TxTypesHeroCard(
-                    totalIn  = allMoneyIn,
-                    totalOut = allMoneyOut,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
-
-            // ── Tab toggle ────────────────────────────────────────────────────
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(50.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    TabChip(
-                        label = "Money In",
-                        selected = showIn,
-                        selectedBg = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.weight(1f),
-                        onClick = { showIn = true }
-                    )
-                    TabChip(
-                        label = "Money Out",
-                        selected = !showIn,
-                        selectedBg = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.weight(1f),
-                        onClick = { showIn = false }
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // ── Donut chart ───────────────────────────────────────────────────
-            item {
-                DonutChart(
-                    entries  = entries,
-                    total    = total,
-                    showIn   = showIn,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-
-            // ── Type breakdown list ────────────────────────────────────────────
-            item {
-                Text(
-                    text = if (showIn) "BREAKDOWN — MONEY IN" else "BREAKDOWN — MONEY OUT",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp,
-                    color = if (showIn) MaterialTheme.colorScheme.tertiary
-                            else MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-
-            if (entries.isEmpty()) {
-                item {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                    ) {
-                        Text(
-                            text = "No transactions for this period",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            } else {
-                items(entries.mapIndexed { i, e -> i to e }, key = { it.first }) { (idx, entry) ->
-                    TypeBreakdownRow(
-                        entry     = entry,
-                        total     = total,
-                        color     = entryColor(idx),
-                        index     = idx,
-                        startDate = startDate,
-                        endDate   = endDate,
-                        showIn    = showIn,
-                        onNavigate = onNavigateToTransactions,
-                        modifier  = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            // ── Transaction fees section ───────────────────────────────────────
-            if (totalTransactionCost > 0) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TransactionCostCard(
-                        totalCost = totalTransactionCost,
-                        costByType = (if (showIn) moneyInEntries else moneyOutEntries)
-                            .filter { it.transactionCost > 0 }
-                            .map { entry ->
-                                TransactionTypeSummary(
-                                    transactionType = entry.type,
-                                    totalAmount = entry.transactionCost,
-                                    transactionCount = 0,
-                                    percentageOfTotal = if (totalTransactionCost > 0) (entry.transactionCost / totalTransactionCost * 100).toFloat() else 0f
-                                )
-                            }
-                            .sortedByDescending { it.totalAmount },
-                        periodLabel = selectedTimePeriod.getDisplayName(),
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(120.dp)) }
-        }
-
-        // ── Sticky header ─────────────────────────────────────────────────────
-        AnimatedVisibility(
-            visible  = showStickyHeader,
-            enter    = fadeIn(tween(200)),
-            exit     = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
+        // ── Content column ────────────────────────────────────────────────────
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Fixed top bar
             Surface(
-                modifier         = Modifier.fillMaxWidth(),
-                color            = MaterialTheme.colorScheme.surface,
-                shadowElevation  = 6.dp,
-                tonalElevation   = 2.dp
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(onClick = navigateToPreviousScreen) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = "Back",
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(scaleX = -1f, scaleY = 1f)
+                        )
+                    }
+                    Text(
+                        text = "Transaction Types",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 4.dp)
+                    )
+                    FullPeriodChip(
+                        selectedTimePeriod = selectedTimePeriod,
+                        startDate = startDate,
+                        endDate = endDate,
+                        isPremium = isPremium,
+                        onPeriodSelected = onPeriodSelected,
+                        onShowSubscriptionScreen = onShowSubscriptionScreen,
+                        onOpenCustomPicker = { showDateRangePicker = true }
+                    )
+                }
+            }
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f),
+                thickness = 1.dp
+            )
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // ── Hero summary card ────────────────────────────────────────
+                item {
+                    TxTypesHeroCard(
+                        totalIn  = allMoneyIn,
+                        totalOut = allMoneyOut,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+
+                // ── Tab toggle ───────────────────────────────────────────────
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        TabChip(
+                            label = "Money In",
+                            selected = showIn,
+                            selectedBg = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showIn = true }
+                        )
+                        TabChip(
+                            label = "Money Out",
+                            selected = !showIn,
+                            selectedBg = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showIn = false }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // ── Donut chart (only when data exists) ──────────────────────
+                if (entries.isNotEmpty()) {
+                    item {
+                        DonutChart(
+                            entries  = entries,
+                            total    = total,
+                            showIn   = showIn,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+
+                // ── Type breakdown list ──────────────────────────────────────
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(16.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    if (showIn) MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.error
+                                )
+                        )
+                        Text(
+                            text = if (showIn) "BREAKDOWN — MONEY IN" else "BREAKDOWN — MONEY OUT",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.5.sp,
+                            color = if (showIn) MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+
+                if (entries.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.transactions),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "No ${if (showIn) "money in" else "money out"} transactions",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = "Try a different time period",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
+                } else {
+                    items(entries.mapIndexed { i, e -> i to e }, key = { it.first }) { (idx, entry) ->
+                        TypeBreakdownRow(
+                            entry     = entry,
+                            total     = total,
+                            color     = entryColor(idx),
+                            index     = idx,
+                            startDate = startDate,
+                            endDate   = endDate,
+                            showIn    = showIn,
+                            onNavigate = onNavigateToTransactions,
+                            modifier  = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // ── Transaction fees section ─────────────────────────────────
+                if (totalTransactionCost > 0) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TransactionCostCard(
+                            totalCost = totalTransactionCost,
+                            costByType = (if (showIn) moneyInEntries else moneyOutEntries)
+                                .filter { it.transactionCost > 0 }
+                                .map { entry ->
+                                    TransactionTypeSummary(
+                                        transactionType = entry.type,
+                                        totalAmount = entry.transactionCost,
+                                        transactionCount = 0,
+                                        percentageOfTotal = if (totalTransactionCost > 0) (entry.transactionCost / totalTransactionCost * 100).toFloat() else 0f
+                                    )
+                                }
+                                .sortedByDescending { it.totalAmount },
+                            periodLabel = selectedTimePeriod.getDisplayName(),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(120.dp)) }
+            } // end LazyColumn
+        } // end Column
+
+        // ── Sticky header (overlay, in BoxScope) ─────────────────────────────
+        AnimatedVisibility(
+            visible = showStickyHeader,
+            enter   = fadeIn(tween(200)),
+            exit    = fadeOut(tween(150))
+        ) {
+            Surface(
+                modifier        = Modifier.fillMaxWidth(),
+                color           = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp,
+                tonalElevation  = 0.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = navigateToPreviousScreen) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = "Back",
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(scaleX = -1f, scaleY = 1f)
+                        )
+                    }
                     Text(
                         text = "Transaction Types",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 4.dp)
                     )
-                    PeriodChip(
+                    FullPeriodChip(
                         selectedTimePeriod = selectedTimePeriod,
-                        onPeriodSelected = onPeriodSelected
+                        startDate = startDate,
+                        endDate = endDate,
+                        isPremium = isPremium,
+                        onPeriodSelected = onPeriodSelected,
+                        onShowSubscriptionScreen = onShowSubscriptionScreen,
+                        onOpenCustomPicker = { showDateRangePicker = true }
                     )
                 }
             }
         }
-    }
+
+        // ── Date range picker overlay ─────────────────────────────────────────
+        if (showDateRangePicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { showDateRangePicker = false },
+                contentAlignment = Alignment.Center
+            ) {
+                DateRangePickerDialog(
+                    premium = isPremium,
+                    startDate = runCatching { LocalDate.parse(startDate) }.getOrElse { LocalDate.now().withDayOfMonth(1) },
+                    endDate = runCatching { LocalDate.parse(endDate) }.getOrElse { LocalDate.now() },
+                    defaultStartDate = null,
+                    defaultEndDate = null,
+                    onChangeStartDate = { onPeriodSelected(TimePeriod.CUSTOM); onChangeStartDate(it); showDateRangePicker = false },
+                    onChangeLastDate = { onChangeEndDate(it); showDateRangePicker = false },
+                    onDismiss = { showDateRangePicker = false },
+                    onConfirm = { showDateRangePicker = false },
+                    onShowSubscriptionDialog = onShowSubscriptionScreen,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                )
+            }
+        }
+    } // end outer Box
 }
 
 // ─── Hero summary card ─────────────────────────────────────────────────────────
@@ -625,9 +753,13 @@ private fun TypeBreakdownRow(
             },
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(
@@ -635,81 +767,80 @@ private fun TypeBreakdownRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Color dot circle
-                Surface(
-                    shape = CircleShape,
-                    color = color.copy(alpha = 0.12f),
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                        )
-                    }
-                }
+                // Colored dot
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text  = typeDisplayName(entry.type),
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text  = "${"%.2f".format(fraction * 100)}% of total",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(barProgress)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(color)
+                        )
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text  = "${if (showIn) "+" else "-"}Ksh ${String.format("%,.0f", entry.amount)}",
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_arrow_right),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(16.dp)
+                    Text(
+                        text  = "${"%.1f".format(fraction * 100)}%",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            // Progress bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(barProgress)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(color)
-                )
             }
         }
     }
 }
 
-// ─── Period chip ──────────────────────────────────────────────────────────────
+// ─── Full period chip ─────────────────────────────────────────────────────────
 
 @Composable
-private fun PeriodChip(
+private fun FullPeriodChip(
     selectedTimePeriod: TimePeriod,
+    startDate: String,
+    endDate: String,
+    isPremium: Boolean,
     onPeriodSelected: (TimePeriod) -> Unit,
+    onShowSubscriptionScreen: () -> Unit,
+    onOpenCustomPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM, yyyy") }
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
     Box(modifier = modifier) {
         var showMenu by remember { mutableStateOf(false) }
         Row(
@@ -725,7 +856,12 @@ private fun PeriodChip(
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Text(
-                text  = selectedTimePeriod.getDisplayName(),
+                text = if (selectedTimePeriod == TimePeriod.CUSTOM) {
+                    val sd = runCatching { LocalDate.parse(startDate) }.getOrNull()
+                    val ed = runCatching { LocalDate.parse(endDate) }.getOrNull()
+                    if (sd != null && ed != null) "${dateFormatter.format(sd)} – ${dateFormatter.format(ed)}"
+                    else "Custom"
+                } else selectedTimePeriod.getDisplayName(),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = primary
@@ -737,27 +873,70 @@ private fun PeriodChip(
                 modifier = Modifier.size(11.dp)
             )
         }
-        val periodOptions = remember {
-            listOf(
-                TimePeriod.TODAY, TimePeriod.YESTERDAY,
-                TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
-                TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
-                TimePeriod.THIS_YEAR
-            )
-        }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             periodOptions.forEach { period ->
+                val requiresPremium = !isPremium && (
+                    period == TimePeriod.LAST_MONTH ||
+                    period == TimePeriod.THIS_YEAR ||
+                    period == TimePeriod.ENTIRE
+                )
                 DropdownMenuItem(
                     text = {
-                        Text(
-                            text = period.getDisplayName(),
-                            fontSize = 14.sp,
-                            fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = period.getDisplayName(),
+                                fontSize = 14.sp,
+                                fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal,
+                                color = if (period == selectedTimePeriod) primary
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (requiresPremium) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = "Premium",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
                     },
-                    onClick = { onPeriodSelected(period); showMenu = false }
+                    onClick = {
+                        showMenu = false
+                        if (requiresPremium) onShowSubscriptionScreen()
+                        else onPeriodSelected(period)
+                    }
                 )
             }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            DropdownMenuItem(
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.calendar),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = primary
+                        )
+                        Text(
+                            text = "Custom",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = primary
+                        )
+                    }
+                },
+                onClick = {
+                    showMenu = false
+                    if (!isPremium) onShowSubscriptionScreen()
+                    else onOpenCustomPicker()
+                }
+            )
         }
     }
 }

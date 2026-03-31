@@ -43,7 +43,8 @@ data class TransactionsHubUiState(
     val selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
     val startDate: String = "",
     val endDate: String = "",
-    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL
+    val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
+    val topContactsShowIn: Boolean = true
 )
 
 class TransactionsHubScreenViewModel(
@@ -88,6 +89,10 @@ class TransactionsHubScreenViewModel(
             it.copy(selectedTimePeriod = TimePeriod.CUSTOM, endDate = date.toString())
         }
         fetchAll()
+    }
+
+    fun setTopContactsShowIn(showIn: Boolean) {
+        _uiState.update { it.copy(topContactsShowIn = showIn) }
     }
 
     private fun loadUser() {

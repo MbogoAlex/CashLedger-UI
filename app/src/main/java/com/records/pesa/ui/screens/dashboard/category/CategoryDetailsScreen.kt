@@ -506,25 +506,6 @@ fun CategoryDetailsScreen(
                     )
                 }
 
-                // ── Custom date picker ────────────────────────────────────────
-                if (showCustomPicker) {
-                    item {
-                        DateRangePickerDialog(
-                            premium = isPremium,
-                            startDate = startDate,
-                            endDate = endDate,
-                            defaultStartDate = null,
-                            defaultEndDate = null,
-                            onChangeStartDate = onSetCustomStart,
-                            onChangeLastDate = onSetCustomEnd,
-                            onDismiss = onToggleCustomPicker,
-                            onConfirm = onToggleCustomPicker,
-                            onShowSubscriptionDialog = onShowSubscriptionDialog,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
                 // ── Hero stats card ───────────────────────────────────────────
                 item {
                     ElevatedCard(
@@ -1495,6 +1476,44 @@ fun CategoryDetailsScreen(
                     state = pullRefreshState,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
+            }
+
+            // ── Custom date picker overlay ────────────────────────────────────
+            if (showCustomPicker) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onToggleCustomPicker() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { }
+                    ) {
+                        DateRangePickerDialog(
+                            premium = isPremium,
+                            startDate = startDate,
+                            endDate = endDate,
+                            defaultStartDate = null,
+                            defaultEndDate = null,
+                            onChangeStartDate = onSetCustomStart,
+                            onChangeLastDate = onSetCustomEnd,
+                            onDismiss = onToggleCustomPicker,
+                            onConfirm = onToggleCustomPicker,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         }
     }

@@ -428,6 +428,7 @@ fun HomeScreen(
                         navigateToTransactionsScreen = navigateToTransactionsScreenWithTransactionType,
                         navigateToSubscriptionScreen = navigateToSubscriptionScreen,
                         navigateToHomeScreen = navigateToHomeScreen,
+                        navigateToPreviousScreen = { onTabChange(HomeScreenTab.ALL_TRANSACTIONS) },
                         initialStartDate = txTypesStartDate.ifEmpty { null },
                         initialEndDate   = txTypesEndDate.ifEmpty { null }
                     )
