@@ -105,8 +105,10 @@ class FetchMessagesWorker(
 
             Log.d("CashLedger_SMS", "Worker: inserted ${inserted.size} new transaction(s)")
 
-            // Fire a notification for each newly inserted transaction
-            if (inserted.isNotEmpty()) {
+            // Only notify for real-time SMS (inline body from broadcast receiver).
+            // Bulk inbox scans (on first login / manual sync) must NOT send a notification
+            // per transaction — that would flood the user with hundreds of alerts.
+            if (!inlineSmsBody.isNullOrBlank() && inserted.isNotEmpty()) {
                 val codeRegex = Regex("\\b\\w{10}\\b")
                 for (sms in inserted) {
                     try {

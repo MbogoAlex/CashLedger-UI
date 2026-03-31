@@ -4,7 +4,8 @@ import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,17 +17,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,7 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,9 +53,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.nav.AppNavigation
-import com.records.pesa.ui.screens.utils.screenFontSize
-import com.records.pesa.ui.screens.utils.screenHeight
-import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 
 object LoginScreenDestination: AppNavigation {
@@ -185,116 +186,159 @@ fun LoginScreen(
     loginStatus: LoginStatus,
     modifier: Modifier = Modifier
 ) {
-    var passwordVisibility by rememberSaveable {
-        mutableStateOf(false)
-    }
-    Column(
-//        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .padding(
-                horizontal = screenWidth(x = 16.0),
-                vertical = screenHeight(x = 16.0)
-            )
+    var passwordVisibility by rememberSaveable { mutableStateOf(false) }
+
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    Box(
+        modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.mpesa_ledge_playstore_logo_no_bg),
-            contentDescription = null,
-            modifier = Modifier.aspectRatio(16f / 9f)
-        )
-        Text(
-            text = "Welcome back!",
-            fontWeight = FontWeight.Bold,
-            fontSize = screenFontSize(x = 14.0).sp,
+        Column(
             modifier = Modifier
-                .align(Alignment.Start)
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        TextField(
-            label = {
-                Text(
-                    text = "Safaricom phone number",
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    color = MaterialTheme.colorScheme.scrim,
-                )
-            },
-            value = phoneNumber,
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.phone),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(screenWidth(x = 24.0))
-                )
-            },
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Next,
-                keyboardType = KeyboardType.Phone
-            ),
-            onValueChange = onChangePhoneNumber,
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        PasswordInputField(
-            heading = "Password",
-            value = password,
-            trailingIcon = R.drawable.visibility_on,
-            onValueChange = onChangePassword,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done,
-                keyboardType = KeyboardType.Password
-            ),
-            visibility = passwordVisibility,
-            onChangeVisibility = { passwordVisibility = !passwordVisibility }
-        )
-        TextButton(
-            onClick = navigateToUpdatePasswordScreen,
-            modifier = Modifier
-                .align(Alignment.Start)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "Forgot password?",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        }
-        Spacer(modifier = Modifier.height(screenHeight(x = 20.0)))
-        Row {
-            Text(
-                text = "Don't have an account? ",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Text(
-                text = "Register",
-                fontSize = screenFontSize(x = 14.0).sp,
-                color = MaterialTheme.colorScheme.surfaceTint,
+            // Hero gradient banner
+            Box(
                 modifier = Modifier
-                    .clickable { navigateToRegistrationScreen() }
-            )
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        Button(
-            enabled = buttonEnabled && loginStatus != LoginStatus.LOADING,
-            onClick = onLogin,
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            if(loginStatus == LoginStatus.LOADING) {
-                Text(
-                    text = "Loading...",
-                    fontSize = screenFontSize(x = 14.0).sp
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                primary.copy(alpha = 0.15f),
+                                tertiary.copy(alpha = 0.08f),
+                                primary.copy(alpha = 0.05f)
+                            )
+                        )
+                    )
+                    .padding(top = 48.dp, bottom = 28.dp, start = 24.dp, end = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.mpesa_ledge_playstore_logo_no_bg),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth(0.55f)
+                            .aspectRatio(16f / 9f)
+                    )
+                    Text(
+                        text = "Welcome Back",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Sign in to your account",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                    )
+                }
+            }
+
+            // Form
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    label = {
+                        Text(text = "Safaricom phone number", fontSize = 14.sp)
+                    },
+                    value = phoneNumber,
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.phone),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Next,
+                        keyboardType = KeyboardType.Phone
+                    ),
+                    onValueChange = { if (it.length <= 10) onChangePhoneNumber(it) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            } else {
-                Text(
-                    text = "Login",
-                    fontSize = screenFontSize(x = 14.0).sp
+
+                PasswordInputField(
+                    heading = "Password",
+                    value = password,
+                    trailingIcon = R.drawable.visibility_on,
+                    onValueChange = onChangePassword,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done,
+                        keyboardType = KeyboardType.Password
+                    ),
+                    visibility = passwordVisibility,
+                    onChangeVisibility = { passwordVisibility = !passwordVisibility }
                 )
+
+                TextButton(
+                    onClick = navigateToUpdatePasswordScreen,
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Text(
+                        text = "Forgot password?",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    enabled = buttonEnabled && loginStatus != LoginStatus.LOADING,
+                    onClick = onLogin,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    if (loginStatus == LoginStatus.LOADING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Signing in…", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    } else {
+                        Text(text = "Sign In", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Don't have an account? ", fontSize = 14.sp)
+                    TextButton(onClick = navigateToRegistrationScreen) {
+                        Text(
+                            text = "Register",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
     }
