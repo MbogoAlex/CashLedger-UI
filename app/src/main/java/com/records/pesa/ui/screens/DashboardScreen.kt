@@ -1331,19 +1331,62 @@ fun PasswordDialog(
     navigateToUpdatePasswordScreen: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var passwordVisibility by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var passwordVisibility by rememberSaveable { mutableStateOf(false) }
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
     AlertDialog(
-        title = {
-            Text(
-                text = "Enter password to show balance",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 16.0).sp
-            )
-        },
+        onDismissRequest = onDismiss,
+        title = null,
         text = {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // ── Gradient banner with lock icon ────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(primary.copy(alpha = 0.15f), tertiary.copy(alpha = 0.08f))
+                            )
+                        )
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(primary.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null,
+                                tint = primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Text(
+                            text = "Show Balance",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Password field ────────────────────────────────────────────
                 PasswordInputField(
                     heading = "Password",
                     value = password,
@@ -1356,47 +1399,53 @@ fun PasswordDialog(
                     visibility = passwordVisibility,
                     onChangeVisibility = { passwordVisibility = !passwordVisibility }
                 )
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                if(showIncorrectPasswordText) {
+
+                if (showIncorrectPasswordText) {
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Incorrect password",
-                        fontSize = screenFontSize(x = 14.0).sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Start)
                     )
                 }
+
+                // ── Forgot password link ──────────────────────────────────────
                 TextButton(
                     onClick = navigateToUpdatePasswordScreen,
-                    modifier = Modifier
-                        .align(Alignment.Start)
+                    modifier = Modifier.align(Alignment.Start),
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "Forgot password?",
-                        fontSize = screenFontSize(x = 14.0).sp
+                        fontSize = 13.sp,
+                        color = primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // ── Confirm button ────────────────────────────────────────────
+                Button(
+                    onClick = onConfirm,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Confirm", fontWeight = FontWeight.SemiBold)
+                }
+
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        "Cancel",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
             }
         },
-        onDismissRequest = onDismiss,
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier
-            ) {
-                Text(
-                    text = "Dismiss",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text(
-                    text = "Done",
-                    fontSize = screenFontSize(x = 14.0).sp
-                )
-            }
-        }
+        confirmButton = {},
+        dismissButton = null
     )
 }
 

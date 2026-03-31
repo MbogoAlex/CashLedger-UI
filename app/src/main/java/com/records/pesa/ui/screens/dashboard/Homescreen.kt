@@ -12,7 +12,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -73,8 +76,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
@@ -549,15 +554,34 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
+                            val transactInteraction = remember { MutableInteractionSource() }
+                            val isPressed by transactInteraction.collectIsPressedAsState()
+                            val fabScale by animateFloatAsState(
+                                targetValue = if (isPressed) 0.88f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessHigh
+                                ),
+                                label = "transact_scale"
+                            )
                             Box(
                                 modifier = Modifier
+                                    .scale(fabScale)
                                     .size(52.dp)
-                                    .shadow(elevation = 6.dp, shape = CircleShape)
+                                    .shadow(
+                                        elevation = if (isPressed) 2.dp else 6.dp,
+                                        shape = CircleShape
+                                    )
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
+                                    .background(
+                                        if (isPressed)
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                                        else
+                                            MaterialTheme.colorScheme.primary
+                                    )
                                     .clickable(
                                         indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }
+                                        interactionSource = transactInteraction
                                     ) { onTransact() },
                                 contentAlignment = Alignment.Center
                             ) {
