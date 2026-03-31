@@ -492,6 +492,7 @@ fun AccountInformationScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable { onSwitchTheme() }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Box(
@@ -531,8 +532,8 @@ fun AccountInformationScreen(
                     } else {
                         Icon(
                             painter = painterResource(R.drawable.lock),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            contentDescription = "Premium feature",
+                            tint = Color(0xFFFFA000),
                             modifier = Modifier.size(18.dp)
                         )
                     }
