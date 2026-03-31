@@ -92,6 +92,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
+import com.records.pesa.functions.dialUssd
 import com.records.pesa.functions.formatIsoDateTime
 import com.records.pesa.functions.formatIsoDateTime2
 import com.records.pesa.functions.formatLocalDate
@@ -168,7 +169,7 @@ fun HomeScreenComposable(
 
     val callPhoneRequestHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { _ -> /* result handled silently; button will auto-dial on next tap */ }
+    ) { granted -> if (granted) context.dialUssd("*334#") }
 
     var showSubscribeDialog by rememberSaveable { mutableStateOf(false) }
     var showFreeTrialDialog by rememberSaveable { mutableStateOf(false) }
@@ -298,10 +299,17 @@ fun HomeScreenComposable(
             tabs = listOf(
                 HomeScreenTabItem("Home", R.drawable.home, HomeScreenTab.HOME),
                 HomeScreenTabItem("Transactions", R.drawable.transactions, HomeScreenTab.ALL_TRANSACTIONS),
-                HomeScreenTabItem("Budgets", R.drawable.budget_2, HomeScreenTab.BUDGETS),
                 HomeScreenTabItem("Categories", R.drawable.categories, HomeScreenTab.CATEGORIES),
                 HomeScreenTabItem("Profile", R.drawable.account_info, HomeScreenTab.ACCOUNT_INFO),
             ),
+            onTransact = {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                    == PackageManager.PERMISSION_GRANTED) {
+                    context.dialUssd("*334#")
+                } else {
+                    callPhoneRequestHandler.launch(Manifest.permission.CALL_PHONE)
+                }
+            },
             navigateToTransactionsScreen = navigateToTransactionsScreen,
             navigateToCategoriesScreen = navigateToCategoriesScreen,
             navigateToCategoryAdditionScreen = navigateToCategoryAdditionScreen,
@@ -348,6 +356,7 @@ fun HomeScreen(
     currentTab: HomeScreenTab,
     onTabChange: (HomeScreenTab) -> Unit,
     tabs: List<HomeScreenTabItem>,
+    onTransact: () -> Unit,
     navigateToTransactionsScreen: () -> Unit,
     navigateToCategoriesScreen: () -> Unit,
     navigateToCategoryAdditionScreen: () -> Unit,
@@ -519,50 +528,57 @@ fun HomeScreen(
                     .navigationBarsPadding()
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp)
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    tabs.forEachIndexed { index, item ->
-                        val isSelected = currentTab == item.tab
-                        if (index == 2) {
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .shadow(elevation = 4.dp, shape = CircleShape)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                        .clickable(
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ) { onTabChange(item.tab) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = item.icon),
-                                        contentDescription = item.name,
-                                        modifier = Modifier.size(22.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                }
-                            }
-                        } else {
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Left 2 tabs
+                        tabs.take(2).forEach { item ->
                             BottomNavBarItem(
                                 item = item,
-                                isSelected = isSelected,
+                                isSelected = currentTab == item.tab,
+                                onClick = { onTabChange(item.tab) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        // Centre Transact FAB
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .shadow(elevation = 6.dp, shape = CircleShape)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) { onTransact() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_transact),
+                                    contentDescription = "Transact",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                        // Right 2 tabs
+                        tabs.drop(2).forEach { item ->
+                            BottomNavBarItem(
+                                item = item,
+                                isSelected = currentTab == item.tab,
                                 onClick = { onTabChange(item.tab) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
-                }
             }
         }
     }
@@ -816,6 +832,7 @@ fun HomeScreenPreview() {
                 currentTab = it
             },
             tabs = tabs,
+            onTransact = {},
             navigateToTransactionsScreen = {},
             navigateToCategoriesScreen = {},
             navigateToCategoryAdditionScreen = {},
