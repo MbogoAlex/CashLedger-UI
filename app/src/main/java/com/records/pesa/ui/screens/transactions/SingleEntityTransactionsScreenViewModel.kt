@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.records.pesa.db.DBRepository
+import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.mapper.toTransactionItem
 import com.records.pesa.models.transaction.TransactionItem
 import com.records.pesa.models.dbModel.UserDetails
@@ -45,7 +46,8 @@ data class SingleEntityTransactionsScreenUiState(
     val downLoadUri: Uri? = null,
     val transactions: List<TransactionItem> = emptyList(),
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
-    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL
+    val downloadingStatus: DownloadingStatus = DownloadingStatus.INITIAL,
+    val preferences: UserPreferences? = null,
 )
 class SingleEntityTransactionsScreenViewModel(
     private val apiRepository: ApiRepository,
@@ -164,6 +166,7 @@ class SingleEntityTransactionsScreenViewModel(
                 delay(1000)
             }
             getTransactions()
+            getUserPreferences()
         }
     }
 
@@ -256,6 +259,24 @@ class SingleEntityTransactionsScreenViewModel(
             it.copy(
                 loadingStatus = LoadingStatus.INITIAL
             )
+        }
+    }
+
+    fun changeStartDate(date: LocalDate) {
+        _uiState.update { it.copy(startDate = date.toString()) }
+        getTransactions()
+    }
+
+    fun changeEndDate(date: LocalDate) {
+        _uiState.update { it.copy(endDate = date.toString()) }
+        getTransactions()
+    }
+
+    private fun getUserPreferences() {
+        viewModelScope.launch {
+            dbRepository.getUserPreferences()?.collect { prefs ->
+                _uiState.update { it.copy(preferences = prefs) }
+            }
         }
     }
 

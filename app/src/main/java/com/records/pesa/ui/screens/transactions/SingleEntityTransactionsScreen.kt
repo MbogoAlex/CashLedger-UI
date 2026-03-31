@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,9 +60,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +73,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.records.pesa.AppViewModelFactory
 import com.records.pesa.R
 import com.records.pesa.models.transaction.TransactionItem
+import com.records.pesa.models.TimePeriod
 import com.records.pesa.nav.AppNavigation
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.transactions
@@ -80,7 +84,9 @@ import com.records.pesa.ui.screens.components.formatTxDateHeader
 import com.records.pesa.ui.screens.components.formatTxShortDate
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.theme.CashLedgerTheme
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.absoluteValue
 
 object SingleEntityTransactionsScreenDestination: AppNavigation {
@@ -121,6 +127,12 @@ fun SingleEntityTransactionsScreenComposable(
             viewModel.getTransactions()
         }
     )
+
+    val isPremium = uiState.preferences?.paid == true ||
+        uiState.userDetails.phoneNumber == "0888888888" ||
+        uiState.preferences?.permanent == true
+
+    var selectedPeriod by remember { mutableStateOf<TimePeriod>(TimePeriod.THIS_MONTH) }
 
     var showDownloadReportDialog by rememberSaveable {
         mutableStateOf(false)
@@ -197,7 +209,17 @@ fun SingleEntityTransactionsScreenComposable(
             },
             loadingStatus = uiState.loadingStatus,
             navigateToTransactionDetailsScreen = navigateToTransactionDetailsScreen,
-            navigateToPreviousScreen = navigateToPreviousScreen
+            navigateToPreviousScreen = navigateToPreviousScreen,
+            isPremium = isPremium,
+            selectedPeriod = selectedPeriod,
+            onPeriodSelected = { period ->
+                selectedPeriod = period
+                val (s, e) = period.getDateRange()
+                viewModel.changeStartDate(s)
+                viewModel.changeEndDate(e)
+            },
+            onChangeStartDate = { selectedPeriod = TimePeriod.CUSTOM; viewModel.changeStartDate(it) },
+            onChangeEndDate = { viewModel.changeEndDate(it) }
         )
     }
 }
@@ -216,11 +238,18 @@ fun SingleEntityTransactionsScreen(
     loadingStatus: LoadingStatus,
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
+    isPremium: Boolean = false,
+    selectedPeriod: TimePeriod = TimePeriod.THIS_MONTH,
+    onPeriodSelected: (TimePeriod) -> Unit = {},
+    onChangeStartDate: (LocalDate) -> Unit = {},
+    onChangeEndDate: (LocalDate) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isLoading = loadingStatus == LoadingStatus.LOADING
     val net = totalMoneyIn - totalMoneyOut
     val primaryColor = MaterialTheme.colorScheme.primary
+
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
 
     val groupedByDate = remember(transactions) {
         transactions.groupBy { it.date }
@@ -279,7 +308,19 @@ fun SingleEntityTransactionsScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).padding(start = 4.dp)
+                    )
+                    FullPeriodChip(
+                        selectedTimePeriod = selectedPeriod,
+                        startDate = startDate,
+                        endDate = endDate,
+                        isPremium = isPremium,
+                        onPeriodSelected = onPeriodSelected,
+                        onShowSubscriptionScreen = { /* no-op */ },
+                        onOpenCustomPicker = { showDateRangePicker = true },
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                     IconButton(
                         onClick = onDownloadReport,
@@ -482,6 +523,35 @@ fun SingleEntityTransactionsScreen(
                 }
             }
         }
+
+        if (showDateRangePicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                        showDateRangePicker = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                DateRangePickerDialog(
+                    premium = isPremium,
+                    startDate = runCatching { LocalDate.parse(startDate) }.getOrElse { LocalDate.now().withDayOfMonth(1) },
+                    endDate = runCatching { LocalDate.parse(endDate) }.getOrElse { LocalDate.now() },
+                    defaultStartDate = null,
+                    defaultEndDate = null,
+                    onChangeStartDate = { onChangeStartDate(it); showDateRangePicker = false },
+                    onChangeLastDate = { onChangeEndDate(it); showDateRangePicker = false },
+                    onDismiss = { showDateRangePicker = false },
+                    onConfirm = { showDateRangePicker = false },
+                    onShowSubscriptionDialog = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                )
+            }
+        }
     }
 }
 
@@ -600,5 +670,128 @@ fun SingleEntityTransactionsScreenPreview(
             navigateToTransactionDetailsScreen = {},
             navigateToPreviousScreen = {}
         )
+    }
+}
+
+// ─── Full period chip ─────────────────────────────────────────────────────────
+
+@Composable
+private fun FullPeriodChip(
+    selectedTimePeriod: TimePeriod,
+    startDate: String,
+    endDate: String,
+    isPremium: Boolean,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onShowSubscriptionScreen: () -> Unit,
+    onOpenCustomPicker: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM, yyyy") }
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
+    Box(modifier = modifier) {
+        var showMenu by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(primary.copy(alpha = 0.10f))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { showMenu = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                text = if (selectedTimePeriod == TimePeriod.CUSTOM) {
+                    val sd = runCatching { LocalDate.parse(startDate) }.getOrNull()
+                    val ed = runCatching { LocalDate.parse(endDate) }.getOrNull()
+                    if (sd != null && ed != null) "${dateFormatter.format(sd)} – ${dateFormatter.format(ed)}"
+                    else "Custom"
+                } else selectedTimePeriod.getDisplayName(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = primary
+            )
+            Icon(
+                painter = painterResource(R.drawable.arrow_downward),
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier.size(11.dp)
+            )
+        }
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            periodOptions.forEach { period ->
+                val requiresPremium = !isPremium && (
+                    period == TimePeriod.LAST_MONTH ||
+                    period == TimePeriod.THIS_YEAR ||
+                    period == TimePeriod.ENTIRE
+                )
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = period.getDisplayName(),
+                                fontSize = 14.sp,
+                                fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal,
+                                color = if (period == selectedTimePeriod) primary
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (requiresPremium) {
+                                Icon(
+                                    painter = painterResource(R.drawable.lock),
+                                    contentDescription = "Premium",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        showMenu = false
+                        if (requiresPremium) onShowSubscriptionScreen()
+                        else onPeriodSelected(period)
+                    }
+                )
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            DropdownMenuItem(
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.calendar),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = primary
+                        )
+                        Text(
+                            text = "Custom",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = primary
+                        )
+                    }
+                },
+                onClick = {
+                    showMenu = false
+                    if (!isPremium) onShowSubscriptionScreen()
+                    else onOpenCustomPicker()
+                }
+            )
+        }
     }
 }
