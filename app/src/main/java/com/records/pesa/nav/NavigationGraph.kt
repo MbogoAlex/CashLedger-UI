@@ -745,7 +745,11 @@ fun NavigationGraph(
         ) {
             TransactionDetailsScreenComposable(
                 navigateToPreviousScreen = {
-                    navController.popBackStack()
+                    // When launched from a notification deep link the back stack is empty;
+                    // popBackStack() returns false in that case, so fall back to HomeScreen.
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeScreenDestination.route)
+                    }
                 },
                 navigateToCategoryScreen = {
                     navController.navigate("${CategoryDetailsScreenDestination.route}/$it")
