@@ -38,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,6 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -112,6 +114,7 @@ fun SubscriptionScreenComposable(
 
     var lipaStatusCheck by rememberSaveable { mutableStateOf(false) }
     var showSuccessDialogue by rememberSaveable { mutableStateOf(false) }
+    var showFailureDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showSuccessDialogue) {
         PaymentSuccessDialogue(
@@ -123,25 +126,32 @@ fun SubscriptionScreenComposable(
                 else -> "Monthly"
             },
             onConfirm = {
-                showSuccessDialogue = !showSuccessDialogue
-                navigateToSmsFetchScreen()
+                showSuccessDialogue = false
+                navigateToHomeScreen()
             },
             onDismiss = {
-                showSuccessDialogue = !showSuccessDialogue
-                navigateToSmsFetchScreen()
+                showSuccessDialogue = false
+                navigateToHomeScreen()
             }
+        )
+    }
+
+    if (showFailureDialog) {
+        PaymentFailureDialog(
+            reason = uiState.failedReason ?: "",
+            onRetry = { showFailureDialog = false },
+            onDismiss = { showFailureDialog = false }
         )
     }
 
     LaunchedEffect(uiState.loadingStatus) {
         if (uiState.loadingStatus == LoadingStatus.SUCCESS) {
-            Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
             lipaStatusCheck = false
             showSuccessDialogue = true
             viewModel.resetPaymentStatus()
         } else if (uiState.loadingStatus == LoadingStatus.FAIL) {
-            Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
             lipaStatusCheck = false
+            showFailureDialog = true
             viewModel.resetPaymentStatus()
         }
     }
@@ -1056,7 +1066,7 @@ private fun PaymentLoadingOverlay(
 }
 
 // ---------------------------------------------------------------------------
-// Payment success dialogue  (unchanged — keep as-is)
+// Payment dialogs
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -1066,28 +1076,177 @@ fun PaymentSuccessDialogue(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
     AlertDialog(
-        title = {
-            Text(
-                text = "Payment Successful",
-                fontSize = screenFontSize(x = 16.0).sp
-            )
-        },
-        text = {
-            Text(
-                text = "You have successfully subscribed to $paymentPlan",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-        },
         onDismissRequest = onDismiss,
-        confirmButton = {
-            Button(onClick = onConfirm) {
+        modifier = modifier,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(tertiary.copy(alpha = 0.18f), primary.copy(alpha = 0.08f))
+                            )
+                        )
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(tertiary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.check),
+                                contentDescription = null,
+                                tint = tertiary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Text(
+                            text = "Payment Successful!",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
                 Text(
-                    text = "Exit",
-                    fontSize = screenFontSize(x = 14.0).sp
+                    text = "You've successfully subscribed to the $paymentPlan plan. Enjoy full access to all premium features!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
                 )
+
+                Spacer(Modifier.height(20.dp))
+
+                Button(
+                    onClick = onConfirm,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Go to Home", fontWeight = FontWeight.SemiBold)
+                }
             }
-        }
+        },
+        confirmButton = {},
+        dismissButton = null
+    )
+}
+
+@Composable
+fun PaymentFailureDialog(
+    reason: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val error = MaterialTheme.colorScheme.error
+    val primary = MaterialTheme.colorScheme.primary
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(error.copy(alpha = 0.12f), primary.copy(alpha = 0.05f))
+                            )
+                        )
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(error.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.baseline_clear_24),
+                                contentDescription = null,
+                                tint = error,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Text(
+                            text = "Payment Failed",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    text = if (reason.isNotBlank()) reason
+                           else "Something went wrong while processing your payment. Please try again.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                Button(
+                    onClick = onRetry,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = error
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Try Again", fontWeight = FontWeight.SemiBold)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        "Cancel",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = null
     )
 }
 
