@@ -23,11 +23,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.abs
 
 data class TransactionsHubUiState(
     val userDetails: UserDetails = UserDetails(),
     val preferences: UserPreferences = userPreferences,
+    val isPremium: Boolean = false,
     val recentTransactions: List<TransactionItem> = emptyList(),
     val latestTransactions: List<TransactionItem> = emptyList(),
     val topMoneyIn: List<IndividualSortedTransactionItem> = emptyList(),
@@ -55,6 +57,7 @@ class TransactionsHubScreenViewModel(
     init {
         applyPeriod(TimePeriod.TODAY)
         loadUser()
+        loadPreferences()
     }
 
     private fun applyPeriod(period: TimePeriod) {
@@ -80,6 +83,16 @@ class TransactionsHubScreenViewModel(
                 _uiState.update { it.copy(userDetails = users[0]) }
                 fetchAll()
                 loadLatestTransactions()
+            }
+        }
+    }
+
+    private fun loadPreferences() {
+        viewModelScope.launch {
+            dbRepository.getUserPreferences()?.first()?.let { prefs ->
+                val isPremium = prefs.permanent ||
+                    (prefs.expiryDate?.isAfter(LocalDateTime.now()) == true)
+                _uiState.update { it.copy(preferences = prefs, isPremium = isPremium) }
             }
         }
     }

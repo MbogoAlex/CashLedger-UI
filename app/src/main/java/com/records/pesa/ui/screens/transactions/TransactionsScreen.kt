@@ -853,23 +853,23 @@ private fun TxHeroCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // In / Out / Net row — equal thirds, compact amounts
+                // In / Out / Net row — full amounts, equal thirds, wrapping allowed
                 Row(modifier = Modifier.fillMaxWidth()) {
                     HeroStatCol(
                         label = "Money In",
-                        value = formatCompactKsh(totalIn),
+                        value = "Ksh ${String.format("%,.0f", totalIn)}",
                         color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     )
                     HeroStatCol(
                         label = "Money Out",
-                        value = formatCompactKsh(totalOut),
+                        value = "Ksh ${String.format("%,.0f", totalOut)}",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.weight(1f)
                     )
                     HeroStatCol(
                         label = "Net",
-                        value = "${if (net >= 0) "+" else "-"}${formatCompactKsh(net.absoluteValue)}",
+                        value = "${if (net >= 0) "" else "-"}Ksh ${String.format("%,.0f", net.absoluteValue)}",
                         color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.weight(1f)
                     )
@@ -884,7 +884,7 @@ private fun HeroStatCol(label: String, value: String, color: Color, modifier: Mo
     Column(modifier = modifier) {
         Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f), fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
         Spacer(modifier = Modifier.height(3.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color, maxLines = 1, softWrap = false)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color)
     }
 }
 

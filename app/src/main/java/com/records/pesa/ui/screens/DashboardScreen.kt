@@ -353,8 +353,8 @@ fun DashboardScreenComposable(
             // Time Period Selector parameters
             selectedTimePeriod = uiState.selectedTimePeriod,
             availableYears = uiState.availableYears,
-            periodTotalIn = formatMoneyValue(uiState.periodTotalIn),
-            periodTotalOut = formatMoneyValue(uiState.periodTotalOut),
+            periodTotalIn = "Ksh ${String.format("%,.0f", uiState.periodTotalIn)}",
+            periodTotalOut = "Ksh ${String.format("%,.0f", uiState.periodTotalOut)}",
             transactionTypeBreakdown = uiState.transactionTypeBreakdown,
             moneyInCategories = uiState.moneyInCategories,
             moneyOutCategories = uiState.moneyOutCategories,

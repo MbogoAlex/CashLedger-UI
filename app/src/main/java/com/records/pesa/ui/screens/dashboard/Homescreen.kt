@@ -412,7 +412,8 @@ fun HomeScreen(
                             onTabChange(HomeScreenTab.TRANSACTION_TYPES)
                         },
                         navigateToTransactionDetails = navigateToTransactionDetailsScreen,
-                        navigateToEntityTransactions = navigateToEntityTransactionsScreen
+                        navigateToEntityTransactions = navigateToEntityTransactionsScreen,
+                        navigateToSubscriptionScreen = navigateToSubscriptionScreen
                     )
                 }
                 HomeScreenTab.SORTED_TRANSACTIONS -> {

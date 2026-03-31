@@ -98,6 +98,7 @@ fun TransactionsHubScreenComposable(
     navigateToTransactionTypes: (startDate: String, endDate: String) -> Unit,
     navigateToTransactionDetails: (transactionId: String) -> Unit,
     navigateToEntityTransactions: (userId: String, transactionType: String, entity: String, startDate: String, endDate: String, times: String, moneyDirection: String) -> Unit,
+    navigateToSubscriptionScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: TransactionsHubScreenViewModel = viewModel(factory = AppViewModelFactory.Factory)
@@ -118,6 +119,8 @@ fun TransactionsHubScreenComposable(
         startDate = uiState.startDate,
         endDate = uiState.endDate,
         userId = uiState.userDetails.id.toString(),
+        isPremium = uiState.isPremium,
+        onShowSubscriptionDialog = navigateToSubscriptionScreen,
         onPeriodSelected = { viewModel.updateSelectedPeriod(it) },
         navigateToAllTransactions = navigateToAllTransactions,
         navigateToSortedTransactions = navigateToSortedTransactions,
@@ -146,6 +149,8 @@ fun TransactionsHubScreen(
     startDate: String = "",
     endDate: String = "",
     userId: String = "",
+    isPremium: Boolean = false,
+    onShowSubscriptionDialog: () -> Unit = {},
     onPeriodSelected: (TimePeriod) -> Unit,
     navigateToAllTransactions: () -> Unit,
     navigateToSortedTransactions: () -> Unit,
@@ -168,35 +173,44 @@ fun TransactionsHubScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-            contentPadding = PaddingValues(bottom = 40.dp)
-        ) {
-
-        // ── Header ───────────────────────────────────────────────────────────
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 16.dp, bottom = 8.dp)
+        Column(modifier = Modifier.fillMaxSize()) {
+            // ── Top bar ───────────────────────────────────────────────────────
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
             ) {
-                Text(
-                    text = "Transactions",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = selectedTimePeriod.getDetailedLabel(),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Transactions",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp)
+                        )
+                    }
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f),
+                        thickness = 1.dp
+                    )
+                }
             }
-        }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 40.dp)
+            ) {
 
         // ── Hero card ─────────────────────────────────────────────────────────
         item {
@@ -204,6 +218,8 @@ fun TransactionsHubScreen(
                 totalIn = totalMoneyIn,
                 totalOut = totalMoneyOut,
                 selectedTimePeriod = selectedTimePeriod,
+                isPremium = isPremium,
+                onShowSubscriptionDialog = onShowSubscriptionDialog,
                 onPeriodSelected = onPeriodSelected,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
@@ -496,6 +512,7 @@ fun TransactionsHubScreen(
             }
         }
         } // end LazyColumn
+        } // end Column
 
         // ── Sticky period bar — appears when hero card scrolls out of view ────
         AnimatedVisibility(
@@ -554,7 +571,7 @@ fun TransactionsHubScreen(
                                 TimePeriod.TODAY, TimePeriod.YESTERDAY,
                                 TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
                                 TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
-                                TimePeriod.THIS_YEAR
+                                TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
                             )
                         }
                         DropdownMenu(
@@ -562,16 +579,40 @@ fun TransactionsHubScreen(
                             onDismissRequest = { showMenu = false }
                         ) {
                             periodOptions.forEach { period ->
+                                val requiresPremium = !isPremium && (
+                                    period == TimePeriod.LAST_MONTH ||
+                                    period == TimePeriod.THIS_YEAR ||
+                                    period == TimePeriod.ENTIRE
+                                )
                                 DropdownMenuItem(
                                     text = {
-                                        Text(
-                                            text = period.getDisplayName(),
-                                            fontSize = 14.sp,
-                                            fontWeight = if (period == selectedTimePeriod) FontWeight.Bold
-                                                         else FontWeight.Normal
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = period.getDisplayName(),
+                                                fontSize = 14.sp,
+                                                fontWeight = if (period == selectedTimePeriod) FontWeight.Bold
+                                                             else FontWeight.Normal,
+                                                color = if (period == selectedTimePeriod) MaterialTheme.colorScheme.primary
+                                                        else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (requiresPremium) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.lock),
+                                                    contentDescription = "Premium",
+                                                    modifier = Modifier.size(12.dp),
+                                                    tint = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        }
                                     },
-                                    onClick = { onPeriodSelected(period); showMenu = false }
+                                    onClick = {
+                                        showMenu = false
+                                        if (requiresPremium) onShowSubscriptionDialog()
+                                        else onPeriodSelected(period)
+                                    }
                                 )
                             }
                         }
@@ -589,6 +630,8 @@ private fun HubHeroCard(
     totalIn: Double,
     totalOut: Double,
     selectedTimePeriod: TimePeriod,
+    isPremium: Boolean = false,
+    onShowSubscriptionDialog: () -> Unit = {},
     onPeriodSelected: (TimePeriod) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -668,7 +711,7 @@ private fun HubHeroCard(
                             TimePeriod.TODAY, TimePeriod.YESTERDAY,
                             TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
                             TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
-                            TimePeriod.THIS_YEAR
+                            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
                         )
                     }
                     DropdownMenu(
@@ -676,16 +719,39 @@ private fun HubHeroCard(
                         onDismissRequest = { showPeriodMenu = false }
                     ) {
                         periodOptions.forEach { period ->
+                            val requiresPremium = !isPremium && (
+                                period == TimePeriod.LAST_MONTH ||
+                                period == TimePeriod.THIS_YEAR ||
+                                period == TimePeriod.ENTIRE
+                            )
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        text = period.getDisplayName(),
-                                        fontSize = 14.sp,
-                                        fontWeight = if (period == selectedTimePeriod) FontWeight.Bold
-                                                     else FontWeight.Normal
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = period.getDisplayName(),
+                                            fontSize = 14.sp,
+                                            fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (period == selectedTimePeriod) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (requiresPremium) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.lock),
+                                                contentDescription = "Premium",
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
                                 },
-                                onClick = { onPeriodSelected(period); showPeriodMenu = false }
+                                onClick = {
+                                    showPeriodMenu = false
+                                    if (requiresPremium) onShowSubscriptionDialog()
+                                    else onPeriodSelected(period)
+                                }
                             )
                         }
                     }
@@ -715,49 +781,66 @@ private fun HubHeroCard(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // In / Out / Net row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    HeroStat(
-                        label = "In",
-                        value = "Ksh ${String.format("%,.0f", totalIn)}",
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                    HeroStat(
-                        label = "Out",
-                        value = "Ksh ${String.format("%,.0f", totalOut)}",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    HeroStat(
-                        label = "Net",
-                        value = "${if (net >= 0) "+" else ""}Ksh ${String.format("%,.0f", kotlin.math.abs(net))}",
-                        color = if (net >= 0) MaterialTheme.colorScheme.tertiary
-                               else MaterialTheme.colorScheme.error
-                    )
+                // In / Out / Net row — full amounts, equal thirds, wrapping allowed
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "In",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Ksh ${String.format("%,.0f", totalIn)}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Out",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Ksh ${String.format("%,.0f", totalOut)}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Net",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val netStr = if (net >= 0) "Ksh ${String.format("%,.0f", net)}"
+                                     else "-Ksh ${String.format("%,.0f", kotlin.math.abs(net))}"
+                        Text(
+                            text = netStr,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-private fun HeroStat(label: String, value: String, color: Color) {
-    Column {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
+private fun formatCompactAmount(amount: Double): String {
+    return when {
+        amount >= 1_000_000 -> "Ksh ${String.format("%.1fM", amount / 1_000_000)}"
+        amount >= 1_000 -> "Ksh ${String.format("%.1fK", amount / 1_000)}"
+        else -> "Ksh ${String.format("%.0f", amount)}"
     }
 }
 

@@ -295,7 +295,7 @@ fun HeroBalanceCard(
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
-                // Period stats — equal thirds, compact amounts
+                // Period stats — full amounts, equal thirds, wrapping allowed
                 Row(modifier = Modifier.fillMaxWidth()) {
                     // Money In
                     Column(modifier = Modifier.weight(1f)) {
@@ -307,12 +307,10 @@ fun HeroBalanceCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = dashboardFormatCompact(moneyIn),
-                            fontSize = 14.sp,
+                            text = moneyIn,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary,
-                            maxLines = 1,
-                            softWrap = false
+                            color = MaterialTheme.colorScheme.tertiary
                         )
                     }
 
@@ -326,12 +324,10 @@ fun HeroBalanceCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = dashboardFormatCompact(moneyOut),
-                            fontSize = 14.sp,
+                            text = moneyOut,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error,
-                            maxLines = 1,
-                            softWrap = false
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
 
@@ -347,11 +343,9 @@ fun HeroBalanceCard(
                         val net = calculateNetFlow(moneyIn, moneyOut)
                         Text(
                             text = net,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (net.startsWith("-")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
-                            maxLines = 1,
-                            softWrap = false
+                            color = if (net.startsWith("-")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
                         )
                     }
                 }
