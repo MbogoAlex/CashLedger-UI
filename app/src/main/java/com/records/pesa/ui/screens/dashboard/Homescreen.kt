@@ -373,6 +373,11 @@ fun HomeScreen(
     budgets: List<BudgetWithProgress> = emptyList(),
     modifier: Modifier = Modifier
 ) {
+    // Intercept back press on non-HOME tabs and return to HOME instead of exiting
+    BackHandler(enabled = currentTab != HomeScreenTab.HOME) {
+        onTabChange(HomeScreenTab.HOME)
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
