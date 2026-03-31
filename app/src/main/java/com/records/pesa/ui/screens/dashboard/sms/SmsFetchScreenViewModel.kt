@@ -249,9 +249,9 @@ class SmsFetchScreenViewModel(
                 val ctx = appContext
                 if (ctx != null) {
                     val user = dbRepository.getUsers().first().firstOrNull()
-                    if (user != null && user.token.isNotEmpty()) {
+                    if (user != null && user.backUpUserId.toInt() > 0) {
                         val backupRequest = OneTimeWorkRequestBuilder<BackupWorker>()
-                            .setInputData(workDataOf("userId" to user.backUpUserId.toInt(), "token" to user.token))
+                            .setInputData(workDataOf("userId" to user.backUpUserId.toInt()))
                             .setConstraints(
                                 Constraints.Builder()
                                     .setRequiredNetworkType(NetworkType.CONNECTED)

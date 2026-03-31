@@ -41,6 +41,12 @@ object NotificationHelper {
                     description = "Reminders about your Cash Ledger subscription expiry"
                 }
             )
+            // Backup worker foreground service channel — must exist before BackupWorker starts
+            mgr.createNotificationChannel(
+                NotificationChannel(BackupWorker.CHANNEL_ID, "Backup", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "Background cloud backup progress"
+                }
+            )
         }
     }
 

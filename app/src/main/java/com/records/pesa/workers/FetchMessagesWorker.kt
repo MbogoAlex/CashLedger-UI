@@ -135,24 +135,22 @@ class FetchMessagesWorker(
                 }
             }
 
-            // Trigger backup (cloud sync) only when network is available — separate concern
-            val token = user.token
-            if (token.isNotEmpty()) {
-                val postMessagesRequest = OneTimeWorkRequestBuilder<BackupWorker>()
-                    .setInputData(workDataOf("userId" to user.backUpUserId.toInt(), "token" to token))
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
-                    )
-                    .build()
-                // Use enqueueUniqueWork so this merges with / replaces any pending change-triggered backup
-                WorkManager.getInstance(context).enqueueUniqueWork(
-                    "change_triggered_backup",
-                    ExistingWorkPolicy.REPLACE,
-                    postMessagesRequest
+            // Trigger backup (cloud sync) only when network is available.
+            // No token passed — BackupWorker reads auth from UserSession via authenticationManager.
+            val backupRequest = OneTimeWorkRequestBuilder<BackupWorker>()
+                .setInputData(workDataOf("userId" to user.backUpUserId.toInt()))
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
                 )
-            }
+                .build()
+            // Use enqueueUniqueWork so this merges with / replaces any pending change-triggered backup
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "change_triggered_backup",
+                ExistingWorkPolicy.REPLACE,
+                backupRequest
+            )
 
             Log.d("CashLedger_SMS", "Worker: complete ✓")
             return Result.success()

@@ -68,12 +68,12 @@ class BackupWorker(
         val apiRepository = appContext.container.apiRepository
         val authenticationManager = appContext.container.authenticationManager
 
-        // Resolve userId and token — inputData for on-demand runs, DB fallback for periodic backup
+        // Resolve userId — inputData for on-demand runs, DB fallback for periodic backup.
+        // Token is NOT stored here: backup() uses authenticationManager.executeWithAuth which
+        // reads the live JWT from UserSession, so user.token (legacy field) is irrelevant.
         val resolvedUserId: Int
-        val resolvedToken: String
-        if (userId != -1 && !token.isNullOrEmpty()) {
+        if (userId != -1) {
             resolvedUserId = userId
-            resolvedToken = token
         } else {
             val user = dbRepository.getUser()?.first()
                 ?: run {
@@ -81,9 +81,8 @@ class BackupWorker(
                     return Result.failure()
                 }
             resolvedUserId = user.backUpUserId.toInt()
-            resolvedToken = user.token
-            if (resolvedUserId <= 0 || resolvedToken.isEmpty()) {
-                Log.e("backUpWorker", "User has no valid backUpUserId or token")
+            if (resolvedUserId <= 0) {
+                Log.e("backUpWorker", "User has no valid backUpUserId")
                 return Result.failure()
             }
         }
