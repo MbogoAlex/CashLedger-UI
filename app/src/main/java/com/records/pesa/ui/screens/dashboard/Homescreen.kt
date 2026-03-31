@@ -172,9 +172,15 @@ fun HomeScreenComposable(
         }
     }
 
+    // Used by the Transact button — dials USSD on grant
     val callPhoneRequestHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) context.dialUssd("*334#") }
+
+    // Used by the startup permission dialog — only requests the permission, does NOT dial
+    val callPhoneDialogRequestHandler = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* permission result handled silently; Transact button will dial on next tap */ }
 
     var showSubscribeDialog by rememberSaveable { mutableStateOf(false) }
     var showFreeTrialDialog by rememberSaveable { mutableStateOf(false) }
@@ -238,7 +244,7 @@ fun HomeScreenComposable(
             dismissLabel = "Not now",
             onConfirm = {
                 showCallPermDialog = false
-                callPhoneRequestHandler.launch(Manifest.permission.CALL_PHONE)
+                callPhoneDialogRequestHandler.launch(Manifest.permission.CALL_PHONE)
             },
             onDismiss = { showCallPermDialog = false }
         )
