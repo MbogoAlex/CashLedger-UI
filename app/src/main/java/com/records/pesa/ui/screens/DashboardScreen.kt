@@ -107,6 +107,7 @@ import com.records.pesa.ui.screens.auth.PasswordInputField
 import com.records.pesa.ui.screens.dashboard.budget.BudgetStatus
 import com.records.pesa.ui.screens.dashboard.budget.BudgetWithProgress
 import com.records.pesa.ui.screens.transactions.Chart6
+import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
 import com.records.pesa.ui.screens.utils.screenFontSize
 import com.records.pesa.ui.screens.utils.screenHeight
 import com.records.pesa.ui.screens.utils.screenWidth
@@ -239,6 +240,7 @@ fun DashboardScreenComposable(
         mutableStateOf(false)
     }
 
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
 
     var showPasswordDialog by rememberSaveable {
         mutableStateOf(false)
@@ -362,6 +364,13 @@ fun DashboardScreenComposable(
             onPeriodSelected = { period ->
                 viewModel.updateSelectedPeriod(period)
             },
+            startDate = java.time.LocalDate.parse(uiState.startDate),
+            endDate = java.time.LocalDate.parse(uiState.endDate),
+            showDateRangePicker = showDateRangePicker,
+            onOpenCustomPicker = { showDateRangePicker = true },
+            onDismissDatePicker = { showDateRangePicker = false },
+            onChangeStartDate = { showDateRangePicker = false; viewModel.changeStartDate(it) },
+            onChangeLastDate = { showDateRangePicker = false; viewModel.changeEndDate(it) },
             budgets = budgets,
             navigateToBudgetInfoScreen = navigateToBudgetInfoScreen,
             navigateToAllBudgets = navigateToAllBudgets,
@@ -414,6 +423,13 @@ fun DashboardScreen(
     moneyOutCategories: List<TransactionTypeSummary> = emptyList(),
     periodTransactions: List<TransactionItem> = emptyList(),
     onPeriodSelected: (TimePeriod) -> Unit = {},
+    startDate: java.time.LocalDate = java.time.LocalDate.now().withDayOfMonth(1),
+    endDate: java.time.LocalDate = java.time.LocalDate.now(),
+    showDateRangePicker: Boolean = false,
+    onOpenCustomPicker: () -> Unit = {},
+    onDismissDatePicker: () -> Unit = {},
+    onChangeStartDate: (java.time.LocalDate) -> Unit = {},
+    onChangeLastDate: (java.time.LocalDate) -> Unit = {},
     budgets: List<BudgetWithProgress> = emptyList(),
     navigateToBudgetInfoScreen: (budgetId: String) -> Unit = {},
     navigateToAllBudgets: () -> Unit = {},
@@ -460,10 +476,30 @@ fun DashboardScreen(
             onPeriodSelected = onPeriodSelected,
             isPremium = premium,
             onShowSubscriptionDialog = onShowSubscriptionDialog,
+            startDate = startDate,
+            endDate = endDate,
+            onOpenCustomPicker = onOpenCustomPicker,
             loadingProgress = loadingProgress,
             loadingLabel = loadingLabel,
             modifier = Modifier.fillMaxWidth()
         )
+
+        // Date range picker — shown when Custom is selected
+        if (showDateRangePicker) {
+            DateRangePickerDialog(
+                premium = premium,
+                startDate = startDate,
+                endDate = endDate,
+                defaultStartDate = null,
+                defaultEndDate = null,
+                onChangeStartDate = onChangeStartDate,
+                onChangeLastDate = onChangeLastDate,
+                onDismiss = onDismissDatePicker,
+                onConfirm = onDismissDatePicker,
+                onShowSubscriptionDialog = onShowSubscriptionDialog,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         // USSD Quick Action Button
         val context = LocalContext.current

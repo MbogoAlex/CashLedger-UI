@@ -1,6 +1,5 @@
 package com.records.pesa.ui.screens.dashboard.budget
 
-import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -57,9 +56,7 @@ import com.records.pesa.ui.screens.components.DownloadReportDialog
 import com.records.pesa.ui.screens.components.EditManualTransactionDialog
 import com.records.pesa.ui.screens.components.TxDateHeader
 import com.records.pesa.ui.screens.components.TxEmptyState
-import com.records.pesa.ui.screens.components.TxSummaryBar
 import com.records.pesa.ui.screens.components.txAvatarColor
-import com.records.pesa.ui.screens.dashboard.category.AllTxnsPeriodRow
 import com.records.pesa.ui.screens.dashboard.category.CombinedFilter
 import com.records.pesa.ui.screens.dashboard.category.CombinedTransactionItem
 import com.records.pesa.ui.screens.dashboard.category.DownloadingStatus
@@ -72,6 +69,16 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.absoluteValue
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.runtime.snapshotFlow
+import com.records.pesa.ui.screens.components.formatTxDateHeader
+import com.records.pesa.ui.screens.transactions.DateRangePickerDialog
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 object BudgetAllTransactionsScreenDestination : AppNavigation {
@@ -467,12 +474,11 @@ fun BudgetAllTransactionsScreen(
     isDownloading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val freeLimit: LocalDate = remember { LocalDate.now().minusMonths(1) }
     var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val dateFmt = remember { DateTimeFormatter.ofPattern("d MMM yy") }
-    val freeLimit: LocalDate = remember { LocalDate.now().minusMonths(1) }
 
     LaunchedEffect(showSearch) {
         if (showSearch) focusRequester.requestFocus()
@@ -525,6 +531,45 @@ fun BudgetAllTransactionsScreen(
         }.entries.sortedBy { it.key }
     }
 
+    val summaryIn = remember(filtered) {
+        filtered.sumOf { item ->
+            when (item) {
+                is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount > 0) item.tx.transactionAmount else 0.0
+                is CombinedTransactionItem.ManualItem -> if (!item.tx.isOutflow) item.tx.amount else 0.0
+            }
+        }
+    }
+    val summaryOut = remember(filtered) {
+        filtered.sumOf { item ->
+            when (item) {
+                is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount < 0) kotlin.math.abs(item.tx.transactionAmount) else 0.0
+                is CombinedTransactionItem.ManualItem -> if (item.tx.isOutflow) item.tx.amount else 0.0
+            }
+        }
+    }
+    val summaryNet = summaryIn - summaryOut
+
+    val lazyListState = rememberLazyListState()
+    var stickyDate by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(lazyListState, uiState.filter) {
+        snapshotFlow {
+            lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset
+        }.collect { (firstIndex, _) ->
+            if (uiState.filter != CombinedFilter.BY_MEMBER) {
+                val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+                val passedHeader = visibleItems
+                    .filter { (it.key as? String)?.startsWith("header_") == true && it.offset < 0 }
+                    .maxByOrNull { it.index }
+                when {
+                    passedHeader != null -> stickyDate = (passedHeader.key as? String)?.removePrefix("header_")
+                    firstIndex <= 1 -> stickyDate = null
+                }
+            } else {
+                stickyDate = null
+            }
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
 
@@ -532,7 +577,7 @@ fun BudgetAllTransactionsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp,
+                shadowElevation = 0.dp,
                 tonalElevation = 0.dp
             ) {
                 Row(
@@ -546,10 +591,11 @@ fun BudgetAllTransactionsScreen(
                         if (showSearch) showSearch = false else onNavigateBack()
                     }) {
                         Icon(
-                            painter = painterResource(R.drawable.arrow_back),
+                            painter = painterResource(R.drawable.ic_arrow_right),
                             contentDescription = "Back",
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(scaleX = -1f, scaleY = 1f)
                         )
                     }
 
@@ -607,16 +653,15 @@ fun BudgetAllTransactionsScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.weight(1f))
                         IconButton(onClick = { showSearch = true }) {
                             Icon(
                                 painter = painterResource(R.drawable.search),
                                 contentDescription = "Search",
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                    // Download always visible regardless of search state
                     IconButton(onClick = onDownloadReport, enabled = !isDownloading) {
                         if (isDownloading) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -624,7 +669,7 @@ fun BudgetAllTransactionsScreen(
                             Icon(
                                 painter = painterResource(R.drawable.download),
                                 contentDescription = "Download report",
-                                modifier = Modifier.size(22.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -632,159 +677,154 @@ fun BudgetAllTransactionsScreen(
                 }
             }
 
-            // ── Period picker row ────────────────────────────────────────────
-            if (uiState.isDateLocked) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.calendar),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = "${uiState.startDate.format(dateFmt)} – ${uiState.endDate.format(dateFmt)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = "${filtered.size} transactions",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                AllTxnsPeriodRow(
-                    selectedPeriod = uiState.selectedPeriod,
-                    startDate = uiState.startDate,
-                    endDate = uiState.endDate,
-                    txCount = filtered.size,
-                    isPremium = uiState.isPremium,
-                    context = context,
-                    dateFmt = dateFmt,
-                    onPeriodSelected = onPeriodSelected,
-                    onStartDateChange = onStartDateChange,
-                    onEndDateChange = onEndDateChange,
-                    onShowSubscriptionDialog = onShowSubscriptionDialog
-                )
-            }
+            // ── Filter+period bar moved into LazyColumn as stickyHeader ──────
 
-            // ── Filter chips ──────────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(CombinedFilter.ALL, CombinedFilter.MPESA, CombinedFilter.MANUAL, CombinedFilter.BY_MEMBER).forEach { f ->
-                    FilterChip(
-                        selected = uiState.filter == f,
-                        onClick = { onFilterChange(f) },
-                        leadingIcon = if (f == CombinedFilter.BY_MEMBER) ({
-                            Icon(painter = painterResource(R.drawable.contact), contentDescription = null, modifier = Modifier.size(14.dp))
-                        }) else null,
-                        label = {
-                            Text(
-                                when (f) {
-                                    CombinedFilter.ALL -> "All"
-                                    CombinedFilter.MPESA -> "M-PESA"
-                                    CombinedFilter.MANUAL -> "Manual"
-                                    CombinedFilter.BY_MEMBER -> "By Member"
-                                }
+            Box(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 120.dp)
+                ) {
+                    // Hero card or locked date row
+                    if (uiState.isDateLocked) {
+                        item {
+                            val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM yy") }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                                Text(text = "${uiState.startDate.format(dateFmt)} – ${uiState.endDate.format(dateFmt)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.weight(1f))
+                                Text(text = "${filtered.size} transactions", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    } else {
+                        item {
+                            BudgetHeroCard(
+                                totalIn = summaryIn,
+                                totalOut = summaryOut,
+                                net = summaryNet,
+                                txCount = filtered.size,
+                                startDate = uiState.startDate,
+                                endDate = uiState.endDate,
+                                selectedPeriod = uiState.selectedPeriod,
+                                onPeriodSelected = onPeriodSelected,
+                                onOpenCustomPicker = { showDateRangePicker = true },
+                                isPremium = uiState.isPremium,
+                                onShowSubscriptionDialog = onShowSubscriptionDialog,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                             )
                         }
-                    )
-                }
-            }
-
-            // ── Summary bar ───────────────────────────────────────────────────
-            val summaryIn = remember(filtered) {
-                filtered.sumOf { item ->
-                    when (item) {
-                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount > 0) item.tx.transactionAmount else 0.0
-                        is CombinedTransactionItem.ManualItem -> if (!item.tx.isOutflow) item.tx.amount else 0.0
                     }
-                }
-            }
-            val summaryOut = remember(filtered) {
-                filtered.sumOf { item ->
-                    when (item) {
-                        is CombinedTransactionItem.MpesaItem -> if (item.tx.transactionAmount < 0) kotlin.math.abs(item.tx.transactionAmount) else 0.0
-                        is CombinedTransactionItem.ManualItem -> if (item.tx.isOutflow) item.tx.amount else 0.0
-                    }
-                }
-            }
-            TxSummaryBar(totalIn = summaryIn, totalOut = summaryOut)
 
-            // ── Content ───────────────────────────────────────────────────────
-            if (uiState.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (filtered.isEmpty()) {
-                TxEmptyState(
-                    message = if (uiState.searchText.isNotBlank())
-                        "No transactions matching \"${uiState.searchText}\""
-                    else "No expenses in this date range"
-                )
-            } else if (uiState.filter == CombinedFilter.BY_MEMBER) {
-                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 80.dp)) {
-                    groupedByMember.forEach { (memberName, memberItems) ->
-                        stickyHeader(key = "member_$memberName") {
-                            Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Box(modifier = Modifier.size(28.dp).clip(CircleShape).background(txAvatarColor(memberName)), contentAlignment = Alignment.Center) {
-                                        Text(memberName.take(1).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    // Date range picker
+                    if (showDateRangePicker && !uiState.isDateLocked) {
+                        item {
+                            DateRangePickerDialog(
+                                premium = uiState.isPremium,
+                                startDate = uiState.startDate,
+                                endDate = uiState.endDate,
+                                defaultStartDate = null,
+                                defaultEndDate = null,
+                                onChangeStartDate = { onStartDateChange(it) },
+                                onChangeLastDate = { onEndDateChange(it) },
+                                onDismiss = { showDateRangePicker = false },
+                                onConfirm = { showDateRangePicker = false },
+                                onShowSubscriptionDialog = onShowSubscriptionDialog,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Sticky filter + period bar
+                    stickyHeader {
+                        BudgetFilterAndPeriodBar(
+                            currentFilter = uiState.filter,
+                            onFilterSelected = onFilterChange,
+                            selectedPeriod = uiState.selectedPeriod,
+                            startDate = uiState.startDate,
+                            endDate = uiState.endDate,
+                            isPremium = uiState.isPremium,
+                            isDateLocked = uiState.isDateLocked,
+                            onPeriodSelected = onPeriodSelected,
+                            onOpenCustomPicker = { showDateRangePicker = true },
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
+                            totalIn = summaryIn,
+                            totalOut = summaryOut,
+                            net = summaryNet,
+                            currentSectionDate = if (uiState.filter != CombinedFilter.BY_MEMBER) stickyDate else null
+                        )
+                    }
+
+                    // Content
+                    if (uiState.isLoading) {
+                        item {
+                            Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                    } else if (filtered.isEmpty()) {
+                        item {
+                            TxEmptyState(
+                                message = if (uiState.searchText.isNotBlank())
+                                    "No transactions matching \"${uiState.searchText}\""
+                                else "No expenses in this date range"
+                            )
+                        }
+                    } else if (uiState.filter == CombinedFilter.BY_MEMBER) {
+                        groupedByMember.forEach { (memberName, memberItems) ->
+                            item(key = "member_$memberName") {
+                                Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Box(modifier = Modifier.size(28.dp).clip(CircleShape).background(txAvatarColor(memberName)), contentAlignment = Alignment.Center) {
+                                            Text(memberName.take(1).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        }
+                                        Text(memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${memberItems.size} tx", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Text(memberName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("${memberItems.size} tx", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
+                            }
+                            items(memberItems) { item ->
+                                val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
+                                val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
+                                BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
+                                    when (item) {
+                                        is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
+                                        is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
+                                    }
+                                }
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
                             }
                         }
-                        items(memberItems) { item ->
-                            val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
-                            val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
-                            BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
-                                when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
-                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
-                                }
+                    } else {
+                        groupedByDate.forEach { (dateStr, itemsForDate) ->
+                            item(key = "header_$dateStr") {
+                                TxDateHeader(date = dateStr)
                             }
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+                            items(itemsForDate) { item ->
+                                val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
+                                val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
+                                BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
+                                    when (item) {
+                                        is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
+                                        is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
+                                    }
+                                }
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+                            }
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    groupedByDate.forEach { (dateStr, itemsForDate) ->
-                        stickyHeader(key = "header_$dateStr") {
-                            TxDateHeader(date = dateStr)
-                        }
-                        items(itemsForDate) { item ->
-                            val itemDate = when (item) { is CombinedTransactionItem.MpesaItem -> item.tx.date; is CombinedTransactionItem.ManualItem -> item.tx.date }
-                            val isLocked = !uiState.isPremium && itemDate.isBefore(freeLimit)
-                            BudgetPremiumTxWrapper(isLocked = isLocked, onLockedClick = onShowSubscriptionDialog) {
-                                when (item) {
-                                    is CombinedTransactionItem.MpesaItem -> BudgetAllMpesaTxRow(tx = item.tx, onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") })
-                                    is CombinedTransactionItem.ManualItem -> BudgetAllManualTxRow(tx = item.tx, onEdit = { if (!isLocked) onEditManualTx(item.tx) }, onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") })
-                                }
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
-                        }
+
+                if (uiState.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
                     }
                 }
             }
@@ -817,24 +857,6 @@ private fun BudgetPremiumTxWrapper(isLocked: Boolean, onLockedClick: () -> Unit 
                 }
             }
         }
-    }
-}
-
-// ─── Date chip ───────────────────────────────────────────────────────────────
-@Composable
-private fun DateChip(label: String, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        )
     }
 }
 
@@ -1007,6 +1029,364 @@ private fun BudgetAllManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {},
                 fontWeight = FontWeight.Bold,
                 color = amountColor
             )
+        }
+    }
+}
+
+@Composable
+private fun BudgetHeroCard(
+    totalIn: Double,
+    totalOut: Double,
+    net: Double,
+    txCount: Int,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    selectedPeriod: TimePeriod,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onOpenCustomPicker: () -> Unit,
+    isPremium: Boolean,
+    onShowSubscriptionDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val periodOptions = remember {
+        listOf(
+            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+        )
+    }
+    var showPeriodMenu by remember { mutableStateOf(false) }
+    val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
+
+    ElevatedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp), spotColor = primaryColor.copy(alpha = 0.15f)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primaryColor.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f),
+                            primaryColor.copy(alpha = 0.04f)
+                        )
+                    )
+                )
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(primaryColor.copy(alpha = 0.10f))
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { showPeriodMenu = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = if (selectedPeriod == TimePeriod.CUSTOM)
+                                    "${dateFmt.format(startDate)} – ${dateFmt.format(endDate)}"
+                                else selectedPeriod.getDisplayName().uppercase(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = primaryColor,
+                                letterSpacing = 1.sp
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_downward),
+                                contentDescription = "Select period",
+                                tint = primaryColor,
+                                modifier = Modifier.size(11.dp)
+                            )
+                        }
+                        DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }) {
+                            periodOptions.forEach { period ->
+                                val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text(
+                                                text = period.getDisplayName(),
+                                                fontSize = 14.sp,
+                                                fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (period == selectedPeriod) primaryColor else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (requiresPremium) {
+                                                Icon(painter = painterResource(R.drawable.lock), contentDescription = "Premium", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.tertiary)
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        showPeriodMenu = false
+                                        if (requiresPremium) onShowSubscriptionDialog() else onPeriodSelected(period)
+                                    }
+                                )
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, modifier = Modifier.size(14.dp), tint = primaryColor)
+                                        Text(text = "Custom", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = primaryColor)
+                                    }
+                                },
+                                onClick = { showPeriodMenu = false; onOpenCustomPicker() }
+                            )
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        if (selectedPeriod != TimePeriod.CUSTOM) {
+                            Text(
+                                text = "${dateFmt.format(startDate)} – ${dateFmt.format(endDate)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Text(
+                            text = "$txCount txn${if (txCount != 1) "s" else ""}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Net Flow",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${if (net >= 0) "+" else "-"}Ksh ${String.format("%,.2f", kotlin.math.abs(net))}",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    BudgetHeroStatCol(label = "Money In", value = "Ksh ${String.format("%,.0f", totalIn)}", color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f))
+                    BudgetHeroStatCol(label = "Money Out", value = "Ksh ${String.format("%,.0f", totalOut)}", color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                    BudgetHeroStatCol(
+                        label = "Net",
+                        value = "${if (net >= 0) "" else "-"}Ksh ${String.format("%,.0f", kotlin.math.abs(net))}",
+                        color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BudgetHeroStatCol(label: String, value: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f), fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color)
+    }
+}
+
+@Composable
+private fun BudgetFilterAndPeriodBar(
+    currentFilter: CombinedFilter,
+    onFilterSelected: (CombinedFilter) -> Unit,
+    selectedPeriod: TimePeriod,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    isPremium: Boolean,
+    isDateLocked: Boolean,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onOpenCustomPicker: () -> Unit,
+    onShowSubscriptionDialog: () -> Unit,
+    totalIn: Double,
+    totalOut: Double,
+    net: Double,
+    currentSectionDate: String? = null
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val periodOptions = remember {
+        listOf(TimePeriod.TODAY, TimePeriod.YESTERDAY, TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK, TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH, TimePeriod.THIS_YEAR, TimePeriod.ENTIRE)
+    }
+    val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+        shadowElevation = 2.dp,
+        tonalElevation = 1.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Row 1: 4 filter chip pills
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(CombinedFilter.ALL, CombinedFilter.MPESA, CombinedFilter.MANUAL, CombinedFilter.BY_MEMBER).forEach { filter ->
+                    val selected = currentFilter == filter
+                    val bgColor by animateColorAsState(
+                        targetValue = if (selected) primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        animationSpec = tween(200),
+                        label = "chipColor"
+                    )
+                    val textColor by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(200),
+                        label = "chipTextColor"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(bgColor)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onFilterSelected(filter) }
+                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = when (filter) {
+                                CombinedFilter.ALL -> "All Transactions"
+                                CombinedFilter.MPESA -> "M-PESA"
+                                CombinedFilter.MANUAL -> "Manual"
+                                CombinedFilter.BY_MEMBER -> "By Member"
+                            },
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+
+            // Row 2: Period chip + In/Out/Net (horizontally scrollable, hidden if date locked)
+            if (!isDateLocked) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box {
+                        var showPeriodMenu by remember { mutableStateOf(false) }
+                        val chipLabel = if (selectedPeriod == TimePeriod.CUSTOM)
+                            "${dateFmt.format(startDate)} – ${dateFmt.format(endDate)}"
+                        else selectedPeriod.getDisplayName().uppercase()
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(primary.copy(alpha = 0.08f))
+                                .clickable { showPeriodMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(chipLabel, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = primary, letterSpacing = 0.5.sp)
+                            Icon(painter = painterResource(R.drawable.arrow_downward), contentDescription = null, tint = primary, modifier = Modifier.size(10.dp))
+                        }
+                        DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }) {
+                            periodOptions.forEach { period ->
+                                val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text(period.getDisplayName(), fontSize = 14.sp, fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal, color = if (period == selectedPeriod) primary else MaterialTheme.colorScheme.onSurface)
+                                            if (requiresPremium) {
+                                                Icon(painter = painterResource(R.drawable.lock), contentDescription = "Premium", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.tertiary)
+                                            }
+                                        }
+                                    },
+                                    onClick = { showPeriodMenu = false; if (requiresPremium) onShowSubscriptionDialog() else onPeriodSelected(period) }
+                                )
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, modifier = Modifier.size(14.dp), tint = primary)
+                                        Text("Custom", fontSize = 14.sp, fontWeight = if (selectedPeriod == TimePeriod.CUSTOM) FontWeight.Bold else FontWeight.Medium, color = primary)
+                                    }
+                                },
+                                onClick = { showPeriodMenu = false; onOpenCustomPicker() }
+                            )
+                        }
+                    }
+
+                    Box(modifier = Modifier.width(1.dp).height(20.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("In", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                        Text("Ksh ${String.format("%,.0f", totalIn)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Out", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                        Text("Ksh ${String.format("%,.0f", totalOut)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Net", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                        val netStr = if (net >= 0) "Ksh ${String.format("%,.0f", net)}" else "-Ksh ${String.format("%,.0f", kotlin.math.abs(net))}"
+                        Text(netStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
+
+            if (currentSectionDate != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f))
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(painter = painterResource(R.drawable.calendar), contentDescription = null, modifier = Modifier.size(11.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                    Text(
+                        text = formatTxDateHeader(currentSectionDate),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        letterSpacing = 0.3.sp
+                    )
+                }
+            }
         }
     }
 }

@@ -1635,11 +1635,14 @@ private fun BudgetMembersCard(
 @Composable
 private fun BudgetPeriodPickerCard(
     selectedPeriod: TimePeriod,
+    startDate: java.time.LocalDate,
+    endDate: java.time.LocalDate,
     isPremium: Boolean,
     onPeriodSelected: (TimePeriod) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
     val periodOptions = remember {
         listOf(
             TimePeriod.TODAY, TimePeriod.YESTERDAY,
@@ -1688,7 +1691,9 @@ private fun BudgetPeriodPickerCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = selectedPeriod.getDisplayName().uppercase(),
+                        text = if (selectedPeriod == TimePeriod.CUSTOM)
+                            "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                        else selectedPeriod.getDisplayName().uppercase(),
                         fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                         color = primaryColor, letterSpacing = 1.sp
                     )

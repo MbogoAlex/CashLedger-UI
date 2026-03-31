@@ -575,8 +575,33 @@ class DashboardScreenViewModel(
      * Update selected time period and recalculate totals
      */
     fun updateSelectedPeriod(period: TimePeriod) {
+        val (start, end) = period.getDateRange()
         _uiState.update {
-            it.copy(selectedTimePeriod = period)
+            it.copy(
+                selectedTimePeriod = period,
+                startDate = start.toString(),
+                endDate = end.toString()
+            )
+        }
+        calculatePeriodTotals()
+        calculateTransactionTypeBreakdown()
+        calculatePeriodTransactions()
+        calculateChartData()
+    }
+
+    fun changeStartDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(selectedTimePeriod = TimePeriod.CUSTOM, startDate = date.toString())
+        }
+        calculatePeriodTotals()
+        calculateTransactionTypeBreakdown()
+        calculatePeriodTransactions()
+        calculateChartData()
+    }
+
+    fun changeEndDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(selectedTimePeriod = TimePeriod.CUSTOM, endDate = date.toString())
         }
         calculatePeriodTotals()
         calculateTransactionTypeBreakdown()
@@ -590,7 +615,8 @@ class DashboardScreenViewModel(
     private fun calculatePeriodTotals() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                val startDate = LocalDate.parse(uiState.value.startDate)
+                val endDate = LocalDate.parse(uiState.value.endDate)
                 Log.d("PERIOD_TOTALS", "Period: ${uiState.value.selectedTimePeriod.getDisplayName()}, Start: $startDate, End: $endDate")
                 
                 val totalIn = dbRepository.getTotalInForPeriod(startDate, endDate)
@@ -616,7 +642,8 @@ class DashboardScreenViewModel(
     private fun calculateTransactionTypeBreakdown() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                val startDate = LocalDate.parse(uiState.value.startDate)
+                val endDate = LocalDate.parse(uiState.value.endDate)
                 Log.d("BREAKDOWN_DATES", "Period: ${uiState.value.selectedTimePeriod.getDisplayName()}, Start: $startDate, End: $endDate")
                 
                 // Get actual transactions to group by type AND sign (like TransactionTypesScreen does)
@@ -670,7 +697,8 @@ class DashboardScreenViewModel(
     private fun calculateChartData() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                val startDate = LocalDate.parse(uiState.value.startDate)
+                val endDate = LocalDate.parse(uiState.value.endDate)
                 Log.d("CHART_DATA", "Calculating chart data from $startDate to $endDate")
                 
                 dbRepository.getTransactionsBetweenDates(startDate, endDate).collect { transactions ->
@@ -743,7 +771,8 @@ class DashboardScreenViewModel(
     private fun calculatePeriodTransactions() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (startDate, endDate) = uiState.value.selectedTimePeriod.getDateRange()
+                val startDate = LocalDate.parse(uiState.value.startDate)
+                val endDate = LocalDate.parse(uiState.value.endDate)
                 
                 dbRepository.getTransactionsBetweenDates(startDate, endDate).collect { transactions ->
                     Log.d("PERIOD_TRANSACTIONS", "Found ${transactions.size} transactions for period")

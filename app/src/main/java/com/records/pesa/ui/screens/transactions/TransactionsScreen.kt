@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -64,11 +65,13 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -270,8 +273,8 @@ fun TransactionsScreenComposable(
         endDate = LocalDate.parse(uiState.endDate),
         defaultStartDate = uiState.defaultStartDate,
         defaultEndDate = uiState.defaultEndDate,
-        onChangeStartDate = { viewModel.changeStartDate(it, currentTab) },
-        onChangeLastDate = { viewModel.changeEndDate(it, currentTab) },
+        onChangeStartDate = { selectedPeriod = TimePeriod.CUSTOM; viewModel.changeStartDate(it, currentTab) },
+        onChangeLastDate = { selectedPeriod = TimePeriod.CUSTOM; viewModel.changeEndDate(it, currentTab) },
         selectedPeriod = selectedPeriod,
         onPeriodSelected = { period ->
             selectedPeriod = period
@@ -497,25 +500,29 @@ fun TransactionsScreen(
             // ── Scrollable body ───────────────────────────────────────────────
             val lazyListState = rememberLazyListState()
 
-            // Track current date section: update whenever firstVisibleItemIndex changes.
-            // Since stickyDate persists, it stays set while scrolling through a section
-            // that has no header in view.
+            // Tracks the current date section label for the sticky banner.
+            // Uses snapshotFlow to react to every scroll offset change.
+            // Only resets to null when scrolled back to top; otherwise holds last known date.
             var stickyDate by remember { mutableStateOf<String?>(null) }
-            LaunchedEffect(lazyListState.firstVisibleItemIndex) {
-                if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
-                    val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
-                    val dateHeaders = visibleItems.filter {
-                        (it.key as? String)?.startsWith("header_") == true
-                    }
-                    val onScreenHeader = dateHeaders.firstOrNull { it.offset >= 0 }
-                    if (onScreenHeader != null) {
-                        // Date header is in view — no need for the banner
-                        stickyDate = null
-                    } else {
-                        // Header scrolled off — show last known date in banner
-                        dateHeaders.maxByOrNull { it.index }?.let {
-                            stickyDate = (it.key as? String)?.removePrefix("header_")
+            LaunchedEffect(lazyListState, currentTab) {
+                snapshotFlow {
+                    lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset
+                }.collect { (firstIndex, _) ->
+                    if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS) {
+                        val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+                        // Date headers partially scrolled behind the sticky bar (offset < 0)
+                        val passedHeader = visibleItems
+                            .filter { (it.key as? String)?.startsWith("header_") == true && it.offset < 0 }
+                            .maxByOrNull { it.index }
+                        when {
+                            passedHeader != null ->
+                                stickyDate = (passedHeader.key as? String)?.removePrefix("header_")
+                            firstIndex <= 1 ->
+                                stickyDate = null
+                            // else: between sections, keep last known date visible
                         }
+                    } else {
+                        stickyDate = null
                     }
                 }
             }
@@ -564,7 +571,7 @@ fun TransactionsScreen(
                         }
                     }
 
-                    // Sticky tab + filter row (always one sticky header — stacks date below tabs)
+                    // Sticky tab + filter row
                     stickyHeader {
                         TxTabAndFilterRow(
                             currentTab = currentTab,
@@ -573,6 +580,16 @@ fun TransactionsScreen(
                             defaultTransactionType = defaultTransactionType,
                             transactionTypes = transactionTypes,
                             onSelectType = onSelectType,
+                            selectedPeriod = selectedPeriod,
+                            onPeriodSelected = onPeriodSelected,
+                            onOpenCustomPicker = onToggleDatePicker,
+                            startDate = startDate,
+                            endDate = endDate,
+                            isPremium = premium,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
+                            totalIn = totalMoneyInRaw,
+                            totalOut = totalMoneyOutRaw,
+                            net = net,
                             currentSectionDate = if (currentTab == TransactionScreenTab.ALL_TRANSACTIONS) stickyDate else null
                         )
                     }
@@ -737,7 +754,10 @@ private fun TxHeroCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = selectedPeriod.getDisplayName().uppercase(),
+                                text = if (selectedPeriod == TimePeriod.CUSTOM)
+                                    "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                                else
+                                    selectedPeriod.getDisplayName().uppercase(),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = primaryColor,
@@ -816,12 +836,14 @@ private fun TxHeroCard(
 
                     // Date range label + count
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (selectedPeriod != TimePeriod.CUSTOM) {
+                            Text(
+                                text = "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         Text(
                             text = "$txCount txn${if (txCount != 1) "s" else ""}",
                             fontSize = 11.sp,
@@ -904,6 +926,16 @@ private fun TxTabAndFilterRow(
     defaultTransactionType: String?,
     transactionTypes: List<String>,
     onSelectType: (String) -> Unit,
+    selectedPeriod: TimePeriod,
+    onPeriodSelected: (TimePeriod) -> Unit,
+    onOpenCustomPicker: () -> Unit,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    isPremium: Boolean,
+    onShowSubscriptionDialog: () -> Unit,
+    totalIn: Double,
+    totalOut: Double,
+    net: Double,
     currentSectionDate: String? = null
 ) {
     Surface(
@@ -913,7 +945,7 @@ private fun TxTabAndFilterRow(
         tonalElevation = 1.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Tab pills
+            // Row 1: Tab pills + type filter (unchanged from before)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -952,13 +984,154 @@ private fun TxTabAndFilterRow(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Type filter chip
+                // Type filter chip (kept in same row as tabs)
                 TxTypeFilterChip(
                     selected = selectedType,
                     defaultType = defaultTransactionType,
                     types = transactionTypes,
                     onSelect = onSelectType
                 )
+            }
+
+            // Row 2: Period chip + In/Out/Net — horizontally scrollable
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val primary = MaterialTheme.colorScheme.primary
+                val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
+                // Period chip — shows date range when CUSTOM
+                Box {
+                    var showPeriodMenu by remember { mutableStateOf(false) }
+                    val chipLabel = if (selectedPeriod == TimePeriod.CUSTOM)
+                        "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                    else selectedPeriod.getDisplayName().uppercase()
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(primary.copy(alpha = 0.08f))
+                            .clickable { showPeriodMenu = true }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = chipLabel,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = primary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_downward),
+                            contentDescription = "Select period",
+                            tint = primary,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                    val periodOptions = remember {
+                        listOf(
+                            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+                            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+                            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+                            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showPeriodMenu,
+                        onDismissRequest = { showPeriodMenu = false }
+                    ) {
+                        periodOptions.forEach { period ->
+                            val requiresPremium = !isPremium && (
+                                period == TimePeriod.LAST_MONTH ||
+                                period == TimePeriod.THIS_YEAR ||
+                                period == TimePeriod.ENTIRE
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = period.getDisplayName(),
+                                            fontSize = 14.sp,
+                                            fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (period == selectedPeriod) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (requiresPremium) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.lock),
+                                                contentDescription = "Premium",
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    showPeriodMenu = false
+                                    if (requiresPremium) onShowSubscriptionDialog()
+                                    else onPeriodSelected(period)
+                                }
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.calendar),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = primary
+                                    )
+                                    Text(
+                                        text = "Custom",
+                                        fontSize = 14.sp,
+                                        fontWeight = if (selectedPeriod == TimePeriod.CUSTOM) FontWeight.Bold else FontWeight.Medium,
+                                        color = primary
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showPeriodMenu = false
+                                onOpenCustomPicker()
+                            }
+                        )
+                    }
+                }
+
+                // Divider
+                Box(modifier = Modifier.width(1.dp).height(20.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+
+                // In
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("In", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                    Text("Ksh ${String.format("%,.0f", totalIn)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
+                }
+
+                // Out
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Out", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                    Text("Ksh ${String.format("%,.0f", totalOut)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                }
+
+                // Net
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Net", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                    val netStr = if (net >= 0) "Ksh ${String.format("%,.0f", net)}" else "-Ksh ${String.format("%,.0f", kotlin.math.abs(net))}"
+                    Text(netStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
+                }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.07f))
@@ -1121,9 +1294,10 @@ private fun SortedTxItemRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Type pill
+                // Type pill — weight(1f, fill=false) so it takes needed space but doesn't crowd out times badge
                 Box(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)

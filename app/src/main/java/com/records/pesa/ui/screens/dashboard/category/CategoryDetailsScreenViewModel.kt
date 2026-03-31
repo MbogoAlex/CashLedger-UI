@@ -152,12 +152,12 @@ class CategoryDetailsScreenViewModel(
         val isPremium = uiState.value.isPremium
         val earliest = if (isPremium) LocalDate.of(2000, 1, 1) else LocalDate.now().minusDays(30)
         val clamped = if (date.isBefore(earliest)) earliest else date
-        _uiState.update { it.copy(startDate = clamped) }
+        _uiState.update { it.copy(startDate = clamped, selectedPeriod = TimePeriod.CUSTOM) }
         recomputeStats()
     }
 
     fun setCustomEndDate(date: LocalDate) {
-        _uiState.update { it.copy(endDate = date) }
+        _uiState.update { it.copy(endDate = date, selectedPeriod = TimePeriod.CUSTOM) }
         recomputeStats()
     }
 

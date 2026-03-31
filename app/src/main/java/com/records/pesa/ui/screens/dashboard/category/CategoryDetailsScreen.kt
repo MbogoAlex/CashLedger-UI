@@ -1517,7 +1517,7 @@ private fun CatPeriodPicker(
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val net = totalIn - totalOut
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM") }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM, yyyy") }
     val periodOptions = remember {
         listOf(
             TimePeriod.TODAY, TimePeriod.YESTERDAY,
@@ -1568,7 +1568,9 @@ private fun CatPeriodPicker(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = selectedPeriod.getDisplayName().uppercase(),
+                                text = if (selectedPeriod == TimePeriod.CUSTOM)
+                                    "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                                else selectedPeriod.getDisplayName().uppercase(),
                                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                                 color = primaryColor, letterSpacing = 1.sp
                             )
@@ -1634,12 +1636,14 @@ private fun CatPeriodPicker(
                         }
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (selectedPeriod != TimePeriod.CUSTOM) {
+                            Text(
+                                text = "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         Text(
                             text = "$txCount txn${if (txCount != 1) "s" else ""}",
                             fontSize = 11.sp,

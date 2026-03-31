@@ -64,6 +64,9 @@ fun HeroBalanceCard(
     onPeriodSelected: (TimePeriod) -> Unit = {},
     isPremium: Boolean = false,
     onShowSubscriptionDialog: () -> Unit = {},
+    startDate: java.time.LocalDate = java.time.LocalDate.now().withDayOfMonth(1),
+    endDate: java.time.LocalDate = java.time.LocalDate.now(),
+    onOpenCustomPicker: () -> Unit = {},
     loadingProgress: Float? = null,   // null = done; 0f–1f = show progress bar
     loadingLabel: String = "Setting up…",
     modifier: Modifier = Modifier
@@ -71,6 +74,7 @@ fun HeroBalanceCard(
     val primaryColor = MaterialTheme.colorScheme.primary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
     
     // Animated gradient
     val infiniteTransition = rememberInfiniteTransition(label = "gradient")
@@ -225,7 +229,9 @@ fun HeroBalanceCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = periodLabel.uppercase(),
+                            text = if (selectedTimePeriod == TimePeriod.CUSTOM)
+                                "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                            else periodLabel.uppercase(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -238,16 +244,13 @@ fun HeroBalanceCard(
                             modifier = Modifier.size(10.dp)
                         )
                     }
-                    val allPeriods = remember(availableYears) {
-                        buildList<TimePeriod> {
-                            add(TimePeriod.TODAY); add(TimePeriod.YESTERDAY)
-                            add(TimePeriod.THIS_WEEK); add(TimePeriod.LAST_WEEK)
-                            add(TimePeriod.THIS_MONTH); add(TimePeriod.LAST_MONTH)
-                            add(TimePeriod.THIS_YEAR); add(TimePeriod.ENTIRE)
-                            val currentYear = java.time.LocalDate.now().year
-                            availableYears.filter { it < currentYear }
-                                .forEach { add(TimePeriod.SPECIFIC_YEAR(it)) }
-                        }
+                    val allPeriods = remember {
+                        listOf(
+                            TimePeriod.TODAY, TimePeriod.YESTERDAY,
+                            TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+                            TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+                            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+                        )
                     }
                     DropdownMenu(
                         expanded = showPeriodMenu,
@@ -257,8 +260,7 @@ fun HeroBalanceCard(
                             val requiresPremium = !isPremium && (
                                 period == TimePeriod.LAST_MONTH ||
                                 period == TimePeriod.THIS_YEAR ||
-                                period == TimePeriod.ENTIRE ||
-                                period is TimePeriod.SPECIFIC_YEAR
+                                period == TimePeriod.ENTIRE
                             )
                             DropdownMenuItem(
                                 text = {
@@ -290,6 +292,32 @@ fun HeroBalanceCard(
                                 }
                             )
                         }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.calendar),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = primaryColor
+                                    )
+                                    Text(
+                                        text = "Custom",
+                                        fontSize = 14.sp,
+                                        fontWeight = if (selectedTimePeriod == TimePeriod.CUSTOM) FontWeight.Bold else FontWeight.Medium,
+                                        color = primaryColor
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showPeriodMenu = false
+                                onOpenCustomPicker()
+                            }
+                        )
                     }
                 }
                 

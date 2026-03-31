@@ -51,6 +51,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,6 +123,8 @@ fun TransactionsHubScreenComposable(
         isPremium = uiState.isPremium,
         onShowSubscriptionDialog = navigateToSubscriptionScreen,
         onPeriodSelected = { viewModel.updateSelectedPeriod(it) },
+        onChangeStartDate = { viewModel.changeStartDate(it) },
+        onChangeLastDate = { viewModel.changeEndDate(it) },
         navigateToAllTransactions = navigateToAllTransactions,
         navigateToSortedTransactions = navigateToSortedTransactions,
         navigateToTransactionTypes = navigateToTransactionTypes,
@@ -152,6 +155,8 @@ fun TransactionsHubScreen(
     isPremium: Boolean = false,
     onShowSubscriptionDialog: () -> Unit = {},
     onPeriodSelected: (TimePeriod) -> Unit,
+    onChangeStartDate: (java.time.LocalDate) -> Unit = {},
+    onChangeLastDate: (java.time.LocalDate) -> Unit = {},
     navigateToAllTransactions: () -> Unit,
     navigateToSortedTransactions: () -> Unit,
     navigateToTransactionTypes: (startDate: String, endDate: String) -> Unit,
@@ -164,6 +169,13 @@ fun TransactionsHubScreen(
     val listState = rememberLazyListState()
     val primary = MaterialTheme.colorScheme.primary
     val tertiary = MaterialTheme.colorScheme.tertiary
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
+    val startDateParsed = remember(startDate) {
+        if (startDate.isNotEmpty()) java.time.LocalDate.parse(startDate) else java.time.LocalDate.now().withDayOfMonth(1)
+    }
+    val endDateParsed = remember(endDate) {
+        if (endDate.isNotEmpty()) java.time.LocalDate.parse(endDate) else java.time.LocalDate.now()
+    }
 
     // Show sticky bar once the hero card (item index 1) scrolls out of view
     val showStickyBar by remember { derivedStateOf { listState.firstVisibleItemIndex >= 2 } }
@@ -221,8 +233,30 @@ fun TransactionsHubScreen(
                 isPremium = isPremium,
                 onShowSubscriptionDialog = onShowSubscriptionDialog,
                 onPeriodSelected = onPeriodSelected,
+                startDate = startDateParsed,
+                endDate = endDateParsed,
+                onOpenCustomPicker = { showDateRangePicker = true },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
+        }
+
+        // Date range picker
+        if (showDateRangePicker) {
+            item {
+                DateRangePickerDialog(
+                    premium = isPremium,
+                    startDate = startDateParsed,
+                    endDate = endDateParsed,
+                    defaultStartDate = null,
+                    defaultEndDate = null,
+                    onChangeStartDate = { showDateRangePicker = false; onChangeStartDate(it) },
+                    onChangeLastDate = { showDateRangePicker = false; onChangeLastDate(it) },
+                    onDismiss = { showDateRangePicker = false },
+                    onConfirm = { showDateRangePicker = false },
+                    onShowSubscriptionDialog = onShowSubscriptionDialog,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         // ── Recent Activity ───────────────────────────────────────────────────
@@ -554,7 +588,9 @@ fun TransactionsHubScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = selectedTimePeriod.getDisplayName(),
+                                text = if (selectedTimePeriod == TimePeriod.CUSTOM)
+                                    "${java.time.format.DateTimeFormatter.ofPattern("d MMM").format(startDateParsed)} – ${java.time.format.DateTimeFormatter.ofPattern("d MMM").format(endDateParsed)}"
+                                else selectedTimePeriod.getDisplayName(),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -615,6 +651,32 @@ fun TransactionsHubScreen(
                                     }
                                 )
                             }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.calendar),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "Custom",
+                                            fontSize = 14.sp,
+                                            fontWeight = if (selectedTimePeriod == TimePeriod.CUSTOM) FontWeight.Bold else FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showDateRangePicker = true
+                                }
+                            )
                         }
                     }
                 }
@@ -633,11 +695,15 @@ private fun HubHeroCard(
     isPremium: Boolean = false,
     onShowSubscriptionDialog: () -> Unit = {},
     onPeriodSelected: (TimePeriod) -> Unit,
+    startDate: java.time.LocalDate = java.time.LocalDate.now().withDayOfMonth(1),
+    endDate: java.time.LocalDate = java.time.LocalDate.now(),
+    onOpenCustomPicker: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val net = totalIn - totalOut
     val primaryColor = MaterialTheme.colorScheme.primary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM, yyyy") }
 
     val infiniteTransition = rememberInfiniteTransition(label = "hubGradient")
     val animatedOffset by infiniteTransition.animateFloat(
@@ -693,7 +759,9 @@ private fun HubHeroCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = selectedTimePeriod.getDisplayName().uppercase(),
+                            text = if (selectedTimePeriod == TimePeriod.CUSTOM)
+                                "${dateFormatter.format(startDate)} – ${dateFormatter.format(endDate)}"
+                            else selectedTimePeriod.getDisplayName().uppercase(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = primaryColor,
@@ -754,6 +822,32 @@ private fun HubHeroCard(
                                 }
                             )
                         }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.calendar),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = primaryColor
+                                    )
+                                    Text(
+                                        text = "Custom",
+                                        fontSize = 14.sp,
+                                        fontWeight = if (selectedTimePeriod == TimePeriod.CUSTOM) FontWeight.Bold else FontWeight.Medium,
+                                        color = primaryColor
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showPeriodMenu = false
+                                onOpenCustomPicker()
+                            }
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))

@@ -76,6 +76,20 @@ class TransactionsHubScreenViewModel(
         fetchAll()
     }
 
+    fun changeStartDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(selectedTimePeriod = TimePeriod.CUSTOM, startDate = date.toString())
+        }
+        fetchAll()
+    }
+
+    fun changeEndDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(selectedTimePeriod = TimePeriod.CUSTOM, endDate = date.toString())
+        }
+        fetchAll()
+    }
+
     private fun loadUser() {
         viewModelScope.launch {
             val users = dbRepository.getUsers().first()
