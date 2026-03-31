@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.records.pesa.CashLedger
-import com.records.pesa.container.AppContainerImpl
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.MessageData
@@ -57,14 +56,14 @@ class TransactionMigrationWorker(
             val appContext = context.applicationContext as? CashLedger
                 ?: return Result.failure()
             
-            appContext.container = AppContainerImpl(appContext)
-            
             val transactionService = appContext.container.transactionService
             val categoryService = appContext.container.categoryService
             val userAccountService = appContext.container.userAccountService
-            
-            // Get user account (using backupId 1 as default)
-            val userAccount = userAccountService.getUserAccountByBackupId(backupId = 1L).first()
+            val dbRepository = appContext.container.dbRepository
+
+            val user = dbRepository.getUsers().first().firstOrNull()
+                ?: return Result.failure()
+            val userAccount = userAccountService.getUserAccount(userId = user.userId).first()
                 ?: return Result.failure()
             
             // Get all categories

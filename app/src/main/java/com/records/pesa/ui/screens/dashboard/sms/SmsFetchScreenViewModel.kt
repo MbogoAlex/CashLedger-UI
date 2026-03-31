@@ -26,8 +26,15 @@ import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.network.ApiRepository
 import com.records.pesa.reusables.LoadingStatus
 import com.records.pesa.reusables.SmsProviders
+import com.records.pesa.workers.BackupWorker
 import com.records.pesa.workers.WorkersRepository
 import com.records.pesa.service.category.CategoryService
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.service.userAccount.UserAccountService
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +81,7 @@ class SmsFetchScreenViewModel(
 
     private var allMessagesSent = mutableStateOf(false)
     private var hasLaunchFetchRun = false
+    private var appContext: Context? = null
 
     fun getUserDetails() {
         viewModelScope.launch {
@@ -118,6 +126,7 @@ class SmsFetchScreenViewModel(
     fun fetchSmsMessages(context: Context) {
         if (hasLaunchFetchRun) return
         hasLaunchFetchRun = true
+        appContext = context
         _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
         viewModelScope.launch(Dispatchers.IO) {
         val messages = mutableListOf<SmsMessage>()
@@ -235,6 +244,26 @@ class SmsFetchScreenViewModel(
                     it.copy(
                         loadingStatus = LoadingStatus.SUCCESS,
                     )
+                }
+
+                val ctx = appContext
+                if (ctx != null) {
+                    val user = dbRepository.getUsers().first().firstOrNull()
+                    if (user != null && user.token.isNotEmpty()) {
+                        val backupRequest = OneTimeWorkRequestBuilder<BackupWorker>()
+                            .setInputData(workDataOf("userId" to user.backUpUserId.toInt(), "token" to user.token))
+                            .setConstraints(
+                                Constraints.Builder()
+                                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                                    .build()
+                            )
+                            .build()
+                        WorkManager.getInstance(ctx).enqueueUniqueWork(
+                            "change_triggered_backup",
+                            ExistingWorkPolicy.REPLACE,
+                            backupRequest
+                        )
+                    }
                 }
             }
 
