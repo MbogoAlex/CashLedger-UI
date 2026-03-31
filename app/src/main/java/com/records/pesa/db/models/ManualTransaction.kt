@@ -18,5 +18,6 @@ data class ManualTransaction(
     val description: String = "",
     val date: LocalDate,
     val time: LocalTime? = null,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
+    val deletedAt: LocalDateTime? = null
 )

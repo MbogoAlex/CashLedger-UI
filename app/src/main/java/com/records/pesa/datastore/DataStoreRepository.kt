@@ -34,6 +34,11 @@ interface DataStoreRepository {
     fun getUserSession(): Flow<UserSession>
     suspend fun clearUserSession()
 
+    /** Stamps the current time as the last local DB change. */
+    suspend fun touchLastLocalChange()
+    /** Emits the last local change timestamp, or null if never set. */
+    fun getLastLocalChange(): Flow<LocalDateTime?>
+
     suspend fun clearAll()
 }
 
@@ -77,6 +82,9 @@ class DataStoreRepositoryImpl(private val context: Context) : DataStoreRepositor
         val CATEGORY_KEYWORDS = intPreferencesKey("category_keywords")
         val CATEGORY_MAPPINGS = intPreferencesKey("category_mappings")
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
+
+        // Sync tracking
+        val LAST_LOCAL_CHANGE = stringPreferencesKey("last_local_change")
 
         // UserSession
         val SESSION_USER_ID = longPreferencesKey("session_user_id")
@@ -271,6 +279,23 @@ class DataStoreRepositoryImpl(private val context: Context) : DataStoreRepositor
             prefs.remove(Keys.ACCESS_TOKEN_EXPIRES_IN)
             prefs.remove(Keys.REFRESH_TOKEN_EXPIRES_IN)
         }
+    }
+
+    // ─── Sync tracking ──────────────────────────────────────────────────────
+
+    override suspend fun touchLastLocalChange() {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.LAST_LOCAL_CHANGE] = LocalDateTime.now().toString()
+        }
+    }
+
+    override fun getLastLocalChange(): Flow<LocalDateTime?> {
+        return context.dataStore.data
+            .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+            .map { prefs ->
+                prefs[Keys.LAST_LOCAL_CHANGE]?.takeIf { it.isNotEmpty() }
+                    ?.let { LocalDateTime.parse(it) }
+            }
     }
 
     // ─── Clear all ──────────────────────────────────────────────────────────

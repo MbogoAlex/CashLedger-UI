@@ -67,7 +67,10 @@ class BudgetListScreenViewModel(
     fun updateFilterStatus(filter: String) = _uiState.update { it.copy(filterStatus = filter) }
 
     fun deleteBudget(budget: Budget) {
-        viewModelScope.launch { dbRepository.deleteBudget(budget) }
+        viewModelScope.launch {
+            dbRepository.deleteBudget(budget)
+            dataStoreRepository.touchLastLocalChange()
+        }
     }
 
     fun undoDelete(budget: Budget) {

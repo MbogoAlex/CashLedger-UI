@@ -231,6 +231,7 @@ class BudgetAllTransactionsScreenViewModel(
     fun updateManualTransaction(tx: ManualTransaction) {
         viewModelScope.launch {
             dbRepository.updateManualCategoryTransaction(tx)
+            dataStoreRepository.touchLastLocalChange()
             WorkManager.getInstance(application).enqueueUniqueWork(
                 "budget_recalc_manual_tx_update",
                 ExistingWorkPolicy.REPLACE,

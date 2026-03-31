@@ -122,7 +122,9 @@ fun LoginScreenComposable(
     LaunchedEffect(uiState.loginStatus) {
         if(uiState.loginStatus == LoginStatus.SUCCESS) {
             Toast.makeText(context, uiState.loginMessage, Toast.LENGTH_SHORT).show()
-            if(uiState.transactions.isEmpty()) {
+            // Only navigate to restore screen on first-ever login (user has never restored before)
+            val neverRestored = uiState.preferences?.restoredData == false
+            if(neverRestored && uiState.transactions.isEmpty()) {
                 navigateToBackupRestoreScreen()
             } else {
                 navigateToSmsFetchScreen()

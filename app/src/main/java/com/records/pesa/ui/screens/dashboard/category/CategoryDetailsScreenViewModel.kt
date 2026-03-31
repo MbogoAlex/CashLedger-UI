@@ -191,6 +191,7 @@ class CategoryDetailsScreenViewModel(
                             updatedTimes = (cat.updatedTimes ?: 0.0) + 1.0
                         )
                     )
+                    dataStoreRepository.touchLastLocalChange()
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS) }
                 } catch (e: Exception) {
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
@@ -222,6 +223,7 @@ class CategoryDetailsScreenViewModel(
                 }
                 try {
                     categoryService.updateCategoryKeyword(kw.copy(nickName = uiState.value.newMemberName))
+                    dataStoreRepository.touchLastLocalChange()
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.SUCCESS) }
                 } catch (e: Exception) {
                     _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
@@ -238,6 +240,7 @@ class CategoryDetailsScreenViewModel(
                 val transactions = transactionService.getTransactionsByEntity(entity = keyword.keyword).first()
                 for (tx in transactions) dbRepository.deleteTransactionFromCategoryMapping(tx.id)
                 dbRepository.deleteCategoryKeywordByKeywordId(keywordId = keywordId)
+                dataStoreRepository.touchLastLocalChange()
                 // Instant budget recalculation — removing an M-PESA member changes category outflow
                 recalculateBudgetsForCategory()
                 WorkManager.getInstance(application).enqueueUniqueWork(
@@ -259,6 +262,7 @@ class CategoryDetailsScreenViewModel(
                 dbRepository.deleteFromCategoryMappingByCategoryId(categoryId)
                 dbRepository.deleteCategoryKeywordByCategoryId(categoryId)
                 dbRepository.deleteCategory(categoryId)
+                dataStoreRepository.touchLastLocalChange()
                 _uiState.update { it.copy(deletionStatus = DeletionStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(deletionStatus = DeletionStatus.FAIL) }
@@ -973,6 +977,7 @@ class CategoryDetailsScreenViewModel(
                     createdAt = java.time.LocalDateTime.now()
                 )
             )
+            dataStoreRepository.touchLastLocalChange()
         }
     }
 
@@ -982,6 +987,7 @@ class CategoryDetailsScreenViewModel(
             // Cascade: delete all transactions for this member in this category
             dbRepository.deleteManualTransactionsByMember(categoryIdInt, memberName)
             dbRepository.deleteManualCategoryMember(id)
+            dataStoreRepository.touchLastLocalChange()
             // Instant recalculation so budget card updates immediately
             recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
@@ -998,6 +1004,7 @@ class CategoryDetailsScreenViewModel(
             dbRepository.updateManualCategoryMemberName(id, newName)
             // Also update memberName on all transactions for this member so history stays consistent
             dbRepository.updateManualTransactionMemberName(categoryIdInt, oldName, newName)
+            dataStoreRepository.touchLastLocalChange()
         }
     }
 
@@ -1017,6 +1024,7 @@ class CategoryDetailsScreenViewModel(
                     createdAt = java.time.LocalDateTime.now()
                 )
             )
+            dataStoreRepository.touchLastLocalChange()
             // Instant recalculation — budget card updates without waiting for WorkManager
             recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
@@ -1030,6 +1038,7 @@ class CategoryDetailsScreenViewModel(
     fun deleteManualTransaction(id: Int) {
         viewModelScope.launch {
             dbRepository.deleteManualCategoryTransaction(id)
+            dataStoreRepository.touchLastLocalChange()
             // Instant recalculation
             recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(
@@ -1043,6 +1052,7 @@ class CategoryDetailsScreenViewModel(
     fun updateManualTransaction(tx: com.records.pesa.db.models.ManualTransaction) {
         viewModelScope.launch {
             dbRepository.updateManualCategoryTransaction(tx)
+            dataStoreRepository.touchLastLocalChange()
             // Instant recalculation
             recalculateBudgetsForCategory()
             WorkManager.getInstance(application).enqueueUniqueWork(

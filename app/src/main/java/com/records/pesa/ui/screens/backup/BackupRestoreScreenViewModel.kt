@@ -243,14 +243,33 @@ class BackupRestoreScreenViewModel(
                     
                     Log.d("filesRestore_insert", "Transaction insertion complete: $insertedCount inserted, $insertFailedCount failed")
 
-                    // Insert Categories into Room
-                    for (category in categories) {
-                        Log.d("filesRestore, Restoring_data_category: ", category.toString())
-                        categoryService.insertTransactionCategory(category)
+                    // Insert/merge Categories into Room (smart merge — local deletions win)
+                    for (serverCat in categories) {
+                        try {
+                            val localCat = dbRepository.getCategoryByIdOnce(serverCat.id)
+                            when {
+                                // New record — insert as-is
+                                localCat == null -> {
+                                    categoryService.insertTransactionCategory(serverCat)
+                                }
+                                // Local was deleted by user — do NOT restore it
+                                localCat.deletedAt != null -> { /* skip */ }
+                                // Server has a deletion we haven't applied locally yet
+                                serverCat.deletedAt != null -> {
+                                    categoryService.insertTransactionCategory(serverCat.copy(deletedAt = serverCat.deletedAt))
+                                }
+                                // Both alive — keep newer version (updatedAt wins)
+                                serverCat.updatedAt.isAfter(localCat.updatedAt) -> {
+                                    categoryService.insertTransactionCategory(serverCat)
+                                }
+                                // Local is newer or same — keep local, do nothing
+                                else -> { /* keep local */ }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("filesRestore", "Failed to merge category ${serverCat.id}: ${e.message}")
+                        }
                         _uiState.update {
-                            it.copy(
-                                totalItemsRestored = uiState.value.totalItemsRestored + 1
-                            )
+                            it.copy(totalItemsRestored = uiState.value.totalItemsRestored + 1)
                         }
                     }
 
@@ -307,15 +326,33 @@ class BackupRestoreScreenViewModel(
                         }
                     }
 
-                    // Insert Budgets into Room
-                    for (budget in budgets) {
+                    // Insert/merge Budgets into Room (smart merge — local deletions win)
+                    for (serverBudget in budgets) {
                         try {
-                            dbRepository.insertBudget(budget)
+                            val localBudget = dbRepository.getBudgetByIdOnce(serverBudget.id)
+                            when {
+                                // New record — insert as-is
+                                localBudget == null -> {
+                                    dbRepository.insertBudget(serverBudget)
+                                }
+                                // Local was deleted by user — do NOT restore it
+                                localBudget.deletedAt != null -> { /* skip */ }
+                                // Server has a deletion we haven't applied locally yet
+                                serverBudget.deletedAt != null -> {
+                                    dbRepository.insertBudget(serverBudget.copy(deletedAt = serverBudget.deletedAt))
+                                }
+                                // Both alive — keep newer version (createdAt is immutable, use it as tiebreaker)
+                                serverBudget.createdAt.isAfter(localBudget.createdAt) -> {
+                                    dbRepository.insertBudget(serverBudget)
+                                }
+                                // Local is same or newer — keep local
+                                else -> { /* keep local */ }
+                            }
                             _uiState.update {
                                 it.copy(totalItemsRestored = uiState.value.totalItemsRestored + 1)
                             }
                         } catch (e: Exception) {
-                            Log.e("filesRestore", "Failed to insert budget ${budget.id}: ${e.message}")
+                            Log.e("filesRestore", "Failed to merge budget ${serverBudget.id}: ${e.message}")
                         }
                     }
 
@@ -492,7 +529,9 @@ class BackupRestoreScreenViewModel(
                 updatedAt = LocalDateTime.parse(row[2]), // updatedAt
                 name = row[3],                           // name
                 contains = containsList,                 // Split by comma or return empty list
-                updatedTimes = row.getOrNull(5)?.toDouble() // updatedTimes (optional)
+                updatedTimes = row.getOrNull(5)?.toDouble(), // updatedTimes (optional)
+                // deletedAt added in v59 — safely absent in old backups (default null = alive)
+                deletedAt = row.getOrNull(6)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
             )
             categories.add(category)
         }
@@ -543,6 +582,8 @@ class BackupRestoreScreenViewModel(
                     recurrenceType = row.getOrNull(14)?.takeIf { it.isNotBlank() },
                     recurrenceIntervalDays = row.getOrNull(15)?.toIntOrNull(),
                     cycleNumber = row.getOrNull(16)?.toIntOrNull() ?: 1,
+                    // deletedAt added in v59 — safely absent in old backups (default null = alive)
+                    deletedAt = row.getOrNull(17)?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) },
                 )
                 budgets.add(budget)
             } catch (e: Exception) {

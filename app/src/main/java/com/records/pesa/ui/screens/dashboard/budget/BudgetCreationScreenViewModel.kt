@@ -246,6 +246,7 @@ class BudgetCreationScreenViewModel(
                 if (members.isNotEmpty()) {
                     dbRepository.insertBudgetMembers(members)
                 }
+                dataStoreRepository.touchLastLocalChange()
                 // Immediately calculate expenditure so the budget screen shows real figures
                 WorkManager.getInstance(application).enqueueUniqueWork(
                     "budget_recalc_on_create",

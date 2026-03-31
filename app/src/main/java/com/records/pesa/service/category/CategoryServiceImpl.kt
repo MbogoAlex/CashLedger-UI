@@ -7,6 +7,7 @@ import com.records.pesa.db.models.CategoryWithTransactions
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDateTime
 
 class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService {
     override suspend fun insertTransactionCategory(transactionCategory: TransactionCategory): Long = categoryDao.insertTransactionCategory(transactionCategory)
@@ -25,7 +26,7 @@ class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService
     override fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>> = categoryDao.getTransactionCategoryCrossRefs()
     override fun getAllCategoryKeywords(): List<CategoryKeyword> = categoryDao.getAllCategoryKeywords()
     override suspend fun insertTransactionCategoryCrossRef(transactionCategoryCrossRef: TransactionCategoryCrossRef) = categoryDao.insertTransactionCategoryCrossRef(transactionCategoryCrossRef)
-    override suspend fun deleteCategory(id: Int) = categoryDao.deleteCategory(id)
+    override suspend fun deleteCategory(id: Int) = categoryDao.deleteCategory(id, LocalDateTime.now())
 
     override suspend fun deleteCategoryKeyword(id: Int) = categoryDao.deleteCategoryKeyword(id)
 

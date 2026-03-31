@@ -13,6 +13,7 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
+import java.time.LocalDateTime
 
 @Dao
 interface CategoryDao {
@@ -36,8 +37,8 @@ interface CategoryDao {
         }
     }
 
-    @Query("delete from transactionCategory where id = :id")
-    suspend fun deleteCategory(id: Int)
+    @Query("UPDATE transactionCategory SET deletedAt = :deletedAt WHERE id = :id")
+    suspend fun deleteCategory(id: Int, deletedAt: LocalDateTime)
 
 
     @Query("delete from categoryKeyword where id = :id")
@@ -67,19 +68,23 @@ interface CategoryDao {
     @Query("select * from transactionCategoryCrossRef")
     fun getTransactionCategoryCrossRefs(): Flow<List<TransactionCategoryCrossRef>>
 
-    @Query("select * from transactionCategory where id = :id")
+    @Query("select * from transactionCategory where id = :id AND deletedAt IS NULL")
     fun getCategoryById(id: Int): Flow<CategoryWithKeywords>
 
-    @Query("select * from transactionCategory where id = :id")
+    @Query("select * from transactionCategory where id = :id AND deletedAt IS NULL")
     fun getCategoryWithTransactions(id: Int): Flow<CategoryWithTransactions>
+
+    // One-shot lookup for restore merge (includes soft-deleted rows intentionally)
+    @Query("select * from transactionCategory where id = :id LIMIT 1")
+    suspend fun getCategoryByIdOnce(id: Int): TransactionCategory?
 
     @Query("select * from categoryKeyword")
     fun getAllCategoryKeywords(): List<CategoryKeyword>
 
-    @Query("select * from transactionCategory where id = :id")
+    @Query("select * from transactionCategory where id = :id AND deletedAt IS NULL")
     fun getRawCategoryById(id: Int): Flow<TransactionCategory>
 
-    @Query("select * from transactionCategory")
+    @Query("select * from transactionCategory WHERE deletedAt IS NULL")
     fun getAllCategories(): Flow<List<CategoryWithTransactions>>
 
     @Query("select * from categoryKeyword where categoryId = :id")

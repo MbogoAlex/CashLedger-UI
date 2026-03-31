@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -762,6 +763,17 @@ class DashboardScreenViewModel(
             TransactionInsertedEvent.flow.collect { transactionId ->
                 _uiState.update { it.copy(navigateToTransactionId = transactionId) }
             }
+        }
+
+        // Observe local DB changes and debounce-trigger backup
+        viewModelScope.launch(Dispatchers.IO) {
+            dataStoreRepository.getLastLocalChange()
+                .collect { _ ->
+                    val session = dataStoreRepository.getUserSession().firstOrNull()
+                    val token = session?.accessToken ?: return@collect
+                    val userId = session.userId?.toInt()?.takeIf { it > 0 } ?: return@collect
+                    workersRepository.triggerBackupAfterChange(token = token, userId = userId)
+                }
         }
     }
     

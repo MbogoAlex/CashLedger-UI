@@ -26,6 +26,12 @@ interface WorkersRepository {
     )
     
     suspend fun runSafaricomMigration()
+
+    /** Debounced one-shot backup triggered after a local DB change. */
+    fun triggerBackupAfterChange(token: String, userId: Int)
+
+    /** Schedules (or keeps) a 4-hour periodic full backup. */
+    fun startPeriodicBackup()
 }
 
 class WorkersRepositoryImpl(context: Context): WorkersRepository {
@@ -46,6 +52,9 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
                 fetchMessagesPeriodicRequest
             )
             Log.d("backUpWork", "Periodic SMS fetch scheduled")
+
+            // Also ensure the 4-hour periodic backup is running
+            startPeriodicBackup()
         } catch (e: Exception) {
             Log.e("backUpWork", e.toString())
         }
@@ -104,6 +113,48 @@ class WorkersRepositoryImpl(context: Context): WorkersRepository {
 
         } catch (e: Exception) {
             Log.e("SafaricomMigration", "Error enqueueing migration work", e)
+        }
+    }
+
+    override fun startPeriodicBackup() {
+        try {
+            val request = PeriodicWorkRequestBuilder<BackupWorker>(Duration.ofHours(4))
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+            workManager.enqueueUniquePeriodicWork(
+                "periodic_backup",
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
+            Log.d("backUpWork", "4-hour periodic backup scheduled")
+        } catch (e: Exception) {
+            Log.e("backUpWork", "Error scheduling periodic backup", e)
+        }
+    }
+
+    override fun triggerBackupAfterChange(token: String, userId: Int) {
+        try {
+            val request = OneTimeWorkRequestBuilder<BackupWorker>()
+                .setInitialDelay(30, java.util.concurrent.TimeUnit.SECONDS)
+                .setInputData(workDataOf("token" to token, "userId" to userId))
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+            workManager.enqueueUniqueWork(
+                "change_triggered_backup",
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+            Log.d("backUpWork", "Change-triggered backup scheduled (30s debounce)")
+        } catch (e: Exception) {
+            Log.e("backUpWork", "Error scheduling change-triggered backup", e)
         }
     }
 

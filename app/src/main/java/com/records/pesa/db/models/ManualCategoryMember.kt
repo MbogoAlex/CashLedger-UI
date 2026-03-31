@@ -10,5 +10,6 @@ data class ManualCategoryMember(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val categoryId: Int,
     val name: String,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
+    val deletedAt: LocalDateTime? = null
 )

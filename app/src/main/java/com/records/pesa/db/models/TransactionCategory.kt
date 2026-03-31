@@ -18,5 +18,6 @@ data class TransactionCategory(
     var contains: List<String>,
     var createdAt: LocalDateTime,
     var updatedAt: LocalDateTime,
-    var updatedTimes: Double?
+    var updatedTimes: Double?,
+    val deletedAt: LocalDateTime? = null
 )

@@ -23,6 +23,7 @@ import com.records.pesa.db.models.ManualCategoryMember
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.Transaction
+import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
@@ -30,6 +31,7 @@ import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 interface DBRepository {
     suspend fun insertUser(user: UserDetails)
@@ -78,7 +80,9 @@ interface DBRepository {
 
     suspend fun deleteTransaction(id: Int)
 
-    suspend fun deleteCategory(id: Int)
+    suspend fun deleteCategory(id: Int, deletedAt: LocalDateTime = LocalDateTime.now())
+    // One-shot lookup for restore merge (includes soft-deleted rows)
+    suspend fun getCategoryByIdOnce(id: Int): TransactionCategory?
 
     suspend fun deleteCategoryKeyword(id: Int)
 
@@ -102,8 +106,9 @@ interface DBRepository {
     suspend fun updateBudget(budget: Budget)
     suspend fun updateBudgetExpenditure(id: Int, expenditure: Double, limitReached: Boolean, exceededBy: Double)
     suspend fun deleteBudget(budget: Budget)
-    suspend fun deleteBudgetById(id: Int)
+    suspend fun deleteBudgetById(id: Int, deletedAt: LocalDateTime = LocalDateTime.now())
     fun getBudgetById(id: Int): Flow<Budget?>
+    suspend fun getBudgetByIdOnce(id: Int): Budget?
     fun getBudgetsByCategoryId(categoryId: Int): Flow<List<Budget>>
     fun getActiveBudgets(): Flow<List<Budget>>
     fun getAllBudgets(): Flow<List<Budget>>
@@ -141,7 +146,7 @@ interface DBRepository {
     fun getManualMembersForCategory(categoryId: Int): Flow<List<ManualCategoryMember>>
     suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember>
     suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long
-    suspend fun deleteManualCategoryMember(id: Int)
+    suspend fun deleteManualCategoryMember(id: Int, deletedAt: LocalDateTime = LocalDateTime.now())
     suspend fun updateManualCategoryMemberName(id: Int, newName: String)
 
     // Manual transactions (category-scoped)
@@ -149,7 +154,7 @@ interface DBRepository {
     suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction>
     fun getManualTransactionById(id: Int): Flow<ManualTransaction>
     suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long
-    suspend fun deleteManualCategoryTransaction(id: Int)
+    suspend fun deleteManualCategoryTransaction(id: Int, deletedAt: LocalDateTime = LocalDateTime.now())
     suspend fun updateManualCategoryTransaction(tx: ManualTransaction)
     suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String)
     suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String)
@@ -258,7 +263,8 @@ class DBRepositoryImpl(
     override suspend fun resetCategoryMappingsPK() = appDao.resetCategoryMappingsPK()
     override suspend fun deleteTransaction(id: Int) = appDao.deleteTransaction(id)
 
-    override suspend fun deleteCategory(id: Int) = appDao.deleteCategory(id)
+    override suspend fun deleteCategory(id: Int, deletedAt: LocalDateTime) = appDao.deleteCategory(id, deletedAt)
+    override suspend fun getCategoryByIdOnce(id: Int): TransactionCategory? = appDao.getCategoryByIdOnce(id)
 
     override suspend fun deleteCategoryKeyword(id: Int) = appDao.deleteCategoryKeyword(id)
 
@@ -283,9 +289,10 @@ class DBRepositoryImpl(
     override suspend fun updateBudget(budget: Budget) = budgetDao.updateBudget(budget)
     override suspend fun updateBudgetExpenditure(id: Int, expenditure: Double, limitReached: Boolean, exceededBy: Double) =
         budgetDao.updateBudgetExpenditure(id, expenditure, limitReached, exceededBy)
-    override suspend fun deleteBudget(budget: Budget) = budgetDao.deleteBudget(budget)
-    override suspend fun deleteBudgetById(id: Int) = budgetDao.deleteBudgetById(id)
+    override suspend fun deleteBudget(budget: Budget) = budgetDao.softDeleteBudget(budget.id, LocalDateTime.now())
+    override suspend fun deleteBudgetById(id: Int, deletedAt: LocalDateTime) = budgetDao.deleteBudgetById(id, deletedAt)
     override fun getBudgetById(id: Int): Flow<Budget?> = budgetDao.getBudgetById(id)
+    override suspend fun getBudgetByIdOnce(id: Int): Budget? = budgetDao.getBudgetByIdOnce(id)
     override fun getBudgetsByCategoryId(categoryId: Int): Flow<List<Budget>> = budgetDao.getBudgetsByCategoryId(categoryId)
     override fun getActiveBudgets(): Flow<List<Budget>> = budgetDao.getActiveBudgets()
     override fun getAllBudgets(): Flow<List<Budget>> = budgetDao.getAllBudgets()
@@ -320,14 +327,14 @@ class DBRepositoryImpl(
     override fun getManualMembersForCategory(categoryId: Int): Flow<List<ManualCategoryMember>> = manualCategoryMemberDao.getForCategory(categoryId)
     override suspend fun getAllManualCategoryMembersOnce(): List<ManualCategoryMember> = manualCategoryMemberDao.getAllOnce()
     override suspend fun insertManualCategoryMember(member: ManualCategoryMember): Long = manualCategoryMemberDao.insert(member)
-    override suspend fun deleteManualCategoryMember(id: Int) = manualCategoryMemberDao.deleteById(id)
+    override suspend fun deleteManualCategoryMember(id: Int, deletedAt: LocalDateTime) = manualCategoryMemberDao.deleteById(id, deletedAt)
     override suspend fun updateManualCategoryMemberName(id: Int, newName: String) = manualCategoryMemberDao.updateName(id, newName)
 
     override fun getManualTransactionsForCategory(categoryId: Int): Flow<List<ManualTransaction>> = manualTransactionDao.getForCategory(categoryId)
     override suspend fun getManualTransactionsForCategoryOnce(categoryId: Int): List<ManualTransaction> = manualTransactionDao.getForCategoryOnce(categoryId)
     override fun getManualTransactionById(id: Int): Flow<ManualTransaction> = manualTransactionDao.getById(id)
     override suspend fun insertManualCategoryTransaction(tx: ManualTransaction): Long = manualTransactionDao.insert(tx)
-    override suspend fun deleteManualCategoryTransaction(id: Int) = manualTransactionDao.deleteById(id)
+    override suspend fun deleteManualCategoryTransaction(id: Int, deletedAt: LocalDateTime) = manualTransactionDao.deleteById(id, deletedAt)
     override suspend fun updateManualCategoryTransaction(tx: ManualTransaction) = manualTransactionDao.update(tx)
     override suspend fun deleteManualTransactionsByMember(categoryId: Int, memberName: String) = manualTransactionDao.deleteByMemberAndCategory(categoryId, memberName)
     override suspend fun updateManualTransactionMemberName(categoryId: Int, oldName: String, newName: String) = manualTransactionDao.updateMemberName(categoryId, oldName, newName)

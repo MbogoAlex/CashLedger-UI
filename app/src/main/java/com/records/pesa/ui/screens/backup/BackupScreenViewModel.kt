@@ -519,14 +519,14 @@ class BackupScreenViewModel(
             val file = getInternalStorageFile(context, fileName)
             FileWriter(file).use { writer ->
                 val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
-                    "id", "createdAt", "updatedAt", "name", "contains", "updatedTimes"
+                    "id", "createdAt", "updatedAt", "name", "contains", "updatedTimes", "deletedAt"
                 ))
 
                 categoriesToBackup.forEach { category ->
                     csvPrinter.printRecord(
                         category.id, category.createdAt, category.updatedAt,
                         category.name, category.contains.joinToString(","),
-                        category.updatedTimes
+                        category.updatedTimes, category.deletedAt
                     )
                 }
                 csvPrinter.flush()

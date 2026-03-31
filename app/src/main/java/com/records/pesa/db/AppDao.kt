@@ -11,6 +11,7 @@ import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDateTime
 
 @Dao
 interface AppDao {
@@ -68,8 +69,12 @@ interface AppDao {
     @Query("delete from `transaction` where id = :id")
     suspend fun deleteTransaction(id: Int)
 
-    @Query("delete from transactionCategory where id = :id")
-    suspend fun deleteCategory(id: Int)
+    @Query("UPDATE transactionCategory SET deletedAt = :deletedAt WHERE id = :id")
+    suspend fun deleteCategory(id: Int, deletedAt: LocalDateTime)
+
+    // One-shot lookup for restore merge (includes soft-deleted rows intentionally)
+    @Query("SELECT * FROM transactionCategory WHERE id = :id LIMIT 1")
+    suspend fun getCategoryByIdOnce(id: Int): com.records.pesa.db.models.TransactionCategory?
 
     @Query("delete from categoryKeyword where id = :id")
     suspend fun deleteCategoryKeyword(id: Int)

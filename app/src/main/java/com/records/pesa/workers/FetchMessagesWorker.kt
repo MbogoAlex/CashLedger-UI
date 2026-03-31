@@ -6,6 +6,7 @@ import android.provider.Telephony
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -143,7 +144,12 @@ class FetchMessagesWorker(
                             .build()
                     )
                     .build()
-                WorkManager.getInstance(context).enqueue(postMessagesRequest)
+                // Use enqueueUniqueWork so this merges with / replaces any pending change-triggered backup
+                WorkManager.getInstance(context).enqueueUniqueWork(
+                    "change_triggered_backup",
+                    ExistingWorkPolicy.REPLACE,
+                    postMessagesRequest
+                )
             }
 
             Log.d("CashLedger_SMS", "Worker: complete ✓")

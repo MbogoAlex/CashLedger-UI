@@ -3,6 +3,7 @@ package com.records.pesa.ui.screens.transactions
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.records.pesa.datastore.DataStoreRepository
 import com.records.pesa.db.DBRepository
 import com.records.pesa.db.models.CategoryWithTransactions
 import com.records.pesa.db.models.CategoryKeyword
@@ -106,7 +107,8 @@ class TransactionDetailsScreenViewModel(
     private val dbRepository: DBRepository,
     private val savedStateHandle: SavedStateHandle,
     private val transactionService: TransactionService,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val dataStoreRepository: DataStoreRepository
 ): ViewModel() {
     private val _uiState = MutableStateFlow(TransactionDetailsScreenUiState())
     val uiState: StateFlow<TransactionDetailsScreenUiState> = _uiState.asStateFlow()
@@ -286,6 +288,7 @@ class TransactionDetailsScreenViewModel(
                         updatingAliasStatus = if (failed) UpdatingAliasStatus.FAIL else UpdatingAliasStatus.SUCCESS
                     )
                 }
+                if (!failed) dataStoreRepository.touchLastLocalChange()
             }
 //            try {
 //                val response = apiRepository.updateTransaction(
@@ -343,6 +346,7 @@ class TransactionDetailsScreenViewModel(
                             comment = uiState.value.comment
                         )
                     )
+                    dataStoreRepository.touchLastLocalChange()
                     _uiState.update {
                         it.copy(
                             updatingCommentStatus = UpdatingCommentStatus.SUCCESS
@@ -409,7 +413,7 @@ class TransactionDetailsScreenViewModel(
                             dbRepository.deleteTransactionFromCategoryMapping(id)
                             transactionService.deleteTransaction(transaction.id)
                         }
-
+                        dataStoreRepository.touchLastLocalChange()
                         _uiState.update {
                             it.copy(
                                 deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
@@ -430,7 +434,7 @@ class TransactionDetailsScreenViewModel(
 //                        categoryService.deleteCategoryKeywordByKeyword(keyword = uiState.value.transaction.entity)
                         dbRepository.deleteTransactionFromCategoryMapping(id)
                         transactionService.deleteTransaction(id)
-
+                        dataStoreRepository.touchLastLocalChange()
                         _uiState.update {
                             it.copy(
                                 deletingTransactionStatus = DeletingTransactionStatus.SUCCESS
@@ -484,6 +488,7 @@ class TransactionDetailsScreenViewModel(
                         )
                     } catch (_: Exception) {}
                 }
+                dataStoreRepository.touchLastLocalChange()
                 _uiState.update { it.copy(addToCategoryStatus = AddToCategoryStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(addToCategoryStatus = AddToCategoryStatus.FAIL) }
@@ -518,6 +523,7 @@ class TransactionDetailsScreenViewModel(
                 val txList = transactionService.getTransactionsByEntity(entity = keyword.keyword).first()
                 for (t in txList) dbRepository.deleteTransactionFromCategoryMapping(t.id)
                 dbRepository.deleteCategoryKeywordByKeywordId(keywordId = keywordId)
+                dataStoreRepository.touchLastLocalChange()
             } catch (_: Exception) {}
         }
     }
@@ -533,6 +539,7 @@ class TransactionDetailsScreenViewModel(
     fun updateManualTx(updated: ManualTransaction) {
         viewModelScope.launch(Dispatchers.IO) {
             dbRepository.updateManualCategoryTransaction(updated)
+            dataStoreRepository.touchLastLocalChange()
         }
     }
 
@@ -542,6 +549,7 @@ class TransactionDetailsScreenViewModel(
             try {
                 val id = transactionId?.removePrefix("m_")?.toIntOrNull() ?: return@launch
                 dbRepository.deleteManualCategoryTransaction(id)
+                dataStoreRepository.touchLastLocalChange()
                 _uiState.update { it.copy(deletingManualTxStatus = DeletingTransactionStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(deletingManualTxStatus = DeletingTransactionStatus.FAIL) }

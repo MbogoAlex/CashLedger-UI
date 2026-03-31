@@ -135,7 +135,7 @@ class BudgetInfoScreenViewModel(
                         ?.let { LocalDate.parse(it) } ?: budget.limitDate
                 )
                 dbRepository.updateBudget(updated)
-
+                dataStoreRepository.touchLastLocalChange()
                 recalculateExpenditure(updated)
 
                 // Reset alert tracker so fresh alerts can fire with the new limit
@@ -155,6 +155,7 @@ class BudgetInfoScreenViewModel(
             try {
                 dbRepository.deleteBudgetCycleLogs(budget.id)
                 dbRepository.deleteBudget(budget)
+                dataStoreRepository.touchLastLocalChange()
                 _uiState.update { it.copy(executionStatus = ExecutionStatus.SUCCESS) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(executionStatus = ExecutionStatus.FAIL) }
@@ -167,6 +168,7 @@ class BudgetInfoScreenViewModel(
         viewModelScope.launch {
             try {
                 dbRepository.updateBudget(budget.copy(active = !budget.active))
+                dataStoreRepository.touchLastLocalChange()
                 // No executionStatus change needed — the budget flow will auto-update the UI
             } catch (e: Exception) {
                 Log.e("BudgetInfoVM", "togglePauseBudget failed: $e")
@@ -177,6 +179,7 @@ class BudgetInfoScreenViewModel(
     fun updateManualTransaction(tx: ManualCategoryTx) {
         viewModelScope.launch {
             dbRepository.updateManualCategoryTransaction(tx)
+            dataStoreRepository.touchLastLocalChange()
             BudgetAlertTracker.clearForBudget(application, _uiState.value.budget?.id ?: return@launch)
             WorkManager.getInstance(application).enqueueUniqueWork(
                 "budget_recalc_manual_tx_update",
@@ -670,6 +673,7 @@ class BudgetInfoScreenViewModel(
                     com.records.pesa.db.models.BudgetMember(budgetId = budgetId, memberName = it)
                 })
             }
+            dataStoreRepository.touchLastLocalChange()
             val budget = dbRepository.getBudgetById(budgetId).first() ?: return@launch
             recalculateExpenditure(budget)
         }

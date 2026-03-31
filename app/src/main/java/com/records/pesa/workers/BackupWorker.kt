@@ -68,11 +68,25 @@ class BackupWorker(
         val apiRepository = appContext.container.apiRepository
         val authenticationManager = appContext.container.authenticationManager
 
-        if (userId == -1) {
-            return Result.failure()
+        // Resolve userId and token — inputData for on-demand runs, DB fallback for periodic backup
+        val resolvedUserId: Int
+        val resolvedToken: String
+        if (userId != -1 && !token.isNullOrEmpty()) {
+            resolvedUserId = userId
+            resolvedToken = token
+        } else {
+            val user = dbRepository.getUser()?.first()
+                ?: run {
+                    Log.e("backUpWorker", "No user in DB — cannot backup")
+                    return Result.failure()
+                }
+            resolvedUserId = user.backUpUserId.toInt()
+            resolvedToken = user.token
+            if (resolvedUserId <= 0 || resolvedToken.isEmpty()) {
+                Log.e("backUpWorker", "User has no valid backUpUserId or token")
+                return Result.failure()
+            }
         }
-
-        createNotificationChannel(priorityHigh)
 
         // Set the worker as a foreground service with the initial notification
         setForegroundAsync(createForegroundInfo("Starting backup...", priorityHigh = priorityHigh))
@@ -82,7 +96,7 @@ class BackupWorker(
                 context = context,
                 worker = this,
                 dbRepository = dbRepository,
-                backUpId = userId,
+                backUpId = resolvedUserId,
                 transactionService = transactionService,
                 categoryService = categoryService,
                 priorityHigh = priorityHigh,
@@ -480,14 +494,14 @@ fun backupCategoriesToCSV(context: Context, fileName: String, categoriesToBackup
         val file = getInternalStorageFile(context, fileName)
         FileWriter(file).use { writer ->
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
-                "id", "createdAt", "updatedAt", "name", "contains", "updatedTimes"
+                "id", "createdAt", "updatedAt", "name", "contains", "updatedTimes", "deletedAt"
             ))
 
             categoriesToBackup.forEach { category ->
                 csvPrinter.printRecord(
                     category.id, category.createdAt, category.updatedAt,
                     category.name, category.contains.joinToString(","),
-                    category.updatedTimes
+                    category.updatedTimes, category.deletedAt
                 )
             }
             csvPrinter.flush()
@@ -579,7 +593,7 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
                 "id", "name", "active", "expenditure", "budgetLimit",
                 "createdAt", "startDate", "limitDate", "limitReached", "limitReachedAt",
                 "exceededBy", "categoryId", "alertThreshold",
-                "isRecurring", "recurrenceType", "recurrenceIntervalDays", "cycleNumber"
+                "isRecurring", "recurrenceType", "recurrenceIntervalDays", "cycleNumber", "deletedAt"
             ))
             budgetsToBackup.forEach { budget ->
                 csvPrinter.printRecord(
@@ -587,7 +601,8 @@ fun backupBudgetsToCSV(context: Context, fileName: String, budgetsToBackup: List
                     budget.budgetLimit, budget.createdAt, budget.startDate, budget.limitDate,
                     budget.limitReached, budget.limitReachedAt, budget.exceededBy,
                     budget.categoryId, budget.alertThreshold,
-                    budget.isRecurring, budget.recurrenceType, budget.recurrenceIntervalDays, budget.cycleNumber
+                    budget.isRecurring, budget.recurrenceType, budget.recurrenceIntervalDays, budget.cycleNumber,
+                    budget.deletedAt
                 )
             }
             csvPrinter.flush()
@@ -621,9 +636,9 @@ fun backupManualCategoryMembersToCSV(context: Context, fileName: String, members
     try {
         val file = getInternalStorageFile(context, fileName)
         FileWriter(file).use { writer ->
-            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("id", "categoryId", "name", "createdAt"))
+            val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("id", "categoryId", "name", "createdAt", "deletedAt"))
             members.forEach { m ->
-                csvPrinter.printRecord(m.id, m.categoryId, m.name, m.createdAt)
+                csvPrinter.printRecord(m.id, m.categoryId, m.name, m.createdAt, m.deletedAt)
             }
             csvPrinter.flush()
         }
@@ -639,12 +654,12 @@ fun backupManualTransactionsToCSV(context: Context, fileName: String, txs: List<
         val file = getInternalStorageFile(context, fileName)
         FileWriter(file).use { writer ->
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
-                "id", "categoryId", "memberName", "transactionTypeName", "isOutflow", "amount", "description", "date", "createdAt"
+                "id", "categoryId", "memberName", "transactionTypeName", "isOutflow", "amount", "description", "date", "createdAt", "deletedAt"
             ))
             txs.forEach { tx ->
                 csvPrinter.printRecord(
                     tx.id, tx.categoryId, tx.memberName, tx.transactionTypeName,
-                    if (tx.isOutflow) 1 else 0, tx.amount, tx.description, tx.date, tx.createdAt
+                    if (tx.isOutflow) 1 else 0, tx.amount, tx.description, tx.date, tx.createdAt, tx.deletedAt
                 )
             }
             csvPrinter.flush()

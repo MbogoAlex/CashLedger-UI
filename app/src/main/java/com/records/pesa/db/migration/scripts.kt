@@ -759,3 +759,12 @@ val MIGRATION_57_58 = object : Migration(57, 58) {
         database.execSQL("ALTER TABLE `budget_recalc_log` ADD COLUMN `cycleEndDate` TEXT DEFAULT NULL")
     }
 }
+
+val MIGRATION_58_59 = object : Migration(58, 59) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE `transactionCategory` ADD COLUMN `deletedAt` TEXT DEFAULT NULL")
+        database.execSQL("ALTER TABLE `budget` ADD COLUMN `deletedAt` TEXT DEFAULT NULL")
+        database.execSQL("ALTER TABLE `manual_transaction` ADD COLUMN `deletedAt` TEXT DEFAULT NULL")
+        database.execSQL("ALTER TABLE `manual_category_member` ADD COLUMN `deletedAt` TEXT DEFAULT NULL")
+    }
+}
