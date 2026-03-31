@@ -70,12 +70,20 @@ fun UssdQuickActionButton(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Make a Transaction",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    androidx.compose.foundation.layout.Column {
+                        Text(
+                            text = "Make a Transaction",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Faster than SIM Toolkit",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 }
                 Text(
                     text = "Dial *334# →",
