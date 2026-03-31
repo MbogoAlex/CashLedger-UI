@@ -458,6 +458,8 @@ fun DashboardScreen(
             selectedTimePeriod = selectedTimePeriod,
             availableYears = availableYears,
             onPeriodSelected = onPeriodSelected,
+            isPremium = premium,
+            onShowSubscriptionDialog = onShowSubscriptionDialog,
             loadingProgress = loadingProgress,
             loadingLabel = loadingLabel,
             modifier = Modifier.fillMaxWidth()

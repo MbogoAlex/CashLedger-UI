@@ -73,6 +73,7 @@ class SmsFetchScreenViewModel(
     private val fromLogin: String? = savedStateHandle[SMSFetchScreenDestination.fromLogin]
 
     private var allMessagesSent = mutableStateOf(false)
+    private var hasLaunchFetchRun = false
 
     fun getUserDetails() {
         viewModelScope.launch {
@@ -115,6 +116,8 @@ class SmsFetchScreenViewModel(
 
 
     fun fetchSmsMessages(context: Context) {
+        if (hasLaunchFetchRun) return
+        hasLaunchFetchRun = true
         _uiState.update { it.copy(loadingStatus = LoadingStatus.LOADING) }
         viewModelScope.launch(Dispatchers.IO) {
         val messages = mutableListOf<SmsMessage>()

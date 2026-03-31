@@ -10,44 +10,47 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,15 +58,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -86,11 +90,11 @@ import com.records.pesa.ui.screens.utils.screenWidth
 import com.records.pesa.ui.theme.CashLedgerTheme
 import java.time.LocalDate
 
-object SubscriptionScreenDestination: AppNavigation {
+object SubscriptionScreenDestination : AppNavigation {
     override val title: String = "Subscription screen"
     override val route: String = "subscription-screen"
-
 }
+
 @Composable
 fun SubscriptionScreenComposable(
     navigateToHomeScreen: () -> Unit,
@@ -106,17 +110,12 @@ fun SubscriptionScreenComposable(
         viewModel.checkConnectivity(context)
     }
 
-    var lipaStatusCheck by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var lipaStatusCheck by rememberSaveable { mutableStateOf(false) }
+    var showSuccessDialogue by rememberSaveable { mutableStateOf(false) }
 
-    var showSuccessDialogue by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    if(showSuccessDialogue) {
+    if (showSuccessDialogue) {
         PaymentSuccessDialogue(
-            paymentPlan = when(uiState.amount) {
+            paymentPlan = when (uiState.amount) {
                 "100" -> "Monthly"
                 "400" -> "6 Months"
                 "700" -> "12 Months"
@@ -135,38 +134,25 @@ fun SubscriptionScreenComposable(
     }
 
     LaunchedEffect(uiState.loadingStatus) {
-        if(uiState.loadingStatus == LoadingStatus.SUCCESS) {
+        if (uiState.loadingStatus == LoadingStatus.SUCCESS) {
             Toast.makeText(context, uiState.paymentMessage, Toast.LENGTH_SHORT).show()
             lipaStatusCheck = false
             showSuccessDialogue = true
             viewModel.resetPaymentStatus()
-        } else if(uiState.loadingStatus == LoadingStatus.FAIL) {
+        } else if (uiState.loadingStatus == LoadingStatus.FAIL) {
             Toast.makeText(context, uiState.failedReason, Toast.LENGTH_SHORT).show()
             lipaStatusCheck = false
-//        navigateToHomeScreen()
             viewModel.resetPaymentStatus()
         }
     }
 
-    var showPage by rememberSaveable {
-        mutableStateOf(true)
-    }
-
-    var showPaymentScreen by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var monthly by rememberSaveable {
-        mutableStateOf(false)
-    }
-
+    var showPaymentScreen by rememberSaveable { mutableStateOf(false) }
 
     val isConnected by viewModel.isConnected.observeAsState(false)
 
-
     BackHandler(onBack = {
-        if(uiState.loadingStatus != LoadingStatus.LOADING) {
-            if(showPaymentScreen) {
+        if (uiState.loadingStatus != LoadingStatus.LOADING) {
+            if (showPaymentScreen) {
                 showPaymentScreen = !showPaymentScreen
             } else {
                 navigateToHomeScreen()
@@ -177,49 +163,33 @@ fun SubscriptionScreenComposable(
         }
     })
 
-    Box(
-        modifier = Modifier
-            .safeDrawingPadding()
-    ) {
-        if(showPaymentScreen) {
+    Box(modifier = Modifier.statusBarsPadding()) {
+        if (showPaymentScreen) {
             PaymentScreen(
                 firstTransactionDate = uiState.firstTransactionDate,
                 amount = uiState.amount,
                 isConnected = isConnected,
                 status = uiState.state,
                 phoneNumber = uiState.phoneNumber,
-                onAmountChange = {
-                    viewModel.updateAmount(it)
-                },
-                onPhoneNumberChange = {
-                    viewModel.updatePhoneNumber(it)
-                },
+                onAmountChange = { viewModel.updateAmount(it) },
+                onPhoneNumberChange = { viewModel.updatePhoneNumber(it) },
                 buttonEnabled = uiState.phoneNumber.isNotEmpty(),
-                onPay = {
-                    viewModel.lipa()
-                },
+                onPay = { viewModel.lipa() },
                 navigateToPreviousScreen = {
-                    if(uiState.loadingStatus != LoadingStatus.LOADING) {
-                        if(showPaymentScreen) {
+                    if (uiState.loadingStatus != LoadingStatus.LOADING) {
+                        if (showPaymentScreen) {
                             showPaymentScreen = !showPaymentScreen
                             viewModel.cancel()
                         } else {
                             navigateToPreviousScreen()
                         }
-
                     } else {
                         Toast.makeText(context, "Payment in progress", Toast.LENGTH_SHORT).show()
                     }
                 },
-                lipaStatus = {
-                    viewModel.lipaStatus()
-                },
-                onCheckSubscriptionStatus = {
-                    viewModel.checkSubscriptionStatus()
-                },
-                onChangeLipaStatusCheck = {
-                    lipaStatusCheck = !lipaStatusCheck
-                },
+                lipaStatus = { viewModel.lipaStatus() },
+                onCheckSubscriptionStatus = { viewModel.checkSubscriptionStatus() },
+                onChangeLipaStatusCheck = { lipaStatusCheck = !lipaStatusCheck },
                 lipaStatusCheck = lipaStatusCheck,
                 failedReason = uiState.failedReason ?: "",
                 lipaSave = viewModel::lipa,
@@ -241,320 +211,363 @@ fun SubscriptionScreenComposable(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Subscription Screen (plan picker)
+// ---------------------------------------------------------------------------
+
 @Composable
 fun SubscriptionScreen(
     firstTransactionDate: String,
     subscriptionPackages: List<SubscriptionPackageDt>,
     fetchingStatus: LoadingStatus,
-    navigateToPaymentScreen: (amount: String) -> Unit,
+    navigateToPaymentScreen: (packageId: String) -> Unit,
     navigateToPreviousScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
-    val isLoading = remember { mutableStateOf(false) }  // State to track loading
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
 
     Column(
-        modifier = Modifier
-            .padding(horizontal = screenWidth(x = 16.0), vertical = screenHeight(x = 8.0))
+        modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
     ) {
+        // ── Top bar ──────────────────────────────────────────────────────────
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = navigateToPreviousScreen) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Previous screen"
+                    painter = painterResource(R.drawable.ic_arrow_right),
+                    contentDescription = "Back",
+                    modifier = Modifier
+                        .size(22.dp)
+                        .graphicsLayer { rotationZ = 180f },
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             Text(
                 text = "Upgrade to Pro",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
-//        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Text(
-            text = "Note: Transactions fetched are from $firstTransactionDate",
-            fontSize = screenFontSize(x = 14.0).sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-        Column(
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+        // ── Compact hero ─────────────────────────────────────────────────────
+        ElevatedCard(
             modifier = Modifier
-//                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.analyze_transactions),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            Text(
-                text = "Get unlimited access to all features",
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 24.0)))
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            if(fetchingStatus == LoadingStatus.LOADING) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    verticalArrangement = Arrangement.spacedBy(screenHeight(x = 8.0)),
-                    horizontalArrangement = Arrangement.spacedBy(screenWidth(x = 8.0)),
-                ) {
-                    items(subscriptionPackages) {
-                        SubscriptionOptionCard(
-                            subscriptionPackage = it,
-                            navigateToPaymentScreen = navigateToPaymentScreen
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                primary.copy(alpha = 0.15f),
+                                tertiary.copy(alpha = 0.06f),
+                                primary.copy(alpha = 0.04f)
+                            )
                         )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(color = primary.copy(alpha = 0.15f), shape = CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.star),
+                                contentDescription = null,
+                                tint = primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Mpesa Ledger Pro",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = primary
+                            )
+                            if (firstTransactionDate.isNotEmpty()) {
+                                Text(
+                                    text = "Tracking since $firstTransactionDate",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    // Features in a 2-col mini grid
+                    val features = listOf(
+                        "Full history — no 30-day cap",
+                        "AI insights & projections",
+                        "Unusual activity alerts",
+                        "Backup & restore data",
+                        "Unlimited categories",
+                        "Dark mode support",
+                        "PDF & CSV reports"
+                    )
+                    features.chunked(2).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { feature ->
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.check_box_filled),
+                                        contentDescription = null,
+                                        tint = primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = feature,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
             }
+        }
 
+        Spacer(modifier = Modifier.height(12.dp))
 
+        // ── Plans header ─────────────────────────────────────────────────────
+        Text(
+            text = "Choose Your Plan",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
 
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-
-
-
-            // Display loading indicator while loading
-            if (isLoading.value) {
+        // ── Plans grid ───────────────────────────────────────────────────────
+        when {
+            fetchingStatus == LoadingStatus.LOADING -> {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CircularProgressIndicator(color = primary, modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
+                        Text("Loading plans…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            subscriptionPackages.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Could not load plans. Check your connection.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            else -> {
+                // Render as a 2-column grid using chunked rows
+                subscriptionPackages.chunked(2).forEach { rowPkgs ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowPkgs.forEach { pkg ->
+                            PlanCard(
+                                subscriptionPackage = pkg,
+                                onSelect = { navigateToPaymentScreen(pkg.id.toString()) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        // Fill the remaining cell if odd number of packages
+                        if (rowPkgs.size < 2) Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @Composable
-fun SubscriptionOptionCard(
+private fun PlanCard(
     subscriptionPackage: SubscriptionPackageDt,
-    navigateToPaymentScreen: (amount: String) -> Unit,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val subscriptionType = when(subscriptionPackage.amount) {
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    val planType = when (subscriptionPackage.amount) {
         100.0 -> "Monthly"
         400.0 -> "6 Months"
-        700.0 -> "12 Months"
+        700.0 -> "Annual"
         2000.0 -> "Lifetime"
         else -> "Monthly"
     }
-    when(subscriptionType) {
-        "Monthly" -> {
-            Card(
-                onClick = {
-                    navigateToPaymentScreen(subscriptionPackage.id.toString())
-                },
+    val planName = when (planType) {
+        "Monthly" -> "Monthly"
+        "6 Months" -> "6 Months"
+        "Annual" -> "Annual"
+        "Lifetime" -> "Lifetime"
+        else -> "Monthly"
+    }
+    val priceText = when (planType) {
+        "Monthly" -> "Ksh 100"
+        "6 Months" -> "Ksh 400"
+        "Annual" -> "Ksh 700"
+        "Lifetime" -> "Ksh 2,000"
+        else -> "Ksh 100"
+    }
+    val periodText = when (planType) {
+        "Monthly" -> "/ month"
+        "6 Months" -> "/ 6 months"
+        "Annual" -> "/ year"
+        "Lifetime" -> "one-time"
+        else -> "/ month"
+    }
+    val savingsText = when (planType) {
+        "6 Months" -> "Save Ksh 200"
+        "Annual" -> "Save Ksh 500"
+        "Lifetime" -> "Best value"
+        else -> ""
+    }
+    val badge: String? = when (planType) {
+        "6 Months" -> "BEST VALUE"
+        "Annual" -> "POPULAR"
+        "Lifetime" -> "LIFETIME"
+        else -> null
+    }
+
+    ElevatedCard(
+        modifier = modifier.clickable { onSelect() },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            primary.copy(alpha = 0.12f),
+                            tertiary.copy(alpha = 0.06f),
+                            primary.copy(alpha = 0.04f)
+                        )
+                    )
+                )
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-//                    .heightIn(min = screenHeight(x = 150.0))
+                    .padding(12.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 16.0))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Monthly Plan +",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = planName,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Text(
-                        text = "Ksh100",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 24.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = "Save",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        Text(
-                            text = "Ksh0",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
+                    if (badge != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = primary
+                        ) {
+                            Text(
+                                text = badge,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 8.sp,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Button(onClick = {
-                        navigateToPaymentScreen(subscriptionPackage.id.toString())
-                    }) {
-                        Text(
-                            text = "Subscribe",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-
                 }
-            }
-        }
-
-        "6 Months" -> {
-            Card(
-                onClick = {
-                    navigateToPaymentScreen(subscriptionPackage.id.toString())
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-//                    .heightIn(min = screenHeight(x = 150.0))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 16.0))
-                ) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = priceText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = primary
+                )
+                Text(
+                    text = periodText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (savingsText.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "6 months Plan +",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        text = savingsText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = tertiary,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Text(
-                        text = "Ksh400",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 24.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = "Save",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        Text(
-                            text = "Ksh200",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Button(onClick = {
-                        navigateToPaymentScreen(subscriptionPackage.id.toString())
-                    }) {
-                        Text(
-                            text = "Subscribe",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-
                 }
-            }
-        }
-
-        "12 Months" -> {
-            Card(
-                onClick = {
-                    navigateToPaymentScreen(subscriptionPackage.id.toString())
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-//                    .heightIn(min = screenHeight(x = 150.0))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 16.0))
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = onSelect,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = primary),
+                    contentPadding = PaddingValues(vertical = 6.dp)
                 ) {
                     Text(
-                        text = "Annual Plan +",
+                        text = if (planType == "Lifetime") "Buy" else "Subscribe",
                         fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
+                        fontSize = 12.sp
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Text(
-                        text = "Ksh700",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 24.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = "Save",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                        Text(
-                            text = "Ksh500",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Button(onClick = {
-                        navigateToPaymentScreen(subscriptionPackage.id.toString())
-                    }) {
-                        Text(
-                            text = "Subscribe",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-
-                }
-            }
-        }
-
-        "Lifetime" -> {
-            Card(
-                onClick = {
-                    navigateToPaymentScreen(subscriptionPackage.id.toString())
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-//                    .heightIn(min = screenHeight(x = 150.0))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(screenWidth(x = 16.0))
-                ) {
-                    Text(
-                        text = "Lifetime Access +",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Text(
-                        text = "Ksh2000",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 24.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Text(
-                        text = "Save a lot!",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
-                    Button(onClick = { navigateToPaymentScreen(subscriptionPackage.id.toString()) }) {
-                        Text(
-                            text = "Purchase",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-
                 }
             }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Payment Screen
+// ---------------------------------------------------------------------------
 
 @Composable
 fun PaymentScreen(
@@ -578,342 +591,356 @@ fun PaymentScreen(
     onPay: () -> Unit
 ) {
     val context = LocalContext.current
-    var understood by rememberSaveable {
-        mutableStateOf(false)
-    }
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    var understood by rememberSaveable { mutableStateOf(false) }
+    var payButtonClicked by rememberSaveable { mutableStateOf(false) }
+    var showCheckingStatus by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(onBack = navigateToPreviousScreen)
-    var payButtonClicked by rememberSaveable {
-        mutableStateOf(false)
-    }
-    
-    var showCheckingStatus by rememberSaveable {
-        mutableStateOf(false)
+
+    val planTitle = when (amount) {
+        "100" -> "Monthly Plan"
+        "400" -> "6-Month Plan"
+        "700" -> "Annual Plan"
+        "2000" -> "Lifetime Access"
+        else -> "Subscription"
     }
 
-    // Main content with overlay
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-        modifier = Modifier
-            .padding(
-                start = screenWidth(20.0),
-                end = screenWidth(20.0),
-                bottom = screenHeight(20.0)
-            )
-            .fillMaxSize()
-
-    ) {
-        Row {
-            IconButton(
-                onClick = navigateToPreviousScreen
-            ) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Previous screen")
-            }
-        }
-        Text(
-            text = when(amount) {
-                "100" -> "Monthly subscription fee"
-                "400" -> "6 months subscription fee"
-                "700" -> "12 months subscription fee"
-                "2000" -> "Lifetime subscription fee"
-                else -> "Monthly subscription fee"
-            },
-            fontSize = screenFontSize(x = 22.0).sp,
-            fontWeight = FontWeight.Bold
-        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Fee payment",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(40.dp))
-            Text(
-                text = "Amount",
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 14.0).sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            TextField(
-                value = amount,
-                readOnly = true,
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Number
-                ),
-                onValueChange = onAmountChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Payment method",
-                lineHeight = 23.sp,
-                fontWeight = FontWeight.Bold,
-                fontSize = screenFontSize(x = 14.0).sp,
-                modifier = Modifier
-                    .padding(
-                        top = 8.dp,
-                        bottom = 8.dp
-                    )
-            )
+            // ── Top bar ───────────────────────────────────────────────────────
             Row(
                 modifier = Modifier
-                    .padding(
-                        vertical = 8.dp
-                    )
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Card {
-                    Text(
-                        text = "Mpesa",
-                        fontSize = screenFontSize(x = 14.0).sp,
+                IconButton(onClick = navigateToPreviousScreen) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_right),
+                        contentDescription = "Back",
                         modifier = Modifier
-                            .padding(
-                                horizontal = 16.dp,
-                                vertical = 8.dp
-                            )
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = 180f },
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(40.dp))
-            Text(
-                text = "Phone number",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            TextField(
-                value = phoneNumber,
-                placeholder = {
-                    Text(
-                        text = "Enter phone number",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done,
-                    keyboardType = KeyboardType.Number
-                ),
-                onValueChange = onPhoneNumberChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Note: Transactions fetched are from $firstTransactionDate",
-                fontSize = screenFontSize(x = 14.0).sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-//                    modifier = Modifier
-//                        .padding(screenWidth(x = 10.0))
-            ) {
-                if(understood) {
-                    IconButton(
-                        enabled = loadingStatus != LoadingStatus.LOADING,
-                        onClick = {
-                        understood = !understood
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.check_box_filled),
-                            contentDescription = "I understand",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
-                        )
-                    }
-                } else {
-                    IconButton(
-                        enabled = loadingStatus != LoadingStatus.LOADING,
-                        onClick = {
-                        understood = !understood
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.check_box_blank),
-                            contentDescription = "I understand",
-                            modifier = Modifier
-                                .size(screenWidth(x = 24.0))
-                        )
-                    }
-                }
-//                    Spacer(modifier = Modifier.width(screenWidth(x = 4.0)))
                 Text(
-                    text = "I understand",
-                    fontSize = screenFontSize(x = 14.0).sp,
-                    fontWeight = FontWeight.Bold
+                    text = planTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.height(screenHeight(x = 10.0)))
-            if(!isConnected) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            // ── Form card ─────────────────────────────────────────────────────
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 0.dp),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    primary.copy(alpha = 0.12f),
+                                    tertiary.copy(alpha = 0.06f),
+                                    primary.copy(alpha = 0.04f)
+                                )
+                            )
+                        )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Amount display
+                        Text(
+                            text = "Amount",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = primary.copy(alpha = 0.10f)
+                        ) {
+                            Text(
+                                text = "Ksh $amount",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = primary,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+                            )
+                        }
+
+                        // Payment method
+                        Text(
+                            text = "Payment Method",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = primary.copy(alpha = 0.08f)
+                        ) {
+                            Text(
+                                text = "M-Pesa",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = primary,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        // Phone number
+                        OutlinedTextField(
+                            value = phoneNumber,
+                            onValueChange = onPhoneNumberChange,
+                            label = { Text("M-Pesa Phone Number") },
+                            placeholder = { Text("e.g. 2547XXXXXXXX") },
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                imeAction = ImeAction.Done,
+                                keyboardType = KeyboardType.Number
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        // Tracking since info
+                        if (firstTransactionDate.isNotEmpty()) {
+                            HorizontalDivider(color = primary.copy(alpha = 0.12f))
+                            Text(
+                                text = "Transactions tracked since: $firstTransactionDate",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // "I understand" checkbox
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            IconButton(
+                                enabled = loadingStatus != LoadingStatus.LOADING,
+                                onClick = { understood = !understood },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (understood) R.drawable.check_box_filled
+                                        else R.drawable.check_box_blank
+                                    ),
+                                    contentDescription = "I understand",
+                                    tint = if (understood) primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (firstTransactionDate.isNotEmpty())
+                                    "I understand that subscribing will unlock my full transaction history since $firstTransactionDate"
+                                else
+                                    "I understand that subscribing will unlock my full transaction history",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // No internet warning
+            if (!isConnected) {
                 Text(
-                    text = "Connect to the internet",
+                    text = "Connect to the internet to make a payment",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            if (payButtonClicked) {
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+
+            // Payment pending hint
+            if (payButtonClicked && loadingStatus != LoadingStatus.LOADING) {
                 Text(
-                    text = "Payment request will appear in a few seconds...",
+                    text = "Payment request will appear in a few seconds…",
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    fontSize = screenFontSize(x = 14.0).sp
+                    color = primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 )
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            
-            // Check Payment Status Button
-            if (status.isNotEmpty() && 
+
+            // Check Payment Status button
+            if (status.isNotEmpty() &&
                 status.lowercase() !in listOf("completed", "failed", "cancelled") &&
-                loadingStatus != LoadingStatus.FAIL) {
+                loadingStatus != LoadingStatus.FAIL
+            ) {
                 OutlinedButton(
                     onClick = {
                         showCheckingStatus = true
-                        onCheckSubscriptionStatus()  // Call the new persistent check
+                        onCheckSubscriptionStatus()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = loadingStatus != LoadingStatus.LOADING && isConnected
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    enabled = loadingStatus != LoadingStatus.LOADING && isConnected,
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = "Check Payment Status",
-                        fontSize = screenFontSize(x = 14.0).sp
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-                Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
+            // Pay button
             Button(
                 enabled = buttonEnabled && loadingStatus != LoadingStatus.LOADING && isConnected && understood,
                 onClick = {
-                    payButtonClicked = !payButtonClicked
-
-                    if(failedReason == "Failed to save payment") {
+                    payButtonClicked = true
+                    if (failedReason == "Failed to save payment") {
                         lipaSave()
                     } else {
                         onPay()
                     }
-
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {
-                if(loadingStatus == LoadingStatus.LOADING) {
-                    Text(
-                        text = "$status...",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                } else if(loadingStatus == LoadingStatus.FAIL) {
-
-                    if(failedReason == "Failed to save payment") {
-                        Text(
-                            text = "Click to save payment",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    } else {
-                        Text(
-                            text = "Pay now",
-                            fontSize = screenFontSize(x = 14.0).sp
-                        )
-                    }
-
-                }  else {
-                    Text(
-                        text = "Pay now",
-                        fontSize = screenFontSize(x = 14.0).sp
-                    )
-                }
-
+                Text(
+                    text = when {
+                        loadingStatus == LoadingStatus.LOADING -> "$status…"
+                        loadingStatus == LoadingStatus.FAIL && failedReason == "Failed to save payment" ->
+                            "Click to save payment"
+                        amount == "2000" -> "Get Lifetime Access"
+                        else -> "Pay Now"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
-            
-            Spacer(modifier = Modifier.height(screenHeight(x = 16.0)))
-            
-            // Support Section - Moved below all buttons
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                shape = RoundedCornerShape(screenWidth(x = 8.0))
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Support card
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(screenWidth(x = 12.0))
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 ) {
                     Text(
                         text = "Need help?",
-                        fontSize = screenFontSize(x = 12.0).sp,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 4.0)))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "If you experience any payment issues, our support team is here to assist you.",
-                        fontSize = screenFontSize(x = 11.0).sp,
-                        lineHeight = screenFontSize(x = 16.0).sp
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
                     )
-                    Spacer(modifier = Modifier.height(screenHeight(x = 8.0)))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedButton(
                         onClick = {
                             val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:")
                                 putExtra(Intent.EXTRA_EMAIL, arrayOf("hubkiwitech@gmail.com"))
-                                putExtra(Intent.EXTRA_SUBJECT, "Payment Support Request - Mpesa Ledger")
-                                putExtra(Intent.EXTRA_TEXT, 
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "Payment Support Request - Mpesa Ledger"
+                                )
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
                                     "Hello Support Team,\n\n" +
-                                    "I am experiencing issues with my payment for the ${when(amount) {
-                                        "100" -> "Monthly"
-                                        "400" -> "6 Months"
-                                        "700" -> "Annual"
-                                        "2000" -> "Lifetime"
-                                        else -> "subscription"
-                                    }} plan (Ksh $amount).\n\n" +
-                                    "Issue Details:\n" +
-                                    "Phone Number: $phoneNumber\n" +
-                                    "Transaction Status: $status\n" +
-                                    "${if (failedReason.isNotEmpty()) "Error: $failedReason\n" else ""}" +
-                                    "\nPlease assist me to resolve this issue.\n\n" +
-                                    "Thank you."
+                                        "I am experiencing issues with my payment for the ${
+                                            when (amount) {
+                                                "100" -> "Monthly"
+                                                "400" -> "6 Months"
+                                                "700" -> "Annual"
+                                                "2000" -> "Lifetime"
+                                                else -> "subscription"
+                                            }
+                                        } plan (Ksh $amount).\n\n" +
+                                        "Issue Details:\n" +
+                                        "Phone Number: $phoneNumber\n" +
+                                        "Transaction Status: $status\n" +
+                                        "${if (failedReason.isNotEmpty()) "Error: $failedReason\n" else ""}" +
+                                        "\nPlease assist me to resolve this issue.\n\n" +
+                                        "Thank you."
                                 )
                             }
                             try {
                                 context.startActivity(emailIntent)
                             } catch (e: Exception) {
-                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Email,
+                            painter = painterResource(R.drawable.contact),
                             contentDescription = "Contact Support",
-                            modifier = Modifier.size(screenWidth(x = 18.0))
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(screenWidth(x = 8.0)))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Contact Support",
-                            fontSize = screenFontSize(x = 12.0).sp
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
-    }
-        
-        // Loading overlay - appears on top when loading or checking status
+        // Loading overlay
         if (loadingStatus == LoadingStatus.LOADING) {
             PaymentLoadingOverlay(
                 isCheckingStatus = showCheckingStatus,
@@ -923,13 +950,17 @@ fun PaymentScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Payment loading overlay  (unchanged — keep as-is)
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun PaymentLoadingOverlay(
     isCheckingStatus: Boolean,
     onComplete: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "payment_loading")
-    
+
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -939,7 +970,7 @@ private fun PaymentLoadingOverlay(
         ),
         label = "rotation"
     )
-    
+
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.8f,
         targetValue = 1.2f,
@@ -949,13 +980,13 @@ private fun PaymentLoadingOverlay(
         ),
         label = "pulse"
     )
-    
+
     LaunchedEffect(isCheckingStatus) {
         if (!isCheckingStatus) {
             onComplete()
         }
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -966,16 +997,13 @@ private fun PaymentLoadingOverlay(
             modifier = Modifier.fillMaxWidth(0.85f),
             elevation = CardDefaults.cardElevation(defaultElevation = screenHeight(12.0)),
             shape = RoundedCornerShape(screenWidth(20.0)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(screenWidth(24.0)),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(screenHeight(24.0))
             ) {
-                // Animated loading rings
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
                         progress = { 0.75f },
@@ -985,7 +1013,6 @@ private fun PaymentLoadingOverlay(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                         strokeWidth = screenWidth(3.0)
                     )
-                    
                     CircularProgressIndicator(
                         progress = { 0.5f },
                         modifier = Modifier
@@ -994,7 +1021,6 @@ private fun PaymentLoadingOverlay(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                         strokeWidth = screenWidth(4.0)
                     )
-                    
                     Box(
                         modifier = Modifier
                             .size(screenWidth(32.0))
@@ -1005,7 +1031,6 @@ private fun PaymentLoadingOverlay(
                             )
                     )
                 }
-                
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(screenHeight(8.0))
@@ -1015,13 +1040,11 @@ private fun PaymentLoadingOverlay(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    
                     Text(
-                        text = if (isCheckingStatus) {
+                        text = if (isCheckingStatus)
                             "Verifying payment completion..."
-                        } else {
-                            "Sending payment request to M-Pesa..."
-                        },
+                        else
+                            "Sending payment request to M-Pesa...",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -1031,6 +1054,10 @@ private fun PaymentLoadingOverlay(
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Payment success dialogue  (unchanged — keep as-is)
+// ---------------------------------------------------------------------------
 
 @Composable
 fun PaymentSuccessDialogue(
@@ -1064,6 +1091,9 @@ fun PaymentSuccessDialogue(
     )
 }
 
+// ---------------------------------------------------------------------------
+// Previews
+// ---------------------------------------------------------------------------
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -1073,8 +1103,29 @@ fun SubscriptionScreenPreview() {
             firstTransactionDate = formatLocalDate(LocalDate.now().minusMonths(6)),
             fetchingStatus = LoadingStatus.INITIAL,
             navigateToPaymentScreen = {},
-            navigateToPreviousScreen = { /*TODO*/ },
-            subscriptionPackages = emptyList()
+            navigateToPreviousScreen = {},
+            subscriptionPackages = listOf(
+                SubscriptionPackageDt(
+                    id = 1, title = "Monthly", description = null, amount = 100.0,
+                    createdAt = "", updatedAt = "", subscriptionContainerId = 1,
+                    subscriptionContainerTitle = "", payments = 0
+                ),
+                SubscriptionPackageDt(
+                    id = 2, title = "6 Months", description = null, amount = 400.0,
+                    createdAt = "", updatedAt = "", subscriptionContainerId = 1,
+                    subscriptionContainerTitle = "", payments = 0
+                ),
+                SubscriptionPackageDt(
+                    id = 3, title = "Annual", description = null, amount = 700.0,
+                    createdAt = "", updatedAt = "", subscriptionContainerId = 1,
+                    subscriptionContainerTitle = "", payments = 0
+                ),
+                SubscriptionPackageDt(
+                    id = 4, title = "Lifetime", description = null, amount = 2000.0,
+                    createdAt = "", updatedAt = "", subscriptionContainerId = 1,
+                    subscriptionContainerTitle = "", payments = 0
+                )
+            )
         )
     }
 }
@@ -1084,24 +1135,24 @@ fun SubscriptionScreenPreview() {
 fun PaymentScreenPreview() {
     CashLedgerTheme {
         PaymentScreen(
-            firstTransactionDate = "",
-            isConnected = false,
-            status = "PROCESSING",
+            firstTransactionDate = formatLocalDate(LocalDate.now().minusMonths(6)),
+            isConnected = true,
+            status = "",
             phoneNumber = "254794649026",
             onAmountChange = {},
             onPhoneNumberChange = {},
-            buttonEnabled = false,
+            buttonEnabled = true,
             lipaStatus = {},
             onCheckSubscriptionStatus = {},
             onChangeLipaStatusCheck = {},
             lipaStatusCheck = false,
             navigateToPreviousScreen = {},
-            amount = "",
+            amount = "700",
             failedReason = "",
             onPay = {},
             lipaSave = {},
             loadingStatus = LoadingStatus.INITIAL,
-            packageId = 1
+            packageId = 3
         )
     }
 }

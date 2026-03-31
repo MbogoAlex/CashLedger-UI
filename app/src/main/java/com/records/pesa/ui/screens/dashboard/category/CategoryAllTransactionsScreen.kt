@@ -127,7 +127,17 @@ class CategoryAllTransactionsScreenViewModel(
         val navEnd = savedStateHandle.get<String>(CategoryAllTransactionsScreenDestination.endDate)
             ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
         if (navStart != null && navEnd != null) {
-            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM) }
+            // Detect which period the nav dates correspond to; fall back to CUSTOM only if no match
+            val matchedPeriod = listOf(
+                TimePeriod.TODAY, TimePeriod.YESTERDAY,
+                TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+                TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+                TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+            ).firstOrNull { period ->
+                val (s, e) = period.getDateRange()
+                s == navStart && e == navEnd
+            } ?: TimePeriod.CUSTOM
+            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = matchedPeriod) }
         }
         loadCategoryName()
         loadData()
@@ -300,6 +310,7 @@ class CategoryAllTransactionsScreenViewModel(
 @Composable
 fun CategoryAllTransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -405,7 +416,7 @@ fun CategoryAllTransactionsScreenComposable(
     if (showSubscriptionDialog) {
         SubscriptionDialog(
             onDismiss = { showSubscriptionDialog = false },
-            onConfirm = { showSubscriptionDialog = false }
+            onConfirm = { showSubscriptionDialog = false; navigateToSubscriptionScreen() }
         )
     }
 
@@ -911,9 +922,14 @@ internal fun AllTxnsPeriodRow(
                     },
                     onClick = {
                         showMenu = false
+                        val oneMonthAgo = java.time.LocalDate.now().minusMonths(1)
                         DatePickerDialog(
                             context,
-                            { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
+                            { _, y, m, d ->
+                                val selected = LocalDate.of(y, m + 1, d)
+                                if (selected.isBefore(oneMonthAgo) && !isPremium) onShowSubscriptionDialog()
+                                else onStartDateChange(selected)
+                            },
                             startDate.year, startDate.monthValue - 1, startDate.dayOfMonth
                         ).show()
                     }
@@ -926,6 +942,7 @@ internal fun AllTxnsPeriodRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.weight(1f))
+        val oneMonthAgo = remember { java.time.LocalDate.now().minusMonths(1) }
         // Current date range as chips
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -933,7 +950,11 @@ internal fun AllTxnsPeriodRow(
             modifier = Modifier.clickable {
                 DatePickerDialog(
                     context,
-                    { _, y, m, d -> onStartDateChange(LocalDate.of(y, m + 1, d)) },
+                    { _, y, m, d ->
+                        val selected = LocalDate.of(y, m + 1, d)
+                        if (selected.isBefore(oneMonthAgo) && !isPremium) onShowSubscriptionDialog()
+                        else onStartDateChange(selected)
+                    },
                     startDate.year, startDate.monthValue - 1, startDate.dayOfMonth
                 ).show()
             }
@@ -993,6 +1014,7 @@ private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1009,7 +1031,9 @@ private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
                 Text(
                     text = "· ${tx.date.format(DateTimeFormatter.ofPattern("d MMM"))}  ${tx.time.format(DateTimeFormatter.ofPattern("HH:mm"))}",
                     fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

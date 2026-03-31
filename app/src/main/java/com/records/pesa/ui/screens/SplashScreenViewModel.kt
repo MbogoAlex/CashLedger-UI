@@ -42,42 +42,32 @@ class SplashScreenViewModel(
     val uiState: StateFlow<SplashScreenUiState> = _uiState.asStateFlow()
 
     fun getAppLaunchState() {
-        _uiState.update {
-            it.copy(
-                launchStatus = LoadingStatus.LOADING
-            )
-        }
+        _uiState.update { it.copy(launchStatus = LoadingStatus.LOADING) }
         viewModelScope.launch {
-            // Fetch the app launch status or handle null by inserting a default value
-            var appLaunchStatus = dbRepository.getAppLaunchStatus(1)?.firstOrNull()
+            withContext(Dispatchers.IO) {
+                // Ensure preferences and userDetails are loaded before we signal SUCCESS
+                val preferences = dataStoreRepository.getUserPreferences().first()
+                _uiState.update { it.copy(preferences = preferences) }
 
-            if (appLaunchStatus == null) {
-                // Create a default AppLaunchStatus if it doesn't exist
-                val defaultAppLaunchStatus = AppLaunchStatus(id = 1, user_id = null, launched = 1)
-                dbRepository.insertAppLaunchStatus(defaultAppLaunchStatus)
-                appLaunchStatus = defaultAppLaunchStatus
-            }
+                val userDetails = dbRepository.getUser()?.firstOrNull()
+                _uiState.update { it.copy(userDetails = userDetails) }
 
-            Log.d("appLaunchStatus", appLaunchStatus.toString())
+                var appLaunchStatus = dbRepository.getAppLaunchStatus(1)?.firstOrNull()
+                if (appLaunchStatus == null) {
+                    val defaultAppLaunchStatus = AppLaunchStatus(id = 1, user_id = null, launched = 1)
+                    dbRepository.insertAppLaunchStatus(defaultAppLaunchStatus)
+                    appLaunchStatus = defaultAppLaunchStatus
+                }
+                if (appLaunchStatus.launched == 0) {
+                    dbRepository.updateAppLaunchStatus(appLaunchStatus.copy(launched = 1))
+                }
 
-            _uiState.update {
-                it.copy(
-                    appLaunchStatus = appLaunchStatus,
-                )
-            }
-
-            if (uiState.value.appLaunchStatus != null && uiState.value.appLaunchStatus?.launched == 0) {
-                dbRepository.updateAppLaunchStatus(
-                    uiState.value.appLaunchStatus!!.copy(
-                        launched = 1
+                _uiState.update {
+                    it.copy(
+                        appLaunchStatus = appLaunchStatus,
+                        launchStatus = LoadingStatus.SUCCESS
                     )
-                )
-            }
-
-            _uiState.update {
-                it.copy(
-                    launchStatus = LoadingStatus.SUCCESS
-                )
+                }
             }
         }
     }
@@ -111,8 +101,6 @@ class SplashScreenViewModel(
     }
 
     init {
-        getUserPreferences()
-        getUserDetails()
         getAppLaunchState()
     }
 }

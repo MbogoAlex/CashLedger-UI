@@ -128,7 +128,17 @@ class BudgetAllTransactionsScreenViewModel(
         val navEnd = savedStateHandle.get<String>(BudgetAllTransactionsScreenDestination.endDate)
             ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
         if (navStart != null && navEnd != null) {
-            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = TimePeriod.CUSTOM, isDateLocked = true) }
+            // Detect which period the nav dates correspond to; fall back to CUSTOM only if no match
+            val matchedPeriod = listOf(
+                TimePeriod.TODAY, TimePeriod.YESTERDAY,
+                TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
+                TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
+                TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
+            ).firstOrNull { period ->
+                val (s, e) = period.getDateRange()
+                s == navStart && e == navEnd
+            } ?: TimePeriod.CUSTOM
+            _uiState.update { it.copy(startDate = navStart, endDate = navEnd, selectedPeriod = matchedPeriod, isDateLocked = true) }
         }
         loadBudget()
         viewModelScope.launch {
@@ -308,6 +318,7 @@ class BudgetAllTransactionsScreenViewModel(
 @Composable
 fun BudgetAllTransactionsScreenComposable(
     navigateToPreviousScreen: () -> Unit,
+    navigateToSubscriptionScreen: () -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -415,7 +426,7 @@ fun BudgetAllTransactionsScreenComposable(
     if (showSubscriptionDialog) {
         com.records.pesa.ui.screens.components.SubscriptionDialog(
             onDismiss = { showSubscriptionDialog = false },
-            onConfirm = { showSubscriptionDialog = false }
+            onConfirm = { showSubscriptionDialog = false; navigateToSubscriptionScreen() }
         )
     }
 
@@ -866,6 +877,7 @@ private fun BudgetAllMpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -882,7 +894,9 @@ private fun BudgetAllMpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
                 Text(
                     text = "· ${tx.date.format(DateTimeFormatter.ofPattern("d MMM"))}  ${tx.time.format(DateTimeFormatter.ofPattern("HH:mm"))}",
                     fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

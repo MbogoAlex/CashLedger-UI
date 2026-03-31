@@ -487,6 +487,9 @@ fun NavigationGraph(
                 navigateToPreviousScreen = {
                     navController.navigateUp()
                 },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
+                },
                 navigateToTransactionDetails = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/$it")
                 }
@@ -678,6 +681,9 @@ fun NavigationGraph(
             BudgetAllTransactionsScreenComposable(
                 navigateToPreviousScreen = {
                     navController.popBackStack()
+                },
+                navigateToSubscriptionScreen = {
+                    navController.navigate(SubscriptionScreenDestination.route)
                 },
                 navigateToTransactionDetails = {
                     navController.navigate("${TransactionDetailsScreenDestination.route}/$it")

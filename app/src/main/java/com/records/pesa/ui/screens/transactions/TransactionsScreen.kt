@@ -539,6 +539,8 @@ fun TransactionsScreen(
                             selectedPeriod = selectedPeriod,
                             onPeriodSelected = onPeriodSelected,
                             onOpenCustomPicker = onToggleDatePicker,
+                            isPremium = premium,
+                            onShowSubscriptionDialog = onShowSubscriptionDialog,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
@@ -678,6 +680,8 @@ private fun TxHeroCard(
     selectedPeriod: TimePeriod,
     onPeriodSelected: (TimePeriod) -> Unit,
     onOpenCustomPicker: () -> Unit,
+    isPremium: Boolean,
+    onShowSubscriptionDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -686,7 +690,7 @@ private fun TxHeroCard(
             TimePeriod.TODAY, TimePeriod.YESTERDAY,
             TimePeriod.THIS_WEEK, TimePeriod.LAST_WEEK,
             TimePeriod.THIS_MONTH, TimePeriod.LAST_MONTH,
-            TimePeriod.THIS_YEAR
+            TimePeriod.THIS_YEAR, TimePeriod.ENTIRE
         )
     }
     var showPeriodMenu by remember { mutableStateOf(false) }
@@ -751,18 +755,33 @@ private fun TxHeroCard(
                             onDismissRequest = { showPeriodMenu = false }
                         ) {
                             periodOptions.forEach { period ->
+                                val requiresPremium = !isPremium && (period == TimePeriod.LAST_MONTH || period == TimePeriod.THIS_YEAR || period == TimePeriod.ENTIRE)
                                 DropdownMenuItem(
                                     text = {
-                                        Text(
-                                            text = period.getDisplayName(),
-                                            fontSize = 14.sp,
-                                            fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (period == selectedPeriod) primaryColor else MaterialTheme.colorScheme.onSurface
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = period.getDisplayName(),
+                                                fontSize = 14.sp,
+                                                fontWeight = if (period == selectedPeriod) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (period == selectedPeriod) primaryColor else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (requiresPremium) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.lock),
+                                                    contentDescription = "Premium",
+                                                    modifier = Modifier.size(12.dp),
+                                                    tint = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        }
                                     },
                                     onClick = {
-                                        onPeriodSelected(period)
                                         showPeriodMenu = false
+                                        if (requiresPremium) onShowSubscriptionDialog()
+                                        else onPeriodSelected(period)
                                     }
                                 )
                             }
@@ -834,14 +853,25 @@ private fun TxHeroCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.10f))
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // In / Out / Net row
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    HeroStatCol(label = "Money In", value = "Ksh ${String.format("%,.2f", totalIn)}", color = MaterialTheme.colorScheme.tertiary)
-                    HeroStatCol(label = "Money Out", value = "Ksh ${String.format("%,.2f", totalOut)}", color = MaterialTheme.colorScheme.error)
+                // In / Out / Net row — equal thirds, compact amounts
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    HeroStatCol(
+                        label = "Money In",
+                        value = formatCompactKsh(totalIn),
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    HeroStatCol(
+                        label = "Money Out",
+                        value = formatCompactKsh(totalOut),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
                     HeroStatCol(
                         label = "Net",
-                        value = "${if (net >= 0) "+" else "-"}Ksh ${String.format("%,.2f", net.absoluteValue)}",
-                        color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                        value = "${if (net >= 0) "+" else "-"}${formatCompactKsh(net.absoluteValue)}",
+                        color = if (net >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -850,12 +880,18 @@ private fun TxHeroCard(
 }
 
 @Composable
-private fun HeroStatCol(label: String, value: String, color: Color) {
-    Column {
+private fun HeroStatCol(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f), fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
         Spacer(modifier = Modifier.height(3.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = color, maxLines = 1, softWrap = false)
     }
+}
+
+private fun formatCompactKsh(amount: Double): String = when {
+    amount >= 1_000_000 -> "Ksh ${String.format("%.1f", amount / 1_000_000)}M"
+    amount >= 1_000    -> "Ksh ${String.format("%.1f", amount / 1_000)}K"
+    else               -> "Ksh ${String.format("%.0f", amount)}"
 }
 
 // ─── Tab + filter sticky row ──────────────────────────────────────────────────
@@ -987,7 +1023,9 @@ private fun TxTypeFilterChip(
                 text = if (displayType.length > 16) "${displayType.take(14)}…" else displayType,
                 fontSize = 12.sp,
                 fontWeight = if (isFiltered) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isFiltered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isFiltered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
             )
             if (defaultType == null) {
                 Icon(

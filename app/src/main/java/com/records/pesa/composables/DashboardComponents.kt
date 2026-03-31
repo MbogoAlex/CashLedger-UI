@@ -62,6 +62,8 @@ fun HeroBalanceCard(
     selectedTimePeriod: TimePeriod = TimePeriod.TODAY,
     availableYears: List<Int> = emptyList(),
     onPeriodSelected: (TimePeriod) -> Unit = {},
+    isPremium: Boolean = false,
+    onShowSubscriptionDialog: () -> Unit = {},
     loadingProgress: Float? = null,   // null = done; 0f–1f = show progress bar
     loadingLabel: String = "Setting up…",
     modifier: Modifier = Modifier
@@ -241,7 +243,7 @@ fun HeroBalanceCard(
                             add(TimePeriod.TODAY); add(TimePeriod.YESTERDAY)
                             add(TimePeriod.THIS_WEEK); add(TimePeriod.LAST_WEEK)
                             add(TimePeriod.THIS_MONTH); add(TimePeriod.LAST_MONTH)
-                            add(TimePeriod.THIS_YEAR)
+                            add(TimePeriod.THIS_YEAR); add(TimePeriod.ENTIRE)
                             val currentYear = java.time.LocalDate.now().year
                             availableYears.filter { it < currentYear }
                                 .forEach { add(TimePeriod.SPECIFIC_YEAR(it)) }
@@ -252,16 +254,40 @@ fun HeroBalanceCard(
                         onDismissRequest = { showPeriodMenu = false }
                     ) {
                         allPeriods.forEach { period ->
+                            val requiresPremium = !isPremium && (
+                                period == TimePeriod.LAST_MONTH ||
+                                period == TimePeriod.THIS_YEAR ||
+                                period == TimePeriod.ENTIRE ||
+                                period is TimePeriod.SPECIFIC_YEAR
+                            )
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        text = period.getDisplayName(),
-                                        fontSize = 14.sp,
-                                        fontWeight = if (period == selectedTimePeriod) FontWeight.Bold
-                                                     else FontWeight.Normal
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = period.getDisplayName(),
+                                            fontSize = 14.sp,
+                                            fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (period == selectedTimePeriod) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (requiresPremium) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.lock),
+                                                contentDescription = "Premium",
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
                                 },
-                                onClick = { onPeriodSelected(period); showPeriodMenu = false }
+                                onClick = {
+                                    showPeriodMenu = false
+                                    if (requiresPremium) onShowSubscriptionDialog()
+                                    else { onPeriodSelected(period) }
+                                }
                             )
                         }
                     }
@@ -269,13 +295,10 @@ fun HeroBalanceCard(
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
-                // Period stats in compact row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                // Period stats — equal thirds, compact amounts
+                Row(modifier = Modifier.fillMaxWidth()) {
                     // Money In
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "In",
                             fontSize = 10.sp,
@@ -284,15 +307,17 @@ fun HeroBalanceCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = moneyIn.replace("Ksh ", ""),
+                            text = dashboardFormatCompact(moneyIn),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary
+                            color = MaterialTheme.colorScheme.tertiary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
-                    
+
                     // Money Out
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Out",
                             fontSize = 10.sp,
@@ -301,15 +326,17 @@ fun HeroBalanceCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = moneyOut.replace("Ksh ", ""),
+                            text = dashboardFormatCompact(moneyOut),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
-                    
+
                     // Net
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Net",
                             fontSize = 10.sp,
@@ -322,7 +349,9 @@ fun HeroBalanceCard(
                             text = net,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (net.startsWith("-")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                            color = if (net.startsWith("-")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
@@ -508,6 +537,17 @@ fun StatItem(
             maxLines = 1
         )
     }
+}
+
+private fun dashboardFormatCompact(moneyStr: String): String {
+    val amount = moneyStr.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: 0.0
+    val prefix = if (moneyStr.trimStart().startsWith("+")) "+" else if (moneyStr.trimStart().startsWith("-")) "-" else ""
+    val formatted = when {
+        amount >= 1_000_000 -> "Ksh ${String.format("%.1f", amount / 1_000_000)}M"
+        amount >= 1_000     -> "Ksh ${String.format("%.1f", amount / 1_000)}K"
+        else                -> "Ksh ${String.format("%.0f", amount)}"
+    }
+    return "$prefix$formatted"
 }
 
 /**
