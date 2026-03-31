@@ -594,7 +594,7 @@ fun BudgetListScreen(
                                     )
                                     Spacer(Modifier.height(6.dp))
                                     Text(
-                                        text = "💡 Budgets also let you manually add cash payments, bank transfers and any non-M-PESA expense — so your spending picture is always complete, not just what M-PESA sees.",
+                                        text = "💡 First add cash or non-M-PESA expenses to a category, then set a budget on that category to track and limit your spending. The budget monitors both M-PESA transactions and your manual entries.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         textAlign = TextAlign.Center,
@@ -606,7 +606,7 @@ fun BudgetListScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        listOf("📊 Track spending", "✏️ Add manually", "🔔 Get alerts").forEach { tip ->
+                                        listOf("📂 Organise", "✏️ Add manually", "🔔 Get alerts").forEach { tip ->
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
@@ -629,7 +629,7 @@ fun BudgetListScreen(
                                     }
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        text = "💡 Tip: Create a category first, then set a budget for it.",
+                                        text = "💡 Tip: Create a category first, manually add expenses to it, then set a budget to track them.",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center

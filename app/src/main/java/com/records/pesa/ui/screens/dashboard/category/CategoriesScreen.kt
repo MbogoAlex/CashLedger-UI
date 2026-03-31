@@ -484,7 +484,7 @@ fun CategoriesScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "Categories group your M-PESA transactions and let you add your own custom expenses — cash, bank transfers, anything — for a complete financial picture.",
+                                            text = "Categories group your M-PESA transactions. You can also manually add cash or non-M-PESA expenses to a category — then set a budget on that category to track your total spending.",
                                             fontSize = 13.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -495,7 +495,8 @@ fun CategoriesScreen(
                                             text = "Tap + to create your first category",
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                            fontWeight = FontWeight.Medium
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.clickable { navigateToCategoryAdditionScreen() }
                                         )
                                     }
                                 }

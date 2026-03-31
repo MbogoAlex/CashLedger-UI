@@ -624,7 +624,7 @@ fun CategoriesSection(
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "Categories group your M-PESA transactions so you can track spending on rent, food, transport and more — all in one place. You can also set budgets per category.",
+                        text = "Categories group your M-PESA transactions so you can track spending on rent, food, transport and more. You can also manually add non-M-PESA expenses — cash payments, bank transfers, anything — directly to a category. Set a budget on any category to monitor and limit your total spending.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -883,23 +883,23 @@ fun BudgetHealthWidget(
                 }
 
                 if (budgets.isEmpty()) {
-                    // Empty state — entice user to create a budget
+                    // Empty state — explain how categories and budgets work together
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Stay on top of your spending",
+                        text = "Track your spending with budgets",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Set budgets per category and get instant alerts when you're close to the limit.",
+                        text = "Manually add cash or non-M-PESA expenses to a category, then set a budget on that category to track and limit your spending.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "💡 You can also manually add cash or non-M-PESA expenses to any budget — keeping your full spending picture in one place.",
+                        text = "💡 A category budget monitors everything added to that category — M-PESA transactions and your own manual entries — and alerts you when you're close to the limit.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
