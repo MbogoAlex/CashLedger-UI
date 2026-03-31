@@ -113,17 +113,18 @@ class DashboardScreenViewModel(
 
     private fun setInitialDates() {
         val currentDate = LocalDate.now()
-        val firstDayOfMonth = currentDate.withDayOfMonth(1)
         val currentYear = currentDate.year
         val lastYear = 2016
         val years = mutableListOf<String>()
         for (year in currentYear downTo lastYear) {
             years.add(year.toString())
         }
+        // Use TODAY's range so the chip label and data are in sync on first load
+        val (start, end) = TimePeriod.TODAY.getDateRange()
         _uiState.update {
             it.copy(
-                startDate = firstDayOfMonth.toString(),
-                endDate = currentDate.toString(),
+                startDate = start.toString(),
+                endDate = end.toString(),
                 month = currentDate.month.toString(),
                 year = currentDate.year.toString(),
                 selectableYears = years
