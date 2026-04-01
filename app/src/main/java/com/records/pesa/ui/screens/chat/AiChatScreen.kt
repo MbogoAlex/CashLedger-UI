@@ -1,6 +1,10 @@
 package com.records.pesa.ui.screens.chat
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,7 +73,8 @@ data class AiChatUiState(
     val pendingAttachmentContent: String? = null,
     val pendingAttachmentType: String? = null,
     val error: String? = null,
-    val userId: Int = 0
+    val userId: Int = 0,
+    val isOnline: Boolean = true
 )
 
 // ─── ViewModel ────────────────────────────────────────────────────────────────
@@ -89,6 +94,48 @@ class AiChatScreenViewModel(
             SafetySetting(HarmCategory.HATE_SPEECH, BlockThreshold.MEDIUM_AND_ABOVE)
         )
     )
+
+    private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
+
+    fun initConnectivity(context: Context) {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        // Set initial state
+        val active = cm.activeNetwork
+        val caps = cm.getNetworkCapabilities(active)
+        _uiState.value = _uiState.value.copy(
+            isOnline = caps != null &&
+                (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                 caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                 caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+        )
+        // Register callback for real-time updates
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                _uiState.value = _uiState.value.copy(isOnline = true)
+            }
+            override fun onLost(network: Network) {
+                _uiState.value = _uiState.value.copy(isOnline = false)
+            }
+        }
+        connectivityCallback = callback
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(request, callback)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Connectivity callbacks are unregistered via DisposableEffect in the composable
+    }
+
+    fun unregisterConnectivity(context: Context) {
+        connectivityCallback?.let { cb ->
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            try { cm.unregisterNetworkCallback(cb) } catch (_: Exception) {}
+            connectivityCallback = null
+        }
+    }
 
     fun init() {
         viewModelScope.launch {
@@ -227,6 +274,10 @@ class AiChatScreenViewModel(
         val text = state.inputText.trim()
         if (text.isEmpty() && state.pendingAttachmentContent == null) return
         if (!state.consentGiven) return
+        if (!state.isOnline) {
+            _uiState.value = state.copy(error = "You're offline. Please check your connection and try again.")
+            return
+        }
 
         if (!state.isPremium && state.freeResponsesUsed >= 1) {
             _uiState.value = state.copy(showUpgradeDialog = true)
@@ -247,9 +298,10 @@ class AiChatScreenViewModel(
                 attachmentName = state.pendingAttachmentName,
                 attachmentType = state.pendingAttachmentType
             )
-            dbRepository.insertChatMessage(userMsg)
+            val insertedId = dbRepository.insertChatMessage(userMsg)
+            val userMsgWithId = userMsg.copy(id = insertedId.toInt())
 
-            val currentMessages = _uiState.value.messages.toMutableList().also { it.add(userMsg) }
+            val currentMessages = _uiState.value.messages.toMutableList().also { it.add(userMsgWithId) }
             _uiState.value = _uiState.value.copy(
                 messages = currentMessages,
                 inputText = "",
@@ -288,9 +340,19 @@ class AiChatScreenViewModel(
                     freeResponsesUsed = _uiState.value.freeResponsesUsed + 1
                 )
             } catch (e: Exception) {
+                // Roll back: remove the user message from DB and list since send failed
+                dbRepository.deleteChatMessage(insertedId.toInt())
+                val rolledBack = _uiState.value.messages.toMutableList().also {
+                    it.removeAll { msg -> msg.id == insertedId.toInt() }
+                }
+                val isOfflineError = e.message?.contains("Unable to resolve host", ignoreCase = true) == true ||
+                    e.message?.contains("No address associated", ignoreCase = true) == true ||
+                    e.message?.contains("Network is unreachable", ignoreCase = true) == true
                 _uiState.value = _uiState.value.copy(
+                    messages = rolledBack,
+                    inputText = displayText.removePrefix("[Attached: ${state.pendingAttachmentName}] "),
                     isLoading = false,
-                    error = "Failed to get response: ${e.message}"
+                    error = if (isOfflineError) "No internet connection. Message not sent." else "Failed to get response: ${e.message}"
                 )
             }
         }
@@ -322,7 +384,15 @@ fun AiChatScreenComposable(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) { viewModel.init() }
+    LaunchedEffect(Unit) {
+        viewModel.init()
+        viewModel.initConnectivity(context)
+    }
+
+    // Unregister connectivity callback when composable leaves composition
+    DisposableEffect(Unit) {
+        onDispose { viewModel.unregisterConnectivity(context) }
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -434,6 +504,25 @@ fun AiChatScreenComposable(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Offline banner
+            if (!uiState.isOnline) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("📶", fontSize = 14.sp)
+                    Text(
+                        "You're offline — AI unavailable",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
             if (messages.isEmpty() && !uiState.isLoading) {
                 QuickStartChips(
                     onChipClick = { viewModel.onInputChanged(it) },
@@ -482,6 +571,7 @@ fun AiChatScreenComposable(
             InputRow(
                 inputText = uiState.inputText,
                 isLoading = uiState.isLoading,
+                isOnline = uiState.isOnline,
                 onInputChanged = { viewModel.onInputChanged(it) },
                 onSend = { viewModel.sendMessage(navigateToSubscriptionScreen) },
                 onAttachFile = { filePickerLauncher.launch("*/*") },
@@ -628,12 +718,14 @@ private fun TypingIndicator() {
 private fun InputRow(
     inputText: String,
     isLoading: Boolean,
+    isOnline: Boolean,
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
     onAttachFile: () -> Unit,
     onAttachImage: () -> Unit
 ) {
     var showAttachMenu by remember { mutableStateOf(false) }
+    val canSend = !isLoading && isOnline && inputText.isNotBlank()
 
     Surface(
         tonalElevation = 3.dp,
@@ -651,12 +743,12 @@ private fun InputRow(
             Box {
                 IconButton(
                     onClick = { showAttachMenu = true },
-                    enabled = !isLoading
+                    enabled = !isLoading && isOnline
                 ) {
                     Icon(
                         Icons.Filled.AttachFile,
                         contentDescription = "Attach file",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     )
                 }
                 DropdownMenu(
@@ -678,22 +770,27 @@ private fun InputRow(
                 value = inputText,
                 onValueChange = onInputChanged,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Ask about your finances…", fontSize = 14.sp) },
+                placeholder = {
+                    Text(
+                        if (isOnline) "Ask about your finances…" else "Offline — AI unavailable",
+                        fontSize = 14.sp
+                    )
+                },
                 minLines = 1,
                 maxLines = 4,
                 shape = RoundedCornerShape(24.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
-                enabled = !isLoading
+                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+                enabled = !isLoading && isOnline
             )
 
             IconButton(
                 onClick = onSend,
-                enabled = !isLoading && inputText.isNotBlank(),
+                enabled = canSend,
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        if (!isLoading && inputText.isNotBlank()) MaterialTheme.colorScheme.primary
+                        if (canSend) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceVariant,
                         CircleShape
                     )
@@ -701,7 +798,7 @@ private fun InputRow(
                 Icon(
                     Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Send",
-                    tint = if (!isLoading && inputText.isNotBlank()) MaterialTheme.colorScheme.onPrimary
+                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

@@ -185,6 +185,7 @@ interface DBRepository {
     fun getMessagesForUser(userId: Int): Flow<List<ChatMessage>>
     suspend fun getMessagesForUserOnce(userId: Int): List<ChatMessage>
     suspend fun clearChatForUser(userId: Int)
+    suspend fun deleteChatMessage(id: Int)
     suspend fun updateChatConsentGiven(value: Boolean)
 
     // AI context data
@@ -385,6 +386,7 @@ class DBRepositoryImpl(
     override fun getMessagesForUser(userId: Int): Flow<List<ChatMessage>> = appDao.getMessagesForUser(userId)
     override suspend fun getMessagesForUserOnce(userId: Int): List<ChatMessage> = appDao.getMessagesForUserOnce(userId)
     override suspend fun clearChatForUser(userId: Int) = appDao.clearChatForUser(userId)
+    override suspend fun deleteChatMessage(id: Int) = appDao.deleteChatMessage(id)
     override suspend fun updateChatConsentGiven(value: Boolean) = appDao.updateChatConsentGiven(value)
 
     // AI context data

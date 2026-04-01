@@ -148,6 +148,9 @@ interface AppDao {
     @Query("DELETE FROM chat_message WHERE userId = :userId")
     suspend fun clearChatForUser(userId: Int)
 
+    @Query("DELETE FROM chat_message WHERE id = :id")
+    suspend fun deleteChatMessage(id: Int)
+
     @Query("UPDATE userPreferences SET chatConsentGiven = :value WHERE id = 1")
     suspend fun updateChatConsentGiven(value: Boolean)
 
