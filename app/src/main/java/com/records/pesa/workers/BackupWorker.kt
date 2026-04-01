@@ -24,6 +24,7 @@ import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
+import com.records.pesa.db.models.ChatMessage
 import com.records.pesa.mapper.toTransaction
 import com.records.pesa.mapper.toTransactionCategory
 import com.records.pesa.models.user.update.UserBackupDataUpdatePayload
@@ -232,7 +233,7 @@ suspend fun backup(
     try {
         worker.setForegroundAsync(worker.createForegroundInfo("Backing up user data...", priorityHigh = priorityHigh))
 
-        val totalSteps = 12 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs, budget members, cycle logs
+        val totalSteps = 13 // transactions, categories, keywords, mappings, deleted, budgets, tx types, cat members, manual txs, manual budget txs, budget members, cycle logs, chat
         var currentStep = 0
 
         val transactionsFileParts = mutableListOf<MultipartBody.Part>()
@@ -405,6 +406,16 @@ suspend fun backup(
         }
         currentStep++
         worker.updateProgressNotification("Backing up audit trail...", currentStep, totalSteps, priorityHigh)
+
+        currentStep++
+        worker.updateProgressNotification("Backing up AI chat history...", currentStep, totalSteps, priorityHigh)
+        val chatMessages = dbRepository.getMessagesForUserOnce(backUpId)
+        val chatCsv = backupChatMessagesToCSV(context, "${backUpId}_chatMessages.csv", chatMessages)
+        chatCsv?.let {
+            val chatParts = mutableListOf(it.toMultipartBody("file"))
+            try { authenticationManager.executeWithAuth { token -> apiRepository.uploadFiles(token, chatParts) } } catch (e: Exception) { }
+        }
+
         val lastBackup = LocalDateTime.now()
         val totalItems = transactions.size + categories.size + categoryKeywords.size + transactionCategoryMappings.size
 
@@ -757,4 +768,18 @@ fun backupBudgetRecalcLogsToCSV(context: Context, fileName: String, logs: List<B
         Log.e("backupBudgetRecalcLogs", "Error: ${e.message}")
         null
     }
+}
+
+fun backupChatMessagesToCSV(context: Context, fileName: String, messages: List<ChatMessage>): File? {
+    return try {
+        val file = File(context.cacheDir, fileName)
+        FileWriter(file).use { writer ->
+            writer.write("id,userId,role,content,attachmentName,attachmentType,timestamp\n")
+            messages.forEach { msg ->
+                val content = msg.content.replace("\"", "\"\"")
+                writer.write("${msg.id},${msg.userId},\"${msg.role}\",\"$content\",\"${msg.attachmentName ?: ""}\",\"${msg.attachmentType ?: ""}\",${msg.timestamp}\n")
+            }
+        }
+        file
+    } catch (e: Exception) { null }
 }

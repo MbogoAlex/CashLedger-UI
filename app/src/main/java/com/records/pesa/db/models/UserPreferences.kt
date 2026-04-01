@@ -18,4 +18,5 @@ data class UserPreferences(
     val showBalance: Boolean,
     val hasSubmittedMessages: Boolean,
     val safaricomMigrationCompleted: Boolean = false,
+    val chatConsentGiven: Boolean = false,
 )

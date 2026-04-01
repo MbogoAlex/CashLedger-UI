@@ -44,6 +44,9 @@ interface TransactionsDao {
     @Query("select * from `transaction`")
     fun getAllTransactions(): Flow<List<Transaction>>
 
+    @Query("select * from `transaction`")
+    suspend fun getAllTransactionsOnce(): List<Transaction>
+
     @Query("select * from `transaction` where entity = :entity")
     fun getTransactionByEntity(entity: String): Flow<List<Transaction>>
 

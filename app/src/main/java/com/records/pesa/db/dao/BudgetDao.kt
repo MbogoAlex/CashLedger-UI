@@ -42,4 +42,7 @@ interface BudgetDao {
 
     @Query("SELECT * FROM budget WHERE deletedAt IS NULL ORDER BY createdAt DESC")
     fun getAllBudgets(): Flow<List<Budget>>
+
+    @Query("SELECT * FROM budget WHERE deletedAt IS NULL ORDER BY createdAt DESC")
+    suspend fun getAllBudgetsOnce(): List<Budget>
 }

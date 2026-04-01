@@ -30,6 +30,7 @@ import com.records.pesa.ui.screens.dashboard.budget.BudgetListScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoriesScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryAllTransactionsScreenViewModel
+import com.records.pesa.ui.screens.chat.AiChatScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.CategoryDetailsScreenViewModel
 import com.records.pesa.ui.screens.dashboard.category.MembersAdditionScreenViewModel
 import com.records.pesa.ui.screens.dashboard.chart.ChartHomeScreenViewModel
@@ -430,6 +431,11 @@ object AppViewModelFactory {
                 transactionService = cashLedgerApplication().container.transactionService,
                 userAccountService = cashLedgerApplication().container.userAccountService,
                 application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as android.app.Application
+            )
+        }
+        initializer {
+            AiChatScreenViewModel(
+                dbRepository = cashLedgerApplication().container.dbRepository
             )
         }
     }

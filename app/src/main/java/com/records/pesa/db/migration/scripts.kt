@@ -786,3 +786,21 @@ val MIGRATION_60_61 = object : Migration(60, 61) {
         """.trimIndent())
     }
 }
+
+val MIGRATION_61_62 = object : Migration(61, 62) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `chat_message` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `userId` INTEGER NOT NULL,
+                `role` TEXT NOT NULL,
+                `content` TEXT NOT NULL,
+                `attachmentName` TEXT,
+                `attachmentType` TEXT,
+                `timestamp` INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+        database.execSQL("ALTER TABLE `userPreferences` ADD COLUMN `chatConsentGiven` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+

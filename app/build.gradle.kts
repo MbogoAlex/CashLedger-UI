@@ -6,6 +6,9 @@ plugins {
     id("com.google.devtools.ksp") version "2.1.20-2.0.1"
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
 android {
     namespace = "com.records.pesa"
     compileSdk = 36
@@ -21,6 +24,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        val localProps = Properties()
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) localProps.load(FileInputStream(localPropsFile))
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("gemini_api_key", "")}\"")
     }
 
     buildTypes {
@@ -41,6 +49,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -181,6 +190,9 @@ dependencies {
     // https://mvnrepository.com/artifact/com.itextpdf/itext7-core
     implementation("com.itextpdf:itext7-core:8.0.5")
 
+    // Google Gemini AI SDK
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -189,6 +201,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

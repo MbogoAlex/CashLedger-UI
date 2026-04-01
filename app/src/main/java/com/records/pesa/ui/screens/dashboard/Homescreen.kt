@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -150,6 +151,7 @@ fun HomeScreenComposable(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToTransactionsScreenWithTransactionType: (comment: String, transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     navigateToUpdatePasswordScreen: () -> Unit,
+    navigateToAiChat: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -348,7 +350,8 @@ fun HomeScreenComposable(
                 navigateToTransactionsScreenWithTransactionType("comment", transactionType, moneyDirection, startDate, endDate)
             },
             navigateToUpdatePasswordScreen = navigateToUpdatePasswordScreen,
-            budgets = uiState.budgets
+            budgets = uiState.budgets,
+            navigateToAiChat = navigateToAiChat
         )
     }
 }
@@ -390,6 +393,7 @@ fun HomeScreen(
     navigateToTransactionDetailsScreen: (transactionId: String) -> Unit,
     navigateToTransactionsScreenWithTransactionType: (transactionType: String?, moneyDirection: String, startDate: String, endDate: String) -> Unit,
     navigateToUpdatePasswordScreen: () -> Unit,
+    navigateToAiChat: () -> Unit = {},
     budgets: List<BudgetWithProgress> = emptyList(),
     modifier: Modifier = Modifier
 ) {
@@ -609,6 +613,45 @@ fun HomeScreen(
                             )
                         }
                     }
+            }
+        }
+
+        // AI Chat FAB – floats above bottom nav bar, bottom-end corner
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 100.dp)
+                .navigationBarsPadding()
+        ) {
+            val chatInteraction = remember { MutableInteractionSource() }
+            val isChatPressed by chatInteraction.collectIsPressedAsState()
+            val chatScale by animateFloatAsState(
+                targetValue = if (isChatPressed) 0.88f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessHigh
+                ),
+                label = "chat_fab_scale"
+            )
+            Box(
+                modifier = Modifier
+                    .scale(chatScale)
+                    .size(56.dp)
+                    .shadow(elevation = if (isChatPressed) 2.dp else 8.dp, shape = CircleShape)
+                    .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+                    .clickable(
+                        interactionSource = chatInteraction,
+                        indication = null,
+                        onClick = navigateToAiChat
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = "AI Financial Advisor",
+                    tint = MaterialTheme.colorScheme.onTertiary,
+                    modifier = Modifier.size(26.dp)
+                )
             }
         }
     }

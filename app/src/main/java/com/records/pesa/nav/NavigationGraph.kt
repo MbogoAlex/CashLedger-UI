@@ -53,6 +53,8 @@ import com.records.pesa.ui.screens.dashboard.sms.SMSFetchScreenDestination
 import com.records.pesa.ui.screens.dashboard.sms.SmsFetchScreenComposable
 import com.records.pesa.ui.screens.payment.SubscriptionScreenComposable
 import com.records.pesa.ui.screens.payment.SubscriptionScreenDestination
+import com.records.pesa.ui.screens.chat.AiChatScreenComposable
+import com.records.pesa.ui.screens.chat.AiChatScreenDestination
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenComposable
 import com.records.pesa.ui.screens.transactions.SingleEntityTransactionsScreenDestination
 import com.records.pesa.ui.screens.transactions.TransactionDetailsScreenComposable
@@ -256,6 +258,9 @@ fun NavigationGraph(
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
+                },
+                navigateToAiChat = {
+                    navController.navigate(AiChatScreenDestination.route)
                 }
             )
         }
@@ -321,6 +326,9 @@ fun NavigationGraph(
                 },
                 navigateToUpdatePasswordScreen = {
                     navController.navigate(UpdatePasswordScreenDestination.route)
+                },
+                navigateToAiChat = {
+                    navController.navigate(AiChatScreenDestination.route)
                 }
             )
         }
@@ -801,6 +809,12 @@ fun NavigationGraph(
                 navigateToCreateCategory = {
                     navController.navigate(CategoryAdditionScreenDestination.route)
                 }
+            )
+        }
+        composable(AiChatScreenDestination.route) {
+            AiChatScreenComposable(
+                navigateToPreviousScreen = { navController.popBackStack() },
+                navigateToSubscriptionScreen = { navController.navigate(SubscriptionScreenDestination.route) }
             )
         }
     }

@@ -9,6 +9,9 @@ import com.records.pesa.db.models.UserAccount
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
 import com.records.pesa.db.models.DeletedCrossRef
+import com.records.pesa.db.models.ChatMessage
+import com.records.pesa.db.models.TransactionCategory
+import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -131,4 +134,27 @@ interface AppDao {
 
     @Query("select * from userAccount where id = :id")
     fun getUserAccountById(id: Long): Flow<UserAccount>
+
+    // Chat message operations
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChatMessage(message: ChatMessage): Long
+
+    @Query("SELECT * FROM chat_message WHERE userId = :userId ORDER BY timestamp ASC")
+    fun getMessagesForUser(userId: Int): Flow<List<ChatMessage>>
+
+    @Query("SELECT * FROM chat_message WHERE userId = :userId ORDER BY timestamp ASC")
+    suspend fun getMessagesForUserOnce(userId: Int): List<ChatMessage>
+
+    @Query("DELETE FROM chat_message WHERE userId = :userId")
+    suspend fun clearChatForUser(userId: Int)
+
+    @Query("UPDATE userPreferences SET chatConsentGiven = :value WHERE id = 1")
+    suspend fun updateChatConsentGiven(value: Boolean)
+
+    // AI context data queries
+    @Query("SELECT * FROM transactionCategory WHERE deletedAt IS NULL")
+    suspend fun getAllCategoriesOnce(): List<TransactionCategory>
+
+    @Query("SELECT * FROM categoryKeyword WHERE categoryId = :categoryId")
+    suspend fun getKeywordsForCategoryOnce(categoryId: Int): List<CategoryKeyword>
 }

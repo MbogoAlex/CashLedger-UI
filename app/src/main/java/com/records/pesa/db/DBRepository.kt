@@ -28,6 +28,8 @@ import com.records.pesa.db.models.TransactionTypeData
 import com.records.pesa.db.models.DeletedCrossRef
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
+import com.records.pesa.db.models.ChatMessage
+import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -177,6 +179,19 @@ interface DBRepository {
     suspend fun getAllBudgetMembersOnce(): List<BudgetMember>
     suspend fun getOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double
     suspend fun sumManualOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double
+
+    // Chat message operations
+    suspend fun insertChatMessage(message: ChatMessage): Long
+    fun getMessagesForUser(userId: Int): Flow<List<ChatMessage>>
+    suspend fun getMessagesForUserOnce(userId: Int): List<ChatMessage>
+    suspend fun clearChatForUser(userId: Int)
+    suspend fun updateChatConsentGiven(value: Boolean)
+
+    // AI context data
+    suspend fun getAllTransactionsOnce(): List<Transaction>
+    suspend fun getAllCategoriesOnce(): List<TransactionCategory>
+    suspend fun getKeywordsForCategoryOnce(categoryId: Int): List<CategoryKeyword>
+    suspend fun getAllBudgetsOnce(): List<Budget>
 }
 
 class DBRepositoryImpl(
@@ -364,5 +379,18 @@ class DBRepositoryImpl(
         transactionsDao.getOutflowForCategoryAndMembers(categoryId, startDate, endDate, memberNames)
     override suspend fun sumManualOutflowForCategoryAndMembers(categoryId: Int, startDate: LocalDate, endDate: LocalDate, memberNames: List<String>): Double =
         manualTransactionDao.sumOutflowForCategoryAndMembers(categoryId, startDate, endDate, memberNames)
+
+    // Chat message operations
+    override suspend fun insertChatMessage(message: ChatMessage): Long = appDao.insertChatMessage(message)
+    override fun getMessagesForUser(userId: Int): Flow<List<ChatMessage>> = appDao.getMessagesForUser(userId)
+    override suspend fun getMessagesForUserOnce(userId: Int): List<ChatMessage> = appDao.getMessagesForUserOnce(userId)
+    override suspend fun clearChatForUser(userId: Int) = appDao.clearChatForUser(userId)
+    override suspend fun updateChatConsentGiven(value: Boolean) = appDao.updateChatConsentGiven(value)
+
+    // AI context data
+    override suspend fun getAllTransactionsOnce(): List<Transaction> = transactionsDao.getAllTransactionsOnce()
+    override suspend fun getAllCategoriesOnce(): List<TransactionCategory> = appDao.getAllCategoriesOnce()
+    override suspend fun getKeywordsForCategoryOnce(categoryId: Int): List<CategoryKeyword> = appDao.getKeywordsForCategoryOnce(categoryId)
+    override suspend fun getAllBudgetsOnce(): List<Budget> = budgetDao.getAllBudgetsOnce()
 
 }

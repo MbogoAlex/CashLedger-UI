@@ -16,6 +16,7 @@ import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.userPreferences
+import com.records.pesa.db.models.ChatMessage
 import com.records.pesa.models.dbModel.UserDetails
 import com.records.pesa.models.supabase.SupabaseCategoryKeyword
 import com.records.pesa.models.supabase.SupabaseTransaction
@@ -721,6 +722,28 @@ class BackupRestoreScreenViewModel(
             Log.e("filesRestore", "Failed to parse budget recalc logs CSV: ${e.message}")
         }
         return logs
+    }
+
+    private fun parseChatMessagesCsv(csvData: ByteArray): List<ChatMessage> {
+        return try {
+            val reader = CSVReader(InputStreamReader(csvData.inputStream()))
+            val rows = reader.readAll()
+            rows.drop(1).mapNotNull { row ->
+                if (row.size < 7) null
+                else ChatMessage(
+                    id = row[0].toIntOrNull() ?: 0,
+                    userId = row[1].toIntOrNull() ?: 0,
+                    role = row[2],
+                    content = row[3],
+                    attachmentName = row[4].takeIf { it.isNotBlank() },
+                    attachmentType = row[5].takeIf { it.isNotBlank() },
+                    timestamp = row[6].toLongOrNull() ?: 0L
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("filesRestore", "Failed to parse chat messages CSV: ${e.message}")
+            emptyList()
+        }
     }
 
     private fun getUserPreferences() {
