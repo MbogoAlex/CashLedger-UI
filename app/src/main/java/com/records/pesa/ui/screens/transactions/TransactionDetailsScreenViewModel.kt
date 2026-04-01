@@ -99,7 +99,8 @@ data class TransactionDetailsScreenUiState(
     val manualTxCategoryName: String = "",
     val deletingManualTxStatus: DeletingTransactionStatus = DeletingTransactionStatus.INITIAL,
     val members: List<String> = emptyList(),
-    val isPremium: Boolean = false
+    val isPremium: Boolean = false,
+    val linkedMemberForNewCategory: Boolean = true,
 )
 
 class TransactionDetailsScreenViewModel(
@@ -464,7 +465,7 @@ class TransactionDetailsScreenViewModel(
         }
     }
 
-    fun addToCategory(categoryId: Int) {
+    fun addToCategory(categoryId: Int, linkedMember: Boolean = true) {
         _uiState.update { it.copy(addToCategoryStatus = AddToCategoryStatus.LOADING) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -473,17 +474,30 @@ class TransactionDetailsScreenViewModel(
                 val keyword = CategoryKeyword(
                     keyword = entity,
                     nickName = null,
-                    categoryId = categoryId
+                    categoryId = categoryId,
+                    linkedMember = linkedMember
                 )
                 categoryService.insertCategoryKeyword(keyword)
-                // Now map all transactions of this entity to this category
-                val txList = transactionService.getTransactionsByEntity(entity = entity).first()
-                for (t in txList) {
+                if (linkedMember) {
+                    // Link all: bulk-insert all entity transactions
+                    val txList = transactionService.getTransactionsByEntity(entity = entity).first()
+                    for (t in txList) {
+                        try {
+                            categoryService.insertCategoryTransactionMapping(
+                                TransactionCategoryCrossRef(
+                                    categoryId = categoryId,
+                                    transactionId = t.id
+                                )
+                            )
+                        } catch (_: Exception) {}
+                    }
+                } else {
+                    // Transaction-only: insert just this one
                     try {
                         categoryService.insertCategoryTransactionMapping(
                             TransactionCategoryCrossRef(
                                 categoryId = categoryId,
-                                transactionId = t.id
+                                transactionId = tx.transactionId!!
                             )
                         )
                     } catch (_: Exception) {}
@@ -509,11 +523,15 @@ class TransactionDetailsScreenViewModel(
                     updatedTimes = null
                 )
                 val newId = categoryService.insertTransactionCategory(category).toInt()
-                addToCategory(newId)
+                addToCategory(newId, uiState.value.linkedMemberForNewCategory)
             } catch (e: Exception) {
                 _uiState.update { it.copy(addToCategoryStatus = AddToCategoryStatus.FAIL) }
             }
         }
+    }
+
+    fun setLinkedMember(v: Boolean) {
+        _uiState.update { it.copy(linkedMemberForNewCategory = v) }
     }
 
     fun removeFromCategory(categoryId: Int, keywordId: Int) {

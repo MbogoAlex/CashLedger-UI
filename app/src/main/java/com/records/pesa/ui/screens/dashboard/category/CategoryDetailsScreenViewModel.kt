@@ -30,6 +30,8 @@ import com.records.pesa.service.transaction.TransactionService
 import com.records.pesa.workers.BudgetRecalculationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import com.records.pesa.db.models.TransactionCategoryCrossRef
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -252,6 +254,34 @@ class CategoryDetailsScreenViewModel(
             } catch (e: Exception) {
                 _uiState.update { it.copy(loadingStatus = LoadingStatus.FAIL) }
             }
+        }
+    }
+
+    fun getEntityTransactionsNotInCategory(entity: String, categoryId: Int): Flow<List<com.records.pesa.db.models.Transaction>> =
+        categoryService.getEntityTransactionsNotInCategory(entity, categoryId)
+
+    fun addTransactionToMember(transactionId: Int, categoryId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                categoryService.insertCategoryTransactionMapping(
+                    TransactionCategoryCrossRef(categoryId = categoryId, transactionId = transactionId)
+                )
+                recalculateBudgetsForCategory()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun removeTransactionFromMember(transactionId: Int, categoryId: Int, keywordId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                dbRepository.deleteTransactionFromSpecificCategory(categoryId, transactionId)
+                val keyword = categoryService.getCategoryKeyword(keywordId).first()
+                val remaining = categoryService.countEntityTransactionsInCategory(keyword.keyword, categoryId)
+                if (remaining == 0) {
+                    dbRepository.deleteCategoryKeywordByKeywordId(keywordId)
+                }
+                recalculateBudgetsForCategory()
+            } catch (_: Exception) {}
         }
     }
 

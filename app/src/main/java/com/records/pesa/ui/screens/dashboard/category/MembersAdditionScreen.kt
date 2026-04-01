@@ -165,6 +165,7 @@ fun MembersAdditionScreenComposable(
                         addMembersThatContainsEntity = !addMembersThatContainsEntity
                         viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
                     },
+                    onSetLinkMode = { txId, isLinked -> viewModel.setMemberLinkMode(txId, isLinked) },
                     navigateToMembersAdditionScreen = { showReviewScreen = false }
                 )
             }
@@ -655,12 +656,17 @@ fun MembersReviewScreen(
     onConfirm: () -> Unit,
     navigateToMembersAdditionScreen: () -> Unit,
     loadingStatus: LoadingStatus,
+    onSetLinkMode: (transactionId: Int, isLinked: Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     BackHandler(onBack = navigateToMembersAdditionScreen)
     val categoryColor = txAvatarColor(categoryName.ifBlank { "C" })
     val distinctMembers = newMembers.distinct()
+    // Track link mode per transaction (true=link all, false=this only)
+    val linkModeState = remember(distinctMembers) {
+        mutableMapOf(*distinctMembers.map { (it.transactionId ?: 0) to true }.toTypedArray())
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -784,58 +790,104 @@ fun MembersReviewScreen(
             items(distinctMembers) { tx ->
                 val displayName = tx.nickName?.takeIf { it.isNotBlank() } ?: tx.entity
                 val color = txAvatarColor(displayName)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier.size(40.dp).clip(CircleShape).background(color),
-                        contentAlignment = Alignment.Center
+                val txId = tx.transactionId ?: 0
+                var isLinked by remember(txId) { mutableStateOf(linkModeState[txId] ?: true) }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            displayName,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = color.copy(alpha = 0.12f)
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(color),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                tx.transactionType,
-                                fontSize = 10.sp,
-                                color = color,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                displayName,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = color.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    tx.transactionType,
+                                    fontSize = 10.sp,
+                                    color = color,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                if (addAllMembersThatContainEntity) {
+                                    Toast.makeText(context, "Turn off 'Add all containing' first", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    onRemoveMember(tx)
+                                }
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.remove),
+                                contentDescription = "Remove $displayName",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
-                    IconButton(
-                        onClick = {
-                            if (addAllMembersThatContainEntity) {
-                                Toast.makeText(context, "Turn off 'Add all containing' first", Toast.LENGTH_SHORT).show()
-                            } else {
-                                onRemoveMember(tx)
-                            }
-                        },
-                        modifier = Modifier.size(36.dp)
+                    // Link mode toggle chips
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(start = 50.dp, bottom = 4.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.remove),
-                            contentDescription = "Remove $displayName",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isLinked) color.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (isLinked) androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.4f)) else null,
+                            modifier = Modifier.clickable {
+                                isLinked = true
+                                linkModeState[txId] = true
+                                onSetLinkMode(txId, true)
+                            }
+                        ) {
+                            Text(
+                                "🔗 Link all",
+                                fontSize = 10.sp,
+                                fontWeight = if (isLinked) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isLinked) color else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (!isLinked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (!isLinked) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)) else null,
+                            modifier = Modifier.clickable {
+                                isLinked = false
+                                linkModeState[txId] = false
+                                onSetLinkMode(txId, false)
+                            }
+                        ) {
+                            Text(
+                                "📌 This only",
+                                fontSize = 10.sp,
+                                fontWeight = if (!isLinked) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (!isLinked) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
                 HorizontalDivider(

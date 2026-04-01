@@ -51,7 +51,8 @@ fun CategoryWithKeywords.toResponseTransactionCategory(transactions: List<Transa
 fun CategoryKeyword.toResponseCategoryKeyword(): com.records.pesa.models.CategoryKeyword = com.records.pesa.models.CategoryKeyword(
     id = id,
     keyWord = keyword,
-    nickName = nickName
+    nickName = nickName,
+    linkedMember = linkedMember
 )
 
 fun Budget.toResponseCategoryBudget(): com.records.pesa.models.CategoryBudget = com.records.pesa.models.CategoryBudget(
@@ -78,5 +79,6 @@ fun com.records.pesa.models.CategoryKeyword.toCategoryKeyword(categoryId: Int): 
     id = id,
     keyword = keyWord,
     nickName = nickName,
-    categoryId = categoryId
+    categoryId = categoryId,
+    linkedMember = linkedMember
 )

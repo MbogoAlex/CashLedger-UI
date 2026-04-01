@@ -351,6 +351,8 @@ public class TransactionInsertion {
         }
 
         if (matchingKeyword != null) {
+            // Only auto-insert crossref for linked members; transaction-only members skip auto-mapping
+            if (!matchingKeyword.getLinkedMember()) return;
             try {
                 category.setUpdatedTimes(updatedTimes + 1.0);
                 category.setUpdatedAt(LocalDateTime.now());
@@ -379,7 +381,7 @@ public class TransactionInsertion {
                         if (!keywordExists) {
                             try {
                                 System.out.println("ADDING " + transaction.getEntity() + " KEYWORD");
-                                CategoryKeyword categoryKeyword = new CategoryKeyword(0, "", "", 0);
+                                CategoryKeyword categoryKeyword = new CategoryKeyword(0, "", null, 0, true);
                                 categoryKeyword.setKeyword(transaction.getEntity());
                                 categoryKeyword.setNickName(null);
                                 categoryKeyword.setCategoryId(category.getId());

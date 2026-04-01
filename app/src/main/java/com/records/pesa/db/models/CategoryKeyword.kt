@@ -16,4 +16,5 @@ data class CategoryKeyword(
     var keyword: String,
     var nickName: String?,
     var categoryId: Int,
+    val linkedMember: Boolean = true,
 )

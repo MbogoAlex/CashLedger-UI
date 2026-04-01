@@ -768,3 +768,9 @@ val MIGRATION_58_59 = object : Migration(58, 59) {
         database.execSQL("ALTER TABLE `manual_category_member` ADD COLUMN `deletedAt` TEXT DEFAULT NULL")
     }
 }
+
+val MIGRATION_59_60 = object : Migration(59, 60) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE categoryKeyword ADD COLUMN linkedMember INTEGER NOT NULL DEFAULT 1")
+    }
+}

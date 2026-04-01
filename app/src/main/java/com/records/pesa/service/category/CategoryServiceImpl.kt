@@ -4,6 +4,7 @@ import com.records.pesa.db.dao.CategoryDao
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.CategoryWithKeywords
 import com.records.pesa.db.models.CategoryWithTransactions
+import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
@@ -32,4 +33,8 @@ class CategoryServiceImpl(private val categoryDao: CategoryDao): CategoryService
 
     override suspend fun deleteCategoryMapping(categoryId: Int) = categoryDao.deleteCategoryMapping(categoryId)
     override suspend fun deleteCategoryKeywordByKeyword(keyword: String) = categoryDao.deleteCategoryKeywordByKeyword(keyword = keyword)
+    override fun getEntityTransactionsNotInCategory(entity: String, categoryId: Int): Flow<List<Transaction>> =
+        categoryDao.getEntityTransactionsNotInCategory(entity, categoryId)
+    override suspend fun countEntityTransactionsInCategory(entity: String, categoryId: Int): Int =
+        categoryDao.countEntityTransactionsInCategory(entity, categoryId)
 }

@@ -92,6 +92,7 @@ interface DBRepository {
 
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
+    suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int)
     
     // Time Period Selector methods
     fun getDistinctYearsWithTransactions(): Flow<List<Int>>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
@@ -273,6 +274,8 @@ class DBRepositoryImpl(
     override suspend fun deleteFromCategoryKeywordByCategoryId(categoryId: Int) = appDao.deleteCategoryKeywordByCategoryId(categoryId)
     override suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int) = appDao.deleteFromCategoryMappingByCategoryId(categoryId)
     override suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int) = appDao.deleteCategoryKeywordByKeywordId(keywordId)
+    override suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int) =
+        appDao.deleteTransactionFromSpecificCategory(categoryId, transactionId)
 
     // Time Period Selector implementations
     override fun getDistinctYearsWithTransactions(): Flow<List<Int>> = transactionsDao.getDistinctYearsWithTransactions()

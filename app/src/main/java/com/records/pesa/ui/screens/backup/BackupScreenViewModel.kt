@@ -452,7 +452,8 @@ class BackupScreenViewModel(
                 id = row[0].toInt(),
                 keyword = row[1],
                 nickName = row.getOrNull(2),
-                categoryId = row[3].toInt()
+                categoryId = row[3].toInt(),
+                linkedMember = row.getOrNull(4)?.toIntOrNull()?.let { it != 0 } ?: true
             )
             keywords.add(keyword)
         }
@@ -545,12 +546,13 @@ class BackupScreenViewModel(
             val file = getInternalStorageFile(context, fileName)
             FileWriter(file).use { writer ->
                 val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
-                    "id", "keyword", "nickName", "categoryId"
+                    "id", "keyword", "nickName", "categoryId", "linkedMember"
                 ))
 
                 categoryKeywordsToBackup.forEach { keyword ->
                     csvPrinter.printRecord(
-                        keyword.id, keyword.keyword, keyword.nickName, keyword.categoryId
+                        keyword.id, keyword.keyword, keyword.nickName, keyword.categoryId,
+                        if (keyword.linkedMember) 1 else 0
                     )
                 }
                 csvPrinter.flush()

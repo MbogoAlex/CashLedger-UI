@@ -58,10 +58,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,6 +72,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -101,6 +105,8 @@ import com.records.pesa.R
 import com.records.pesa.db.models.ManualCategoryMember
 import com.records.pesa.db.models.ManualTransaction
 import com.records.pesa.db.models.ManualTransactionType
+import com.records.pesa.db.models.Transaction as DbTransaction
+import kotlinx.coroutines.launch
 import com.records.pesa.models.CategoryBudget
 import com.records.pesa.models.CategoryKeyword
 import com.records.pesa.models.TimePeriod
@@ -296,7 +302,10 @@ fun CategoryDetailsScreenComposable(
             },
             onDeleteManualTransaction = { viewModel.deleteManualTransaction(it) },
             onEditManualTransaction = { viewModel.updateManualTransaction(it) },
-            navigateToTransactionDetails = navigateToTransactionDetails
+            navigateToTransactionDetails = navigateToTransactionDetails,
+            onAddTransactionToMember = { txId, catId -> viewModel.addTransactionToMember(txId, catId) },
+            onRemoveTransactionFromMember = { txId, catId, kwId -> viewModel.removeTransactionFromMember(txId, catId, kwId) },
+            getEntityTransactionsNotInCategory = { entity, catId -> viewModel.getEntityTransactionsNotInCategory(entity, catId) }
         )
     }
 }
@@ -366,6 +375,9 @@ fun CategoryDetailsScreen(
     onDeleteManualTransaction: (Int) -> Unit = {},
     onEditManualTransaction: (com.records.pesa.db.models.ManualTransaction) -> Unit = {},
     navigateToTransactionDetails: (String) -> Unit = {},
+    onAddTransactionToMember: (transactionId: Int, categoryId: Int) -> Unit = { _, _ -> },
+    onRemoveTransactionFromMember: (transactionId: Int, categoryId: Int, keywordId: Int) -> Unit = { _, _, _ -> },
+    getEntityTransactionsNotInCategory: (entity: String, categoryId: Int) -> kotlinx.coroutines.flow.Flow<List<DbTransaction>> = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
     modifier: Modifier = Modifier
 ) {
     val categoryColor = txAvatarColor(category.name)
@@ -785,7 +797,10 @@ fun CategoryDetailsScreen(
                                                 stat = stat,
                                                 categoryId = category.id,
                                                 onEditMemberName = onEditMemberName,
-                                                onRemoveMember = onRemoveMember
+                                                onRemoveMember = onRemoveMember,
+                                                onAddTransactionToMember = onAddTransactionToMember,
+                                                onRemoveTransactionFromMember = onRemoveTransactionFromMember,
+                                                getEntityTransactionsNotInCategory = getEntityTransactionsNotInCategory
                                             )
                                             HorizontalDivider(
                                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
@@ -2185,6 +2200,7 @@ private fun TrendBarChart(
 }
 
 // ─── Member row ───────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemberRow(
     member: CategoryKeyword,
@@ -2192,82 +2208,186 @@ private fun MemberRow(
     categoryId: Int,
     onEditMemberName: (CategoryKeyword) -> Unit,
     onRemoveMember: (memberName: String, categoryId: Int, keywordId: Int) -> Unit,
+    onAddTransactionToMember: (transactionId: Int, categoryId: Int) -> Unit = { _, _ -> },
+    onRemoveTransactionFromMember: (transactionId: Int, categoryId: Int, keywordId: Int) -> Unit = { _, _, _ -> },
+    getEntityTransactionsNotInCategory: (entity: String, categoryId: Int) -> kotlinx.coroutines.flow.Flow<List<DbTransaction>> = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
     modifier: Modifier = Modifier
 ) {
     val displayName = member.nickName?.takeIf { it.isNotBlank() } ?: member.keyWord
     val avatarColor = txAvatarColor(displayName)
+    val isTransactionOnly = !member.linkedMember
+    var showAddTxSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor),
-            contentAlignment = Alignment.Center
+    // Available transactions for transaction-only members
+    val availableTxs by (if (isTransactionOnly) getEntityTransactionsNotInCategory(member.keyWord, categoryId) else kotlinx.coroutines.flow.flowOf(emptyList<DbTransaction>()))
+        .collectAsState(initial = emptyList())
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                displayName.take(1).uppercase(),
-                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            if (stat != null && stat.txCount > 0) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    "${stat.txCount} txn${if (stat.txCount != 1) "s" else ""}  ·  " +
-                    "KES ${String.format("%,.0f", stat.totalOut + stat.totalIn)}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    displayName.take(1).uppercase(),
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
                 )
-            } else {
-                Text(
-                    "No activity this period",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    if (isTransactionOnly) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                "📌 tx-only",
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                if (stat != null && stat.txCount > 0) {
+                    Text(
+                        "${stat.txCount} txn${if (stat.txCount != 1) "s" else ""}  ·  " +
+                        "KES ${String.format("%,.0f", stat.totalOut + stat.totalIn)}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        "No activity this period",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            // Stat badges
+            if (stat != null) {
+                Column(horizontalAlignment = Alignment.End) {
+                    if (stat.totalOut > 0) {
+                        Text(
+                            "-${String.format("%,.0f", stat.totalOut)}",
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (stat.totalIn > 0) {
+                        Text(
+                            "+${String.format("%,.0f", stat.totalIn)}",
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
+            }
+            IconButton(
+                onClick = { onEditMemberName(member) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.edit),
+                    contentDescription = "Edit member",
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(
+                onClick = { onRemoveMember(displayName, categoryId, member.id) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.remove),
+                    contentDescription = "Remove member",
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
-        // Stat badges
-        if (stat != null) {
-            Column(horizontalAlignment = Alignment.End) {
-                if (stat.totalOut > 0) {
-                    Text(
-                        "-${String.format("%,.0f", stat.totalOut)}",
-                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                if (stat.totalIn > 0) {
-                    Text(
-                        "+${String.format("%,.0f", stat.totalIn)}",
-                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
+
+        // Transaction-only: "+ Add transaction" button
+        if (isTransactionOnly) {
+            TextButton(
+                onClick = { showAddTxSheet = true },
+                modifier = Modifier.padding(start = 52.dp, top = 0.dp, bottom = 4.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text("+ Add transaction", fontSize = 11.sp, color = avatarColor)
             }
         }
-        IconButton(
-            onClick = { onEditMemberName(member) },
-            modifier = Modifier.size(32.dp)
+    }
+
+    if (showAddTxSheet && isTransactionOnly) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddTxSheet = false },
+            sheetState = sheetState
         ) {
-            Icon(
-                painter = painterResource(R.drawable.edit),
-                contentDescription = "Edit member",
-                modifier = Modifier.size(15.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        IconButton(
-            onClick = { onRemoveMember(displayName, categoryId, member.id) },
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.remove),
-                contentDescription = "Remove member",
-                modifier = Modifier.size(15.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Add transaction for $displayName",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                if (availableTxs.isEmpty()) {
+                    Text(
+                        "No unlinked transactions found for this entity.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    availableTxs.forEach { tx ->
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onAddTransactionToMember(tx.id, categoryId)
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { showAddTxSheet = false }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        tx.entity,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        tx.date.toString(),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    "KES ${String.format("%,.0f", abs(tx.transactionAmount))}",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = if (tx.transactionAmount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }

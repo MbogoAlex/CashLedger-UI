@@ -73,9 +73,16 @@ class MembersAdditionScreenViewModel(
     val categoryKeywords = mutableStateListOf<String>()
     private val categoryId: String? = savedStateHandle[MembersAdditionScreenDestination.categoryId]
 
+    // transactionId -> isLinked (true = link all, false = this transaction only)
+    private val memberLinkMode = mutableMapOf<Int, Boolean>()
+
     private val endDate = LocalDate.now().toString()
 
     private var filterJob: Job? = null
+
+    fun setMemberLinkMode(transactionId: Int, isLinked: Boolean) {
+        memberLinkMode[transactionId] = isLinked
+    }
 
     fun updateSearchText(searchText: String) {
         _uiState.update {
@@ -93,6 +100,7 @@ class MembersAdditionScreenViewModel(
     fun addMember(transaction: TransactionItem) {
         membersToAdd.add(transaction)
         membersToDisplay.remove(transaction)
+        memberLinkMode[transaction.transactionId ?: 0] = true
         if(transaction.transactionAmount < 0) {
             addedKeywords.add(transaction.recipient)
         } else if(transaction.transactionAmount > 0) {
@@ -109,6 +117,7 @@ class MembersAdditionScreenViewModel(
     fun removeMember(transaction: TransactionItem) {
         membersToAdd.remove(transaction)
         membersToDisplay.add(transaction)
+        memberLinkMode.remove(transaction.transactionId ?: 0)
         if(transaction.transactionAmount < 0) {
             addedKeywords.remove(transaction.recipient)
         } else if(transaction.transactionAmount > 0) {
@@ -217,6 +226,7 @@ class MembersAdditionScreenViewModel(
                 }
 
                 for(transaction in uiState.value.membersToAdd) {
+                    val isLinked = memberLinkMode[transaction.transactionId ?: 0] ?: true
                     val query = transactionService.createUserTransactionQuery(
                         userId = uiState.value.userDetails.backUpUserId.toInt(),
                         entity = transaction.entity,
@@ -231,7 +241,8 @@ class MembersAdditionScreenViewModel(
                     val categoryKeyword = CategoryKeyword(
                         keyword = transaction.entity,
                         nickName = null,
-                        categoryId = uiState.value.categoryId.toInt()
+                        categoryId = uiState.value.categoryId.toInt(),
+                        linkedMember = isLinked
                     )
                     try {
                         categoryService.insertCategoryKeyword(categoryKeyword)
@@ -242,22 +253,36 @@ class MembersAdditionScreenViewModel(
                             )
                         }
                     }
-                    val transactions = transactionService.getUserTransactions(query).first().map { it.toTransactionItem() }
-                    for(transaction2 in transactions) {
-
-                        val transactionCategoryCrossRef = TransactionCategoryCrossRef(
-                            categoryId = uiState.value.categoryId.toInt(),
-                            transactionId = transaction2.transactionId!!
-                        )
-                        try {
-                            categoryService.insertCategoryTransactionMapping(transactionCategoryCrossRef)
-                        } catch (e: Exception) {
-                            _uiState.update {
-                                it.copy(
-                                    loadingStatus = LoadingStatus.FAIL
-                                )
+                    if (isLinked) {
+                        val transactions = transactionService.getUserTransactions(query).first().map { it.toTransactionItem() }
+                        for(transaction2 in transactions) {
+                            val transactionCategoryCrossRef = TransactionCategoryCrossRef(
+                                categoryId = uiState.value.categoryId.toInt(),
+                                transactionId = transaction2.transactionId!!
+                            )
+                            try {
+                                categoryService.insertCategoryTransactionMapping(transactionCategoryCrossRef)
+                            } catch (e: Exception) {
+                                _uiState.update {
+                                    it.copy(
+                                        loadingStatus = LoadingStatus.FAIL
+                                    )
+                                }
+                                Log.e("AddMembersToCategoryException", e.toString())
                             }
-                            Log.e("AddMembersToCategoryException", e.toString())
+                        }
+                    } else {
+                        // Transaction-only: insert only the single selected transaction
+                        transaction.transactionId?.let { txId ->
+                            val transactionCategoryCrossRef = TransactionCategoryCrossRef(
+                                categoryId = uiState.value.categoryId.toInt(),
+                                transactionId = txId
+                            )
+                            try {
+                                categoryService.insertCategoryTransactionMapping(transactionCategoryCrossRef)
+                            } catch (e: Exception) {
+                                Log.e("AddMembersToCategoryException", e.toString())
+                            }
                         }
                     }
 

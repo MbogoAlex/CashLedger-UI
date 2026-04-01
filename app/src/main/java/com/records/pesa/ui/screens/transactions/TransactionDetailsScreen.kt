@@ -410,6 +410,8 @@ fun TransactionDetailsScreenComposable(
     var showRemoveFromCatConfirm by rememberSaveable { mutableStateOf(false) }
     var showDeleteAliasDialog by rememberSaveable { mutableStateOf(false) }
     var showInvoiceOptionsDialog by rememberSaveable { mutableStateOf(false) }
+    var showLinkModeDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingCategoryId by rememberSaveable { mutableStateOf(-1) }
 
     val aliasStatus = uiState.updatingAliasStatus
     val commentStatus = uiState.updatingCommentStatus
@@ -485,6 +487,56 @@ fun TransactionDetailsScreenComposable(
                 removeFromCatId = -1
                 removeKeywordId = -1
             }
+        )
+    }
+
+    if (showLinkModeDialog && pendingCategoryId != -1) {
+        AlertDialog(
+            onDismissRequest = { showLinkModeDialog = false },
+            title = { Text("Add to category", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "How should ${uiState.transaction.entity} be added?",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showLinkModeDialog = false
+                            viewModel.addToCategory(pendingCategoryId, linkedMember = true)
+                            pendingCategoryId = -1
+                        },
+                        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("🔗 Link all transactions")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            showLinkModeDialog = false
+                            viewModel.addToCategory(pendingCategoryId, linkedMember = false)
+                            pendingCategoryId = -1
+                        },
+                        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("📌 This transaction only")
+                    }
+                    TextButton(
+                        onClick = { showLinkModeDialog = false; pendingCategoryId = -1 },
+                        modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                    ) { Text("Cancel") }
+                }
+            },
+            dismissButton = {},
+            shape = RoundedCornerShape(16.dp)
         )
     }
 
@@ -637,7 +689,8 @@ fun TransactionDetailsScreenComposable(
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
                                     .clickable {
-                                        viewModel.addToCategory(cat.category.id)
+                                        pendingCategoryId = cat.category.id
+                                        showLinkModeDialog = true
                                         showAddToCategoryDialog = false
                                     },
                                 shape = RoundedCornerShape(10.dp),

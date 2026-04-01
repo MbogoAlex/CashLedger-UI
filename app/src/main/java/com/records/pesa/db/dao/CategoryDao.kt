@@ -99,6 +99,12 @@ interface CategoryDao {
         }
     }
 
+    @Query("SELECT * FROM `transaction` WHERE entity = :entity AND id NOT IN (SELECT transactionId FROM transactionCategoryCrossRef WHERE categoryId = :categoryId) ORDER BY date DESC")
+    fun getEntityTransactionsNotInCategory(entity: String, categoryId: Int): Flow<List<Transaction>>
+
+    @Query("SELECT COUNT(*) FROM `transaction` t INNER JOIN transactionCategoryCrossRef ref ON ref.transactionId = t.id WHERE ref.categoryId = :categoryId AND t.entity = :entity")
+    suspend fun countEntityTransactionsInCategory(entity: String, categoryId: Int): Int
+
 //    @Query("select * from `transaction` where categoryId = :categoryId")
 //    fun getTransactionsByCategoryId(categoryId: Int): Flow<Transaction>
 }

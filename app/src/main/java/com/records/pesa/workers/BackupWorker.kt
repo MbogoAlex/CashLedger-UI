@@ -519,12 +519,13 @@ fun backupCategoryKeywordsToCSV(context: Context, fileName: String, categoryKeyw
         val file = getInternalStorageFile(context, fileName)
         FileWriter(file).use { writer ->
             val csvPrinter = CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
-                "id", "keyword", "nickName", "categoryId"
+                "id", "keyword", "nickName", "categoryId", "linkedMember"
             ))
 
             categoryKeywordsToBackup.forEach { keyword ->
                 csvPrinter.printRecord(
-                    keyword.id, keyword.keyword, keyword.nickName, keyword.categoryId
+                    keyword.id, keyword.keyword, keyword.nickName, keyword.categoryId,
+                    if (keyword.linkedMember) 1 else 0
                 )
             }
             csvPrinter.flush()

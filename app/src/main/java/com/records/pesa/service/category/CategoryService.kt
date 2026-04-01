@@ -4,6 +4,7 @@ import androidx.room.Query
 import com.records.pesa.db.models.CategoryKeyword
 import com.records.pesa.db.models.CategoryWithKeywords
 import com.records.pesa.db.models.CategoryWithTransactions
+import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionCategoryCrossRef
 import kotlinx.coroutines.flow.Flow
@@ -29,4 +30,6 @@ interface CategoryService {
 
     suspend fun deleteCategoryMapping(categoryId: Int)
     suspend fun deleteCategoryKeywordByKeyword(keyword: String)
+    fun getEntityTransactionsNotInCategory(entity: String, categoryId: Int): Flow<List<Transaction>>
+    suspend fun countEntityTransactionsInCategory(entity: String, categoryId: Int): Int
 }

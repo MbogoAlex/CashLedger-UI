@@ -604,7 +604,8 @@ class BackupRestoreScreenViewModel(
                 id = row[0].toInt(),
                 keyword = row[1],
                 nickName = row.getOrNull(2),
-                categoryId = row[3].toInt()
+                categoryId = row[3].toInt(),
+                linkedMember = row.getOrNull(4)?.toIntOrNull()?.let { it != 0 } ?: true
             )
             keywords.add(keyword)
         }
