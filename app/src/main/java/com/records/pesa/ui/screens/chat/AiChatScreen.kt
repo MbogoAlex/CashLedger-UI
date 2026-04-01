@@ -836,7 +836,7 @@ private fun ConsentDialog(onAccept: () -> Unit, onDecline: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "Ask anything about your money — in plain English:",
+                    "Ask anything about your money — in English or Swahili:",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
