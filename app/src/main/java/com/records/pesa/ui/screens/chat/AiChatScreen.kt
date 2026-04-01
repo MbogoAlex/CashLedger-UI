@@ -811,22 +811,80 @@ private fun InputRow(
 private fun ConsentDialog(onAccept: () -> Unit, onDecline: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDecline,
-        icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("AI Financial Advisor", fontWeight = FontWeight.Bold) },
-        text = {
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        title = {
             Text(
-                "To give you personalised financial advice, your transaction history, categories, and budget data will be sent to Google Gemini AI.\n\n" +
-                "• Your data is used only for answering your questions\n" +
-                "• Google may process this data per their privacy policy\n" +
-                "• You can clear the chat history at any time\n\n" +
-                "Do you consent to sharing your data with Gemini AI?"
+                "Meet your AI Financial Advisor",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
             )
         },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Ask anything about your money — in plain English:",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+                listOf(
+                    "💬" to "\"What did I spend most on this month?\"",
+                    "📊" to "\"Am I staying within my budget?\"",
+                    "👤" to "\"Who do I send money to most?\"",
+                    "💡" to "\"Give me a savings plan for next month\""
+                ).forEach { (emoji, example) ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(emoji, fontSize = 14.sp)
+                        Text(
+                            example,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Text(
+                    "Analyse trends, spot habits, and get personalised tips — all from your actual transaction data.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("📎", fontSize = 14.sp)
+                    Text(
+                        "Upload bank statements, CSVs, or photos of receipts for instant AI analysis.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                Text(
+                    "To power this, your transaction data is shared with Google Gemini AI. See Google's Privacy Policy for details.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        },
         confirmButton = {
-            Button(onClick = onAccept) { Text("I Agree") }
+            Button(onClick = onAccept) { Text("Let's go!") }
         },
         dismissButton = {
-            TextButton(onClick = onDecline) { Text("No Thanks") }
+            TextButton(onClick = onDecline) { Text("Not now") }
         }
     )
 }
