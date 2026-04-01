@@ -87,7 +87,7 @@ class AiChatScreenViewModel(
 
     private var chatSession: com.google.ai.client.generativeai.Chat? = null
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash-latest",
+        modelName = "gemini-2.0-flash",
         apiKey = BuildConfig.GEMINI_API_KEY,
         safetySettings = listOf(
             SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.MEDIUM_AND_ABOVE),
