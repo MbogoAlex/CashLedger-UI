@@ -294,7 +294,12 @@ class BackupRestoreScreenViewModel(
                             if (index < 5) {
                                 Log.d("filesRestore_mapping", "Mapping $index: transactionId=${categoryMapping.transactionId}, categoryId=${categoryMapping.categoryId}")
                             }
-                            
+                            // Skip re-inserting if the user explicitly removed this crossref
+                            val isDeleted = dbRepository.isDeletedCrossRef(categoryMapping.transactionId, categoryMapping.categoryId)
+                            if (isDeleted) {
+                                Log.d("filesRestore_mapping", "Skipping tombstoned crossref txId=${categoryMapping.transactionId}, catId=${categoryMapping.categoryId}")
+                                continue
+                            }
                             categoryService.insertTransactionCategoryCrossRef(categoryMapping)
                             mappingInsertedCount++
                             

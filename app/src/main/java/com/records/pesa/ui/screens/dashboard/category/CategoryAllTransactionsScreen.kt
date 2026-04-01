@@ -228,6 +228,15 @@ class CategoryAllTransactionsScreenViewModel(
         }
     }
 
+    fun deleteManualTransaction(id: Int) {
+        viewModelScope.launch {
+            try {
+                dbRepository.deleteManualCategoryTransaction(id)
+                dataStoreRepository.touchLastLocalChange()
+            } catch (_: Exception) {}
+        }
+    }
+
     fun fetchReportAndSave(
         context: Context,
         saveUri: Uri?,
@@ -311,6 +320,16 @@ class CategoryAllTransactionsScreenViewModel(
         }
     }
 
+    fun removeTransactionFromCategory(transactionId: Int) {
+        viewModelScope.launch {
+            try {
+                dbRepository.deleteTransactionFromSpecificCategory(categoryIdInt, transactionId)
+                dbRepository.insertDeletedCrossRef(categoryIdInt, transactionId)
+                dataStoreRepository.touchLastLocalChange()
+            } catch (_: Exception) {}
+        }
+    }
+
     fun resetDownloadingStatus() {
         _uiState.update { it.copy(downloadingStatus = DownloadingStatus.INITIAL) }
     }
@@ -328,6 +347,8 @@ fun CategoryAllTransactionsScreenComposable(
     val context = LocalContext.current
     var editingTx by remember { mutableStateOf<ManualTransaction?>(null) }
     var showDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    var txToRemoveFromCategory by rememberSaveable { mutableStateOf(-1) }
+    var manualTxToRemove by rememberSaveable { mutableStateOf(-1) }
     var pendingReportType by rememberSaveable { mutableStateOf("PDF") }
     var pendingStartDate by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
     var pendingEndDate by remember { mutableStateOf(LocalDate.now()) }
@@ -429,6 +450,34 @@ fun CategoryAllTransactionsScreenComposable(
         )
     }
 
+    if (txToRemoveFromCategory != -1) {
+        AlertDialog(
+            onDismissRequest = { txToRemoveFromCategory = -1 },
+            title = { Text("Remove Transaction?") },
+            text = { Text("Remove this transaction from the category? The member will stay.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.removeTransactionFromCategory(txToRemoveFromCategory); txToRemoveFromCategory = -1 }) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { txToRemoveFromCategory = -1 }) { Text("Cancel") } }
+        )
+    }
+
+    if (manualTxToRemove != -1) {
+        AlertDialog(
+            onDismissRequest = { manualTxToRemove = -1 },
+            title = { Text("Delete Transaction?") },
+            text = { Text("Delete this manual transaction? The member will stay.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteManualTransaction(manualTxToRemove); manualTxToRemove = -1 }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { manualTxToRemove = -1 }) { Text("Cancel") } }
+        )
+    }
+
     CategoryAllTransactionsScreen(
         uiState = uiState,
         filteredItems = filtered,
@@ -442,6 +491,8 @@ fun CategoryAllTransactionsScreenComposable(
         onEditManualTx = { editingTx = it },
         onDownloadReport = { showDownloadDialog = true },
         onNavigateToTransactionDetails = navigateToTransactionDetails,
+        onRemoveMpesaTx = { txId -> txToRemoveFromCategory = txId },
+        onRemoveManualTx = { txId -> manualTxToRemove = txId },
         isDownloading = uiState.downloadingStatus == DownloadingStatus.LOADING,
         modifier = modifier
     )
@@ -462,6 +513,8 @@ fun CategoryAllTransactionsScreen(
     onEditManualTx: (ManualTransaction) -> Unit = {},
     onDownloadReport: () -> Unit = {},
     onNavigateToTransactionDetails: (String) -> Unit = {},
+    onRemoveMpesaTx: (transactionId: Int) -> Unit = {},
+    onRemoveManualTx: (transactionId: Int) -> Unit = {},
     isDownloading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -757,11 +810,13 @@ fun CategoryAllTransactionsScreen(
                                     when (item) {
                                         is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
                                             tx = item.tx,
-                                            onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") }
+                                            onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") },
+                                            onRemove = { onRemoveMpesaTx(item.tx.id) }
                                         )
                                         is CombinedTransactionItem.ManualItem -> ManualTxRow(
                                             tx = item.tx,
                                             onEdit = { if (!isLocked) onEditManualTx(item.tx) },
+                                            onRemove = { onRemoveManualTx(item.tx.id) },
                                             onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") }
                                         )
                                     }
@@ -780,11 +835,13 @@ fun CategoryAllTransactionsScreen(
                                     when (item) {
                                         is CombinedTransactionItem.MpesaItem -> MpesaTxRow(
                                             tx = item.tx,
-                                            onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") }
+                                            onClick = { if (!isLocked) onNavigateToTransactionDetails("${item.tx.id}") },
+                                            onRemove = { onRemoveMpesaTx(item.tx.id) }
                                         )
                                         is CombinedTransactionItem.ManualItem -> ManualTxRow(
                                             tx = item.tx,
                                             onEdit = { if (!isLocked) onEditManualTx(item.tx) },
+                                            onRemove = { onRemoveManualTx(item.tx.id) },
                                             onClick = { if (!isLocked) onNavigateToTransactionDetails("m_${item.tx.id}") }
                                         )
                                     }
@@ -878,8 +935,7 @@ private fun PremiumTxWrapper(isLocked: Boolean, onLockedClick: () -> Unit = {}, 
 }
 
 @Composable
-private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
-    val isIn = tx.transactionAmount > 0
+private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}, onRemove: (() -> Unit)? = null) {    val isIn = tx.transactionAmount > 0
     val displayName = tx.entity.replaceFirstChar { it.uppercase() }
     val initials = displayName.trim().split(" ")
         .mapNotNull { it.firstOrNull()?.uppercase() }
@@ -945,11 +1001,24 @@ private fun MpesaTxRow(tx: Transaction, onClick: () -> Unit = {}) {
                 color = amountColor
             )
         }
+        if (onRemove != null) {
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.remove),
+                    contentDescription = "Remove from category",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}, onClick: () -> Unit = {}) {
+private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}, onRemove: (() -> Unit)? = null, onClick: () -> Unit = {}) {
     val amountColor = if (tx.isOutflow) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy") }
 
@@ -1040,6 +1109,16 @@ private fun ManualTxRow(tx: ManualTransaction, onEdit: () -> Unit = {}, onClick:
                 fontWeight = FontWeight.Bold,
                 color = amountColor
             )
+        }
+        if (onRemove != null) {
+            IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.remove),
+                    contentDescription = "Remove from category",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }

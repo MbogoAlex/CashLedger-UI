@@ -774,3 +774,15 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
         database.execSQL("ALTER TABLE categoryKeyword ADD COLUMN linkedMember INTEGER NOT NULL DEFAULT 1")
     }
 }
+
+val MIGRATION_60_61 = object : Migration(60, 61) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `deletedCrossRefs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `transactionId` INTEGER NOT NULL,
+                `categoryId` INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}

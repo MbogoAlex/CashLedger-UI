@@ -275,6 +275,7 @@ class CategoryDetailsScreenViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 dbRepository.deleteTransactionFromSpecificCategory(categoryId, transactionId)
+                dbRepository.insertDeletedCrossRef(categoryId, transactionId)
                 val keyword = categoryService.getCategoryKeyword(keywordId).first()
                 val remaining = categoryService.countEntityTransactionsInCategory(keyword.keyword, categoryId)
                 if (remaining == 0) {
@@ -325,7 +326,12 @@ class CategoryDetailsScreenViewModel(
         val start = uiState.value.startDate
         val end = uiState.value.endDate
         val period = uiState.value.selectedPeriod
-        val filtered = allTransactions.filter { !it.date.isBefore(start) && !it.date.isAfter(end) }
+        // Transactions from linkedMember=false keywords were hand-picked by the user — always show
+        // them regardless of the active period filter.
+        val pinnedEntities = allKeywords.filter { !it.linkedMember }.map { it.keyword }.toSet()
+        val filtered = allTransactions.filter { tx ->
+            tx.entity in pinnedEntities || (!tx.date.isBefore(start) && !tx.date.isAfter(end))
+        }
 
         // Previous period (same duration, immediately before)
         val daySpan = start.until(end, java.time.temporal.ChronoUnit.DAYS)
@@ -1122,6 +1128,17 @@ class CategoryDetailsScreenViewModel(
                 limitReached = newExpenditure >= budget.budgetLimit,
                 exceededBy = maxOf(0.0, newExpenditure - budget.budgetLimit)
             )
+        }
+    }
+
+    fun removeTransactionFromCategory(transactionId: Int, categoryId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                dbRepository.deleteTransactionFromSpecificCategory(categoryId, transactionId)
+                dbRepository.insertDeletedCrossRef(categoryId, transactionId)
+                dataStoreRepository.touchLastLocalChange()
+                recalculateBudgetsForCategory()
+            } catch (_: Exception) {}
         }
     }
 

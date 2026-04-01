@@ -25,6 +25,7 @@ import com.records.pesa.db.models.ManualTransactionType
 import com.records.pesa.db.models.Transaction
 import com.records.pesa.db.models.TransactionCategory
 import com.records.pesa.db.models.TransactionTypeData
+import com.records.pesa.db.models.DeletedCrossRef
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
 import com.records.pesa.models.dbModel.AppLaunchStatus
@@ -93,6 +94,8 @@ interface DBRepository {
     suspend fun deleteFromCategoryMappingByCategoryId(categoryId: Int)
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)
     suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int)
+    suspend fun insertDeletedCrossRef(categoryId: Int, transactionId: Int)
+    suspend fun isDeletedCrossRef(transactionId: Int, categoryId: Int): Boolean
     
     // Time Period Selector methods
     fun getDistinctYearsWithTransactions(): Flow<List<Int>>    fun getTransactionsBetweenDates(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>>    suspend fun getTotalInForPeriod(startDate: LocalDate, endDate: LocalDate): Double
@@ -276,6 +279,10 @@ class DBRepositoryImpl(
     override suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int) = appDao.deleteCategoryKeywordByKeywordId(keywordId)
     override suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int) =
         appDao.deleteTransactionFromSpecificCategory(categoryId, transactionId)
+    override suspend fun insertDeletedCrossRef(categoryId: Int, transactionId: Int) =
+        appDao.insertDeletedCrossRef(DeletedCrossRef(transactionId = transactionId, categoryId = categoryId))
+    override suspend fun isDeletedCrossRef(transactionId: Int, categoryId: Int): Boolean =
+        appDao.isDeletedCrossRef(transactionId, categoryId)
 
     // Time Period Selector implementations
     override fun getDistinctYearsWithTransactions(): Flow<List<Int>> = transactionsDao.getDistinctYearsWithTransactions()

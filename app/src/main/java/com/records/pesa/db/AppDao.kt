@@ -8,6 +8,7 @@ import androidx.room.Update
 import com.records.pesa.db.models.UserAccount
 import com.records.pesa.db.models.UserPreferences
 import com.records.pesa.db.models.UserSession
+import com.records.pesa.db.models.DeletedCrossRef
 import com.records.pesa.models.dbModel.AppLaunchStatus
 import com.records.pesa.models.dbModel.UserDetails
 import kotlinx.coroutines.flow.Flow
@@ -90,6 +91,12 @@ interface AppDao {
 
     @Query("delete from transactionCategoryCrossRef where categoryId = :categoryId and transactionId = :transactionId")
     suspend fun deleteTransactionFromSpecificCategory(categoryId: Int, transactionId: Int)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDeletedCrossRef(ref: DeletedCrossRef)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM deletedCrossRefs WHERE transactionId = :transactionId AND categoryId = :categoryId)")
+    suspend fun isDeletedCrossRef(transactionId: Int, categoryId: Int): Boolean
 
     @Query("delete from categoryKeyword where id = :keywordId")
     suspend fun deleteCategoryKeywordByKeywordId(keywordId: Int)

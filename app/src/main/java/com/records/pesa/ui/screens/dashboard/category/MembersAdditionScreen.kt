@@ -165,7 +165,11 @@ fun MembersAdditionScreenComposable(
                         addMembersThatContainsEntity = !addMembersThatContainsEntity
                         viewModel.addMembersThatContainsEntity(addMembersThatContainsEntity)
                     },
-                    onSetLinkMode = { txId, isLinked -> viewModel.setMemberLinkMode(txId, isLinked) },
+                    memberLinkMode = uiState.memberLinkMode,
+                    memberTransactions = uiState.memberTransactions,
+                    selectedTransactionsByEntity = uiState.selectedTransactionsByEntity,
+                    onSetLinkMode = { entity, isLinked -> viewModel.setMemberLinkMode(entity, isLinked) },
+                    onToggleTransaction = { entity, txId -> viewModel.toggleTransactionSelection(entity, txId) },
                     navigateToMembersAdditionScreen = { showReviewScreen = false }
                 )
             }
@@ -569,34 +573,14 @@ fun MembersAdditionScreen(
                         )
                     }
                     Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            displayName,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = color.copy(alpha = 0.12f)
-                            ) {
-                                Text(
-                                    tx.transactionType,
-                                    fontSize = 10.sp,
-                                    color = color,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                            Text(
-                                "KES ${String.format("%,.0f", kotlin.math.abs(tx.transactionAmount))}",
-                                fontSize = 11.sp,
-                                color = if (tx.transactionAmount > 0) Color(0xFF2E7D32)
-                                else MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
+                    Text(
+                        displayName,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                     IconButton(
                         onClick = { onAddMember(tx) },
                         modifier = Modifier.size(36.dp)
@@ -656,17 +640,17 @@ fun MembersReviewScreen(
     onConfirm: () -> Unit,
     navigateToMembersAdditionScreen: () -> Unit,
     loadingStatus: LoadingStatus,
-    onSetLinkMode: (transactionId: Int, isLinked: Boolean) -> Unit = { _, _ -> },
+    memberLinkMode: Map<String, Boolean> = emptyMap(),
+    memberTransactions: Map<String, List<TransactionItem>> = emptyMap(),
+    selectedTransactionsByEntity: Map<String, Set<Int>> = emptyMap(),
+    onSetLinkMode: (entity: String, isLinked: Boolean) -> Unit = { _, _ -> },
+    onToggleTransaction: (entity: String, transactionId: Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     BackHandler(onBack = navigateToMembersAdditionScreen)
     val categoryColor = txAvatarColor(categoryName.ifBlank { "C" })
-    val distinctMembers = newMembers.distinct()
-    // Track link mode per transaction (true=link all, false=this only)
-    val linkModeState = remember(distinctMembers) {
-        mutableMapOf(*distinctMembers.map { (it.transactionId ?: 0) to true }.toTypedArray())
-    }
+    val distinctMembers = newMembers.distinctBy { it.entity }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -790,8 +774,9 @@ fun MembersReviewScreen(
             items(distinctMembers) { tx ->
                 val displayName = tx.nickName?.takeIf { it.isNotBlank() } ?: tx.entity
                 val color = txAvatarColor(displayName)
-                val txId = tx.transactionId ?: 0
-                var isLinked by remember(txId) { mutableStateOf(linkModeState[txId] ?: true) }
+                val isLinked = memberLinkMode[tx.entity] ?: true
+                val txsForMember = memberTransactions[tx.entity] ?: emptyList()
+                val selectedIds = selectedTransactionsByEntity[tx.entity] ?: emptySet()
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -809,26 +794,14 @@ fun MembersReviewScreen(
                             )
                         }
                         Spacer(Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                displayName,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = color.copy(alpha = 0.12f)
-                            ) {
-                                Text(
-                                    tx.transactionType,
-                                    fontSize = 10.sp,
-                                    color = color,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
+                        Text(
+                            displayName,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
                         IconButton(
                             onClick = {
                                 if (addAllMembersThatContainEntity) {
@@ -849,44 +822,107 @@ fun MembersReviewScreen(
                     }
                     // Link mode toggle chips
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(start = 50.dp, bottom = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(start = 50.dp, top = 6.dp, bottom = if (!isLinked) 0.dp else 8.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = if (isLinked) color.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (isLinked) androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.4f)) else null,
-                            modifier = Modifier.clickable {
-                                isLinked = true
-                                linkModeState[txId] = true
-                                onSetLinkMode(txId, true)
-                            }
+                            border = if (isLinked) androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f)) else null,
+                            modifier = Modifier.clickable { onSetLinkMode(tx.entity, true) }
                         ) {
                             Text(
-                                "🔗 Link all",
-                                fontSize = 10.sp,
+                                "🔗 Link all transactions",
+                                fontSize = 11.sp,
                                 fontWeight = if (isLinked) FontWeight.SemiBold else FontWeight.Normal,
                                 color = if (isLinked) color else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
                         }
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = if (!isLinked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (!isLinked) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)) else null,
-                            modifier = Modifier.clickable {
-                                isLinked = false
-                                linkModeState[txId] = false
-                                onSetLinkMode(txId, false)
-                            }
+                            border = if (!isLinked) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)) else null,
+                            modifier = Modifier.clickable { onSetLinkMode(tx.entity, false) }
                         ) {
                             Text(
-                                "📌 This only",
-                                fontSize = 10.sp,
+                                "📌 Select transactions",
+                                fontSize = 11.sp,
                                 fontWeight = if (!isLinked) FontWeight.SemiBold else FontWeight.Normal,
                                 color = if (!isLinked) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
+                        }
+                    }
+
+                    // Transaction picker — shown when "Select transactions" chosen
+                    if (!isLinked) {
+                        Spacer(Modifier.height(6.dp))
+                        if (txsForMember.isEmpty()) {
+                            Text(
+                                "Loading transactions…",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 50.dp, bottom = 8.dp)
+                            )
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .padding(start = 50.dp, bottom = 8.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                txsForMember.forEach { t ->
+                                    val isSelected = (t.transactionId ?: 0) in selectedIds
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onToggleTransaction(tx.entity, t.transactionId ?: 0) }
+                                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(
+                                                if (isSelected) R.drawable.check_box_filled else R.drawable.check_box_blank
+                                            ),
+                                            contentDescription = null,
+                                            tint = if (isSelected) color else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                t.transactionType,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                "${t.date}  ${t.time}",
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Text(
+                                            "KES ${String.format("%,.0f", kotlin.math.abs(t.transactionAmount))}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (t.transactionAmount > 0) Color(0xFF2E7D32)
+                                            else MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                                }
+                                if (selectedIds.isNotEmpty()) {
+                                    Text(
+                                        "${selectedIds.size} transaction${if (selectedIds.size != 1) "s" else ""} selected",
+                                        fontSize = 10.sp,
+                                        color = color,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

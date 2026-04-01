@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -305,6 +306,7 @@ fun CategoryDetailsScreenComposable(
             navigateToTransactionDetails = navigateToTransactionDetails,
             onAddTransactionToMember = { txId, catId -> viewModel.addTransactionToMember(txId, catId) },
             onRemoveTransactionFromMember = { txId, catId, kwId -> viewModel.removeTransactionFromMember(txId, catId, kwId) },
+            onRemoveTxFromCategory = { txId -> viewModel.removeTransactionFromCategory(txId, uiState.category.id) },
             getEntityTransactionsNotInCategory = { entity, catId -> viewModel.getEntityTransactionsNotInCategory(entity, catId) }
         )
     }
@@ -377,6 +379,7 @@ fun CategoryDetailsScreen(
     navigateToTransactionDetails: (String) -> Unit = {},
     onAddTransactionToMember: (transactionId: Int, categoryId: Int) -> Unit = { _, _ -> },
     onRemoveTransactionFromMember: (transactionId: Int, categoryId: Int, keywordId: Int) -> Unit = { _, _, _ -> },
+    onRemoveTxFromCategory: (transactionId: Int) -> Unit = {},
     getEntityTransactionsNotInCategory: (entity: String, categoryId: Int) -> kotlinx.coroutines.flow.Flow<List<DbTransaction>> = { _, _ -> kotlinx.coroutines.flow.flowOf(emptyList()) },
     modifier: Modifier = Modifier
 ) {
@@ -387,6 +390,7 @@ fun CategoryDetailsScreen(
     var showBudgets  by rememberSaveable { mutableStateOf(false) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM") }
     var showManualTxDialog by rememberSaveable { mutableStateOf(false) }
+    var manualTxPreSelectedMember by rememberSaveable { mutableStateOf("") }
 
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -895,52 +899,67 @@ fun CategoryDetailsScreen(
                                             )
                                         }
                                         manualMembers.forEach { member ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier.size(32.dp).clip(CircleShape)
-                                                        .background(txAvatarColor(member.name)),
-                                                    contentAlignment = Alignment.Center
+                                            val memberAvatarColor = txAvatarColor(member.name)
+                                            Column(modifier = Modifier.fillMaxWidth()) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
+                                                    Box(
+                                                        modifier = Modifier.size(32.dp).clip(CircleShape)
+                                                            .background(memberAvatarColor),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            member.name.take(1).uppercase(),
+                                                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                                        )
+                                                    }
+                                                    Spacer(Modifier.width(10.dp))
                                                     Text(
-                                                        member.name.take(1).uppercase(),
-                                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                                        member.name,
+                                                        fontSize = 13.sp,
+                                                        modifier = Modifier.weight(1f),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
+                                                    IconButton(
+                                                        onClick = {
+                                                            editManualMemberNameText = member.name
+                                                            manualMemberToEdit = member
+                                                        },
+                                                        modifier = Modifier.size(28.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.edit),
+                                                            contentDescription = "Edit ${member.name}",
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = { manualMemberToDelete = member },
+                                                        modifier = Modifier.size(28.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.remove),
+                                                            contentDescription = "Remove ${member.name}",
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                    }
                                                 }
-                                                Spacer(Modifier.width(10.dp))
-                                                Text(
-                                                    member.name,
-                                                    fontSize = 13.sp,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                IconButton(
+                                                TextButton(
                                                     onClick = {
-                                                        editManualMemberNameText = member.name
-                                                        manualMemberToEdit = member
+                                                        manualTxPreSelectedMember = member.name
+                                                        showManualTxDialog = true
                                                     },
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.padding(start = 48.dp, top = 0.dp, bottom = 2.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                                 ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.edit),
-                                                        contentDescription = "Edit ${member.name}",
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                }
-                                                IconButton(
-                                                    onClick = { manualMemberToDelete = member },
-                                                    modifier = Modifier.size(32.dp)
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.remove),
-                                                        contentDescription = "Remove ${member.name}",
-                                                        tint = MaterialTheme.colorScheme.error,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
+                                                    Text("+ Add transaction", fontSize = 11.sp, color = memberAvatarColor)
                                                 }
                                             }
                                             HorizontalDivider(
@@ -1395,9 +1414,6 @@ fun CategoryDetailsScreen(
 
                 // ── Add manual transaction prompt card ────────────────────────
                 item {
-                    Spacer(Modifier.height(8.dp))
-                }
-                item {
                     ElevatedCard(
                         shape = RoundedCornerShape(16.dp),
                         onClick = { showManualTxDialog = true },
@@ -1418,7 +1434,7 @@ fun CategoryDetailsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
@@ -1461,23 +1477,22 @@ fun CategoryDetailsScreen(
 
                 // ── Recent transactions section (M-PESA + Manual combined) ───
                 item {
-                    Spacer(Modifier.height(16.dp))
-                }
-                item {
                     RecentTransactionsSection(
                         mpesaTransactions = categoryTransactions,
                         manualTransactions = manualTransactions,
                         mpesaMembers = memberStats.map { it.keyword },
                         manualMembers = manualMembers,
                         showAddDialog = showManualTxDialog,
+                        preSelectedMember = manualTxPreSelectedMember,
                         onShowAddDialog = { showManualTxDialog = true },
-                        onDismissAddDialog = { showManualTxDialog = false },
+                        onDismissAddDialog = { showManualTxDialog = false; manualTxPreSelectedMember = "" },
                         onAddTransaction = onAddManualTransaction,
                         onDeleteTransaction = onDeleteManualTransaction,
                         onEditTransaction = onEditManualTransaction,
                         onNavigateToAddMember = { navigateToMembersAdditionScreen(category.id.toString()) },
                         onViewAllTransactions = { navigateToAllTransactionsScreen(category.id.toString(), startDate.toString(), endDate.toString()) },
-                        onNavigateToTransactionDetails = navigateToTransactionDetails
+                        onNavigateToTransactionDetails = navigateToTransactionDetails,
+                        onRemoveTxFromCategory = onRemoveTxFromCategory
                     )
                 }
 
@@ -2226,22 +2241,26 @@ private fun MemberRow(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(avatarColor),
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(avatarColor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     displayName.take(1).uppercase(),
-                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(
+                        displayName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
                     if (isTransactionOnly) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -2292,23 +2311,23 @@ private fun MemberRow(
             }
             IconButton(
                 onClick = { onEditMemberName(member) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(28.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.edit),
                     contentDescription = "Edit member",
-                    modifier = Modifier.size(15.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(
                 onClick = { onRemoveMember(displayName, categoryId, member.id) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(28.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.remove),
                     contentDescription = "Remove member",
-                    modifier = Modifier.size(15.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -2318,10 +2337,10 @@ private fun MemberRow(
         if (isTransactionOnly) {
             TextButton(
                 onClick = { showAddTxSheet = true },
-                modifier = Modifier.padding(start = 52.dp, top = 0.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 48.dp, top = 0.dp, bottom = 2.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
             ) {
-                Text("+ Add transaction", fontSize = 11.sp, color = avatarColor)
+                Text("+ Add M-PESA transaction", fontSize = 11.sp, color = avatarColor)
             }
         }
     }
@@ -2333,13 +2352,12 @@ private fun MemberRow(
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "Add transaction for $displayName",
+                    "Add M-PESA transaction for $displayName",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
                 if (availableTxs.isEmpty()) {
                     Text(
@@ -2349,44 +2367,55 @@ private fun MemberRow(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
-                    availableTxs.forEach { tx ->
-                        ElevatedCard(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                onAddTransactionToMember(tx.id, categoryId)
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showAddTxSheet = false }
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                    Text(
+                        "${availableTxs.size} transaction${if (availableTxs.size != 1) "s" else ""} available",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(availableTxs) { tx ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .clickable {
+                                        onAddTransactionToMember(tx.id, categoryId)
+                                        scope.launch { sheetState.hide() }.invokeOnCompletion { showAddTxSheet = false }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        tx.entity,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        tx.transactionType,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        tx.date.toString(),
+                                        tx.date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy")),
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                     )
                                 }
                                 Text(
+                                    (if (tx.transactionAmount < 0) "-" else "+") +
                                     "KES ${String.format("%,.0f", abs(tx.transactionAmount))}",
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
-                                    color = if (tx.transactionAmount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                                    color = if (tx.transactionAmount < 0) MaterialTheme.colorScheme.error
+                                            else MaterialTheme.colorScheme.tertiary
                                 )
                             }
                         }
+                        item { Spacer(Modifier.height(8.dp)) }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -2725,6 +2754,7 @@ private fun RecentTransactionsSection(
     mpesaMembers: List<String>,
     manualMembers: List<ManualCategoryMember>,
     showAddDialog: Boolean = false,
+    preSelectedMember: String = "",
     onShowAddDialog: () -> Unit = {},
     onDismissAddDialog: () -> Unit = {},
     onAddTransaction: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit,
@@ -2732,10 +2762,12 @@ private fun RecentTransactionsSection(
     onEditTransaction: (ManualTransaction) -> Unit = {},
     onNavigateToAddMember: () -> Unit = {},
     onViewAllTransactions: () -> Unit = {},
-    onNavigateToTransactionDetails: (String) -> Unit = {}
+    onNavigateToTransactionDetails: (String) -> Unit = {},
+    onRemoveTxFromCategory: (transactionId: Int) -> Unit = {}
 ) {
     var txToDelete by remember { mutableStateOf<ManualTransaction?>(null) }
     var txToEdit by remember { mutableStateOf<ManualTransaction?>(null) }
+    var txToRemoveFromCategory by remember { mutableStateOf<com.records.pesa.db.models.Transaction?>(null) }
 
     // Unified wrapper for sorting
     data class UnifiedTx(
@@ -2769,6 +2801,20 @@ private fun RecentTransactionsSection(
         )
     }
 
+    txToRemoveFromCategory?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { txToRemoveFromCategory = null },
+            title = { Text("Remove Transaction?") },
+            text = { Text("Remove this transaction from the category? The member will stay.") },
+            confirmButton = {
+                TextButton(onClick = { onRemoveTxFromCategory(tx.id); txToRemoveFromCategory = null }) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { txToRemoveFromCategory = null }) { Text("Cancel") } }
+        )
+    }
+
     txToEdit?.let { tx ->
         val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct().sorted()
         EditManualTransactionDialog(
@@ -2783,6 +2829,7 @@ private fun RecentTransactionsSection(
         AddManualTransactionDialog(
             mpesaMembers = mpesaMembers,
             manualMembers = manualMembers,
+            preSelectedMember = preSelectedMember,
             onNavigateToAddMember = onNavigateToAddMember,
             onConfirm = { memberName, isOutflow, amount, description, date, time ->
                 onAddTransaction(memberName, isOutflow, amount, description, date, time)
@@ -2875,10 +2922,27 @@ private fun RecentTransactionsSection(
                         }
 
                         if (!item.isManual && item.mpesa != null) {
-                            CatMpesaTxRow(
-                                transaction = item.mpesa,
-                                onClick = { onNavigateToTransactionDetails("${item.mpesa.id}") }
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                CatMpesaTxRow(
+                                    transaction = item.mpesa,
+                                    onClick = { onNavigateToTransactionDetails("${item.mpesa.id}") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { txToRemoveFromCategory = item.mpesa },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.remove),
+                                        contentDescription = "Remove from category",
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         } else if (item.isManual && item.manual != null) {
                             CatManualTxRow(
                                 tx = item.manual,
@@ -3091,6 +3155,7 @@ private fun CatManualTxRow(
 private fun AddManualTransactionDialog(
     mpesaMembers: List<String>,
     manualMembers: List<ManualCategoryMember>,
+    preSelectedMember: String = "",
     onNavigateToAddMember: () -> Unit = {},
     onConfirm: (memberName: String, isOutflow: Boolean, amount: Double, description: String, date: LocalDate, time: java.time.LocalTime?) -> Unit,
     onDismiss: () -> Unit
@@ -3098,7 +3163,12 @@ private fun AddManualTransactionDialog(
     val context = LocalContext.current
     val allMembers = (mpesaMembers + manualMembers.map { it.name }).distinct().sorted()
 
-    var selectedMember by remember { mutableStateOf(allMembers.firstOrNull() ?: "") }
+    var selectedMember by remember {
+        mutableStateOf(
+            if (preSelectedMember.isNotBlank() && allMembers.contains(preSelectedMember)) preSelectedMember
+            else allMembers.firstOrNull() ?: ""
+        )
+    }
     var memberExpanded by remember { mutableStateOf(false) }
     var isOutflow by remember { mutableStateOf(true) }
     var amountText by remember { mutableStateOf("") }

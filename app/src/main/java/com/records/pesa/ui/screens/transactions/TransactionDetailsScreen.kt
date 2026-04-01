@@ -405,9 +405,6 @@ fun TransactionDetailsScreenComposable(
     var showEditManualTxDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteManualTxDialog by rememberSaveable { mutableStateOf(false) }
     var showUpgradeDialog by rememberSaveable { mutableStateOf(false) }
-    var removeFromCatId by rememberSaveable { mutableStateOf(-1) }
-    var removeKeywordId by rememberSaveable { mutableStateOf(-1) }
-    var showRemoveFromCatConfirm by rememberSaveable { mutableStateOf(false) }
     var showDeleteAliasDialog by rememberSaveable { mutableStateOf(false) }
     var showInvoiceOptionsDialog by rememberSaveable { mutableStateOf(false) }
     var showLinkModeDialog by rememberSaveable { mutableStateOf(false) }
@@ -464,29 +461,6 @@ fun TransactionDetailsScreenComposable(
             dismissLabel = "Not now",
             onConfirm = { showUpgradeDialog = false },
             onDismiss = { showUpgradeDialog = false }
-        )
-    }
-
-    // remove from category confirm dialog
-    if (showRemoveFromCatConfirm) {
-        PermissionExplanationDialog(
-            icon = R.drawable.remove,
-            title = "Remove from Category?",
-            explanation = "This will remove this transaction's entity from the selected category.",
-            confirmLabel = "Remove",
-            dismissLabel = "Cancel",
-            onConfirm = {
-                if (removeFromCatId != -1 && removeKeywordId != -1)
-                    viewModel.removeFromCategory(removeFromCatId, removeKeywordId)
-                showRemoveFromCatConfirm = false
-                removeFromCatId = -1
-                removeKeywordId = -1
-            },
-            onDismiss = {
-                showRemoveFromCatConfirm = false
-                removeFromCatId = -1
-                removeKeywordId = -1
-            }
         )
     }
 
@@ -877,16 +851,6 @@ fun TransactionDetailsScreenComposable(
                     onCategoryClick = { cat, index ->
                         if (!uiState.isPremium && index > 0) showUpgradeDialog = true
                         else navigateToCategoryScreen(cat.id.toString())
-                    },
-                    onCategoryRemove = { cat ->
-                        val kwId = uiState.allCategories
-                            .find { it.category.id == cat.id }
-                            ?.keyWords?.find { it.keyword == uiState.transaction.entity }?.id ?: -1
-                        if (kwId != -1) {
-                            removeFromCatId = cat.id
-                            removeKeywordId = kwId
-                            showRemoveFromCatConfirm = true
-                        }
                     }
                 )
             }
@@ -917,7 +881,6 @@ private fun MpesaTransactionContent(
     onAddToCategory: () -> Unit,
     onPrintInvoice: () -> Unit,
     onCategoryClick: (cat: ItemCategory, index: Int) -> Unit,
-    onCategoryRemove: (cat: ItemCategory) -> Unit,
 ) {
     val context = LocalContext.current
     val tx = uiState.transaction
@@ -1200,22 +1163,6 @@ private fun MpesaTransactionContent(
                                     Spacer(Modifier.width(5.dp))
                                 }
                                 Text(cat.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = contentCol)
-                                Spacer(Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .background(contentCol.copy(alpha = 0.15f))
-                                        .clickable { onCategoryRemove(cat) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painterResource(R.drawable.baseline_clear_24),
-                                        contentDescription = "Remove",
-                                        modifier = Modifier.size(12.dp),
-                                        tint = contentCol
-                                    )
-                                }
                             }
                         }
                     }

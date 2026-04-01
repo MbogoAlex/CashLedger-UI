@@ -52,7 +52,13 @@ data class MembersAdditionScreenUiState(
     val addAllMembersThatContainEntity: Boolean = false,
     val categoryId: String = "",
     val loadingStatus: LoadingStatus = LoadingStatus.INITIAL,
-    val manualMemberAdded: Boolean = false
+    val manualMemberAdded: Boolean = false,
+    // entity -> true=link all, false=select specific transactions
+    val memberLinkMode: Map<String, Boolean> = emptyMap(),
+    // entity -> all transactions for that contact (loaded on demand for "select" mode)
+    val memberTransactions: Map<String, List<TransactionItem>> = emptyMap(),
+    // entity -> set of selected transaction IDs (used when linkedMember=false)
+    val selectedTransactionsByEntity: Map<String, Set<Int>> = emptyMap(),
 )
 @RequiresApi(Build.VERSION_CODES.O)
 class MembersAdditionScreenViewModel(
@@ -73,15 +79,50 @@ class MembersAdditionScreenViewModel(
     val categoryKeywords = mutableStateListOf<String>()
     private val categoryId: String? = savedStateHandle[MembersAdditionScreenDestination.categoryId]
 
-    // transactionId -> isLinked (true = link all, false = this transaction only)
-    private val memberLinkMode = mutableMapOf<Int, Boolean>()
+    // entity -> isLinked (true = link all, false = select specific transactions)
+    private val memberLinkModeInternal = mutableMapOf<String, Boolean>()
+    // entity -> selected transaction IDs when in select mode
+    private val selectedTransactionsInternal = mutableMapOf<String, MutableSet<Int>>()
 
     private val endDate = LocalDate.now().toString()
 
     private var filterJob: Job? = null
 
-    fun setMemberLinkMode(transactionId: Int, isLinked: Boolean) {
-        memberLinkMode[transactionId] = isLinked
+    /** Called from review screen when user switches link mode for a contact */
+    fun setMemberLinkMode(entity: String, isLinked: Boolean) {
+        memberLinkModeInternal[entity] = isLinked
+        if (isLinked) {
+            // Clear any previously selected transactions if switching back to link-all
+            selectedTransactionsInternal.remove(entity)
+        }
+        _uiState.update {
+            it.copy(
+                memberLinkMode = memberLinkModeInternal.toMap(),
+                selectedTransactionsByEntity = selectedTransactionsInternal.mapValues { e -> e.value.toSet() }
+            )
+        }
+        // When switching to select mode, load transactions for this entity
+        if (!isLinked) loadTransactionsForMember(entity)
+    }
+
+    /** Toggle a specific transaction in/out of the selected set for a contact */
+    fun toggleTransactionSelection(entity: String, transactionId: Int) {
+        val set = selectedTransactionsInternal.getOrPut(entity) { mutableSetOf() }
+        if (transactionId in set) set.remove(transactionId) else set.add(transactionId)
+        _uiState.update {
+            it.copy(selectedTransactionsByEntity = selectedTransactionsInternal.mapValues { e -> e.value.toSet() })
+        }
+    }
+
+    /** Load all transactions for a contact's entity (for the transaction picker) */
+    private fun loadTransactionsForMember(entity: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val txs = transactionService.getTransactionsByEntity(entity).first()
+                .map { it.toTransactionItem() }
+            val current = _uiState.value.memberTransactions.toMutableMap()
+            current[entity] = txs
+            _uiState.update { it.copy(memberTransactions = current) }
+        }
     }
 
     fun updateSearchText(searchText: String) {
@@ -100,7 +141,7 @@ class MembersAdditionScreenViewModel(
     fun addMember(transaction: TransactionItem) {
         membersToAdd.add(transaction)
         membersToDisplay.remove(transaction)
-        memberLinkMode[transaction.transactionId ?: 0] = true
+        memberLinkModeInternal[transaction.entity] = true  // default: link all
         if(transaction.transactionAmount < 0) {
             addedKeywords.add(transaction.recipient)
         } else if(transaction.transactionAmount > 0) {
@@ -109,7 +150,8 @@ class MembersAdditionScreenViewModel(
         _uiState.update {
             it.copy(
                 membersToAdd = membersToAdd,
-                membersToDisplay = membersToDisplay
+                membersToDisplay = membersToDisplay,
+                memberLinkMode = memberLinkModeInternal.toMap()
             )
         }
     }
@@ -117,7 +159,8 @@ class MembersAdditionScreenViewModel(
     fun removeMember(transaction: TransactionItem) {
         membersToAdd.remove(transaction)
         membersToDisplay.add(transaction)
-        memberLinkMode.remove(transaction.transactionId ?: 0)
+        memberLinkModeInternal.remove(transaction.entity)
+        selectedTransactionsInternal.remove(transaction.entity)
         if(transaction.transactionAmount < 0) {
             addedKeywords.remove(transaction.recipient)
         } else if(transaction.transactionAmount > 0) {
@@ -126,7 +169,9 @@ class MembersAdditionScreenViewModel(
         _uiState.update {
             it.copy(
                 membersToAdd = membersToAdd,
-                membersToDisplay = membersToDisplay
+                membersToDisplay = membersToDisplay,
+                memberLinkMode = memberLinkModeInternal.toMap(),
+                selectedTransactionsByEntity = selectedTransactionsInternal.mapValues { e -> e.value.toSet() }
             )
         }
     }
@@ -226,7 +271,7 @@ class MembersAdditionScreenViewModel(
                 }
 
                 for(transaction in uiState.value.membersToAdd) {
-                    val isLinked = memberLinkMode[transaction.transactionId ?: 0] ?: true
+                    val isLinked = memberLinkModeInternal[transaction.entity] ?: true
                     val query = transactionService.createUserTransactionQuery(
                         userId = uiState.value.userDetails.backUpUserId.toInt(),
                         entity = transaction.entity,
@@ -254,6 +299,7 @@ class MembersAdditionScreenViewModel(
                         }
                     }
                     if (isLinked) {
+                        // Link all: bulk-insert every transaction for this entity
                         val transactions = transactionService.getUserTransactions(query).first().map { it.toTransactionItem() }
                         for(transaction2 in transactions) {
                             val transactionCategoryCrossRef = TransactionCategoryCrossRef(
@@ -263,23 +309,20 @@ class MembersAdditionScreenViewModel(
                             try {
                                 categoryService.insertCategoryTransactionMapping(transactionCategoryCrossRef)
                             } catch (e: Exception) {
-                                _uiState.update {
-                                    it.copy(
-                                        loadingStatus = LoadingStatus.FAIL
-                                    )
-                                }
                                 Log.e("AddMembersToCategoryException", e.toString())
                             }
                         }
                     } else {
-                        // Transaction-only: insert only the single selected transaction
-                        transaction.transactionId?.let { txId ->
-                            val transactionCategoryCrossRef = TransactionCategoryCrossRef(
-                                categoryId = uiState.value.categoryId.toInt(),
-                                transactionId = txId
-                            )
+                        // Select mode: insert only the user-checked transactions
+                        val selectedIds = selectedTransactionsInternal[transaction.entity] ?: emptySet()
+                        for (txId in selectedIds) {
                             try {
-                                categoryService.insertCategoryTransactionMapping(transactionCategoryCrossRef)
+                                categoryService.insertCategoryTransactionMapping(
+                                    TransactionCategoryCrossRef(
+                                        categoryId = uiState.value.categoryId.toInt(),
+                                        transactionId = txId
+                                    )
+                                )
                             } catch (e: Exception) {
                                 Log.e("AddMembersToCategoryException", e.toString())
                             }
